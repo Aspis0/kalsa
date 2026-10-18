@@ -356,6 +356,39 @@ async fn an_address_over_the_cap_is_refused_and_nothing_is_held() {
     );
 }
 
+/// **The same cap, on the road that never met the route.** A form's submission is
+/// caught off the page before it asks the network for anything, so it never
+/// reaches the handler that refuses an over-long address — and without a cap of
+/// its own it would build a card out of one, from a host, a query read pair by
+/// pair and a path shown whole. A card that nobody's screen can hold is a card
+/// nobody can answer, so the write is refused here too, with the same line.
+#[tokio::test]
+async fn a_caught_submission_with_an_address_over_the_cap_is_refused_and_nothing_is_held() {
+    let (base, _arrived) = common::serve(&[common::page(SHOP)]).await;
+    let (_sessions, page, holds) = common::confirming_window("confirm-long-form", &base).await;
+    page.goto(&base, None).await.expect("the shop loads");
+
+    posting(
+        &page,
+        &base,
+        "application/x-www-form-urlencoded",
+        &format!("/order?q={}", "a".repeat(hold::MAX_URL)),
+        r#"<input name="colour" value="blue">"#,
+    )
+    .await;
+    let outcomes = refused_after(&holds, 30).await;
+
+    assert_eq!(
+        outcomes,
+        vec![hold::Outcome::Unrenderable(hold::TOO_LONG.to_owned())],
+        "refused with the same line the route refuses it with"
+    );
+    assert!(
+        holds.ids().await.is_empty(),
+        "and nothing is held: there is no card to ask about, so there is nothing to send on"
+    );
+}
+
 /// **The id is spent before dispatch and never retried.** The second press finds
 /// nothing, so a person who presses twice has sent one request.
 #[tokio::test]

@@ -401,6 +401,8 @@ fn held(device: u32, cred: &str, request: &str, id: &str) -> Held {
         id: id.to_string(),
         method: "POST".to_string(),
         url: "https://shop.example/order".to_string(),
+        // **A real card names where it goes**, and the phone is shown that.
+        destination: Some(pending::Destination { host: "shop.example".to_string(), port: None, secure: true }),
         fields: vec![],
         created: Instant::now(),
     }
@@ -436,7 +438,14 @@ fn bridge_with_two_phones() -> Bridge {
 const NINTH: usize = 8;
 
 fn routed(device: u32, _request: &str, id: &str) -> pending::Card {
-    pending::card_of(id, "POST", "https://shop.example/order", &cards::conversation_of(DeviceId::new(device)), vec![])
+    pending::card_of(
+        id,
+        "POST",
+        "https://shop.example/order",
+        &cards::conversation_of(DeviceId::new(device)),
+        vec![],
+        Some(pending::Destination { host: "shop.example".to_owned(), port: None, secure: true }),
+    )
 }
 
 /// **A phone's card is shown to that phone, and to no one else, once.**
@@ -480,7 +489,18 @@ fn a_card_goes_to_the_phone_that_raised_it_once() {
 
     let mut sent: Vec<ChatEvent> = events_a.try_iter().collect();
     assert_eq!(sent.len(), 1, "the phone was handed its card {} times", sent.len());
-    assert_eq!(sent.remove(0).name, "browser_card");
+    let said = sent.remove(0);
+    assert_eq!(said.name, "browser_card");
+    // **Where it goes, told to the phone rather than worked out there.** A phone
+    // that parses `url` itself can show a different host than the request goes to,
+    // and this is the three fields that stop it. `url` stays beside them for the
+    // phones that know no better (docs §3.1).
+    assert_eq!(
+        said.data["destination"],
+        serde_json::json!({"host": "shop.example", "port": null, "secure": true}),
+        "the destination the sidecar parsed, and only the three fields of it"
+    );
+    assert_eq!(said.data["url"], "https://shop.example/order", "and the address is still there, whole");
     // The card is not on the second phone's socket, which is the rest of the
     // claim, and it is held for the phone that raised it and for no one else.
     assert!(events_b.try_recv().is_err(), "a card reached a phone that did not raise it");
@@ -649,6 +669,7 @@ fn an_outcome_with_nobody_listening_is_handed_over_after_accepted_on_the_next_tu
         "https://shop.example/order",
         &cards::conversation_of(DeviceId::new(1)),
         vec![],
+        Some(pending::Destination { host: "shop.example".to_owned(), port: None, secure: true }),
     )]);
     assert_eq!(lock(&bridge.waiting).get(&DeviceId::new(1)).map(Vec::len), Some(1), "an outcome with nowhere to go was dropped");
 
@@ -690,6 +711,7 @@ fn a_mail_read_leaves_the_queue_alone_for_the_next_turn() {
         "https://shop.example/order",
         &cards::conversation_of(DeviceId::new(1)),
         vec![],
+        Some(pending::Destination { host: "shop.example".to_owned(), port: None, secure: true }),
     )]);
 
     let events = open_for(&bridge, DeviceId::new(1), "req-read", "read");
@@ -725,6 +747,7 @@ fn the_queue_of_a_phone_that_is_not_listening_is_bounded() {
             "https://shop.example/order",
             &cards::conversation_of(DeviceId::new(1)),
             vec![],
+            Some(pending::Destination { host: "shop.example".to_owned(), port: None, secure: true }),
         )]);
     }
     let waiting = lock(&bridge.waiting).get(&DeviceId::new(1)).cloned().unwrap_or_default();
@@ -751,6 +774,7 @@ fn a_forgotten_phones_queued_outcomes_go_with_it() {
         "https://shop.example/order",
         &cards::conversation_of(DeviceId::new(1)),
         vec![],
+        Some(pending::Destination { host: "shop.example".to_owned(), port: None, secure: true }),
     )]);
     assert_eq!(lock(&bridge.waiting).get(&DeviceId::new(1)).map(Vec::len), Some(1));
 

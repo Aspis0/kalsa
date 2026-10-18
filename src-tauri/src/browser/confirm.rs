@@ -144,9 +144,27 @@ fn cards_of(listed: &str) -> Vec<Card> {
                     .collect()
             })
             .unwrap_or_default();
-        Some(pending::card_of(&id, &method, &url, &conversation_of(card), fields))
+        Some(pending::card_of(&id, &method, &url, &conversation_of(card), fields, destination_of(card)))
     })
     .collect()
+}
+
+/// **The sidecar's own reading of the address, or nothing.** Read from what it
+/// said and never worked out here: this file mirrors a card, and a mirror that
+/// parses its own copy of the address is a second answer to a question the
+/// sidecar has already answered once. A card that came without one keeps no
+/// destination, which is what stops a window offering to send it.
+fn destination_of(card: &Value) -> Option<pending::Destination> {
+    let said = card.get("destination")?;
+    let host = string_of(said, "host")?;
+    Some(pending::Destination {
+        host: host.to_ascii_lowercase(),
+        // **Only a real port**, and only the parser's own: an address that names
+        // no port — or names the one its scheme uses — has none, and a window
+        // shown `null` is showing the address as it was written.
+        port: said.get("port").and_then(Value::as_u64).and_then(|port| u16::try_from(port).ok()),
+        secure: said.get("secure").and_then(Value::as_bool).unwrap_or(false),
+    })
 }
 
 fn string_of(value: &Value, key: &str) -> Option<String> {
@@ -360,7 +378,67 @@ mod tests {
     use super::{cards_of, host_only, outcome_of, pending, split_by_window, Answered, Card, CODES, DECLINED, UNCLEAR};
     use std::time::Instant;
 
-    /// **A phone's write is drawn on that phone and on no desktop.** The split is
+    /// One card, so a test can read a single one without a length check on every
+    /// field of it.
+    fn owned(cards: Vec<Card>) -> [Card; 1] {
+        let mut cards = cards;
+        assert_eq!(cards.len(), 1, "one card");
+        [cards.remove(0)]
+    }
+
+    /// A destination as the sidecar would have sent one, for the cards these
+    /// tests build by hand.
+    fn at(host: &str) -> Option<pending::Destination> {
+        Some(pending::Destination { host: host.to_owned(), port: None, secure: true })
+    }
+
+    /// **The destination is the sidecar's own reading, copied and not worked
+    /// out.** This file mirrors a card: parsing `url` again here would be a
+    /// second answer to a question the sidecar has already answered once, and the
+    /// two can differ on a backslash, an extra `@` or a space.
+    #[test]
+    fn the_card_carries_the_destination_the_sidecar_sent_and_never_works_one_out() {
+        let cards = cards_of(
+            r#"[{"id":"c1","method":"POST","url":"https://evil.example/","conversation":"chat-a",
+                "destination":{"host":"SHOP.Example","port":null,"secure":true},
+                "fields":[]},
+               {"id":"c2","method":"GET","url":"https://shop.example/x","conversation":"chat-a","fields":[]}]"#,
+        );
+        assert_eq!(
+            cards[0].destination,
+            Some(pending::Destination { host: "shop.example".to_owned(), port: None, secure: true }),
+            "the host as it arrives, lower cased: a host is not case sensitive"
+        );
+        assert_eq!(
+            cards[1].destination, None,
+            "and a card that came without one has none — its address is never parsed here, whatever it reads"
+        );
+
+        // **A port is the one the sidecar named**, and a port it did not name
+        // stays not named rather than becoming the scheme's default.
+        let [named] = owned(cards_of(
+            r#"[{"id":"c1","method":"GET","url":"https://a.example/","conversation":"c","fields":[],
+                "destination":{"host":"a.example","port":8443,"secure":true}}]"#,
+        ));
+        let named_port = named.destination.as_ref().expect("sent").port;
+        assert_eq!(named_port, Some(8443));
+        let [default] = owned(cards_of(
+            r#"[{"id":"c1","method":"GET","url":"https://a.example/","conversation":"c","fields":[],
+                "destination":{"host":"a.example","port":null,"secure":true}}]"#,
+        ));
+        assert_eq!(default.destination.expect("sent").port, None, "a default port is no port");
+
+        // **It crosses the wire with those three names and nothing else**, which
+        // is what a phone reads.
+        let sent = serde_json::to_value(named.destination.clone().expect("sent")).expect("three fields serialize");
+        assert_eq!(
+            sent,
+            serde_json::json!({"host": "a.example", "port": 8443, "secure": true}),
+            "the phone's shape, exactly"
+        );
+    }
+
+    /// **A phone's write is drawn on that phone and on no desktop.**    /// **A phone's write is drawn on that phone and on no desktop.** The split is
     /// the conversation the card was stamped with, and the rule is the prefix: a
     /// desktop conversation is a UUID and can never begin with it, so the only
     /// cards that leave for a phone are cards a phone asked for.
@@ -471,7 +549,7 @@ mod tests {
     fn a_card_is_answered_only_in_the_conversation_that_caused_it() {
         let pending = pending::Pending::default();
         pending.replace_with(
-            vec![pending::card_of("c1", "POST", "https://a.example/x", "chat-a", Vec::new())],
+            vec![pending::card_of("c1", "POST", "https://a.example/x", "chat-a", Vec::new(), at("a.example"))],
             Instant::now(),
         );
         assert_eq!(
@@ -544,7 +622,7 @@ mod tests {
         let pending = pending::Pending::default();
         let held: Vec<_> = [("c1", "chat-a"), ("c2", "chat-a"), ("c3", "chat-b")]
             .into_iter()
-            .map(|(id, chat)| pending::card_of(id, "POST", "https://a.example/x", chat, Vec::new()))
+            .map(|(id, chat)| pending::card_of(id, "POST", "https://a.example/x", chat, Vec::new(), at("a.example")))
             .collect();
         pending.replace_with(held, Instant::now());
         assert_eq!(pending.cards().len(), 3);
@@ -576,7 +654,7 @@ mod tests {
     fn a_phones_card_goes_to_that_phone_and_not_to_the_window() {
         let held: Vec<Card> = [("c1", "chat-a"), ("p1", "phone:1234")]
             .into_iter()
-            .map(|(id, chat)| pending::card_of(id, "POST", "https://a.example/x", chat, Vec::new()))
+            .map(|(id, chat)| pending::card_of(id, "POST", "https://a.example/x", chat, Vec::new(), at("a.example")))
             .collect();
         let (for_phones, for_window) = split_by_window(held);
         assert_eq!(for_window.iter().map(|card| card.id.as_str()).collect::<Vec<&str>>(), vec!["c1"]);

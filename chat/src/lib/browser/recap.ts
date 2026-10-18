@@ -97,7 +97,10 @@ export function recapOf(runs: ToolRun[], outcomes: Outcome[], waiting: number): 
   for (const one of outcomes) {
     if (one.code === "sent") {
       recap.sent += 1;
-      if (one.host !== "") recap.sentTo.push(one.host);
+      // **Cut to the same length the opened host is.** A host is the one thing in
+      // this record that can be any length at all, and the phone draws the line at
+      // a fixed size: two long names here would be more than the line.
+      if (one.host !== "") recap.sentTo.push(one.host.slice(0, HOST_CHARS));
       continue;
     }
     recap[one.code] += 1;
@@ -193,6 +196,12 @@ function refOf(argumentsJson: string): string | null {
   }
 }
 
+/** How much of a host name this line carries. **A line, not a rule about
+    hosts**: the phone draws it at a fixed size and drops a larger event whole,
+    so the record is cut to what can be drawn — and what is cut is the tail of a
+    name the person can still place. */
+const HOST_CHARS = 60;
+
 /** The host an open asked for, never where it landed: **only the open's own
     structured answer can say that**, and the sidecar names no address in one —
     its sentence is prose and prose is not an interface. So the line says what
@@ -203,7 +212,7 @@ function hostOf(argumentsJson: string): string | null {
     if (parsed === null || typeof parsed !== "object") return null;
     const url = (parsed as { url?: unknown }).url;
     const safe = publicHttpUrl(url);
-    return safe === null ? null : new URL(safe).hostname.slice(0, 60);
+    return safe === null ? null : new URL(safe).hostname.slice(0, HOST_CHARS);
   } catch {
     return null;
   }

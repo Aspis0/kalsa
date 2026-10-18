@@ -36,6 +36,11 @@ export const CONFIRM = {
   decline: "Non inviare",
   asking: "Invio…",
   none: "Nessun campo: solo la richiesta.",
+  /** Una scheda senza destinazione. Detto al posto di un host: questo computer
+   *  non è riuscito a dire dove andrebbe la richiesta, e un nome indovinato
+   *  sarebbe l'unica cosa della scheda che non può essere un'ipotesi. */
+  nowhere: "Da qualche parte che questo computer non sa dire.",
+  nowhereWhy: "Qui non si può inviare niente. Puoi comunque rifiutare.",
   paused: "In pausa",
   resume: "Riprendi",
   pauseHint: "La pausa ferma la prossima azione. Ciò che è già stato inviato non si richiama.",

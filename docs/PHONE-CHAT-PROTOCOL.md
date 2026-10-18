@@ -138,6 +138,7 @@ A credential that is not paired reaches none of this: there is no turn, so there
   "card_id": "0123456789abcdef0123456789abcdef",
   "method": "POST",
   "url": "https://shop.example/order",
+  "destination": {"host": "shop.example", "port": null, "secure": true},
   "fields": [
     {"name": "custname", "value": "Giulia", "secret": false, "label": "Nome e cognome"},
     {"name": "passphrase_2", "value": "hunter2", "secret": true}
@@ -151,7 +152,11 @@ A credential that is not paired reaches none of this: there is no turn, so there
 |---|---|---|
 | `card_id` | string, 32 lowercase hex | identifies the card; one answer, ever |
 | `method` | string ≤ 256 | the request's method |
-| `url` | string ≤ 8 KiB | where it would go. **Query values of a secret are shown as dots** |
+| `url` | string ≤ 8 KiB | the address, whole, for a phone that parses it. **Query values of a secret are shown as dots** |
+| `destination` | object, **optional** | **where it goes, as this computer parsed it.** Absent when it could not name a host — see below |
+| `destination.host` | string 1–253 bytes | the host **in the form the resolver is given: ASCII, punycode, lower case** |
+| `destination.port` | integer 1–65535 or `null`, **optional** | `null` when the address names no port, or names the one its own scheme uses anyway |
+| `destination.secure` | boolean | whether the connection is encrypted — `https`, or nothing else |
 | `fields` | array ≤ 200 | what the person typed, oldest first |
 | `fields[].name` | string ≤ 256 | the field's name |
 | `fields[].value` | string ≤ 8 KiB | **the real value, always** |
@@ -167,6 +172,29 @@ out reads it as not yet arrived — in both cases without ever pressing anything
 crosses is a **duration**, and the phone counts it down from the moment the card arrived,
 which is the only moment it knows for certain. `asked_at_ms` stays for logs and for the
 computer; **do not compute a deadline from it.**
+
+#### The destination: shown, not worked out
+
+**`destination` is what this computer decided, and the phone shows that.** A card that
+names where a request goes has to be right, and the way to be right is not for each window to
+parse `url` itself: two parsers of one address are two answers, and they disagree about a
+backslash, an extra `@`, surrounding spaces and an international name — all of which a browser
+resolves one way and a hand-written rule does not. A card showing `shop.example` over a request
+going somewhere else is the one card that must never exist.
+
+**So the computer parses it once**, with the same parser the browser uses, and sends three
+fields. **The phone draws the host exactly as it arrives** — punycode stays punycode, lower case
+stays lower case — and shows a port only when `port` is not `null`. It must **not** re-parse
+`url`, re-case the host, re-encode the punycode, or show a default port it worked out itself.
+`url` stays in the card for the phones that know no better, and a phone that reads only `url` and
+ignores this field keeps working exactly as it did.
+
+**A card with no `destination` cannot be sent, anywhere.** The computer could not name a host, so
+there is nothing for the person to be agreeing to; the desktop draws that card without a Send
+button and the sidecar refuses a send answer for it, so a phone that presses Send anyway is told
+the request went nowhere. **It can still be declined** — turning a request down needs no
+destination at all. A phone draws such a card with **no host** and, if the protocol lets it
+answer, with no way to answer yes.
 
 **The address is capped at 8 KiB, and the cap is the computer's, not a second number.**
 A longer address is refused before it is ever held — there would be no card to ask about —

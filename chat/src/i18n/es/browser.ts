@@ -36,6 +36,11 @@ export const CONFIRM = {
   decline: "No enviarlo",
   asking: "Enviando…",
   none: "Sin campos: solo la petición.",
+  /** Una tarjeta sin destino. Se dice en lugar de un host: este ordenador no ha
+   *  podido nombrar adónde iría la petición, y un nombre adivinado sería lo
+   *  único de la tarjeta que no puede ser una suposición. */
+  nowhere: "A algún sitio que este ordenador no sabe nombrar.",
+  nowhereWhy: "Aquí no se puede enviar nada. Puedes rechazarla igualmente.",
   paused: "En pausa",
   resume: "Reanudar",
   pauseHint: "Pausar detiene la próxima acción. Lo ya enviado no se puede retirar.",

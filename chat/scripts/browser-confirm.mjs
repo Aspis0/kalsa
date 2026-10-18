@@ -34,7 +34,7 @@ const {
   browserPressPause,
   browserDots,
   currentBrowserCards,
-  browserDestinationOf,
+  browserDestinationLabel,
   settledBrowserCards,
   isBrowserPaused,
   isBrowserWindowOpen,
@@ -92,10 +92,25 @@ const CARD = {
   method: "POST",
   url: "https://shop.example/order",
   conversation: CHAT,
+  // **The destination the sidecar's parser gave it.** The window never works
+  // this out from `url` — that is the whole of this object.
+  destination: { host: "shop.example", port: null, secure: true },
   fields: [
     { name: "city", value: "Bologna", secret: false, label: "La città" },
     { name: "passphrase_2", value: "the-real-password", secret: true },
   ],
+};
+
+// **A card the sidecar could not name a host for.** It travels without a
+// destination and is drawn with no way to send it: there is nothing for a person
+// to be agreeing to.
+const NOWHERE_CARD = {
+  id: "c0",
+  method: "POST",
+  url: "not-an-address",
+  conversation: CHAT,
+  destination: null,
+  fields: [],
 };
 
 // **A write whose address carries the data.** The card shows the host and not
@@ -305,17 +320,45 @@ try {
     equal("and the card is off the window at once, so a second press finds nothing", currentBrowserCards().length, 0);
     equal("the page's own words for a field reach the card, and a field with none has none", [cards[0].fields[0].label, cards[0].fields[1].label], ["La città", null]);
     equal("an answered card is one line, and its fields leave the window with it", settledBrowserCards(CHAT).map((one) => one.id), ["c1"]);
+    // **The host is what the sidecar said, and what it said is shown as it is.**
+    // There is no URL parser left in this window: a second parser is a second
+    // answer, and these are the answers the browser's own gave.
     equal(
-      "the card names a host, with a port only when it is not the scheme's default",
-      [browserDestinationOf("https://shop.example/order?x=1").host, browserDestinationOf("https://shop.example:443/a").host, browserDestinationOf("http://shop.example:8080/a").host],
-      ["shop.example", "shop.example", "shop.example:8080"],
+      "the card names the host the sidecar parsed, with the port it named",
+      [
+        browserDestinationLabel({ host: "shop.example", port: null, secure: true }),
+        browserDestinationLabel({ host: "shop.example", port: 8080, secure: false }),
+      ],
+      ["shop.example", "shop.example:8080"],
     );
-    equal(
-      "and says when the connection is plain http, and only then",
-      [browserDestinationOf("https://shop.example/").insecure, browserDestinationOf("http://shop.example/").insecure],
-      [false, true],
-    );
+    equal("and a card with no destination has no host to name", browserDestinationLabel(null), "");
     check("and what comes back is a code and a host, not a sentence", said === outcome, said);
+
+    // **A card with no destination has no Send, and says so in one line.** The
+    // sidecar refuses the press as well — the button is gone so the decision is
+    // never offered, not so a refusal can catch it later.
+    noteBrowserCards([NOWHERE_CARD]);
+    const nowhere = currentBrowserCards().find((one) => one.id === "c0");
+    check("a card with no destination arrives with none", nowhere.destination === null, JSON.stringify(nowhere.destination));
+    equal("and the window draws no host for it, having none to draw", browserDestinationLabel(nowhere.destination), "");
+    equal(
+      "a card with no destination has no destination the sidecar did not send",
+      nowhere.destination !== null ? "shown" : "none",
+      "none",
+    );
+    // **A destination that is not one is no destination.** The window draws no
+    // host it did not receive whole, whatever the frame carried.
+    for (const [why, bad] of [
+      ["an empty host", { host: "", port: null, secure: true }],
+      ["a port no network has", { host: "shop.example", port: 70000, secure: true }],
+      ["a port that is not a number", { host: "shop.example", port: "8080", secure: true }],
+      ["a host that is not a string", { host: 42, port: null, secure: true }],
+    ]) {
+      noteBrowserCards([{ ...NOWHERE_CARD, id: "bad", destination: bad }]);
+      const read = currentBrowserCards().find((one) => one.id === "bad");
+      check(`and ${why} is not a destination`, read.destination === null, JSON.stringify(read.destination));
+    }
+    noteBrowserCards([]);
 
     // A second press of the same button — the card came off on the first, so
     // there is nothing to press about and nothing is sent.

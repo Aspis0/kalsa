@@ -19,7 +19,7 @@ use std::time::Instant;
 
 use kalsa_door::DeviceId;
 
-use crate::browser::pending::{Field, ASKED_FOR};
+use crate::browser::pending::{Destination, Field, ASKED_FOR};
 
 use super::drafts::Owner;
 
@@ -36,6 +36,12 @@ pub(super) struct Held {
     pub(super) id: String,
     pub(super) method: String,
     pub(super) url: String,
+    /// **Where it goes, as the sidecar's parser read the address.** It is copied
+    /// here rather than worked out again: a phone parsing `url` with a rule of its
+    /// own is a phone that can show one host over a request going to another. The
+    /// three fields are the protocol's §3.1 `destination`, and a phone draws them
+    /// as they are.
+    pub(super) destination: Option<Destination>,
     pub(super) fields: Vec<Field>,
     /// When it was first shown to the phone, which is also when the sidecar
     /// started counting: both are the same five minutes from the same moment.

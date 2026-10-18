@@ -44,6 +44,15 @@ const VALUE_BYTES: usize = 8 * 1024;
 /// One field's label: the sidecar caps it at sixty characters, and four bytes is the
 /// most a character takes, so this is the same cap in the bytes this road carries.
 const LABEL_BYTES: usize = 60 * 4;
+/// **A host's own cap**, which is what makes one: 253 bytes is the longest a DNS
+/// name can be, and it is the rule rather than a frame's size that says whether a
+/// string is a host at all.
+const HOST_BYTES: usize = 253;
+/// **One line of recap.** A phone draws it in a single quiet line and drops a
+/// larger event whole, so a line it could not draw anyway is a line that would
+/// have taken the rest of the event down with it. 500 bytes is a line in any of
+/// the five languages, with room for two full host names and every outcome kind.
+const RECAP_BYTES: usize = 500;
 /// The address on a card. **The sidecar's own number** — [`hold::MAX_URL`] —
 /// repeated here because this is the other end of the wire: a card at every cap
 /// has to fit in one phone frame, and an address nobody reads is not worth the
@@ -92,7 +101,7 @@ pub(super) fn check(
         // **What Kalsa did, in one line** (docs §3). Text and nothing else: it
         // is drawn as it arrives, so a shape this check does not name is a line
         // the phone cannot draw and must not show a field of as if it could.
-        "recap" => text(data, "text", TEXT_BYTES).is_some(),
+        "recap" => text(data, "text", RECAP_BYTES).is_some(),
         "error" => text(data, "code", CODE_BYTES).is_some(),
         "done" => data.is_object(),
         _ => false,
@@ -187,6 +196,36 @@ fn browser_card(data: &Value) -> bool {
             .get("fields")
             .and_then(Value::as_array)
             .is_some_and(|fields| fields.len() <= MAX_FIELDS && fields.iter().all(field))
+        // **No destination is a card this computer could not name a host for**
+        // (docs §3.1), and it travels as `null`: a phone that is sent a
+        // destination made up here would be showing a host nobody parsed.
+        && destination(data.get("destination"))
+}
+
+/// A host, the port when there is one, and whether the connection is secure.
+///
+/// **Bounded by what a host can be, not by what a frame should carry.** A DNS
+/// name is at most 253 bytes and a port is a number from 1 to 65535 or nothing
+/// at all — anything else is not a host, and the page is the WebView, so this is
+/// checked before a phone draws it.
+fn destination(said: Option<&Value>) -> bool {
+    match said {
+        // **Missing and null are one thing here.** The wire always carries the key
+        // — `json!` turns a `None` into `null` — and the phone reads a null
+        // destination as no destination, the same as an absent one.
+        None | Some(Value::Null) => true,
+        Some(said) => {
+            text(said, "host", HOST_BYTES).is_some_and(|host| !host.is_empty())
+                && matches!(said.get("secure"), Some(Value::Bool(_)))
+                && match said.get("port") {
+                    None | Some(Value::Null) => true,
+                    Some(Value::Number(port)) => {
+                        port.as_u64().is_some_and(|port| (1..=65_535).contains(&port))
+                    }
+                    Some(_) => false,
+                }
+        }
+    }
 }
 
 fn field(one: &Value) -> bool {
@@ -240,7 +279,8 @@ mod tests {
     use serde_json::{json, Value};
 
     use super::{
-        check, reply_id, ADDRESS_BYTES, BAD_EVENT, BODY_BYTES, LABEL_BYTES, REPLY_PIN, SUBJECT_BYTES, WRONG_KIND,
+        check, reply_id, ADDRESS_BYTES, BAD_EVENT, BODY_BYTES, HOST_BYTES, LABEL_BYTES, RECAP_BYTES, REPLY_PIN,
+        SUBJECT_BYTES, WRONG_KIND,
     };
 
     fn card_set(item: Value) -> Value {
@@ -330,6 +370,80 @@ mod tests {
         assert_eq!(check("turn", None, "browser_card", &card_with(not_words)), Err(BAD_EVENT), "not a string");
         let too_long = json!({"name": "city", "value": "Bologna", "secret": false, "label": "x".repeat(LABEL_BYTES + 1)});
         assert_eq!(check("turn", None, "browser_card", &card_with(too_long)), Err(BAD_EVENT), "over the cap");
+    }
+
+    /// **The destination is checked here, on this road, because the page is the
+    /// WebView.** A phone draws this as the place the request goes, so a host with
+    /// nothing in it, a host longer than a name can be, or a port no network has
+    /// is refused rather than drawn. **Missing and `null` are both allowed**:
+    /// it is a card this computer could not name a host for, and it travels with
+    /// no destination on purpose.
+    #[test]
+    fn a_browser_card_destination_is_a_bare_host_a_real_port_or_nothing() {
+        let with = |destination: Value| {
+            json!({
+                "card_id": "c1",
+                "method": "POST",
+                "url": "https://shop.example/order",
+                "destination": destination,
+                "fields": [],
+                "asked_at_ms": 1,
+                "answer_in_ms": 1,
+            })
+        };
+        assert!(
+            check("turn", None, "browser_card", &with(json!({"host": "shop.example", "port": null, "secure": true}))).is_ok(),
+            "no port is a real answer"
+        );
+        assert!(
+            check("turn", None, "browser_card", &with(json!({"host": "a.example", "port": 8443, "secure": false}))).is_ok(),
+            "and a port that is one is too"
+        );
+        assert!(
+            check("turn", None, "browser_card", &with(json!({"host": "[::1]", "port": 1, "secure": false}))).is_ok(),
+            "an IPv6 host is a host"
+        );
+        for (why, bad) in [
+            ("an empty host", json!({"host": "", "port": null, "secure": true})),
+            ("a host longer than a name can be", json!({"host": "x".repeat(HOST_BYTES + 1), "port": null, "secure": true})),
+            ("a host that is not words", json!({"host": 7, "port": null, "secure": true})),
+            ("a port no network has", json!({"host": "shop.example", "port": 65_536, "secure": true})),
+            ("a port of nothing", json!({"host": "shop.example", "port": 0, "secure": true})),
+            ("a port that is not a number", json!({"host": "shop.example", "port": "8080", "secure": true})),
+            ("a secure flag that is not one", json!({"host": "shop.example", "port": null, "secure": "yes"})),
+        ] {
+            assert_eq!(check("turn", None, "browser_card", &with(bad)), Err(BAD_EVENT), "{why}");
+        }
+
+        // **And a card with no destination is a card**, missing or null: it is the
+        // one the computer could not name a host for, and it has to reach the
+        // phone so the phone can draw it without a way to send it (docs §3.1).
+        assert!(check("turn", None, "browser_card", &with(json!(null))).is_ok(), "a null destination is a card, not a bad one");
+        let mut card = with(json!({"host": "shop.example", "port": null, "secure": true}));
+        let object = card.as_object_mut().expect("a card is an object");
+        object.remove("destination");
+        assert!(check("turn", None, "browser_card", &card).is_ok(), "nor is a missing one");
+    }
+
+    /// **A recap is one line, and a phone drops a longer event whole.** So the
+    /// line is capped at the phone's own number: a line too long to draw is
+    /// refused here rather than taking the turn's other events with it.
+    #[test]
+    fn a_recap_is_one_line_and_a_longer_one_is_refused() {
+        let said = |text: &str| json!({"text": text});
+        let line = "Kalsa ha: chiesto reg.example.org · scritto in 2 campi · nessun clic";
+        assert!(check("turn", None, "recap", &said(line)).is_ok(), "a line is a recap");
+        assert!(
+            check("turn", None, "recap", &said(&"x".repeat(RECAP_BYTES))).is_ok(),
+            "and exactly the cap is still one line"
+        );
+        assert_eq!(
+            check("turn", None, "recap", &said(&"x".repeat(RECAP_BYTES + 1))),
+            Err(BAD_EVENT),
+            "and one byte past it is an event the phone would drop whole"
+        );
+        assert_eq!(check("turn", None, "recap", &json!({"text": 42})), Err(BAD_EVENT), "not a line at all");
+        assert_eq!(check("turn", None, "recap", &json!({})), Err(BAD_EVENT), "no line at all");
     }
 
     #[test]

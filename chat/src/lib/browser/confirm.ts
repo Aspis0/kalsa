@@ -34,6 +34,23 @@ export interface Card {
   /** When it first appeared, so the card can count down the person's five
    * minutes. Rust owns this and keeps it steady across a redraw. */
   askedAtMs: number;
+  /** **Where it goes, told by the sidecar's own parser. `null` is a card with
+   * no destination**: nothing here works it out, so nothing here may show a
+   * host — and there is nothing for a person to be agreeing to if they press
+   * send, which is why such a card is drawn without one. */
+  destination: Destination | null;
+}
+
+/** The three fields a destination is, or `null`. **Checked rather than trusted**
+ *  for the same reason as a code: this is what the window shows a person as the
+ *  place their data goes, and a host nobody parsed is not one to show. */
+function readDestination(payload: unknown): Destination | null {
+  if (payload === null || typeof payload !== "object") return null;
+  const said = payload as { host?: unknown; port?: unknown; secure?: unknown };
+  if (typeof said.host !== "string" || said.host === "") return null;
+  const port = said.port === null || said.port === undefined ? null : said.port;
+  if (port !== null && (typeof port !== "number" || !Number.isInteger(port) || port < 1 || port > 65535)) return null;
+  return { host: said.host, port, secure: said.secure === true };
 }
 
 /** Rust says the whole list, every time: there is no shape to guess at. */
@@ -53,6 +70,7 @@ function readCards(payload: unknown): Card[] {
         // chat, so a window cannot offer a button that would be refused.
         conversation: typeof card.conversation === "string" ? card.conversation : "",
         askedAtMs: typeof card.askedAtMs === "number" ? card.askedAtMs : 0,
+        destination: readDestination(card.destination),
         fields: fields.flatMap((field) => {
           if (field === null || typeof field !== "object") return [];
           const one = field as Record<string, unknown>;
@@ -149,23 +167,31 @@ export interface Outcome {
 export const CODES = ["sent", "declined", "expired", "gone", "unsendable", "unclear"] as const;
 export type Code = (typeof CODES)[number];
 
-/**
- * Where a request goes, as the card names it: the bare host, with a port only when it
- * is not the scheme's default (the URL parser already drops a default port), and
- * whether the connection is plain `http`. Nothing else of the address is shown: no
- * scheme name, no path, no query, no user. A sidecar address always parses; an
- * unparseable one names no host.
+/** Where a request goes, **as the machine that will send it parsed it**: the bare
+ *  host, the port when the address names one that is not its scheme's default, and
+ *  whether the connection is the secure one. Nothing else of the address is shown —
+ *  no scheme name, no path, no query, no user.
+ *
+ *  **It is never worked out from `url` here.** A second parser is a second
+ *  answer: a rule written here and the browser's own disagree about a backslash,
+ *  an extra `@` or a space, and a card that names one host over a request going to
+ *  another is the one card that must never exist. The computer that sends the
+ *  request says where it goes, and this window shows what it was told.
  */
-export function destinationOf(url: string): { host: string; insecure: boolean } {
-  try {
-    const parsed = new URL(url);
-    return {
-      host: parsed.port ? `${parsed.hostname}:${parsed.port}` : parsed.hostname,
-      insecure: parsed.protocol === "http:",
-    };
-  } catch {
-    return { host: "", insecure: false };
-  }
+export interface Destination {
+  host: string;
+  /** `null` when the address names no port, or names the one its own scheme
+   *  would use anyway. */
+  port: number | null;
+  secure: boolean;
+}
+
+/** How a destination is drawn: a host with its port when there is one, and
+ *  nothing else. `null` is a card this window is told nothing about — the one
+ *  thing it is not allowed to guess at. */
+export function destinationLabel(destination: Destination | null): string {
+  if (destination === null) return "";
+  return destination.port === null ? destination.host : `${destination.host}:${destination.port}`;
 }
 
 /** Reads what Rust said into an outcome, or `null` if it is not one. */

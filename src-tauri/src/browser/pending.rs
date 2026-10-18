@@ -38,6 +38,16 @@ pub(crate) struct Card {
     /// five minutes is [`Pending::forget_stale`], which keeps its own instant
     /// here and never reads this back.
     pub asked_at_ms: u64,
+    /// **Where it goes, as the sidecar's own parser read the address.**
+    ///
+    /// It is computed once, in the sidecar, and copied here — a window does not
+    /// work it out from `url` for itself. Two parsers of one address are two
+    /// answers, and a card showing one host over a request going to another is
+    /// the one card that must never exist. **`None` is a card with no
+    /// destination**: the sidecar could not name a host, so no window may offer
+    /// to send it and none of them shows a host it had to work out alone.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub destination: Option<Destination>,
 }
 
 /// **A card is printed without its secrets.** A URL can carry one — a GET held
@@ -54,6 +64,7 @@ impl std::fmt::Debug for Card {
             .field("url", &masked_address(&self.url, &self.fields))
             .field("fields", &self.fields)
             .field("conversation", &self.conversation)
+            .field("destination", &self.destination)
             .field("asked_at_ms", &self.asked_at_ms)
             .finish()
     }
@@ -291,7 +302,17 @@ impl Pending {
 }
 
 /// A card as the sidecar described it, ready to cross the wire.
-pub(crate) fn card_of(id: &str, method: &str, url: &str, conversation: &str, fields: Vec<Field>) -> Card {
+///
+/// `destination` is the sidecar's own reading of `url`, handed over rather than
+/// worked out here: this file mirrors, it does not decide.
+pub(crate) fn card_of(
+    id: &str,
+    method: &str,
+    url: &str,
+    conversation: &str,
+    fields: Vec<Field>,
+    destination: Option<Destination>,
+) -> Card {
     Card {
         id: id.to_owned(),
         method: method.to_owned(),
@@ -299,7 +320,29 @@ pub(crate) fn card_of(id: &str, method: &str, url: &str, conversation: &str, fie
         conversation: conversation.to_owned(),
         fields,
         asked_at_ms: now_ms(),
+        destination,
     }
+}
+
+/// **The three fields a card's destination is, and nothing else.**
+///
+/// **A mirror of `kalsa_browser::hold::Destination`** — same names, same meaning,
+/// same `serde` spelling — kept here rather than shared because the sidecar is
+/// built and launched as its own program and this binary does not link it. It is
+/// a mirror like the rest of this file, so it says nothing the sidecar did not:
+/// the values arrive in the card the sidecar sent, and `confirm.rs` only copies
+/// them. A port that is not there stays not there, rather than becoming `0` or
+/// the scheme's default: **showing a port the address does not name is the whole
+/// class of bug this object exists to end.**
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct Destination {
+    pub host: String,
+    /// `None` when the address does not name a port, or names the one its own
+    /// scheme would use anyway.
+    pub port: Option<u16>,
+    /// Whether the connection is encrypted: `https`, or nothing else.
+    pub secure: bool,
 }
 
 /// Milliseconds since the epoch, saturating rather than wrapping: a clock set
@@ -310,7 +353,13 @@ pub(crate) fn now_ms() -> u64 {
 
 #[cfg(test)]
 mod tests {
-    use super::{card_of, Card, Field, Pending, ASKED_FOR, DOTS};
+    use super::{card_of, Card, Destination, Field, Pending, ASKED_FOR, DOTS};
+    /// A destination as the sidecar would have sent one, for the cards these
+    /// tests build by hand. `secure` and the host are what the window draws.
+    fn at(host: &str) -> Option<Destination> {
+        Some(Destination { host: host.to_owned(), port: None, secure: true })
+    }
+
     use std::time::{Duration, Instant};
 
     /// The conversation these tests are holding cards for.
@@ -334,6 +383,7 @@ mod tests {
             "https://shop.example/order",
             CHAT,
             vec![Field { name: "city".to_owned(), value: "Bologna".to_owned(), secret: false, label: None }],
+            at("shop.example"),
         )
     }
 
@@ -429,13 +479,13 @@ mod tests {
         ];
         let printed = format!(
             "{:?}",
-            card_of("c1", "GET", "https://a.example/go?password=hunter2&page=2", CHAT, fields)
+            card_of("c1", "GET", "https://a.example/go?password=hunter2&page=2", CHAT, fields, at("a.example"))
         );
         assert!(!printed.contains("hunter2"), "the value never reaches a log: {printed}");
         assert!(printed.contains("password=\u{2022}"), "and says there is one there: {printed}");
         assert!(printed.contains("page=2"), "while everything else is printed as it is: {printed}");
 
-        let nothing = card_of("c1", "GET", "https://a.example/app.css", CHAT, Vec::new());
+        let nothing = card_of("c1", "GET", "https://a.example/app.css", CHAT, Vec::new(), at("a.example"));
         assert!(format!("{nothing:?}").contains("app.css"), "an address with no query is printed as it is");
     }
 
@@ -448,7 +498,7 @@ mod tests {
         let fields = vec![Field { name: "pass word".to_owned(), value: "hunter2".to_owned(), secret: true, label: None }];
         for written in ["pass+word=hunter2", "pass%20word=hunter2"] {
             let printed =
-                format!("{:?}", card_of("c1", "GET", &format!("https://a.example/go?{written}"), CHAT, fields.clone()));
+                format!("{:?}", card_of("c1", "GET", &format!("https://a.example/go?{written}"), CHAT, fields.clone(), at("a.example")));
             assert!(!printed.contains("hunter2"), "the value reached a log through {written}: {printed}");
             assert!(printed.contains("\u{2022}"), "and the address is still there, dotted: {printed}");
         }
@@ -463,7 +513,7 @@ mod tests {
         let fields = vec![Field { name: "token".to_owned(), value: "hunter2".to_owned(), secret: true, label: None }];
         let printed = format!(
             "{:?}",
-            card_of("c1", "GET", "https://a.example/go?session=prefix-hunter2-suffix&page=2", CHAT, fields)
+            card_of("c1", "GET", "https://a.example/go?session=prefix-hunter2-suffix&page=2", CHAT, fields, at("a.example"))
         );
         assert!(!printed.contains("hunter2"), "a value inside a bigger one still reached a log: {printed}");
         assert!(printed.contains("page=2"), "while the rest of the address is still readable: {printed}");
@@ -483,7 +533,7 @@ mod tests {
         // No query pair carries it, and its name matches nothing, so the field
         // cannot be used to find it: the whole address is dotted.
         for url in ["https://a.example/hunter2/page", "https://hunter2.example/page"] {
-            let printed = format!("{:?}", card_of("c1", "GET", url, CHAT, fields.clone()));
+            let printed = format!("{:?}", card_of("c1", "GET", url, CHAT, fields.clone(), at("a.example")));
             assert!(!printed.contains("hunter2"), "the value reached a log through {url}: {printed}");
             assert!(printed.contains("url: \"\u{2022}"), "and the address itself is not printed: {printed}");
         }
@@ -494,7 +544,7 @@ mod tests {
         // in every address it makes. Hiding every address would leave the person
         // unable to tell what they are agreeing to.
         for url in ["https://a.example/go?session=zzz", "https://a.example/go"] {
-            let printed = format!("{:?}", card_of("c1", "GET", url, CHAT, fields.clone()));
+            let printed = format!("{:?}", card_of("c1", "GET", url, CHAT, fields.clone(), at("a.example")));
             assert!(printed.contains("a.example"), "an address that carries nothing is still read: {printed}");
         }
     }
@@ -502,14 +552,14 @@ mod tests {
     fn an_address_still_carrying_a_secret_is_printed_as_dots() {
         let fields = vec![Field { name: "token".to_owned(), value: "hunter2".to_owned(), secret: true, label: None }];
         for url in ["https://a.example/hunter2/page", "https://hunter2.example/page"] {
-            let printed = format!("{:?}", card_of("c1", "GET", url, CHAT, fields.clone()));
+            let printed = format!("{:?}", card_of("c1", "GET", url, CHAT, fields.clone(), at("a.example")));
             assert!(!printed.contains("hunter2"), "the value reached a log: {printed}");
             assert!(printed.contains("url: \"\u{2022}"), "and the address itself is not printed: {printed}");
         }
         // A field with no value carries nothing, so it cannot make an address
         // unsafe: it still dots the pair it is named after, and no other.
         let empty = vec![Field { name: "token".to_owned(), value: String::new(), secret: true, label: None }];
-        let printed = format!("{:?}", card_of("c1", "GET", "https://a.example/go?token=x&page=2", CHAT, empty));
+        let printed = format!("{:?}", card_of("c1", "GET", "https://a.example/go?token=x&page=2", CHAT, empty, at("a.example")));
         assert!(printed.contains("token=\u{2022}"), "its own name is still dotted: {printed}");
         assert!(printed.contains("page=2"), "and an empty value takes nothing else with it: {printed}");
         assert!(printed.contains("a.example"), "nor is the whole address hidden: {printed}");
@@ -527,6 +577,7 @@ mod tests {
             "https://shop.example/login",
             CHAT,
             vec![Field { name: "password".to_owned(), value: "hunter2".to_owned(), secret: true, label: None }],
+            at("shop.example"),
         );
         assert_eq!(built.method, "POST");
         assert!(built.asked_at_ms > 0, "a card with no time is a card with no clock");

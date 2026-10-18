@@ -36,6 +36,11 @@ export const CONFIRM = {
   decline: "Ne pas l'envoyer",
   asking: "Envoi…",
   none: "Aucun champ : juste la requête.",
+  /** Une carte sans destination. Dit à la place d'un hôte : cet ordinateur n'a
+   *  pas su nommer où la requête irait, et un nom deviné serait la seule chose
+   *  de la carte qui ne peut pas être une supposition. */
+  nowhere: "Quelque part que cet ordinateur ne sait pas nommer.",
+  nowhereWhy: "Rien ne peut être envoyé ici. Tu peux quand même refuser.",
   paused: "En pause",
   resume: "Reprendre",
   pauseHint: "Mettre en pause arrête la prochaine action. Ce qui est déjà envoyé ne se rappelle pas.",

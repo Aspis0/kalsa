@@ -163,6 +163,15 @@
 }
 
 /* A plain-http destination: said once, under the host, in the warning ink. */
+/* **A card with nowhere to go.** It is said in the place of the host and it is
+ * the reason the send button is gone, so it is styled with the rest of what the
+ * card has to say rather than as a notice below it. */
+.browser-confirm-nowhere {
+  margin: 0.35rem 0 0;
+  color: var(--muted, #6b6b6b);
+  font-size: 0.85rem;
+}
+
 .browser-confirm-insecure {
   color: var(--warn-ink);
   font-size: 12.5px;

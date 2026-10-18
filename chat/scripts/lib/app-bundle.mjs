@@ -49,7 +49,7 @@ export async function loadApp() {
         export {
           answer as browserAnswerNow,
           currentCards as currentBrowserCards,
-          destinationOf as browserDestinationOf,
+          destinationLabel as browserDestinationLabel,
           noteAnswered as noteBrowserAnswered,
           noteCards as noteBrowserCards,
           settledFor as settledBrowserCards,

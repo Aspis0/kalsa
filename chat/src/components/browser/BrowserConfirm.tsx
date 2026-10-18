@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { useLanguage } from "../../i18n/useLanguage";
-import { answer, destinationOf, DOTS, type Card, type CardField, type Outcome, type Settled } from "../../lib/browser/confirm";
+import { answer, destinationLabel, DOTS, type Card, type CardField, type Outcome, type Settled } from "../../lib/browser/confirm";
 import { useConfirm } from "../../lib/browser/useConfirm";
 import "./BrowserConfirm.css";
 
@@ -112,7 +112,14 @@ function Card({ card, conversation }: { card: Card; conversation: string }) {
   const [asking, setAsking] = useState(false);
   // A field with no value is not something the person is asked to read.
   const filled = card.fields.filter((field) => field.value !== "");
-  const destination = destinationOf(card.url);
+  // **The host is what the sidecar's parser said, never what this window works
+  // out**: two parsers of one address are two answers, and this one shows the
+  // person where their data goes.
+  const destination = card.destination;
+  // **No destination, no send.** There is nothing here for a person to be
+  // agreeing to, and the sidecar refuses the press as well — the button is gone so
+  // the decision is never offered, not so a refusal can catch it.
+  const sendable = destination !== null;
 
   async function press(allow: boolean): Promise<void> {
     if (asking) return;
@@ -122,24 +129,29 @@ function Card({ card, conversation }: { card: Card; conversation: string }) {
 
   return <div className="browser-confirm" data-card={card.id}>
     <div className="browser-confirm-head">
-      <span className="browser-confirm-title">{t.wantsToSend(destination.host)}</span>
+      <span className="browser-confirm-title">
+        {sendable ? t.wantsToSend(destinationLabel(destination)) : t.nowhere}
+      </span>
       <span className="browser-confirm-waiting">{t.waiting}</span>
     </div>
-    {destination.insecure ? <p className="browser-confirm-insecure">{t.insecure}</p> : null}
+    {destination !== null && !destination.secure ? <p className="browser-confirm-insecure">{t.insecure}</p> : null}
+    {destination === null ? <p className="browser-confirm-nowhere">{t.nowhereWhy}</p> : null}
     {filled.length === 0
       ? <div className="browser-confirm-fields"><div className="browser-confirm-none">{t.none}</div></div>
       : <div className="browser-confirm-fields">
         {filled.map((field, index) => <Field key={`${card.id}:${index}`} field={field} label={t} />)}
       </div>}
     <div className="browser-confirm-answers">
-      <button
-        type="button"
-        className="browser-confirm-answer is-allow"
-        disabled={asking}
-        onClick={() => void press(true)}
-      >
-        {t.allow}
-      </button>
+      {sendable
+        ? <button
+          type="button"
+          className="browser-confirm-answer is-allow"
+          disabled={asking}
+          onClick={() => void press(true)}
+        >
+          {t.allow}
+        </button>
+        : null}
       <button
         type="button"
         className="browser-confirm-answer"

@@ -60,6 +60,10 @@ pub struct Card {
     /// the card**, never by the caller: an id that chose its own conversation
     /// would be an id that could be asked in the wrong chat.
     pub conversation: String,
+    /// Where it goes, computed by [`destination_of`] when the card is built.
+    /// **`None` is a card with no destination**, and a card with no destination
+    /// cannot be sent: there is nothing for a person to be agreeing to.
+    pub destination: Option<Destination>,
 }
 
 /// **A secret is not printed here either.** The address on a card can carry one —
@@ -76,6 +80,7 @@ impl std::fmt::Debug for Card {
             .field("url", &masked_address(&self.url, &self.fields))
             .field("fields", &self.fields)
             .field("conversation", &self.conversation)
+            .field("destination", &self.destination)
             .finish()
     }
 }
@@ -190,6 +195,64 @@ impl Outcome {
 /// of this that hands back half an address.
 pub fn host_of(url: &str) -> Option<String> {
     url::Url::parse(url).ok()?.host_str().map(str::to_owned)
+}
+
+/// What a yes is told when the card named nowhere to go. Said to the model, in
+/// the plain line every other refusal uses, and to the person by whatever window
+/// they are looking at — a sentence is not the thing that stops this; the button
+/// being gone is. It is here so the two do not say different things.
+pub const NOWHERE: &str =
+    "the request goes somewhere this computer cannot name, so there was nothing to confirm and nothing was sent";
+
+/// **Where a held request goes, said once by the machine that will send it.**
+///
+/// Three fields and nothing else: the host in the form the resolver is given —
+/// **ASCII, punycode where it has to be, lower case** — the port when it is not
+/// the scheme's own default, and whether the connection is the secure one. No
+/// scheme name, no user, no path, no query.
+///
+/// **This exists because two parsers of the same address are two answers.** The
+/// sidecar sends what the page asked for; a window on the far end of a phone
+/// then works out what host that is, by hand, from the text. A hand-written rule
+/// and the browser's own disagree about a backslash, an extra `@` or a space —
+/// and a card showing one host over a request going to another is the one card
+/// that must never exist. So the host is computed **here**, by the parser the
+/// browser itself uses, and every window is shown the same three fields.
+///
+/// **`None` is a real answer.** An address that names no host cannot be parsed
+/// into one, and a card with nothing to show is not a card anybody may press
+/// "send" on: there is no destination to agree to. A decline is still allowed,
+/// because dropping a request needs no destination at all.
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Destination {
+    pub host: String,
+    /// `None` when the address does not name a port, or names the one its own
+    /// scheme would use anyway — which is what makes "not the default" a fact
+    /// about the scheme rather than a comparison done by whoever is reading it.
+    pub port: Option<u16>,
+    /// Whether the connection is encrypted: `https`, or nothing else.
+    pub secure: bool,
+}
+
+/// **One parser, one answer.** The `url` crate follows WHATWG, which is what the
+/// browser follows, so the host here is the host the request will actually go
+/// to — punycode for an international name, the part before the last `@`, and
+/// nothing at all for a backslash that WHATWG reads as a path separator.
+///
+/// The port is the one the parser already dropped as the scheme's default: a
+/// reader never has to know what a scheme's default is, and a card cannot show
+/// `shop.example:443` for an address that simply reads `shop.example`.
+pub fn destination_of(url: &str) -> Option<Destination> {
+    let parsed = url::Url::parse(url).ok()?;
+    Some(Destination {
+        // **Lower case, because a host is not case sensitive and two spellings
+        // of one host are one destination.** `host_str` is already ASCII —
+        // punycode where the address was written in anything else.
+        host: parsed.host_str()?.to_ascii_lowercase(),
+        port: parsed.port(),
+        secure: parsed.scheme() == "https",
+    })
 }
 
 /// What a host-only answer got back.
@@ -522,6 +585,24 @@ impl Holds {
             self.inner.lock().await.held.push(held);
             return Answer::Unknown;
         }
+        // **A card with nowhere to go cannot be sent, by anybody.** The press was
+        // a yes and the address names no host, so there was no destination for the
+        // person to be agreeing to — and a window that offered the button anyway
+        // would be offering them a decision they could not make. The request is
+        // dropped, not dispatched, and the model is told it went nowhere. **A
+        // decline is still a decline**, above: dropping a request needs nowhere
+        // to send it.
+        if yes && held.card.destination.is_none() {
+            // **It is stopped, not left.** The answer is what continues or aborts
+            // the route, so a refusal that never calls it would leave a held
+            // navigation standing — one the browser may finish on its own, which is
+            // exactly what the card was holding it for. Answered as a no, then
+            // settled with the reason there was nothing to confirm.
+            let _ = (held.answer_it)(false).await;
+            let outcome = Outcome::Unrenderable(NOWHERE.to_owned());
+            self.inner.lock().await.outcomes.push((held.card.conversation.clone(), outcome.clone()));
+            return Answer::Spent(outcome);
+        }
         // The mutex is given back before the request is dispatched: nothing that
         // waits on the network is ever waited on holding it.
         let dispatched = (held.answer_it)(yes).await;
@@ -787,7 +868,13 @@ const FULL: &str = "the person was already being asked about eight other request
 /// What the model is told about an address too long to draw a card for. One
 /// plain line, and no card: the request was refused rather than held, so nothing
 /// is waiting for anybody.
-const TOO_LONG: &str = "its address is longer than 8 KiB, which is more than a card can show a person";
+///
+/// **Public because both roads hold requests**, and a cap that only one of them
+/// applied would be a cap with a hole in it: the route sees a request the page
+/// asked the network for, and `mcp::held_submission` sees one caught off the
+/// page before it got there. A card built from an address nobody capped is a
+/// card the phone's frame cannot hold.
+pub const TOO_LONG: &str = "its address is longer than 8 KiB, which is more than a card can show a person";
 
 /// **Holds one write, or refuses it.** The route that would have dispatched it
 /// is parked in the store with the card, and this handler returns without
@@ -860,7 +947,21 @@ pub async fn hold_write(
             return Ok(());
         }
     }
-    park(holds, Card { id: String::new(), method: request.method().to_ascii_uppercase(), url: request.url().to_owned(), fields, conversation: String::new() }, route).await
+    // **`park` computes the destination**, so the card is built here without one:
+    // there is one place in the crate that decides it, and this is not it.
+    park(
+        holds,
+        Card {
+            id: String::new(),
+            method: request.method().to_ascii_uppercase(),
+            url: request.url().to_owned(),
+            fields,
+            conversation: String::new(),
+            destination: None,
+        },
+        route,
+    )
+    .await
 }
 
 /// **The fields a held write's query carries.**
@@ -893,7 +994,11 @@ pub(crate) fn query_fields(url: &str, typed: &[String]) -> Result<Vec<Field>, &'
 /// browser already built, so the request that goes out is the one the card was
 /// drawn from by definition. No ticket is needed for it: there is nothing to
 /// rebuild and nothing for the page to have changed in between.
-async fn park(holds: &Holds, card: Card, route: Route) -> Result<(), playwright_rs::Error> {
+async fn park(holds: &Holds, mut card: Card, route: Route) -> Result<(), playwright_rs::Error> {
+    // **The one place a card's destination is decided.** Every card is parked
+    // here, so every window — this desktop's and every phone's — is shown the same
+    // host for the same request, and none of them works it out for itself.
+    card.destination = destination_of(&card.url);
     let parked = route.clone();
     // A request the page made by itself belongs to the call that navigated the
     // page it came from, not to whichever chat happens to be reading now.
@@ -923,7 +1028,14 @@ async fn park(holds: &Holds, card: Card, route: Route) -> Result<(), playwright_
 /// draws it and nothing else.
 pub(crate) fn address_of(url: &str, typed: &[String]) -> Card {
     let Ok(parsed) = url::Url::parse(url) else {
-        return Card { id: String::new(), method: "GET".to_owned(), url: url.to_owned(), fields: Vec::new(), conversation: String::new() };
+        return Card {
+            id: String::new(),
+            method: "GET".to_owned(),
+            url: url.to_owned(),
+            fields: Vec::new(),
+            conversation: String::new(),
+            destination: None,
+        };
     };
     let mut fields: Vec<Field> = parsed
         .query_pairs()
@@ -955,7 +1067,16 @@ pub(crate) fn address_of(url: &str, typed: &[String]) -> Card {
             fields.push(body::Field { secret: true, name: "the path".to_owned(), value: part.to_owned(), label: None });
         }
     }
-    Card { id: String::new(), method: "GET".to_owned(), url: url.to_owned(), fields, conversation: String::new() }
+    Card {
+        id: String::new(),
+        method: "GET".to_owned(),
+        url: url.to_owned(),
+        fields,
+        conversation: String::new(),
+        // **From the parsed address, not from the text beside it**: `parsed` is
+        // the parser's own reading of what the browser will send.
+        destination: destination_of(url),
+    }
 }
 
 /// Said the moment a request is held, in the shape a host reads an id back out
@@ -974,7 +1095,7 @@ pub fn awaiting(id: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{address_of, query_fields, Answer, Card, Holds, Outcome, Ticket, EXPIRY, FULL, MAX_HELD};
+    use super::{address_of, destination_of, query_fields, Answer, Card, Holds, Outcome, Ticket, EXPIRY, FULL, MAX_HELD, NOWHERE};
     use crate::body::Field;
     use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
     use std::sync::Arc;
@@ -1030,6 +1151,9 @@ mod tests {
             fields: vec![Field { name: "city".to_owned(), value: "Bologna".to_owned(), secret: false, label: None }],
             // Stamped by `hold`, which is the point: whatever is here is replaced.
             conversation: "chat-asked-for-it".to_owned(),
+            // A real card names where it goes, and these tests are about cards
+            // that do; the one that has no destination says so on purpose.
+            destination: destination_of("https://shop.example/order"),
         }
     }
 
@@ -1069,6 +1193,94 @@ mod tests {
     #[test]
     fn a_query_value_that_is_not_text_refuses_the_write() {
         assert_eq!(query_fields("https://shop.example/order?msg=%FF", &[]), Err(crate::body::NOT_TEXT));
+    }
+
+    /// A card the sidecar could not name a host for: the fields are there and the
+    /// destination is not, which is the one state a person may not send from.
+    fn without_a_destination() -> Card {
+        Card { destination: None, ..card() }
+    }
+
+    /// **The host is the browser's own reading, not a rule written here.** Every
+    /// case below is one a hand-written parser gets wrong: a backslash is a path
+    /// separator to WHATWG, the host is after the **last** `@`, whitespace is
+    /// stripped, and an international name arrives punycoded. A card that showed a
+    /// different host than the request goes to is the one card that must never
+    /// exist, so this is the parser that decides and nothing else is.
+    #[test]
+    fn the_destination_is_what_the_browser_would_resolve_and_not_what_the_text_says() {
+        for (address, host, port, secure) in [
+            // The plain case, and a host written in capitals: a host is not case
+            // sensitive, so two spellings of it are one destination.
+            ("https://shop.example/order", "shop.example", None, true),
+            ("https://SHOP.Example/order", "shop.example", None, true),
+            // **A backslash is a `/`**, so this is shop.example with the rest in
+            // its path — not another host sitting at the end of it.
+            ("https://shop.example\\@evil.example/x", "shop.example", None, true),
+            // **The host is after the last `@`.** What is before it is a user, and
+            // a user can be anything, an `@` included.
+            ("https://shop.example@evil.example/x", "evil.example", None, true),
+            ("https://a@shop.example@evil.example/x", "evil.example", None, true),
+            // Whitespace around the address is not part of it, and a tab inside it
+            // is not part of it either.
+            ("  https://shop.example/x  ", "shop.example", None, true),
+            ("https://shop\t.example/x", "shop.example", None, true),
+            // **An international name is punycode**, which is the form the resolver
+            // is given and the only one a card may show.
+            ("https://пример.рф/x", "xn--e1afmkfd.xn--p1ai", None, true),
+            ("https://Пример.РФ/x", "xn--e1afmkfd.xn--p1ai", None, true),
+            // **Lower case is the host's, label by label**: a name written in
+            // capitals is the same name, and only the label that was capital is
+            // changed.
+            ("https://SHOP.Пример.РФ/x", "shop.xn--e1afmkfd.xn--p1ai", None, true),
+            // **A default port is no port**: the parser drops it, so a reader never
+            // has to know what a scheme's default is.
+            ("https://shop.example:443/x", "shop.example", None, true),
+            ("http://shop.example:80/x", "shop.example", None, false),
+            // And a port that is not the default is the one the address names.
+            ("http://shop.example:8080/x", "shop.example", Some(8080), false),
+            ("https://shop.example:8443/x", "shop.example", Some(8443), true),
+        ] {
+            let said = destination_of(address).unwrap_or_else(|| panic!("{address} names a host"));
+            assert_eq!(said.host, host, "the host of {address}");
+            assert_eq!(said.port, port, "the port of {address}");
+            assert_eq!(said.secure, secure, "and whether {address} is secure");
+        }
+    }
+
+    /// **An address with no host has no destination**, and that is a real answer
+    /// rather than a parse failure to apologise for: there is nothing for a person
+    /// to be agreeing to, so there is nothing to show them.
+    #[test]
+    fn an_address_with_no_host_has_no_destination() {
+        for address in ["not an address", "mailto:giulia@example.org", "/only/a/path", ""] {
+            assert_eq!(destination_of(address), None, "{address} names no host");
+        }
+    }
+
+    /// **A card with no destination cannot be sent by anybody.** The press was a
+    /// yes and there was nowhere to send it, so the request is dropped and the
+    /// model is told so — and **a decline is still a decline**, because turning a
+    /// request down needs no destination at all.
+    #[tokio::test]
+    async fn a_card_with_no_destination_is_dropped_on_a_yes_and_taken_on_a_no() {
+        let holds = holds_in(CHAT).await;
+        let sent = Sent::default();
+        let (answering, sent) = sent.answering();
+        let id = holds.hold(without_a_destination(), CHAT, answering).await;
+
+        let refused = holds.answer(&id, CHAT, true).await;
+        assert_eq!(refused, Answer::Spent(Outcome::Unrenderable(NOWHERE.to_owned())), "a yes with nowhere to go");
+        assert!(!sent.dispatched(), "and nothing was dispatched, by anybody, on it");
+        assert_eq!(sent.calls(), 1, "the held request was told to stop, not left standing");
+        assert!(sent.dropped(), "which is a decline of it: nothing was let through");
+
+        // **The decline is the one answer that never needed a destination.**
+        let sent = Sent::default();
+        let (answering, sent) = sent.answering();
+        let id = holds.hold(without_a_destination(), CHAT, answering).await;
+        assert_eq!(holds.answer(&id, CHAT, false).await, Answer::Spent(Outcome::Declined));
+        assert!(!sent.dispatched(), "and a decline still sends nothing");
     }
 
     /// What a held request did when it was answered, so a test can say it was
@@ -1356,6 +1568,7 @@ mod tests {
             url: "https://shop.example/login".to_owned(),
             fields,
             conversation: CHAT.to_owned(),
+            destination: destination_of("https://shop.example/login"),
         };
         assert!(card.fields[1].secret, "the password field is flagged: {:?}", card.fields[1]);
         assert_eq!(card.fields[1].value, "hunter2", "and the person can read it, because that is what goes");

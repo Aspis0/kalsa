@@ -39,6 +39,11 @@ export const CONFIRM = {
   decline: "Don't send it",
   asking: "Sending…",
   none: "No fields — just the request.",
+  /** **A card with no destination.** Said instead of a host, because this
+   *  computer could not name where the request goes, and a name guessed here
+   *  would be the one thing on the card that must not be a guess. */
+  nowhere: "Somewhere this computer cannot name.",
+  nowhereWhy: "Nothing here can be sent. You can still turn it down.",
   paused: "Paused",
   resume: "Resume",
   pauseHint: "Pausing stops the next action. What has already been sent cannot be recalled.",

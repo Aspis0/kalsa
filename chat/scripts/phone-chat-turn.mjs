@@ -510,17 +510,19 @@ async function phoneBrowser(app) {
     facts: facts(),
   });
   const last = wire2[wire2.length - 1];
+  // **A word in the request, not a property beside it.** The phone builds its own
+  // wire, and the note is the last thing in it: what the model reads is a message.
   check(
     "the phone's next turn is told what became of it",
-    typeof last.browserNote === "string" && last.browserNote.includes("shop.example") && /allowed the request/.test(last.browserNote),
-    JSON.stringify(last.browserNote),
+    last.role === "user" && last.content.includes("1 sent to shop.example"),
+    JSON.stringify(last.content),
   );
   // And the note is the app's own account: it says where the request went and
   // nothing of what it held, so a phone's next turn cannot carry a form's fields.
   check(
     "without repeating the card, or any field of it",
-    !last.browserNote.includes(BROWSER_CARD.card_id) && !last.browserNote.includes("hunter2"),
-    JSON.stringify(last.browserNote),
+    !last.content.includes(BROWSER_CARD.card_id) && !last.content.includes("hunter2"),
+    JSON.stringify(last.content),
   );
   // And it is told once: drained, not repeated on every turn afterwards.
   let wire3 = null;
@@ -530,7 +532,9 @@ async function phoneBrowser(app) {
     }).loop,
     facts: facts(),
   });
-  check("and only once", wire3[wire3.length - 1].browserNote === undefined, JSON.stringify(wire3[wire3.length - 1].browserNote));
+  const last3 = wire3[wire3.length - 1];
+  // Drained, not repeated: what is left is the person's own words and no fence.
+  check("and only once", last3.content.startsWith("and now?") && !last3.content.includes("kalsa-page-"), JSON.stringify(last3.content));
 
   // **A phone holding its owner's mail does not type into a website.** Not the
   // card — a card is a request the person is asked about, and a page navigation

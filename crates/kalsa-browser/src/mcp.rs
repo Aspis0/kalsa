@@ -446,41 +446,48 @@ async fn settle(page: &Page) {
 /// was built, so there is nothing here to un-mask on the way out.
 async fn waiting(sessions: &Sessions) -> CallToolResult {
     let holds = sessions.holds().await;
-    let cards: Vec<serde_json::Value> = holds
-        .cards()
-        .await
-        .iter()
-        .map(|card| {
-            serde_json::json!({
-                "id": card.id,
-                "method": card.method,
-                "url": card.url,
-                // Which conversation caused it. The window draws a card for one
-                // chat only, and presses it back with this: an id is a question
-                // and the conversation says whose.
-                "conversation": card.conversation,
-                // **The values as they will be sent, always.** A card that
-                // printed something else is not the request, and the one thing
-                // it has to be is this. `secret` says how the window draws it —
-                // dots, with a Show button — and nothing on this side of the wire
-                // ever blanks it.
-                // **The label is what the page says the field is, for the person to read**
-                // beside its value. It is absent rather than empty when the page gave none.
-                "fields": card.fields.iter().map(|field| {
-                    let mut shown = serde_json::json!({
-                        "name": field.name,
-                        "value": field.value,
-                        "secret": field.secret,
-                    });
-                    if let Some(label) = &field.label {
-                        shown["label"] = serde_json::Value::from(label.as_str());
-                    }
-                    shown
-                }).collect::<Vec<serde_json::Value>>(),
-            })
-        })
-        .collect();
+    let cards: Vec<serde_json::Value> = holds.cards().await.iter().map(shown_card).collect();
     view::answered(serde_json::to_string(&cards).unwrap_or_else(|_| "[]".to_owned()))
+}
+
+/// One held card as the window reads it, with nothing taken out and nothing
+/// added.
+///
+/// **The destination goes out as the sidecar computed it, never as a second
+/// reading of the address.** Every window asks this server where a request
+/// goes, and one of them working it out for itself is two answers to a question
+/// already answered once. A card that leaves without it keeps no destination
+/// anywhere downstream, and a card with no destination is one no window may
+/// offer to send.
+fn shown_card(card: &hold::Card) -> serde_json::Value {
+    serde_json::json!({
+        "id": card.id,
+        "method": card.method,
+        "url": card.url,
+        "destination": card.destination,
+        // Which conversation caused it. The window draws a card for one
+        // chat only, and presses it back with this: an id is a question
+        // and the conversation says whose.
+        "conversation": card.conversation,
+        // **The values as they will be sent, always.** A card that
+        // printed something else is not the request, and the one thing
+        // it has to be is this. `secret` says how the window draws it —
+        // dots, with a Show button — and nothing on this side of the wire
+        // ever blanks it.
+        // **The label is what the page says the field is, for the person to read**
+        // beside its value. It is absent rather than empty when the page gave none.
+        "fields": card.fields.iter().map(|field| {
+            let mut shown = serde_json::json!({
+                "name": field.name,
+                "value": field.value,
+                "secret": field.secret,
+            });
+            if let Some(label) = &field.label {
+                shown["label"] = serde_json::Value::from(label.as_str());
+            }
+            shown
+        }).collect::<Vec<serde_json::Value>>(),
+    })
 }
 
 /// **Paused.** Nothing Kalsa does next is acted at, and the route stops holding:
@@ -811,6 +818,16 @@ pub async fn held_submission(
         holds.refuse(why).await;
         return None;
     }
+    // **And the same cap the route applies, before anything is built from the
+    // address.** A card is made of a host, the query read pair by pair and a path
+    // shown whole, and none of those is bounded by anything but the address. This
+    // road never met the route — the request was caught off the page before it
+    // asked the network for anything — so a cap living only in the route left
+    // this one building a card nobody's screen could hold.
+    if caught.url.len() > hold::MAX_URL {
+        holds.refuse(hold::TOO_LONG).await;
+        return None;
+    }
     // The bytes, made **before** the card so the card and the wire cannot
     // disagree. A body Kalsa cannot write out in advance has no ticket and no
     // card: `unrenderable` has already said so, and this is the belt to it.
@@ -843,6 +860,8 @@ pub async fn held_submission(
         url: caught.url.clone(),
         fields,
         conversation: String::new(),
+        // **The same parser, on the same address, as every card on the route.**
+        destination: hold::destination_of(&caught.url),
     };
     // Everything the answer needs is taken now: the store outlives this call and
     // the closure must not borrow the page it acted on.
@@ -964,11 +983,46 @@ impl ServerHandler for BrowserServer {
 #[cfg(test)]
 mod tests {
     use super::address_of;
+    use crate::hold;
 
     #[test]
     fn an_address_written_without_a_scheme_gets_https() {
         assert_eq!(address_of("example.com/one"), "https://example.com/one");
         assert_eq!(address_of("  example.com  "), "https://example.com");
+    }
+
+    /// **The destination on the wire is the sidecar's own reading of the
+    /// address, or the card cannot be sent at all.** Every window takes where a
+    /// request goes from what this says and works it out for itself never, so a
+    /// card that leaves without it reaches a window with nowhere to show — and a
+    /// card with no destination is one no window may offer to press Send on. The
+    /// card is held in a real store and read back out of it, so this is the JSON
+    /// the host is handed rather than a card shaped like one.
+    #[tokio::test]
+    async fn a_held_card_reaches_the_window_with_the_destination_the_sidecar_computed() {
+        let address = "https://shop.example:8443/order";
+        let holds = hold::Holds::new();
+        let answering: hold::Answering = Box::new(|yes| Box::pin(async move { yes }));
+        holds
+            .hold(
+                hold::Card {
+                    id: String::new(),
+                    method: "POST".to_owned(),
+                    url: address.to_owned(),
+                    fields: Vec::new(),
+                    conversation: String::new(),
+                    destination: hold::destination_of(address),
+                },
+                "chat-asked-for-it",
+                answering,
+            )
+            .await;
+
+        let card = holds.cards().await.first().cloned().expect("the card is held");
+        let said = super::shown_card(&card);
+        assert_eq!(said["destination"]["host"], "shop.example", "where it goes, in the window's own spelling");
+        assert_eq!(said["destination"]["port"], 8443, "and the port, which the scheme does not carry");
+        assert_eq!(said["destination"]["secure"], true, "and whether it is secure");
     }
 
     /// A scheme the model wrote is its own decision, and refusing it here would

@@ -537,6 +537,7 @@ impl Bridge {
                     id: card.id,
                     method: card.method,
                     url: card.url,
+                    destination: card.destination,
                     fields: card.fields,
                     created: now,
                 };
@@ -555,6 +556,7 @@ impl Bridge {
                 id: card.id.clone(),
                 method: card.method.clone(),
                 url: card.url.clone(),
+                destination: card.destination.clone(),
                 fields: card.fields.clone(),
                 created: now,
             };
@@ -694,6 +696,7 @@ impl Bridge {
                 id: card.id,
                 method: card.method,
                 url: card.url,
+                destination: card.destination,
                 fields: card.fields,
                 created: Instant::now(),
             };
@@ -1069,7 +1072,12 @@ fn card_wire(card: &Held) -> Value {
     json!({
         "card_id": card.id,
         "method": card.method,
+        // **The address, whole, for a phone that parses it. And the destination,
+        // for a phone that does not**: one machine said where this goes, and a
+        // phone shows what it was told rather than working it out. `url` stays
+        // for the phones that know no better (docs §3.1).
         "url": card.url,
+        "destination": card.destination,
         "fields": card.fields,
         "asked_at_ms": pending::now_ms(),
         "answer_in_ms": left.as_millis() as u64,
