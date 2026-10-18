@@ -133,6 +133,14 @@ password field is never filled: ask the person to type it in the window.",
     .with_annotations(writes())
 }
 
+/// Every tool this server answers, in the order `tools/list` returns them.
+///
+/// Public because the app pins these against `src/browser/tool_pins.json` and
+/// the host has to reach the same definitions to compute the pins.
+pub fn tool_definitions() -> Vec<Tool> {
+    vec![open(), read(), find(), click(), type_into()]
+}
+
 #[cfg(test)]
 mod tests {
     use rmcp::model::Tool;

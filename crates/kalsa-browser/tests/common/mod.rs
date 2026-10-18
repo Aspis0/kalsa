@@ -168,7 +168,7 @@ pub async fn serve(files: &[File]) -> (String, Arrived) {
 /// else back to the product guard, without a test-only switch in the crate.
 pub async fn sessions_on(name: &str, base: &str) -> (kalsa_browser::session::Sessions, Page) {
     let sessions = kalsa_browser::session::Sessions::new(profile(name));
-    let page = sessions.page().await.expect("the installed browser starts");
+    let (page, _landings) = sessions.page().await.expect("the installed browser starts");
     let base = base.to_string();
     page.route("**/*", move |route| {
         let base = base.clone();
@@ -223,7 +223,8 @@ pub async fn browser_on(name: &str, base: &str) -> (Playwright, BrowserContext, 
 /// late to stop anything. The tests that prove the guard's own route is wired in
 /// are the ones with no test route on top of it at all.
 pub async fn browser_allowing(name: &str, base: &str, allowed: &str) -> (Playwright, BrowserContext, Page) {
-    let (playwright, context, page) = launch::start(&profile(name)).await.expect("the installed browser starts");
+    let (playwright, context, page, _landings) =
+        launch::start(&profile(name)).await.expect("the installed browser starts");
     let base = base.to_string();
     let allowed = allowed.to_string();
     context

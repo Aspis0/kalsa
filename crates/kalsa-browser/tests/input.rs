@@ -39,6 +39,24 @@ const SHAPES: &str = r#"
   </form>
   <label for="the swapper">a link that changes on mousedown</label>
   <a id="swapper" href="/open" onmousedown="this.href='mailto:shop@example.com'">open it</a>
+  <form id="far" action="mailto:shop@example.com">
+    <label for="traveller">a field attached to the far form</label>
+    <input id="traveller" type="text" form="far">
+  </form>
+  <map name="office"><area id="office-area" shape="rect" coords="0,0,9,9" href="mailto:shop@example.com" alt="the office map"></map>
+  <img id="plan" usemap='#office' alt="a floor plan">
+  <svg width="60" height="20" xmlns="http://www.w3.org/2000/svg">
+    <a id="sign" xlink:href="mailto:shop@example.com"><rect width="60" height="20"></rect><text x="2" y="14">the drawn sign</text></a>
+  </svg>
+  <form id="by-image" action="/posted">
+    <label for="with-image">a field in the image form</label>
+    <input id="with-image" type="text">
+    <input id="picture" type="image" alt="the picture button" src="/x.png" formaction="mailto:shop@example.com">
+  </form>
+  <form id="odd-method" method="weird" action="/posted">
+    <label for="odd">a field in a method form</label>
+    <input id="odd" type="text">
+  </form>
 "#;
 
 /// The page the model would actually be holding: a read, and the refs in it.
@@ -231,4 +249,92 @@ async fn an_element_that_is_not_on_the_page_is_said_plainly() {
     let (_playwright, page) = page_with_shapes("input-gone").await;
     let refused = input::click(&page, "e9999").await.expect_err("there is no such ref");
     assert_eq!(refused.reason(), "the element is not on the page any more: read the page again");
+}
+/// A field that belongs to a form somewhere else on the page, by the `form`
+/// attribute a browser honours and `closest('form')` cannot see. The form it
+/// is really in posts to another program, so the fill is refused — but a check
+/// that walked ancestry would call this field form-less, check nothing, and
+/// write into it.
+#[tokio::test]
+async fn a_field_associated_with_a_form_elsewhere_is_judged_by_that_form() {
+    let (_playwright, page) = page_with_shapes("input-elsewhere").await;
+    let reference = ref_of(&page, "a field attached to the far form").await;
+
+    let refused = input::fill(&page, &reference, "an answer").await.expect_err("the far form is refused");
+    assert_eq!(refused, input::Refused::Destination);
+}
+
+/// An image map area is a link whose address lives in `href` on an `<area>`
+/// inside a `<map>` — not on an `<a>`, which is what a selector written for
+/// anchors would find.
+///
+/// Chrome gives an area no node in the accessibility tree: the image keeps the
+/// ref and the area's own name is never printed. So the model cannot name an
+/// area and cannot click one, which is why the click check below finds nothing
+/// to act on. The rule still reads `area[href]`, and
+/// `every_shape_of_link_and_method_is_read` in `input.rs` is what keeps that
+/// clause from being dropped; this is the layer behind that layer.
+#[tokio::test]
+async fn a_read_never_names_an_image_map_area() {
+    let (_playwright, page) = page_with_shapes("input-area").await;
+    let read = snapshot::snapshot(&page, 1).await.expect("the page reads");
+
+    assert!(read.contains("a floor plan"), "the image itself is in the page: {read}");
+    assert!(
+        !read.contains("the office map"),
+        "an area got a ref, and a ref is the only way to ask for a click: {read}"
+    );
+}
+
+/// An SVG anchor is a link whose `href` is an `SVGAnimatedString`, not a plain
+/// attribute, so reading it the way an HTML anchor is read finds nothing.
+#[tokio::test]
+async fn an_svg_link_to_another_program_is_refused() {
+    let (_playwright, page) = page_with_shapes("input-svg").await;
+    let reference = ref_of(&page, "the drawn sign").await;
+
+    let refused = input::click(&page, &reference).await.expect_err("the SVG link is refused");
+    assert_eq!(refused, input::Refused::Destination);
+}
+
+/// An image button submits its form when it is **clicked**, and then it is the
+/// submitter: its own `formaction` is where the click goes, so it is read on the
+/// element's own two attributes.
+///
+/// It is not the default button, and this is the half that is easy to get
+/// wrong: `input type=image` is not a *listed element*, so it is absent from
+/// `form.elements` and is never what Enter submits (measured on the browser
+/// this runs on). A form whose only image button points at `mailto:` is
+/// therefore judged on the form's own action when Enter is pressed — which is
+/// what the browser does, and what the previous version got wrong.
+#[tokio::test]
+async fn a_clicked_image_button_is_read_for_its_own_action() {
+    let (_playwright, page) = page_with_shapes("input-image").await;
+    let reference = ref_of(&page, "the picture button").await;
+
+    let refused = input::click(&page, &reference).await.expect_err("the image is refused");
+    assert_eq!(refused, input::Refused::Destination);
+}
+
+#[tokio::test]
+async fn pressing_enter_does_not_take_the_image_buttons_action() {
+    let (_playwright, page) = page_with_shapes("input-image").await;
+    let reference = ref_of(&page, "a field in the image form").await;
+
+    // Enter submits the form's own action, `/posted`, which opens nothing. This
+    // must not be refused on the strength of an image that Enter never touches.
+    assert!(
+        input::fill(&page, &reference, "an answer").await.is_ok(),
+        "the image is not Enter's default button, so its action must not refuse the fill"
+    );
+}
+
+/// The form's own `method` is where a submit goes when nothing overrides it.
+#[tokio::test]
+async fn a_form_with_a_method_the_browser_would_ignore_is_refused() {
+    let (_playwright, page) = page_with_shapes("input-method").await;
+    let reference = ref_of(&page, "a field in a method form").await;
+
+    let refused = input::fill(&page, &reference, "an answer").await.expect_err("the method is refused");
+    assert_eq!(refused, input::Refused::Destination);
 }

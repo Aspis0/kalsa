@@ -1,7 +1,7 @@
 //! Test-only stdio server for the child-process and deadline tests. It reads the
-//! bootstrap line before the protocol starts, then serves `echo` and
-//! `bootstrap_len`. Argument `silent` never answers; `quit-on-list` exits when
-//! asked for tools.
+//! bootstrap line before the protocol starts, then serves `echo`,
+//! `bootstrap_len` and `env`. Argument `silent` never answers; `quit-on-list`
+//! exits when asked for tools.
 
 use rmcp::model::{
     CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock, ListToolsResult,
@@ -36,7 +36,14 @@ impl ServerHandler for Fixture {
             "description": "Returns the length of the bootstrap line",
             "inputSchema": {"type": "object"}
         });
-        let tools: Vec<Tool> = vec![echo, bootstrap_len]
+        // The empty string is the answer for a variable that is not set, which
+        // is how the sealed launcher proves the child was given nothing else.
+        let env = json!({
+            "name": "env",
+            "description": "Returns the value of one environment variable",
+            "inputSchema": {"type": "object"}
+        });
+        let tools: Vec<Tool> = vec![echo, bootstrap_len, env]
             .into_iter()
             .map(|value| serde_json::from_value(value).expect("fixture tool is valid"))
             .collect();
@@ -57,6 +64,15 @@ impl ServerHandler for Fixture {
                 .unwrap_or_default()
                 .to_owned(),
             "bootstrap_len" => self.bootstrap_len.to_string(),
+            "env" => std::env::var(
+                request
+                    .arguments
+                    .as_ref()
+                    .and_then(|args| args.get("name"))
+                    .and_then(|value| value.as_str())
+                    .unwrap_or_default(),
+            )
+            .unwrap_or_default(),
             _ => return Err(McpError::invalid_params("unknown tool", None)),
         };
         let result = CallToolResult::success(vec![ContentBlock::text(text)]);

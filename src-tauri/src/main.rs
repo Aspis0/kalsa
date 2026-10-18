@@ -9,6 +9,7 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod browser;
 mod capability;
 #[cfg(test)]
 mod contract;
@@ -2708,6 +2709,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .manage(web::WebCalls::default())
         .manage(files::Searches::default())
         .manage(mail::state::MailState::default())
+        .manage(browser::state::BrowserState::default())
         .invoke_handler(tauri::generate_handler![
             telemetry::commands::brain_telemetry_status,
             telemetry::commands::brain_telemetry_set,
@@ -2763,6 +2765,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             mail::commands::brain_mail_read,
             mail::commands::brain_mail_draft,
             mail::commands::brain_mail_send,
+            browser::commands::brain_browser_driver_status,
+            browser::commands::brain_browser_driver_download,
+            browser::commands::brain_browser_driver_cancel,
+            browser::commands::brain_browser_clear_data,
             phone_chat::brain_phone_chat_event,
             brain_open_log_folder,
             brain_send_log,

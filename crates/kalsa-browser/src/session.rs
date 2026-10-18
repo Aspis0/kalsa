@@ -9,6 +9,7 @@
 use playwright_rs::protocol::{BrowserContext, Page, Playwright};
 use tokio::sync::{Mutex, MutexGuard};
 
+use crate::landing::Landings;
 use crate::launch::{self, Unavailable};
 use crate::refs;
 
@@ -70,6 +71,8 @@ struct Started {
     _playwright: Playwright,
     _context: BrowserContext,
     page: Page,
+    /// Where this window has landed, judged before any of its text is read.
+    landings: Landings,
 }
 
 /// The one call allowed on this session at a time. Dropping it lets the next in.
@@ -97,16 +100,22 @@ impl Sessions {
         self.busy.try_lock().map(Busy).map_err(|_| BUSY)
     }
 
-    /// The page, starting the browser the first time it is asked for. The lock
-    /// is held only across the start: a tool call never waits behind another
-    /// tool call.
-    pub async fn page(&self) -> Result<Page, Unavailable> {
+    /// The page and where it has landed, starting the browser the first time it
+    /// is asked for. The lock is held only across the start: a tool call never
+    /// waits behind another tool call.
+    pub async fn page(&self) -> Result<(Page, Landings), Unavailable> {
         let mut guard = self.started.lock().await;
         if guard.is_none() {
-            let (playwright, context, page) = launch::start(&self.profile).await?;
-            *guard = Some(Started { _playwright: playwright, _context: context, page: page.clone() });
+            let (playwright, context, page, landings) = launch::start(&self.profile).await?;
+            *guard = Some(Started {
+                _playwright: playwright,
+                _context: context,
+                page: page.clone(),
+                landings,
+            });
         }
-        Ok(guard.as_ref().expect("just started").page.clone())
+        let started = guard.as_ref().expect("just started");
+        Ok((started.page.clone(), started.landings.clone()))
     }
 
     /// Forget a window that has gone, so the next call opens a fresh one instead

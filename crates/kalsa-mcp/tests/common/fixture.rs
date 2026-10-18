@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 
 use kalsa_mcp::host::Host;
-use kalsa_mcp::launch::StdioLauncher;
+use kalsa_mcp::launch::{SealedStdioLauncher, StdioLauncher};
 use kalsa_mcp::pins::Pins;
 use kalsa_mcp::record::{ServerRecord, Trust};
 use kalsa_mcp::registry::Registry;
@@ -54,4 +54,13 @@ pub fn fixture_host(record: ServerRecord) -> Host<StdioLauncher> {
     pins.seed_binary(&server_id("fixture"), &fixture_binary()).expect("fixture is readable");
     let registry = Registry::new(vec![record]).expect("registry");
     Host::new(registry, StdioLauncher, pins)
+}
+
+/// The same fixture behind the launcher that gives the child an empty
+/// environment, so a test can read back what the child actually sees.
+pub fn sealed_host(record: ServerRecord, vars: Vec<(String, String)>) -> Host<SealedStdioLauncher> {
+    let mut pins = Pins::default();
+    pins.seed_binary(&server_id("fixture"), &fixture_binary()).expect("fixture is readable");
+    let registry = Registry::new(vec![record]).expect("registry");
+    Host::new(registry, SealedStdioLauncher::new(vars), pins)
 }

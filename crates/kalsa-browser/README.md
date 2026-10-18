@@ -55,6 +55,21 @@ held request and its confirm card arrive in step 4 (`src/hold.rs`).
 These are the things this crate does not stop. They are here so nobody reads the
 code and believes otherwise.
 
+- **An external protocol never reaches our route, and there is no flag that
+  makes it.** `mailto:`, `tel:` and friends do not become network requests:
+  Chromium hands them to the operating system before anything reaches the
+  network stack, so route interception is not offered them at all. Proved over a
+  real browser in `tests/external_protocol.rs`, in all three shapes that can
+  reach one — a form's `action`, a button's `formaction`, an anchor's `href` — and
+  **none of the three is ever seen by the route.** The only related Chromium
+  switches do the opposite or do not apply: `disable-sandbox-external-protocols`
+  re-*allows* external protocols from sandboxed iframes, and the
+  `SandboxExternalProtocolBlocked` policy covers sandboxed iframes only, not a
+  top-level navigation. So the scheme refusal in `input.rs` is the only thing
+  between a page and a program on this computer, which is why the default
+  submitter is computed the way the browser computes it and why the destination
+  is re-read immediately before Enter. Closing this properly needs something in
+  front of the browser, like the redirect case below.
 - **A GET is not free of effect.** The route refuses what would write to a site,
   but a GET can log someone in, count a click, or start a payment at the far end.
   Opening is a thing a person does on purpose.
@@ -76,6 +91,18 @@ code and believes otherwise.
   moment the model read an element and the moment it acts on it. The destination
   checks are done in the same task as the action, which closes the one window
   that mattered, but the element itself is still whatever the page has made it.
+- **Asynchronous page handlers between the last check and the key press.** Filling
+  a field fires `input` and `change`, and a page can answer either by rewriting the
+  form's `action`, the submitter's `formaction`, or the field's `formmethod`. So the
+  destination check runs a **second** time, in its own task, immediately before Enter
+  is pressed (`input.rs`, `RECHECK_BODY`), and a form that changed is refused with
+  nothing pressed. What that does not cover is a handler that runs *after* the
+  recheck — `await`, a timer, a `requestAnimationFrame` — which can change the form
+  in the gap between our evaluate returning and the key press arriving. That gap is
+  the width of one round trip to the browser, and no ordering inside the page can
+  close it. What covers it instead: the route refuses the non-GET request before it
+  is sent, and from step 4 every non-GET request is *held* and confirmed, so a form
+  rewritten in that window submits into a card a person saw.
 - **Secrets in plain-text fields.** A password field is refused by type and by
   `autocomplete`, and a field that turns into one when focused is caught by
   reading the type after the focus. A secret typed into a plain text field is a

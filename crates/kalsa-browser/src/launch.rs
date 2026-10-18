@@ -8,6 +8,7 @@ use crate::context;
 use crate::driver_env;
 use crate::find_browser;
 use crate::guard;
+use crate::landing::Landings;
 
 /// Why there is no browser to answer a call. Every variant is one plain line,
 /// and none of them names a path on the person's disk.
@@ -30,11 +31,11 @@ impl Unavailable {
 }
 
 /// Start the browser, headed, on `profile_dir`, and return the one page every
-/// tool of this process drives.
+/// tool of this process drives, with the record of where it has landed.
 ///
 /// The rules are installed before any page exists, so there is no window in
 /// which a request could be made without meeting them.
-pub async fn start(profile_dir: &str) -> Result<(Playwright, BrowserContext, Page), Unavailable> {
+pub async fn start(profile_dir: &str) -> Result<(Playwright, BrowserContext, Page, Landings), Unavailable> {
     driver_env::apply().map_err(Unavailable::Driver)?;
     let executable = find_browser::installed().await.map_err(Unavailable::Browser)?;
 
@@ -48,11 +49,12 @@ pub async fn start(profile_dir: &str) -> Result<(Playwright, BrowserContext, Pag
 
     // Order matters: the guard first, so a socket refused for a private address
     // is closed by a rule that is already in place.
-    guard::install(&browser).await.map_err(|_| Unavailable::WouldNotStart)?;
+    let landings = Landings::new();
+    guard::install(&browser, &landings).await.map_err(|_| Unavailable::WouldNotStart)?;
     context::close_what_a_route_cannot(&browser).await.map_err(|_| Unavailable::WouldNotStart)?;
 
     let page = browser.new_page().await.map_err(|_| Unavailable::WouldNotStart)?;
-    Ok((playwright, browser, page))
+    Ok((playwright, browser, page, landings))
 }
 
 #[cfg(test)]

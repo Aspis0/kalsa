@@ -58,6 +58,11 @@ tauri-plugin-updater = "2.13"
 # The report upload's HTTP client — the same one kalsa-download already
 # runs every download on, so nothing new enters the graph.
 ureq = "2"
+# Unpacking the browser driver archive, which we assemble as a .tar.gz on every
+# platform so one extractor serves all three (browser/unpack.rs). Both crates
+# are already in the graph through playwright-rs.
+tar = "0.4"
+flate2 = "1"
 regex = "1"
 # The iroh road runs on tokio; the app owns the executor (see road.rs).
 tokio = { version = "1", features = ["rt-multi-thread", "time", "sync"] }
@@ -84,3 +89,4 @@ windows-sys = { version = "0.59", features = [
 base64 = "0.22"
 # The tool definitions the sidecar serves, for the pin drift check.
 kalsa-mail = { path = "../crates/kalsa-mail" }
+kalsa-browser = { path = "../crates/kalsa-browser" }

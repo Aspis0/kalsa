@@ -7,6 +7,7 @@
 mod common;
 
 use kalsa_browser::guard;
+use kalsa_browser::landing;
 use std::time::Duration;
 
 /// A site that records every request that reaches it, and a browser pointed at
@@ -82,7 +83,7 @@ async fn a_direct_navigation_to_a_refused_address_never_arrives() {
 /// hop is judged, and the second is not. A site can therefore answer with a
 /// `302` to this computer's own network and the browser will follow it.
 ///
-/// What is left is smaller but real: `refused_landing` refuses to read a page we
+/// What is left is smaller but real: the landing check refuses to read a page we
 /// ended up on, so the model is never shown what a redirected page says. It does
 /// not unmake the request, and this test says so rather than pretending the
 /// second hop never arrived.
@@ -97,8 +98,9 @@ async fn a_redirect_is_judged_after_it_happens_and_the_page_is_not_read() {
     assert!(arrived.asked_for("/go"), "the first hop is judged and allowed: {:?}", arrived.requests());
     assert!(followed.is_err() || page.url().ends_with("/secret"), "the redirect was not followed, it is on {}", page.url());
 
-    // The second hop is judged where the address is known — after the fact.
-    let refusal = guard::refused_landing(&page.url());
+    // The second hop is judged where the address is known — after the fact, and
+    // by the same function every read goes through.
+    let refusal = landing::Landings::new().refused(&page.url()).await;
     assert!(refusal.is_some(), "the address we landed on is refused: {}", page.url());
     assert!(
         !arrived.asked_for("/secret") || refusal.is_some(),

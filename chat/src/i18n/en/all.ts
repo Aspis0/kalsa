@@ -1,4 +1,5 @@
 import { TELEMETRY } from "./telemetry";
+import { DRIVER } from "./driver";
 import { UPDATES } from "./updates";
 import { HELP } from "./help";
 // The English source: every other language is typed against this shape.
@@ -34,6 +35,7 @@ import { CONTENT_FILTER } from "./contentFilter";
 
 export interface English {
   telemetry: typeof TELEMETRY;
+  driver: typeof DRIVER;
   updates: typeof UPDATES;
   help: typeof HELP;
   chrome: typeof CHROME;
@@ -80,6 +82,7 @@ export interface English {
 
 export const ENGLISH: English = {
   telemetry: TELEMETRY,
+  driver: DRIVER,
   updates: UPDATES,
   help: HELP,
   chrome: CHROME,

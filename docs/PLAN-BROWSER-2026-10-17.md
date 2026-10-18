@@ -135,12 +135,17 @@ Proof: unit tests for the Enter rule (four shapes), the parser (`[expanded]`, si
 
 - `src-tauri/src/browser/mod.rs`, `state.rs`, `commands.rs`, `error.rs`
 - `src-tauri/src/browser/driver.rs` — verify and resolve
+- `src-tauri/src/browser/fetch.rs` — the transfer, and the cancel token it reads
+- `src-tauri/src/browser/unpack.rs` — the archive into a directory, refusing any name that climbs
+- `src-tauri/src/browser/tree.rs` — the tree digest, pinned beside the archive digest
 - `src-tauri/src/browser/profile.rs` — the profile dir, and **Clear Kalsa's browser data**
-- `src-tauri/src/browser/cancel.rs` — the cancel token
-- `src-tauri/src/browser/pending.rs` — the pending-confirm store: its own map, **no mutex held across a call**, 5-minute auto-decline
-- `src-tauri/src/browser/DownloadDriver.tsx` — **the first-use UI: press, progress, failure**
+- `src-tauri/src/browser/DownloadDriver.tsx` — **the first-use UI: press, progress, cancel, failure**
+- `chat/src/components/browser/ClearBrowserData.tsx`
 - `tool_pins.json` — beside `mail.*` (`src-tauri/src/mail/tool_pins.json:3-6`)
 - `program.rs` — the digest pin, shaped on `src-tauri/src/mail/program.rs:10`
+
+**The pending-confirm store is step 4, not this one.** Nothing here holds a request, so there is nothing to keep; `pending.rs` lands with `confirm.rs` and the card, and inherits the no-mutex-across-a-call rule from the note in *The call does not wait for the person*.
+**Clear refuses while a download is running** (both write under the same app-data folder), and from step 3 **while a browser session is open** — a profile directory in use is not one to empty underneath a live browser. That second refusal lands in step 3 with the session it belongs to.
 
 **Where the driver comes from.** `playwright-rs` fetches `playwright-core` from npm and Node from nodejs.org (`driver_urls.rs:51-65`) with **no digest check** (`driver_assembly.rs:141-156`). So the build sets `PLAYWRIGHT_SKIP_DRIVER_DOWNLOAD`, and the **release pipeline assembles the driver itself** from those sources at pinned versions, verifies the result, and publishes the archive on our own download location.
 
@@ -169,6 +174,7 @@ Proof, all with `open` alone — no click and no type in this step: a page carry
 ### 4. Desktop confirm card
 
 - `src-tauri/src/browser/confirm.rs` — single-use and short-lived, borrowing the lifetime and device binding from `phone_chat/drafts.rs:12` and `:92-118` but **not** its retry rule
+- `src-tauri/src/browser/pending.rs` — the held requests by id: its own map, **no mutex held across a call**, 5-minute auto-decline (moved here from step 2, which holds nothing)
 - `chat/src/components/browser/BrowserConfirm.tsx` — shaped on `SendConfirm.tsx:9-12`
 - `chat/src/components/browser/BrowserPause.tsx` — Pausa / Riprendi, stating that pause stops the next action
 - `i18n/` — five languages

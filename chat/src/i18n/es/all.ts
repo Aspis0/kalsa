@@ -1,3 +1,4 @@
+import { DRIVER } from "./driver";
 import { TELEMETRY } from "./telemetry";
 import { UPDATES } from "./updates";
 import { HELP } from "./help";
@@ -35,6 +36,7 @@ import type { English } from "../en/all";
 
 export const SPANISH: English = {
   telemetry: TELEMETRY,
+  driver: DRIVER,
   updates: UPDATES,
   help: HELP,
   chrome: CHROME,

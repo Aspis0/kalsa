@@ -20,6 +20,7 @@ use playwright_rs::protocol::Page;
 use serde::Deserialize;
 
 use crate::guard;
+use crate::landing::Landings;
 use crate::input;
 use crate::session::{self, Sessions};
 use crate::snapshot;
@@ -138,15 +139,42 @@ fn address_of(written: &str) -> String {
     format!("https://{trimmed}")
 }
 
-/// The page this process drives, or the one line that says there is none.
-async fn page_of(sessions: &Sessions) -> Result<Page, CallToolResult> {
+/// The page this process drives, and where it has landed, or the one line that
+/// says there is none.
+async fn page_of(sessions: &Sessions) -> Result<(Page, Landings), CallToolResult> {
     sessions.page().await.map_err(|unavailable| view::refused(unavailable.message()))
 }
 
-/// What a read printed, kept so the next call can act on one of its refs, and
-/// nothing else: a ref from an earlier read names an element this one replaced.
-async fn read_text(sessions: &Sessions, page: &Page, part: usize) -> Result<String, CallToolResult> {
-    match snapshot::snapshot(page, part).await {
+/// **The one gate every answer carrying page text goes through.**
+///
+/// Every tool that returns anything the page says comes through here: `open`,
+/// `read`, `find`, and the read that follows a `click` or a `type`. One place,
+/// so there is no path that answers without it — a check added to one tool and
+/// not the other is the shape of hole this exists to prevent.
+///
+/// It asks twice, because a request can be refused in two different ways. The
+/// route judges the address before the browser makes the request, which is the
+/// strong half. This is the weak half: it judges where the page actually ended
+/// up, by the same rules and against the address the browser really connected
+/// to. A redirect — never offered to a route in this stack — and a name that
+/// answered Chrome with a private address while answering us with a public one
+/// are both only visible here. Neither the text nor the refs are returned, so
+/// the model never acts on what such a page says.
+async fn page_text<F, Fut>(
+    sessions: &Sessions,
+    page: &Page,
+    landings: &Landings,
+    take: F,
+) -> Result<String, CallToolResult>
+where
+    F: FnOnce() -> Fut,
+    Fut: Future<Output = Result<String, playwright_rs::Error>>,
+{
+    if let Some(refusal) = landings.refused(&page.url()).await {
+        return Err(view::refused(refusal.reason()));
+    }
+    match take().await {
+        // What a read printed, kept so the next call can act on one of its refs.
         Ok(text) => {
             sessions.remember(&text).await;
             Ok(text)
@@ -155,8 +183,22 @@ async fn read_text(sessions: &Sessions, page: &Page, part: usize) -> Result<Stri
     }
 }
 
-async fn read(sessions: &Sessions, page: &Page, part: usize) -> CallToolResult {
-    match read_text(sessions, page, part).await {
+async fn read_text(
+    sessions: &Sessions,
+    page: &Page,
+    landings: &Landings,
+    part: usize,
+) -> Result<String, CallToolResult> {
+    page_text(sessions, page, landings, || snapshot::snapshot(page, part)).await
+}
+
+async fn read(
+    sessions: &Sessions,
+    page: &Page,
+    landings: &Landings,
+    part: usize,
+) -> CallToolResult {
+    match read_text(sessions, page, landings, part).await {
         Ok(text) => view::answered(text),
         Err(refused) => refused,
     }
@@ -179,41 +221,36 @@ async fn open(sessions: &Sessions, args: OpenArgs) -> CallToolResult {
     if let guard::Verdict::Refused(refusal) = guard::decide(&url).await {
         return view::refused(refusal.reason());
     }
-    let page = match page_of(sessions).await {
-        Ok(page) => page,
+    let (page, landings) = match page_of(sessions).await {
+        Ok(found) => found,
         Err(refused) => return refused,
     };
     if let Err(error) = page.goto(&url, None).await {
         return gone(sessions, &page, &error).await;
     }
-    // A redirect is not offered to the route in this stack, so the address we
-    // ended up at is judged here rather than there.
-    if let Some(refusal) = guard::refused_landing(&page.url()) {
-        return view::refused(refusal.reason());
-    }
-    read(sessions, &page, 1).await
+    // Where this landed is judged by the read below, which is the one gate.
+    read(sessions, &page, &landings, 1).await
 }
 
 async fn read_page(sessions: &Sessions, args: ReadArgs) -> CallToolResult {
-    let page = match page_of(sessions).await {
-        Ok(page) => page,
+    let (page, landings) = match page_of(sessions).await {
+        Ok(found) => found,
         Err(refused) => return refused,
     };
-    read(sessions, &page, args.page.unwrap_or(1)).await
+    read(sessions, &page, &landings, args.page.unwrap_or(1)).await
 }
 
 async fn find(sessions: &Sessions, args: FindArgs) -> CallToolResult {
-    let page = match page_of(sessions).await {
-        Ok(page) => page,
+    let (page, landings) = match page_of(sessions).await {
+        Ok(found) => found,
         Err(refused) => return refused,
     };
-    match snapshot::find(&page, &args.text, 1, 40).await {
-        // A find is a read too: its refs are as good as any other's.
-        Ok(text) => {
-            sessions.remember(&text).await;
-            view::answered(text)
-        }
-        Err(error) => gone(sessions, &page, &error).await,
+    // A find is a read too: its refs are as good as any other's, and it goes
+    // through the same gate for the same reason.
+    let wanted = args.text;
+    match page_text(sessions, &page, &landings, || snapshot::find(&page, &wanted, 1, 40)).await {
+        Ok(text) => view::answered(text),
+        Err(refused) => refused,
     }
 }
 
@@ -222,14 +259,15 @@ async fn click(sessions: &Sessions, args: RefArgs) -> CallToolResult {
         Ok(id) => id,
         Err(reason) => return view::refused(reason),
     };
-    let page = match page_of(sessions).await {
-        Ok(page) => page,
+    let (page, landings) = match page_of(sessions).await {
+        Ok(found) => found,
         Err(refused) => return refused,
     };
     if let Err(refused) = input::click(&page, &id).await {
         return view::refused(refused.reason());
     }
-    read(sessions, &page, 1).await
+    // A click can navigate, so the page it lands on is judged like any other.
+    read(sessions, &page, &landings, 1).await
 }
 
 async fn type_into(sessions: &Sessions, args: TypeArgs) -> CallToolResult {
@@ -237,8 +275,8 @@ async fn type_into(sessions: &Sessions, args: TypeArgs) -> CallToolResult {
         Ok(id) => id,
         Err(reason) => return view::refused(reason),
     };
-    let page = match page_of(sessions).await {
-        Ok(page) => page,
+    let (page, landings) = match page_of(sessions).await {
+        Ok(found) => found,
         Err(refused) => return refused,
     };
     // What Enter did, or refused to do, is the model's next instruction: it is
@@ -247,7 +285,7 @@ async fn type_into(sessions: &Sessions, args: TypeArgs) -> CallToolResult {
         Ok(entered) => entered,
         Err(refused) => return view::refused(refused.reason()),
     };
-    match read_text(sessions, &page, 1).await {
+    match read_text(sessions, &page, &landings, 1).await {
         Ok(text) if entered => view::answered(format!("{text}{}", enter_was_pressed())),
         Ok(text) => view::answered(text),
         Err(refused) => refused,

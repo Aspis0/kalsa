@@ -10,6 +10,8 @@ import { TelemetrySettings } from "./TelemetrySettings";
 import { Icon as MailIcon } from "./Icon";
 import { UpdatesSettings } from "./UpdatesSettings";
 import type { UpdatesApi } from "../lib/useUpdates";
+import { DownloadDriver } from "./browser/DownloadDriver";
+import { ClearBrowserData } from "./browser/ClearBrowserData";
 
 type Look = Theme | "auto";
 const LOOKS: Look[] = ["light", "dark", "auto"];
@@ -111,6 +113,10 @@ export function SettingsForm({ initial, onWebTools, theme, onTheme, updates, bus
             <p>{t.webSearchNote}</p>
           </div>
         ) : null}
+        {/* The browser rows sit with web search: both are what Kalsa reaches the
+            network with, and both cost the owner something before they work. */}
+        <DownloadDriver />
+        <ClearBrowserData />
         <TelemetrySettings />
       </div>
 

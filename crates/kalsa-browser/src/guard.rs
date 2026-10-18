@@ -7,12 +7,13 @@
 //! called. Three things are refused: a scheme that is not http or https, an
 //! address on this computer's own network, and a name that resolves there.
 //!
-//! **What this does not stop.** A redirect is not: in this stack a redirect
-//! followed within a navigation is never offered to a route handler, so a site
-//! can answer with a `302` to this computer's own network and the browser will
-//! follow it. What we can do about that is refuse to *read* a page we landed on
-//! (see `refused_landing`), which is a much smaller promise than never making
-//! the request.
+//! **What this does not stop, on the request.** A redirect is not: in this stack
+//! a redirect followed within a navigation is never offered to a route handler, so
+//! a site can answer with a `302` to this computer's own network and the browser
+//! will follow it. What we do about that is refuse to *read* a page we landed on
+//! (see [`crate::landing`]), which is a much smaller promise than never making
+//! the request. It does now include the address the browser really connected to,
+//! so a rebinding name is caught there too.
 //!
 //! A name is resolved here, and Chrome resolves it
 //! again for itself. Between the two, a name that answered us with a public
@@ -31,6 +32,8 @@ use playwright_rs::protocol::BrowserContext;
 use tokio::net::lookup_host;
 use tokio::time::timeout;
 use url::{Host, Url};
+
+use crate::landing::{self, Landings};
 
 /// Long enough for a resolver to answer on a slow network, short enough that a
 /// page full of dead names cannot hold the window up.
@@ -52,6 +55,10 @@ pub enum Refusal {
     Unchecked,
     /// The address carries a username or a password in front of the host.
     Credentials,
+    /// The page's own response was never recorded, or named no address we could
+    /// read. Said as unseen rather than as private, because nothing is claimed
+    /// about where it went — only that we cannot show where it did not.
+    Unseen,
 }
 
 impl Refusal {
@@ -69,6 +76,9 @@ impl Refusal {
             }
             Refusal::Credentials => {
                 "that address carries a username or a password in it, and Kalsa does not open it"
+            }
+            Refusal::Unseen => {
+                "Kalsa could not see where that page was served from, so it did not read it"
             }
         }
     }
@@ -144,7 +154,7 @@ fn is_our_own_v6(v6: &Ipv6Addr) -> bool {
 }
 
 /// A literal address on this computer or its network.
-fn is_our_own(address: &IpAddr) -> bool {
+pub(crate) fn is_our_own(address: &IpAddr) -> bool {
     match address {
         IpAddr::V4(v4) => is_our_own_v4(v4),
         IpAddr::V6(v6) => embedded_ipv4(v6).is_some_and(|v4| is_our_own_v4(&v4))
@@ -243,22 +253,10 @@ fn resolvable_name(url: &str) -> Option<String> {
     }
 }
 
-/// Whether a page we have landed on is somewhere we would never have opened.
-///
-/// This is what catches a redirect: the request went out before anything could
-/// look at it, and this is the point where the address is known. The page is not
-/// read and the model is not shown it — which stops the model acting on what a
-/// redirected page says, and does not stop the request having been made.
-pub fn refused_landing(url: &str) -> Option<Refusal> {
-    match verdict(url) {
-        Verdict::Refused(refusal) => Some(refusal),
-        Verdict::Allow => None,
-    }
-}
-
 /// The one route every request meets. A request we refuse is aborted before it
 /// reaches the network, so the browser never asks and nothing leaves.
-pub async fn install(context: &BrowserContext) -> Result<(), playwright_rs::Error> {
+pub async fn install(context: &BrowserContext, landings: &Landings) -> Result<(), playwright_rs::Error> {
+    landing::watch(context, landings).await?;
     context
         .route("**/*", |route| async move {
             let request = route.request();
@@ -360,4 +358,5 @@ mod tests {
             assert!(!reason.contains("100.64"), "{reason}");
         }
     }
+
 }
