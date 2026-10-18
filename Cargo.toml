@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "crates/kalsa-browser",
     "crates/kalsa-catalog",
     "crates/kalsa-door",
     "crates/kalsa-download",
