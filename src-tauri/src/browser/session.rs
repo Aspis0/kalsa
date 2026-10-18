@@ -199,7 +199,7 @@ async fn retry_while_busy(
     tool: &str,
 ) -> Result<String, super::error::CommandFailure> {
     for _ in 0..SLOT_TRIES {
-        let said = call(app, state, tool, Map::new()).await;
+        let said = state.inner().call_host(app, tool, Map::new()).await.map_err(Into::into);
         if said.is_ok() || !state.inner().browser().is_busy() {
             return said;
         }

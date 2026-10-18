@@ -80,7 +80,7 @@ pub(crate) const DECLINED: &str = "declined";
 /// asked at all, because a failure to read the list is not a failure of the
 /// click that came before it.
 pub(crate) async fn refresh(app: &AppHandle, state: &State<'_, BrowserState>) {
-    let Ok(listed) = state.inner().call(app, "browser_waiting", Map::new()).await else {
+    let Ok(listed) = state.inner().call_host(app, "browser_waiting", Map::new()).await else {
         // A sidecar that could not answer has already taken its cards with it,
         // inside the call: this is only the case where the read never ran.
         return;
@@ -217,7 +217,7 @@ pub(crate) async fn decline_one(
     state.inner().pending().spend_in(id, conversation);
     let mut args = two(id, conversation);
     args.insert("why".to_owned(), Value::from(why));
-    let _ = state.inner().browser().call(&app_data, "browser_decline", args).await;
+    let _ = state.inner().browser().call_host(&app_data, "browser_decline", args).await;
     // **No refresh here, on purpose.** The card is already spent in this app's
     // store, so the window and the phone stop showing it whatever the sidecar
     // says. A refresh would re-read the whole list and call back into
@@ -272,7 +272,7 @@ pub(crate) async fn answer(
     // one's to press, and it stays on the window for whoever did cause it.
     state.inner().pending().spend_in(&id, &conversation).ok_or(BrowserError::NoCard)?;
     let tool = if allow { "browser_confirm" } else { "browser_decline" };
-    let said = match state.inner().call(app, tool, two(&id, &conversation)).await {
+    let said = match state.inner().call_host(app, tool, two(&id, &conversation)).await {
         Ok(said) => said,
         Err(refused) => {
             // **The card is spent and no answer came back.** The person pressed a

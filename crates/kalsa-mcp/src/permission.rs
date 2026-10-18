@@ -36,7 +36,21 @@ pub enum Permission {
 }
 
 /// First-party tools that run without asking, once their pins match.
-const FIRST_PARTY_ALLOW: &[&str] = &["mail.list", "mail.read", "mail.draft"];
+///
+/// The browser's click and type are here too, and that is a decision and not an
+/// oversight: a write is never sent on the model's word. The sidecar holds every
+/// write it is asked for and only sends it when the person confirms that card, so
+/// the permission layer does not have to be the thing that stops a write.
+const FIRST_PARTY_ALLOW: &[&str] = &[
+    "mail.list",
+    "mail.read",
+    "mail.draft",
+    "browser.browser_open",
+    "browser.browser_read",
+    "browser.browser_find",
+    "browser.browser_click",
+    "browser.browser_type",
+];
 
 pub(crate) struct Standing {
     pub(crate) binary: PinState,

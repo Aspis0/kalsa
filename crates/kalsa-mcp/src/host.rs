@@ -1,4 +1,3 @@
-use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 
 use serde_json::{Map, Value};
@@ -14,6 +13,18 @@ use crate::pins::Pins;
 use crate::record::{ServerRecord, Trust};
 use crate::registry::Registry;
 use crate::server_id::ServerId;
+
+/// Tools a server answers that no model is ever offered: the person's own answers
+/// to what the chat asks, and the list of what is waiting for them. They are not
+/// in `tools/list`, so `Host::call` refuses them as unlisted, and only
+/// `Host::call_host_only` reaches them.
+const HOST_ONLY: &[&str] = &[
+    "browser.browser_waiting",
+    "browser.browser_pause",
+    "browser.browser_resume",
+    "browser.browser_confirm",
+    "browser.browser_decline",
+];
 
 /// Routes `<server>.<tool>` calls and applies the host's permissions. Nothing a
 /// server sends can raise a permission.
@@ -50,9 +61,10 @@ impl<L: Launch> Host<L> {
         Ok(())
     }
 
-    /// Asks the server for its tools again and compares each definition with its pin.
-    /// A program that is not approved as it is on disk is not started.
-    pub async fn list(&mut self, server: &ServerId) -> Result<Listing, Error> {
+    /// Checks the server's program against its approval, and starts it if it is
+    /// approved and not running yet. A third-party server is refused before anything
+    /// is read, and a program that is not approved as it is on disk is never started.
+    async fn connect(&mut self, server: &ServerId) -> Result<(Trust, PinState), Error> {
         let record = self.registry.get_mut(server).ok_or(Error::UnknownServer)?;
         let trust = record.trust();
         if trust == Trust::ThirdParty {
@@ -68,6 +80,27 @@ impl<L: Launch> Host<L> {
         if binary != PinState::Pinned {
             log::warn!("mcp server {server}: program pin is {binary:?}, not started");
             self.sessions.remove(server);
+            return Ok((trust, binary));
+        }
+        if !self.sessions.contains_key(server) {
+            match self.launcher.launch(record, &program_sha256).await {
+                Ok(connection) => {
+                    self.sessions.insert(server.clone(), connection);
+                }
+                Err(error) => {
+                    log::warn!("mcp server {server}: start failed: {error:?}");
+                    return Err(error);
+                }
+            }
+        }
+        Ok((trust, binary))
+    }
+
+    /// Asks the server for its tools again and compares each definition with its pin.
+    /// A program that is not approved as it is on disk is not started.
+    pub async fn list(&mut self, server: &ServerId) -> Result<Listing, Error> {
+        let (trust, binary) = self.connect(server).await?;
+        if binary != PinState::Pinned {
             return Ok(Listing {
                 server: server.clone(),
                 binary,
@@ -76,17 +109,7 @@ impl<L: Launch> Host<L> {
                 trust,
             });
         }
-
-        let connection = match self.sessions.entry(server.clone()) {
-            Entry::Occupied(entry) => entry.into_mut(),
-            Entry::Vacant(entry) => match self.launcher.launch(record, &program_sha256).await {
-                Ok(connection) => entry.insert(connection),
-                Err(error) => {
-                    log::warn!("mcp server {server}: start failed: {error:?}");
-                    return Err(error);
-                }
-            },
-        };
+        let connection = self.sessions.get(server).ok_or_else(|| Error::ServerGone(server.clone()))?;
         let tools = match connection.list_tools(server).await {
             Ok(tools) => tools,
             Err(error) => {
@@ -166,6 +189,32 @@ impl<L: Launch> Host<L> {
                 }
             },
         }
+    }
+
+    /// Calls one of the `HOST_ONLY` tools, for the host and never for a model. The
+    /// name must be in that table, and the server's program must be the approved
+    /// one; a third-party server is refused by `connect` before anything starts. No
+    /// listing is consulted, because these tools are never listed to be pinned.
+    pub async fn call_host_only(
+        &mut self,
+        conversation: &str,
+        name: &str,
+        arguments: Map<String, Value>,
+    ) -> Result<ToolResult, Error> {
+        let name = NamespacedName::parse(name)?;
+        if !HOST_ONLY.contains(&name.to_string().as_str()) {
+            return Err(Error::UnknownTool(name));
+        }
+        let (_trust, binary) = self.connect(name.server()).await?;
+        match binary {
+            PinState::Pinned => {}
+            PinState::Changed => return Err(Error::BinaryChanged(name.server().clone())),
+            PinState::Unpinned => return Err(Error::NotPinned(name.server().clone())),
+        }
+        self.run(conversation, &name, arguments).await.map_err(|error| {
+            log::warn!("mcp {name}: host call failed: {error:?}");
+            error
+        })
     }
 
     /// The tool is listed again first, so a definition that changed while the

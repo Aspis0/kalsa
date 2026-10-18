@@ -41,6 +41,23 @@ use super::{server_env, tool_pins, SERVER};
 /// to carry state in, so this is the same constant the mailbox uses.
 const CONVERSATION: &str = "browser";
 
+/// The name a tool is routed by: `<server>.<tool>`. The host refuses a bare name
+/// with `NoNamespace`, so every call qualifies its tool here and nowhere else.
+fn qualified(tool: &str) -> String {
+    format!("{SERVER}.{tool}")
+}
+
+/// The tools the person's own answers go through, and the list of what is waiting
+/// for them. A model is never offered these, and the host reaches them only through
+/// `call_host_only`. The names must match the table in kalsa-mcp.
+const HOST_ONLY: &[&str] = &[
+    "browser_waiting",
+    "browser_pause",
+    "browser_resume",
+    "browser_confirm",
+    "browser_decline",
+];
+
 /// What is true of the browser right now.
 ///
 /// Generic over the sidecar so the moves are proved without starting one: the
@@ -284,14 +301,43 @@ impl Default for Browser {
 }
 
 impl Browser {
-    /// Calls one tool on the browser, starting the sidecar if this is the first
-    /// call since the window opened.
+    /// Calls one of the tools the model is offered, starting the sidecar if this is
+    /// the first call since the window opened. A person's own answers are refused
+    /// here, so no caller of this path can reach them by name.
     pub(crate) async fn call(
         &self,
         app_data: &Path,
         tool: &str,
         args: Map<String, Value>,
     ) -> Result<String, BrowserError> {
+        self.reach(app_data, tool, args, false).await
+    }
+
+    /// Calls one of the person's own answers, or the list of what waits for them,
+    /// and nothing else. Only the commands a person presses come here; a model tool
+    /// is refused by name.
+    pub(crate) async fn call_host(
+        &self,
+        app_data: &Path,
+        tool: &str,
+        args: Map<String, Value>,
+    ) -> Result<String, BrowserError> {
+        self.reach(app_data, tool, args, true).await
+    }
+
+    /// The one path both entries share. **Which of the two calls the host is decided
+    /// by the entry that was called, and the name must agree with it** — checked
+    /// before the slot is taken, so a refused name starts nothing.
+    async fn reach(
+        &self,
+        app_data: &Path,
+        tool: &str,
+        args: Map<String, Value>,
+        person: bool,
+    ) -> Result<String, BrowserError> {
+        if HOST_ONLY.contains(&tool) != person {
+            return Err(BrowserError::Refused);
+        }
         // **The generation is read before the lease is taken.** Taking the lease
         // first leaves a window in which a Stop lands and this call has already
         // decided it is not the one being stopped — it reads a generation that
@@ -301,10 +347,17 @@ impl Browser {
         let mut stopped = self.stop.subscribe();
         let seen = *stopped.borrow_and_update();
         let mut lease = self.locked().take(|| start(app_data))?;
+        let name = qualified(tool);
         let ran = tokio::select! {
             biased;
             _ = wait_for_stop(&mut stopped, seen) => None,
-            outcome = lease.host.call(CONVERSATION, tool, args) => Some(outcome),
+            outcome = async {
+                if person {
+                    lease.host.call_host_only(CONVERSATION, &name, args).await.map(CallOutcome::Ran)
+                } else {
+                    lease.host.call(CONVERSATION, &name, args).await
+                }
+            } => Some(outcome),
         };
         // **A host that could not answer, or a window that has gone, is not a
         // session.** A page that refused is the page's own sentence — `Ran` with
@@ -478,12 +531,15 @@ fn start(app_data: &Path) -> Result<Host<SealedStdioLauncher>, BrowserError> {
 
 #[cfg(test)]
 mod tests {
-    use super::{keep_the_host, the_window_went, wait_for_stop, BrowserError, Slot, State};
+    use super::{keep_the_host, qualified, wait_for_stop, Browser, BrowserError, Host, Registry, SealedStdioLauncher, ServerRecord, Slot, State, Trust, CONVERSATION};
+    use kalsa_mcp::error::Error;
     use kalsa_mcp::outcome::{CallOutcome, ToolResult};
+    use kalsa_mcp::pins::Pins;
     use kalsa_mcp::server_id::ServerId;
-    use serde_json::{json, Value};
+    use serde_json::{json, Map, Value};
     use crate::browser::SERVER;
     use crate::browser::window::WindowState;
+    use std::path::PathBuf;
     use std::time::{Duration, Instant};
     use tokio::sync::watch;
 
@@ -931,7 +987,7 @@ mod tests {
     /// which is what a single boolean would do.
     #[tokio::test]
     async fn a_stop_from_the_window_before_does_not_cancel_the_next_one() {
-        let (stop, mut stopped) = watch::channel(0_u64);
+        let (stop, stopped) = watch::channel(0_u64);
         stop.send_modify(|generation| *generation += 1);
 
         // The next call reads the generation **after** the Stop, so it is not
@@ -943,5 +999,44 @@ mod tests {
             tokio::time::timeout(Duration::from_millis(150), wait_for_stop(&mut stopped, seen)).await.is_err(),
             "and nothing ends it"
         );
+    }
+
+    /// **A tool is called by the name the host routes by, and a bare one is refused.**
+    /// Every browser call went out bare, so each was refused as `NoNamespace` before
+    /// the host looked at anything. This drives the name the call builds through a real
+    /// host: the bare name is still refused for having no server, and the qualified one
+    /// gets past the name to the binary, which is not on disk here, so the host stops
+    /// there and no sidecar is started.
+    #[tokio::test]
+    async fn a_browser_tool_is_called_by_the_name_the_host_routes_by() {
+        let record = ServerRecord::new(
+            ServerId::new(SERVER).expect("the browser's own server name"),
+            PathBuf::from("/nonexistent/kalsa-browser-sidecar"),
+            Trust::FirstParty,
+        )
+        .expect("an absolute path is a record");
+        let registry = Registry::new(vec![record]).expect("one server");
+        let mut host = Host::new(registry, SealedStdioLauncher::new(Vec::new()), Pins::default());
+
+        let bare = host.call(CONVERSATION, "browser_open", Map::new()).await;
+        assert!(matches!(bare, Err(Error::NoNamespace)), "a bare name has no server to route to");
+
+        let routed = host.call(CONVERSATION, &qualified("browser_open"), Map::new()).await;
+        assert!(matches!(routed, Err(Error::BinaryUnreadable(_))), "a qualified name reaches the browser's server");
+    }
+
+    /// **Each entry refuses the other side's names before anything starts.** The
+    /// model's path cannot reach a person's answer by name, and the person's path
+    /// cannot reach a model tool. The app data folder here does not exist, so a call
+    /// that got past the check would fail with a different error.
+    #[tokio::test]
+    async fn each_entry_refuses_the_other_sides_names_before_anything_starts() {
+        let browser = Browser::default();
+        let app_data = PathBuf::from("/nonexistent/kalsa-browser-app-data");
+
+        assert_eq!(browser.call(&app_data, "browser_confirm", Map::new()).await.err(), Some(BrowserError::Refused));
+        assert_eq!(browser.call(&app_data, "browser_waiting", Map::new()).await.err(), Some(BrowserError::Refused));
+        assert_eq!(browser.call_host(&app_data, "browser_open", Map::new()).await.err(), Some(BrowserError::Refused));
+        assert!(!browser.is_open(), "and no browser was started");
     }
 }

@@ -23,6 +23,9 @@ mod program;
 mod server_env;
 mod tool_pins;
 
+#[cfg(test)]
+mod live;
+
 /// The server id the host registers the browser sidecar under, and the prefix
 /// its tools carry.
 pub(crate) const SERVER: &str = "browser";

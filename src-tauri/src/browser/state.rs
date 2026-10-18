@@ -86,10 +86,9 @@ impl BrowserState {
 
     /// **One browser call, and the one place the slot is read afterwards.**
     ///
-    /// Every caller goes through here — the chat's five tools, the pause and the
-    /// resume, the confirm and the decline, and the refresh of what is waiting —
-    /// because this is where the slot has settled and what it settled on is said
-    /// to the page. A caller that called the host for itself would move the slot
+    /// The chat's five tools go through here, and the person's own answers through
+    /// `call_host`, which is the same path with the other entry. Both are where the
+    /// slot has settled and what it settled on is said to the page. A caller that called the host for itself would move the slot
     /// without saying anything, which is how a page ends up drawing a browser that
     /// was abandoned under it.
     ///
@@ -106,6 +105,26 @@ impl BrowserState {
     ) -> Result<String, BrowserError> {
         let app_data = app.path().app_data_dir().map_err(|_| BrowserError::Storage)?;
         let said = self.browser.call(&app_data, tool, args).await;
+        self.published(app, said)
+    }
+
+    /// **The person's own answers, through `Browser::call_host`**, and published the
+    /// same way. Called by the commands a person presses and by the refresh that
+    /// follows them, never on a model's word.
+    pub(crate) async fn call_host(
+        &self,
+        app: &AppHandle,
+        tool: &str,
+        args: serde_json::Map<String, serde_json::Value>,
+    ) -> Result<String, BrowserError> {
+        let app_data = app.path().app_data_dir().map_err(|_| BrowserError::Storage)?;
+        let said = self.browser.call_host(&app_data, tool, args).await;
+        self.published(app, said)
+    }
+
+    /// What both calls say once the slot has settled: the cards go with a browser
+    /// that is gone, and the page is told the state it is now in.
+    fn published(&self, app: &AppHandle, said: Result<String, BrowserError>) -> Result<String, BrowserError> {
         if !self.browser.is_open() {
             super::confirm::declined_by_the_window_going(app, self);
         }
