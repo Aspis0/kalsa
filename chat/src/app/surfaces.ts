@@ -7,4 +7,5 @@ export type SurfaceKey =
   | "devices"
   | "settings"
   | "mail"
+  | "browser"
   | "help";

@@ -20,4 +20,6 @@ export const DRIVER: typeof ENGLISH = {
   clear: "Cancella i dati del browser di Kalsa",
   cleared: "I dati del browser di Kalsa sono stati cancellati.",
   clearFailed: "Kalsa non è riuscita a cancellare i dati del browser. Non è stato cambiato nulla.",
+  clearOpen: "Chiudi la finestra del browser per cancellarli.",
+  back: "Torna alle Impostazioni",
 };

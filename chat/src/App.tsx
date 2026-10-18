@@ -7,6 +7,7 @@
 
 import { useEffect, useState } from "react";
 import { startConfirmBus } from "./lib/browser/confirm";
+import { startWindowBus } from "./lib/browser/window";
 import { useBrowserStatus } from "./lib/browser/useStatus";
 import { loadSettings, loadTheme, saveSettings, saveTheme, themeChoiceMade } from "./lib/settings";
 import type { Theme } from "./lib/settings";
@@ -23,6 +24,7 @@ import { HelpSurface } from "./surfaces/HelpSurface";
 import { TelemetryNotice } from "./components/TelemetryNotice";
 import { SettingsForm } from "./components/SettingsForm";
 import { MailSettingsPage } from "./components/mail/MailSettingsPage";
+import { BrowserSettingsPage } from "./components/browser/BrowserSettingsPage";
 import { modelOnly } from "./lib/modelName";
 import { BrainSurface } from "./surfaces/BrainSurface";
 import { useBrain } from "./surfaces/useBrain";
@@ -93,9 +95,12 @@ export function App() {
   // rather than when Settings happens to be opened.
   useBrowserStatus();
   // The card a person is asked about belongs to the window, not to a surface, so
-  // its one subscription starts here and is never torn down.
+  // its one subscription starts here and is never torn down. The browser
+  // window's own state is the window's for the same reason — and the read on the
+  // same mount is what a reloaded webview has instead of the events it missed.
   useEffect(() => {
     void startConfirmBus();
+    void startWindowBus();
   }, []);
 
   // One hop along the surfaces. Hops between settings surfaces extend the
@@ -263,6 +268,7 @@ export function App() {
                 aiName={state?.kind === "running" && state.model ? modelOnly(state.model) : null}
                 onOpenAi={() => openSurface("models")}
                 onOpenMail={() => openSurface("mail")}
+                onOpenBrowser={() => openSurface("browser")}
                 onWebTools={(webTools) => {
                   // Writes only itself, from the settings that are already
                   // stored: the text sitting unsaved in the connection fields is
@@ -274,6 +280,8 @@ export function App() {
               />
             ) : surface === "mail" ? (
               <MailSettingsPage onBack={goBack} />
+            ) : surface === "browser" ? (
+              <BrowserSettingsPage onBack={goBack} />
             ) : surface === "help" ? (
               <HelpSurface />
             ) : surface === "models" ? (

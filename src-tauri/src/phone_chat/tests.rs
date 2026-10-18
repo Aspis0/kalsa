@@ -355,7 +355,7 @@ fn open_for(
 ) -> mpsc::Receiver<ChatEvent> {
     let credential = if device == DeviceId::new(1) { "cred-a" } else { "cred-b" };
     let asking = super::asking((device, digest(credential)), device, &json!({}));
-    bridge.start_live(request, device, kind, &asking)
+    bridge.start_live(request, kind, &asking)
 }
 
 /// A bridge that has paired two phones.

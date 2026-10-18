@@ -36,9 +36,10 @@ const {
   browserDots,
   currentBrowserCards,
   isBrowserPaused,
+  isBrowserWindowOpen,
   noteBrowserCards,
   noteBrowserAnswered,
-  setBrowserPaused,
+  startBrowserWindowBus,
   takeBrowserOutcomes,
 } = app;
 
@@ -73,6 +74,12 @@ const REACHED = [];
 let outcome = JSON.stringify({ code: "sent", host: "shop.example" });
 /** A press that never reaches Rust: the card is spent and nothing came back. */
 let answeringFails = false;
+/** The window the backend is holding open, and whether it is paused. This is
+    **the backend's answer to its own question**: a page that mounts asks for it,
+    and the page never works it out for itself. */
+let backendWindow = { open: false, paused: false };
+/** What the app said on its events, so a proof can hand the page one. */
+const EVENTS = new Map();
 
 const CARD = {
   id: "c1",
@@ -124,6 +131,7 @@ globalThis.window = {
           PAUSES.push(command.endsWith("pause") ? "pause" : "resume");
           return null;
         }
+        if (command === "brain_browser_state") return { ...backendWindow, seq: backendSeq };
         if (command === "brain_browser_confirm" || command === "brain_browser_decline") {
           ANSWERS.push([command.endsWith("confirm") ? "allow" : "decline", args.id, args.conversation]);
           if (answeringFails) throw new Error("the sidecar went away");
@@ -132,7 +140,12 @@ globalThis.window = {
         return null;
       },
     },
-    event: { listen: async () => () => {} },
+    event: {
+      listen: async (event, handler) => {
+        EVENTS.set(event, handler);
+        return () => EVENTS.delete(event);
+      },
+    },
   },
 };
 
@@ -143,7 +156,38 @@ async function attempt(name, args, conversation = CHAT) {
   return executeToolCall(name, args, undefined, null, [], "any-model", undefined, undefined, true, conversation);
 }
 
+/** How many times the app has moved its view of the window. It travels with
+    every snapshot, exactly as it does in the app, so a proof that hands the page
+    an older one afterwards is handing it what a delayed read really is. */
+let backendSeq = 0;
+
+/** One snapshot, as the app's event carries it. */
+function deliver(seq, window) {
+  const said = EVENTS.get("brain_browser_state");
+  if (!said) throw new Error("the page is not listening for the window");
+  said({ ...window, seq });
+}
+
+/** What the app said on `brain_browser_state` — the way the page hears it, and
+    the only way these proofs move the window: the page has no setter of its own,
+    which is the whole of the change. */
+function backendSays(window) {
+  backendSeq += 1;
+  deliver(backendSeq, window);
+}
+
 try {
+  // **The app starts the window's own subscription on its mount**, and every
+  // proof below moves the window the way the app hears it, so the page has to be
+  // listening first — which is also what makes the reload proof at the end real:
+  // that one starts a second bus over the same store, as a reloaded page does.
+  await startBrowserWindowBus();
+  // **And a page that has just mounted draws no window.** It has heard no event
+  // and the app has answered its one read with no window, which is the honest
+  // answer for a browser that was never opened — and the whole of what the
+  // Pausa control is drawn from.
+  check("a fresh page that has just mounted draws no window", isBrowserWindowOpen() === false, "the app says there is none");
+
   // --- what is offered --------------------------------------------------------
   {
     noteBrowserStatus({ supported: true, installed: true, size: 42 });
@@ -189,10 +233,10 @@ try {
   // --- Pausa stops the next action, and only the next ------------------------
   {
     const before = CLICKS.length;
-    const paused = await isBrowserPaused();
-    equal("the browser is running to begin with", paused, false);
+    backendSays({ open: true, paused: false });
+    equal("the browser is running to begin with", isBrowserPaused(), false);
 
-    setBrowserPaused(true);
+    backendSays({ open: true, paused: true });
     const stopped = await attempt("browser_click", { ref: "e5" });
     check(
       "a paused browser acts no further, and says what it did not do",
@@ -203,7 +247,7 @@ try {
 
     // A card is still answerable while paused: pausing is not declining.
     check("a card stays on the window while paused", currentBrowserCards().length === 0, "nothing has been held here");
-    setBrowserPaused(false);
+    backendSays({ open: true, paused: false });
     const again = await attempt("browser_click", { ref: "e5" });
     check("and a resumed browser acts again", again.ok === true, again.text);
   }
@@ -361,12 +405,18 @@ try {
 
   // --- Pausa is a control over the sidecar, not over a flag in this file ------
   {
-    setBrowserPaused(false);
+    backendSays({ open: true, paused: false });
     PAUSES.length = 0;
     check("the browser is running to begin with", isBrowserPaused() === false, "it is");
 
     await browserPressPause(true);
-    check("pressing Pausa tells the sidecar, and then says it is paused", PAUSES[PAUSES.length - 1] === "pause" && isBrowserPaused() === true, JSON.stringify(PAUSES));
+    check("pressing Pausa tells the sidecar", PAUSES[PAUSES.length - 1] === "pause", JSON.stringify(PAUSES));
+    // **And the page does not call itself paused.** It is told, by the app, once
+    // the app knows what the sidecar said: a button that moved on its own press
+    // is a button that can read "paused" over a browser still being driven.
+    check("but the page has not moved its own flag: only the app can say it is paused", isBrowserPaused() === false);
+    backendSays({ open: true, paused: true });
+    check("and it is paused once the app has said so", isBrowserPaused() === true);
 
     // A paused browser acts no further: this is the registry's own refusal, and
     // the sidecar has the same rule behind it. **All five, the three reads as
@@ -391,9 +441,10 @@ try {
     await browserPressPause(false);
     check(
       "Riprendi tells the sidecar too, and reads the page as it is now",
-      PAUSES[PAUSES.length - 1] === "resume" && isBrowserPaused() === false,
+      PAUSES[PAUSES.length - 1] === "resume",
       JSON.stringify(PAUSES),
     );
+    backendSays({ open: true, paused: false });
     // Each of the five is offered again once the browser is running. The reads
     // and the writes act; **the open answers with its own refusal** — that
     // address has never appeared in a conversation, which is a different rule
@@ -415,6 +466,84 @@ try {
       REACHED.slice(reached),
       rest.map(([name]) => `brain_browser_${name.slice("browser_".length)}`),
     );
+  }
+
+  // --- the page mirrors the app, and a session takes its pause with it -------
+  {
+    // **The page infers nothing.** What it draws is what the app said, so every
+    // proof below moves the window the way the app says it and not by pressing
+    // anything in this file.
+    // What the app says after a call, for a window that is there.
+    backendSays({ open: true, paused: false });
+    check("a window the app opened is a window", isBrowserWindowOpen() === true);
+
+    backendSays({ open: true, paused: true });
+    check("and a pause the app took is a pause", isBrowserPaused() === true);
+
+    // What it says when the session ends — by Stop, by the window closing, or by
+    // the person quitting: no window, and the pause gone with it, because the
+    // sidecar holding it died with the browser.
+    backendSays({ open: false, paused: false });
+    check("a session that ended is no window", isBrowserWindowOpen() === false);
+    check("and its pause went with it", isBrowserPaused() === false);
+
+    const after = await attempt("browser_read", {});
+    check(
+      "so the next call runs, and is not refused by a pause that is not there",
+      after.ok === true && !/paused/i.test(after.text),
+      after.text,
+    );
+
+    // **The read on a page's mount and the events it listens to can cross.** The
+    // read leaves the app at one moment and lands at another, and a browser
+    // opened or closed in between makes the older snapshot a lie in both
+    // directions: applied, it hides a window that is there, or puts back one that
+    // is gone. The number is what says which is later.
+    backendSays({ open: true, paused: false });
+    const beforeTheOpen = backendSeq - 1;
+    deliver(beforeTheOpen, { open: false, paused: false });
+    check(
+      "a mount read from before a window opened does not hide the window",
+      isBrowserWindowOpen() === true,
+      `seq ${beforeTheOpen} landed after seq ${backendSeq}`,
+    );
+
+    const theOpen = backendSeq;
+    backendSays({ open: false, paused: false });
+    deliver(theOpen, { open: true, paused: false });
+    check(
+      "and a mount read from before a window closed does not put it back",
+      isBrowserWindowOpen() === false,
+      `seq ${theOpen} landed after seq ${backendSeq}`,
+    );
+
+    // The same for two events out of order, which is what a slow delivery looks
+    // like from here.
+    const later = backendSeq + 1;
+    deliver(later, { open: true, paused: true });
+    deliver(later - 1, { open: false, paused: false });
+    check(
+      "an event arriving after a later one is dropped as well",
+      isBrowserWindowOpen() === true && isBrowserPaused() === true,
+      `seq ${later - 1} landed after seq ${later}`,
+    );
+    backendSeq = later;
+    backendSays({ open: false, paused: false });
+
+    // **A webview that reloaded has heard nothing at all, and the window it was
+    // driving is still there.** The one read on the mount is what puts it back —
+    // which is why the app owns this rather than the page counting its own calls.
+    backendWindow = { open: true, paused: true };
+    await startBrowserWindowBus();
+    check(
+      "a page that reloaded asks the app, and finds the window that is really there",
+      isBrowserWindowOpen() === true && isBrowserPaused() === true,
+      JSON.stringify(backendWindow),
+    );
+    backendWindow = { open: false, paused: false };
+    await startBrowserWindowBus();
+    check("and the reload after it finds a window that is gone", isBrowserWindowOpen() === false && isBrowserPaused() === false);
+    backendWindow = { open: false, paused: false };
   }
 
   // --- the card never hides anything, whatever the page claims ---------------

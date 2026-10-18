@@ -79,7 +79,9 @@ async function throughBrowser(command: string, args: Record<string, unknown>, si
  */
 export type ConversationId = string;
 
-/// Opens an address.
+/// Opens an address. **The window it opens is the backend's to say**, and it is
+/// said after every call rather than from here: this file has no opinion about
+/// whether a window is there.
 export function browserOpen(url: string, conversation: ConversationId, signal?: AbortSignal): Promise<string> {
   return throughBrowser("brain_browser_open", { url, conversation }, signal);
 }

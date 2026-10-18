@@ -15,7 +15,7 @@ import { Icon } from "../Icon";
     A clear that did not happen says so and stays in place. Saying "cleared"
     over a failure is the worst thing this row could do: the person walks away
     believing their sessions are gone, and they are not. */
-export function ClearBrowserData() {
+export function ClearBrowserData({ open }: { open: boolean }) {
   const { table } = useLanguage();
   const t = table.driver;
   const [asking, setAsking] = useState(false);
@@ -26,6 +26,19 @@ export function ClearBrowserData() {
       <span className="settings-row-title">{t.clearTitle}</span>
       {outcome === "done" ? <span className="settings-ok"><Icon name="check" size={15} stroke={2.6} />{t.cleared}</span>
         : <span className="settings-update-title">{t.clearFailed}</span>}
+    </div>
+  </div>;
+
+  // **The press is not offered while a window is open, and says why.** The
+  // backend refuses a clear then — the profile folder is in use, and emptying it
+  // leaves a live browser writing into a directory that no longer says what it
+  // is — so a press here would be a control that could only ever fail. The row
+  // stays, because a row that vanishes and comes back with no word is not a
+  // person being told anything.
+  if (open) return <div className="settings-row">
+    <div className="settings-row-text">
+      <span className="settings-row-title">{t.clearTitle}</span>
+      <span className="settings-row-hint">{t.clearOpen}</span>
     </div>
   </div>;
 

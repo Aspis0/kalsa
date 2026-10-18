@@ -2,6 +2,7 @@ import { useId, useState } from "react";
 import { forgetThemeChoice, systemTheme, themeChoiceMade } from "../lib/settings";
 import type { Theme } from "../lib/settings";
 import type { ChatSettings } from "../lib/types";
+import { available } from "../lib/tauri";
 import { LANGUAGE_OPTIONS } from "../i18n";
 import { useLanguage } from "../i18n/useLanguage";
 import "./Settings.css";
@@ -10,8 +11,6 @@ import { TelemetrySettings } from "./TelemetrySettings";
 import { Icon as MailIcon } from "./Icon";
 import { UpdatesSettings } from "./UpdatesSettings";
 import type { UpdatesApi } from "../lib/useUpdates";
-import { DownloadDriver } from "./browser/DownloadDriver";
-import { ClearBrowserData } from "./browser/ClearBrowserData";
 
 type Look = Theme | "auto";
 const LOOKS: Look[] = ["light", "dark", "auto"];
@@ -29,9 +28,10 @@ interface SettingsFormProps {
   aiName: string | null;
   onOpenAi: () => void;
   onOpenMail: () => void;
+  onOpenBrowser: () => void;
 }
 
-export function SettingsForm({ initial, onWebTools, theme, onTheme, updates, busy, aiName, onOpenAi, onOpenMail }: SettingsFormProps) {
+export function SettingsForm({ initial, onWebTools, theme, onTheme, updates, busy, aiName, onOpenAi, onOpenMail, onOpenBrowser }: SettingsFormProps) {
   const { table, override, choose } = useLanguage();
   const t = table.settings;
   const webTitleId = useId();
@@ -113,25 +113,40 @@ export function SettingsForm({ initial, onWebTools, theme, onTheme, updates, bus
             <p>{t.webSearchNote}</p>
           </div>
         ) : null}
-        {/* The browser rows sit with web search: both are what Kalsa reaches the
-            network with, and both cost the owner something before they work. */}
-        <DownloadDriver />
-        <ClearBrowserData />
         <TelemetrySettings />
       </div>
 
-      <div className="settings-group">
-        <div className="settings-row">
-          <div className="settings-row-text">
-            <span className="settings-row-title">{t.mail}</span>
-            <span className="settings-row-hint">{t.mailHint}</span>
+      {/* Mail and the browser are the desktop's alone: outside it neither page
+          can be drawn at all, and a row whose page comes back empty is a control
+          over nothing. Telemetry stays: it is about this computer either way. */}
+      {available() ? (
+        <>
+          <div className="settings-group">
+            <div className="settings-row">
+              <div className="settings-row-text">
+                <span className="settings-row-title">{t.browser}</span>
+              </div>
+              <button type="button" className="settings-more settings-ai" onClick={onOpenBrowser}>
+                {t.browserOpen}
+                <Icon name="right" size={16} stroke={2.2} />
+              </button>
+            </div>
           </div>
-          <button type="button" className="settings-more settings-ai" onClick={onOpenMail}>
-            {t.mailOpen}
-            <MailIcon name="right" size={16} stroke={2.2} />
-          </button>
-        </div>
-      </div>
+
+          <div className="settings-group">
+            <div className="settings-row">
+              <div className="settings-row-text">
+                <span className="settings-row-title">{t.mail}</span>
+                <span className="settings-row-hint">{t.mailHint}</span>
+              </div>
+              <button type="button" className="settings-more settings-ai" onClick={onOpenMail}>
+                {t.mailOpen}
+                <MailIcon name="right" size={16} stroke={2.2} />
+              </button>
+            </div>
+          </div>
+        </>
+      ) : null}
 
       <div className="settings-group">
         <div className="settings-row">

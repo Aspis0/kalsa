@@ -20,4 +20,6 @@ export const DRIVER: typeof ENGLISH = {
   clear: "Borrar los datos del navegador de Kalsa",
   cleared: "Los datos del navegador de Kalsa se han borrado.",
   clearFailed: "Kalsa no ha podido borrar los datos del navegador. No se ha cambiado nada.",
+  clearOpen: "Cierra la ventana del navegador para borrarlos.",
+  back: "Volver a Ajustes",
 };

@@ -62,7 +62,6 @@ function readCards(payload: unknown): Card[] {
 }
 
 let cards: Card[] = [];
-let paused = false;
 /** What became of a request, per conversation, waiting for that chat's next turn.
  * Never drained by anybody but the conversation it belongs to. */
 const outcomes = new Map<ConversationId, Outcome[]>();
@@ -77,38 +76,29 @@ export function currentCards(): Card[] {
   return cards;
 }
 
-/** Whether the person has pressed Pausa. */
-export function isPaused(): boolean {
-  return paused;
-}
-
-/** Pressed from a control, so it changes here and every card redraws. */
-export function setPaused(next: boolean): void {
-  if (paused === next) return;
-  paused = next;
-  tell();
-}
-
 /**
- * **Pausa, as the person presses it.** The sidecar is told first, and the flag
- * moves only if it said yes — a control that reads "paused" while the browser is
- * still being driven is worse than no control, because it is a promise nobody
- * kept. Resuming reads the page again, which is what stops the model reasoning
- * about a page the person has had the window since.
+ * **Pausa, as the person presses it.** The sidecar is told first, and the page
+ * is told what the sidecar said — by the backend, as an event, so a pause that
+ * was not taken is never drawn. Resuming reads the page again, which is what
+ * stops the model reasoning about a page the person has had the window since.
  *
- * **The local flag alone is not enough**, and never was: the sidecar is what
- * stops holding, so without this the person would be pausing a button.
+ * The flag belongs to the backend's slot rather than to this file or to the
+ * button: see `window.ts` for the mirror, and `host.rs` for the record that a
+ * session takes its pause with it.
+ *
+ * **The local flag was never enough**, and never was: the sidecar is what stops
+ * holding, so without this the person would be pausing a button.
  */
-export async function pressPause(next: boolean): Promise<boolean> {
+export async function pressPause(next: boolean): Promise<void> {
   try {
     if (next) await browserPause();
     else await browserResume();
   } catch {
-    return paused;
+    // A pause that could not be delivered moves nothing: the sidecar did not take
+    // it, so no event says the window is paused and the button still reads as it
+    // was — a refusal that changed the words would be the one lie this control
+    // must not tell.
   }
-  paused = next;
-  tell();
-  return paused;
 }
 
 export function subscribe(listener: () => void): () => void {

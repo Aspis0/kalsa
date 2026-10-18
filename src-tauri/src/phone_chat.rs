@@ -423,10 +423,13 @@ impl Bridge {
     ///
     /// Returns the receiver the door reads, and a sender kept so the card of this
     /// turn can be written to it later.
+    /// **Whose turn this is comes from `asking`, not from a second argument.**
+    /// The owner is the phone the door resolved the credential to, so it is the
+    /// one thing that decides where this turn's cards are drawn — and a device
+    /// passed beside it would be a second answer to the same question.
     fn start_live(
         &self,
         request: &str,
-        device: DeviceId,
         kind: &'static str,
         asking: &Asking,
     ) -> mpsc::Receiver<ChatEvent> {
@@ -917,7 +920,7 @@ impl PhoneChat for Bridge {
         let owner = self.paired_owner(device)?;
         let request = random_hex()?;
         let asking = asking(owner, device, &body);
-        let events = self.start_live(&request, device, kind, &asking);
+        let events = self.start_live(&request, kind, &asking);
         let mut payload = json!({"request": request});
         payload[kind] = body;
         payload["kind"] = json!(kind);

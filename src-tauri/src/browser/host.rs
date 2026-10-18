@@ -26,7 +26,7 @@ use tokio::sync::watch;
 
 use kalsa_mcp::host::Host;
 use kalsa_mcp::launch::SealedStdioLauncher;
-use kalsa_mcp::outcome::CallOutcome;
+use kalsa_mcp::outcome::{CallOutcome, ToolResult};
 use kalsa_mcp::record::{ServerRecord, Trust};
 use kalsa_mcp::registry::Registry;
 use kalsa_mcp::server_id::ServerId;
@@ -34,6 +34,7 @@ use serde_json::{Map, Value};
 
 use super::error::BrowserError;
 use super::program;
+use super::window::WindowState;
 use super::{server_env, tool_pins, SERVER};
 
 /// The conversation name every browser call runs under. A browser has no mailbox
@@ -53,6 +54,22 @@ struct Slot<H> {
     /// close during a call, with no window in which it could put the host back.
     taken: u64,
     host: Option<H>,
+    /// Whether the person has paused this session. **It is the sidecar's flag,
+    /// recorded here because the sidecar cannot be asked for it** — and it lives
+    /// in the slot so that `end()` drops it in the same breath as the session:
+    /// a pause on a window that is gone is a promise about nothing, and one the
+    /// page would go on refusing every call with.
+    paused: bool,
+    /// **How many times the page's view of this has moved.** Raised under this
+    /// same lock as every change, so two snapshots are never in doubt about
+    /// which is later: a page drops the one with the smaller number, which is
+    /// what makes the read it does on its mount safe to arrive whenever it likes.
+    seq: u64,
+    /// Whether the profile is being emptied. A clear holds this for as long as
+    /// it runs, because the folder it renames cannot be emptied under a browser
+    /// that has started since — the check and the taking of the slot are one
+    /// move, so there is no window between them for a call to slip into.
+    clearing: bool,
 }
 
 /// The four things that can be true of the browser.
@@ -80,7 +97,13 @@ struct Lease<H> {
 
 impl<H> Slot<H> {
     fn idle() -> Self {
-        Self { state: State::Idle, taken: 0, host: None }
+        Self { state: State::Idle, taken: 0, host: None, paused: false, seq: 0, clearing: false }
+    }
+
+    /// What the page is told, **read in one move** so the open and the pause can
+    /// never be a half-old pair.
+    fn snapshot(&self) -> WindowState {
+        WindowState { open: self.is_open(), paused: self.paused, seq: self.seq }
     }
 
     /// A call arrives: `Open` becomes `Busy` and hands the host over, `Idle`
@@ -94,16 +117,23 @@ impl<H> Slot<H> {
             // Both are the same answer to the person: Kalsa is busy.
             return Err(BrowserError::Busy);
         }
+        if self.clearing {
+            // The profile is being emptied underneath: a browser started now
+            // would be writing into a folder that is on its way elsewhere.
+            return Err(BrowserError::Busy);
+        }
         let existing = self.host.take();
         self.taken += 1;
         let gen = self.taken;
         self.state = State::Busy;
+        self.seq += 1;
         let host = match existing {
             Some(host) => host,
             None => match open() {
                 Ok(host) => host,
                 Err(refused) => {
                     self.state = State::Idle;
+                    self.seq += 1;
                     return Err(refused);
                 }
             },
@@ -121,11 +151,41 @@ impl<H> Slot<H> {
         if self.state == State::Busy && self.taken == lease.gen {
             self.host = Some(lease.host);
             self.state = State::Open;
+            self.seq += 1;
             return true;
         }
         drop(lease);
+        // **A lease the slot has moved past changes nothing else.** `Busy` here
+        // belongs to a later call, which is driving a browser of its own: marking
+        // the slot `Idle` under it would hand a second browser to the next caller
+        // while that one is still going.
+        if self.state == State::Busy {
+            return false;
+        }
         self.state = State::Idle;
+        self.paused = false;
+        self.seq += 1;
         false
+    }
+
+    /// **The host could not answer, so it is not a session.** A page that refused
+    /// is a page's own sentence and the browser stays; a sidecar that is gone, or
+    /// a driver that would not start, is a browser nobody can drive — and handing
+    /// its host back would leave the page drawing a window over nothing, and,
+    /// worse, a paused one that nothing could ever clear. Dropped here, so the
+    /// child dies and the pause dies with it.
+    fn abandon(&mut self, lease: Lease<H>) {
+        let gen = lease.gen;
+        drop(lease);
+        // The same rule as a superseded give-back, and read the same way round: a
+        // `Busy` slot under a *later* number belongs to another call, and this one
+        // has nothing to say about it.
+        if self.state == State::Busy && self.taken != gen {
+            return;
+        }
+        self.state = State::Idle;
+        self.paused = false;
+        self.seq += 1;
     }
 
     /// The session ends. An open host is handed out to be dropped, which is what
@@ -133,10 +193,24 @@ impl<H> Slot<H> {
     /// and the person may open another browser. A running call is marked instead,
     /// because its host is not reachable from here, and `Closing` refuses a call
     /// while that call is on its way out.
+    ///
+    /// **The pause goes with the session, here and not in a caller.** The sidecar
+    /// holding it dies with the host, so a pause left standing would be a claim
+    /// about a browser that is not there — and every later call would be refused
+    /// for it by a page that has no control left to clear it.
     fn end(&mut self) -> Option<H> {
+        if self.state == State::Closing {
+            // **Ending twice is one ending.** A call is still on its way out, and
+            // answering a second end by going `Idle` would let the next call take
+            // the slot while that lease is still in it — the very call this state
+            // exists to refuse.
+            return None;
+        }
         let running = self.state == State::Busy;
         let host = self.host.take();
         self.state = if running { State::Closing } else { State::Idle };
+        self.paused = false;
+        self.seq += 1;
         host
     }
 
@@ -145,6 +219,48 @@ impl<H> Slot<H> {
     /// whose profile folder is still being written.
     fn is_open(&self) -> bool {
         self.state != State::Idle
+    }
+
+    fn is_busy(&self) -> bool {
+        self.state == State::Busy
+    }
+
+    /// **The emptying of the profile, taken as one move with the check for it.**
+    /// A clear is refused for a browser in any state, and refused for a clear
+    /// already running; what it takes is held until it is given back.
+    fn begin_clear(&mut self) -> bool {
+        if self.clearing || self.is_open() {
+            return false;
+        }
+        self.clearing = true;
+        true
+    }
+
+    /// The profile is whole again — or was never emptied, which is the same thing
+    /// to the next press.
+    fn end_clear(&mut self) {
+        self.clearing = false;
+    }
+
+    /// What a pause or a resume came back with, and whether the page needs to
+    /// hear it. **A refused pause never reaches here, and there is nothing here to
+    /// refuse it on**: a slot with no session has no window to pause, so the
+    /// flag does not move and the page is told nothing.
+    ///
+    /// **A pause pressed while a call owns the browser is recorded anyway.** It is
+    /// the person's intent, and a session running is a session to pause: refusing
+    /// it would leave a control that does nothing while Kalsa carries on.
+    fn set_paused(&mut self, paused: bool) -> bool {
+        if !self.is_open() || self.paused == paused {
+            return false;
+        }
+        self.paused = paused;
+        self.seq += 1;
+        true
+    }
+
+    fn paused(&self) -> bool {
+        self.paused
     }
 }
 
@@ -190,13 +306,17 @@ impl Browser {
             _ = wait_for_stop(&mut stopped, seen) => None,
             outcome = lease.host.call(CONVERSATION, tool, args) => Some(outcome),
         };
-        // Put it back whatever came out, so one refused page does not cost the
-        // person their whole session — unless the session was ended meanwhile,
-        // in which case it is dropped and the child dies with it. The Stop path
-        // is exactly that case: the lease goes, the child with it, and the next
-        // call opens a fresh browser.
-        if !self.locked().give_back(lease) {
-            log::info!("browser sidecar: dropped, the session was ended during the call");
+        // **A host that could not answer, or a window that has gone, is not a
+        // session.** A page that refused is the page's own sentence — `Ran` with
+        // an error in it and nothing more — and the browser stays, because one
+        // refused page must not cost the person their whole session. Either of
+        // the other two means there is no browser to drive: handing that host
+        // back would leave the page drawing a window over a dead one, and a paused
+        // one nothing could clear. So it is dropped, the child dies with it and
+        // the pause with that.
+        let kept = if keep_the_host(&ran) { self.locked().give_back(lease) } else { self.locked().abandon(lease); false };
+        if !kept {
+            log::info!("browser sidecar: dropped, the session was ended or its window is gone");
         }
         let Some(outcome) = ran else {
             log::info!("browser sidecar: the call was cut short by a Stop");
@@ -221,18 +341,60 @@ impl Browser {
     /// whichever gets there first ends the same browser, and a second call is
     /// not an error.
     pub(crate) fn end(&self) {
-        // **Raise the kill handle first, and without waiting for the slot.** A
-        // call in flight holds its lease and cannot be reached from here, so
-        // this is the only thing that can interrupt it; the slot is taken after,
-        // and a call that was already on its way out finds the slot not there.
-        self.stop.send_modify(|generation| *generation += 1);
+        // **The slot is marked before the handle is raised, and the mark is what
+        // the handle is for.** A call reads the generation before it takes the
+        // lease, so a generation raised while the slot still said `Open` would be
+        // read by a call that then took the slot and carried on driving a browser
+        // the person had closed — the Stop it was waiting for is one it has
+        // already seen. Marking first means such a call finds the slot `Closing`
+        // and is refused, and the handle still reaches the call that is already
+        // in it.
         drop(self.locked().end());
+        self.stop.send_modify(|generation| *generation += 1);
     }
 
     /// Whether a session is open, so `Clear Kalsa's browser data` can refuse
     /// rather than empty a profile folder out from under a running browser.
     pub(crate) fn is_open(&self) -> bool {
         self.locked().is_open()
+    }
+
+    /// Whether a call owns the browser right now, which is the one refusal a
+    /// Pausa waits out: the call it interrupted is on its way out.
+    pub(crate) fn is_busy(&self) -> bool {
+        self.locked().is_busy()
+    }
+
+    /// Whether the person has paused the session that is open. The sidecar holds
+    /// the real flag and cannot be asked for it, so this is the app's record of
+    /// what its pause calls were answered with.
+    pub(crate) fn paused(&self) -> bool {
+        self.locked().paused()
+    }
+
+    /// What a pause or a resume came back with, and whether the page needs to be
+    /// told. **A pause on a session that is not there moves nothing**, and that is
+    /// the slot's own rule rather than this call's care.
+    pub(crate) fn set_paused(&self, paused: bool) -> bool {
+        self.locked().set_paused(paused)
+    }
+
+    /// What the page is told, **in one move**: the open, the pause and the number
+    /// that says which of two snapshots is later are read under a single lock, so
+    /// the three can never be a half-old pair.
+    pub(crate) fn window_state(&self) -> WindowState {
+        self.locked().snapshot()
+    }
+
+    /// Takes the emptying of the profile, if there is no browser and no clear
+    /// already running. Held until `end_clear`, so no call can start on a folder
+    /// that is on its way elsewhere.
+    pub(crate) fn begin_clear(&self) -> bool {
+        self.locked().begin_clear()
+    }
+
+    pub(crate) fn end_clear(&self) {
+        self.locked().end_clear();
     }
 
     /// **Interrupts the call in flight without ending the session.**
@@ -251,6 +413,34 @@ impl Browser {
     fn locked(&self) -> std::sync::MutexGuard<'_, Slot<Host<SealedStdioLauncher>>> {
         self.slot.lock().expect("the session slot is not poisoned")
     }
+}
+
+/// **What became of the host a call was holding**, decided by the answer alone.
+///
+/// A page that refused is the page's own sentence and the browser stays. A host
+/// that could not answer is not a browser at all, and neither is a window the
+/// person closed: the sidecar forgets that session of its own accord, so a host
+/// that answered its refusal and kept the sidecar running would otherwise leave
+/// the page drawing — and refusing every call for — a browser that is not there.
+fn keep_the_host<E>(ran: &Option<Result<CallOutcome, E>>) -> bool {
+    match ran {
+        // A Stop: the call came back as the person asked, and the session it was
+        // driving is exactly as it was.
+        None => true,
+        Some(Err(_)) => false,
+        Some(Ok(CallOutcome::NeedsConfirmation(_))) => true,
+        Some(Ok(CallOutcome::Ran(result))) => !the_window_went(result),
+    }
+}
+
+/// Whether the sidecar marked this answer as the window having gone.
+///
+/// **Read from the structured field, never from the sentence.** The mark is the
+/// sidecar's own and comes on that one answer; a page's words are a stranger's,
+/// and matching text to learn what a browser is doing would be reading the
+/// stranger to find out.
+fn the_window_went(result: &ToolResult) -> bool {
+    result.for_ui.as_ref().and_then(|said| said.pointer("/kalsa/gone")).and_then(Value::as_bool) == Some(true)
 }
 
 /// Whether the Stop that raised the generation is this call's to answer.
@@ -288,12 +478,17 @@ fn start(app_data: &Path) -> Result<Host<SealedStdioLauncher>, BrowserError> {
 
 #[cfg(test)]
 mod tests {
-    use super::{wait_for_stop, BrowserError, Slot, State};
+    use super::{keep_the_host, the_window_went, wait_for_stop, BrowserError, Slot, State};
+    use kalsa_mcp::outcome::{CallOutcome, ToolResult};
+    use kalsa_mcp::server_id::ServerId;
+    use serde_json::{json, Value};
+    use crate::browser::SERVER;
+    use crate::browser::window::WindowState;
     use std::time::{Duration, Instant};
     use tokio::sync::watch;
 
     fn open() -> Slot<String> {
-        Slot { state: State::Open, taken: 0, host: Some("session".to_owned()) }
+        Slot { state: State::Open, taken: 0, host: Some("session".to_owned()), paused: false, seq: 0, clearing: false }
     }
 
     fn idle() -> Slot<String> {
@@ -379,8 +574,12 @@ mod tests {
         slot.taken += 1;
         slot.state = State::Busy;
         assert!(!slot.give_back(first), "a stale lease restored a host");
-        assert_eq!(state(&slot), State::Idle);
-        assert!(!slot.is_open(), "nothing is left open");
+        assert!(slot.host.is_none(), "and left none behind either");
+        // **And it did not answer for the call that owns the slot now.** Marking
+        // it `Idle` here would hand a second browser to the next caller while that
+        // one is still driving the first.
+        assert_eq!(state(&slot), State::Busy, "the call that owns the slot keeps it");
+        assert!(slot.is_open(), "and the browser it is driving is still there");
     }
 
     /// Ending an idle browser leaves it idle: the window event fires on every
@@ -410,9 +609,270 @@ mod tests {
     fn a_clear_is_refused_for_every_state_that_has_a_browser() {
         assert!(!idle().is_open(), "an idle browser is no browser");
         for one in [State::Busy, State::Open, State::Closing] {
-            let slot = Slot::<()> { state: one, taken: 0, host: None };
+            let slot = Slot::<()> { state: one, taken: 0, host: None, paused: false, seq: 0, clearing: false };
             assert!(slot.is_open(), "{one:?} is a browser");
         }
+    }
+
+    /// **A pause never outlives its window.** The sidecar holds it and the
+    /// sidecar dies with the session, so `end()` drops it in the same breath —
+    /// which is what makes a page left saying "paused" over a browser that is
+    /// gone impossible rather than merely unlikely. The next browser is somebody
+    /// else's, and it is not paused.
+    #[test]
+    fn a_pause_does_not_outlive_its_window() {
+        let mut slot = open();
+        assert!(slot.set_paused(true), "a pause is recorded");
+        assert!(slot.paused());
+
+        slot.end();
+        assert!(!slot.paused(), "the session took its pause with it");
+
+        let mut next = idle();
+        assert!(next.take(|| Ok("new".to_owned())).is_ok(), "and the next browser can start");
+        assert!(!next.paused(), "and it is not born paused");
+    }
+
+    /// A `ToolResult` as the sidecar sent it, so a proof can say what was in it.
+    fn result(is_error: bool, for_ui: Option<Value>) -> ToolResult {
+        ToolResult {
+            server: ServerId::new(SERVER).expect("the browser's own server name"),
+            is_error,
+            for_model: vec!["the sidecar's sentence".to_owned()],
+            for_ui,
+        }
+    }
+
+    /// **A window the person closed ends the session, exactly as a host that
+    /// could not answer does.** The sidecar forgets that window of its own accord
+    /// and marks the answer; keeping a session the sidecar has already dropped
+    /// would leave the page drawing a browser that is gone — and a paused one
+    /// refusing every call for good.
+    #[test]
+    fn a_marked_answer_ends_the_session_and_takes_the_pause_with_it() {
+        let marked = CallOutcome::Ran(result(true, Some(json!({"kalsa": {"gone": true}}))));
+        assert!(!keep_the_host::<()>(&Some(Ok(marked))), "a window that has gone is not kept");
+
+        let mut slot = open();
+        let lease = slot.take(|| panic!("the open host is reused")).expect("a call took the browser");
+        slot.set_paused(true);
+        slot.abandon(lease);
+        assert!(!slot.is_open(), "and the slot it was driving is gone");
+        assert!(!slot.paused(), "with the pause that would have refused every later call");
+    }
+
+    /// **A page that refused is the page's own sentence, and the browser stays.**
+    /// One refused page must not cost the person their whole session — which is
+    /// the whole difference between this answer and the marked one above.
+    #[test]
+    fn a_plain_refusal_keeps_the_session_it_was_driving() {
+        let refused = CallOutcome::Ran(result(true, None));
+        assert!(keep_the_host::<()>(&Some(Ok(refused))), "an unmarked refusal is the page's own");
+
+        // Structured content that says nothing about a window is not a mark, and
+        // neither is one that is not true.
+        for said in [json!({}), json!({"kalsa": {}}), json!({"kalsa": {"gone": false}}), json!({"kalsa": {"gone": "yes"}})] {
+            let answered = CallOutcome::Ran(result(true, Some(said.clone())));
+            assert!(keep_the_host::<()>(&Some(Ok(answered))), "{said} is not a mark");
+        }
+
+        let mut slot = open();
+        let lease = slot.take(|| panic!("the open host is reused")).expect("a call took the browser");
+        assert!(slot.give_back(lease), "so the host goes back as it was");
+        assert!(slot.is_open(), "and the session is still there");
+    }
+
+    /// A Stop is the person saying they had enough, and the session it was
+    /// driving is left exactly as it was.
+    #[test]
+    fn a_stop_keeps_the_session() {
+        assert!(keep_the_host::<()>(&None), "a call that was cut short changed nothing");
+    }
+
+    /// **Ending twice is one ending, and it is what makes the old lease safe.**
+    /// A call is still on its way out, so the slot stays `Closing` and a new call
+    /// is refused: answering the second end by going `Idle` would let the next
+    /// caller take the slot while that lease is still in it.
+    #[test]
+    fn a_second_end_does_not_reopen_a_closing_slot() {
+        let mut slot = open();
+        let running = slot.take(|| panic!("the open host is reused")).expect("a call took the browser");
+        assert_eq!(state(&slot), State::Busy);
+
+        assert!(slot.end().is_none(), "there is no host to hand out from here");
+        assert_eq!(state(&slot), State::Closing, "the call is on its way out");
+
+        assert!(slot.end().is_none(), "and a second end changes nothing at all");
+        assert_eq!(state(&slot), State::Closing, "still refusing the calls that would race the last one");
+        assert!(matches!(slot.take(|| panic!("a call took a closing slot")), Err(BrowserError::Busy)));
+
+        // The lease finally comes back, and the browser is gone for good.
+        assert!(!slot.give_back(running));
+        assert_eq!(state(&slot), State::Idle);
+        assert!(!slot.is_open());
+    }
+
+    /// **The whole sequence: two ends, then the lease that was out, then the
+    /// next browser — and nothing left over to answer for it.**
+    ///
+    /// A lease from an ended call returning late is what used to clobber the
+    /// browser that came after it. It cannot now, and the reason is the order
+    /// this walks: the second end leaves the slot `Closing`, so no call can be in
+    /// it while that lease is still out, and by the time one can be, the lease
+    /// has already been spent.
+    #[test]
+    fn a_lease_from_the_ended_call_cannot_clobber_the_next_browser() {
+        let mut slot = open();
+        let ending = slot.take(|| panic!("the open host is reused")).expect("a call took the browser");
+
+        slot.end();
+        assert_eq!(state(&slot), State::Closing);
+        assert!(slot.end().is_none(), "and the second end changes nothing");
+        assert!(
+            matches!(slot.take(|| panic!("a new call took a closing slot")), Err(BrowserError::Busy)),
+            "so nothing can get in while that lease is still out"
+        );
+
+        assert!(!slot.give_back(ending), "and the lease finally returns to a slot that has ended");
+        assert_eq!(state(&slot), State::Idle);
+        assert!(!slot.is_open());
+
+        // The next browser, with nothing left over from the last one.
+        let next = slot.take(|| Ok("next".to_owned())).expect("the browser can start again");
+        assert!(slot.give_back(next), "and it goes back as it was");
+        assert!(slot.is_open(), "so the browser that is really being driven is open");
+    }
+
+    /// **A Stop that has marked the slot is already in force, whether the handle
+    /// has been raised yet or not.** This is the order `Browser::end` relies on:
+    /// a call arriving between the mark and the signal finds the slot `Closing`,
+    /// so it cannot read the new generation, take the slot and carry on driving a
+    /// browser the person has closed.
+    #[test]
+    fn a_call_between_the_mark_and_the_signal_is_refused() {
+        let mut slot = open();
+        let running = slot.take(|| panic!("the open host is reused")).expect("a call took the browser");
+
+        // The mark. The handle is raised only after this, and nothing here is
+        // waiting on it: a call arriving now is refused on the slot alone.
+        assert!(slot.end().is_none());
+        assert!(
+            matches!(slot.take(|| panic!("a call arrived in the gap")), Err(BrowserError::Busy)),
+            "the slot alone refuses it, so the generation it would read is never reached"
+        );
+
+        slot.give_back(running);
+        assert!(!slot.is_open(), "and the browser it was driving is gone");
+    }
+
+    /// **The number the page orders its snapshots by moves with every change,
+    /// and never backwards** — which is the whole of what makes a read that
+    /// landed late harmless: it is older, and the page drops it.
+    #[test]
+    fn every_change_moves_the_number_the_page_orders_by() {
+        let mut slot = open();
+        let before = slot.snapshot().seq;
+
+        slot.set_paused(true);
+        let paused = slot.snapshot().seq;
+        assert!(paused > before, "a pause is a later truth");
+
+        let lease = slot.take(|| panic!("the open host is reused")).expect("a call takes the browser");
+        let running = slot.snapshot().seq;
+        assert!(running > paused, "a call taking the browser is one too");
+
+        assert!(slot.give_back(lease));
+        let back = slot.snapshot().seq;
+        assert!(back > running, "and the call coming back is one");
+
+        slot.end();
+        let ended = slot.snapshot().seq;
+        assert!(ended > back, "and a session ending is one");
+        assert_eq!(
+            slot.snapshot(),
+            WindowState { open: false, paused: false, seq: ended },
+            "and the snapshot is one moment: the pause went with the session"
+        );
+    }
+
+    /// **A host that could not answer is not a session.** A page that refused is
+    /// the page's own sentence and keeps the browser; a sidecar that is gone has
+    /// to take the window with it — otherwise the page keeps drawing it, and a
+    /// paused one nothing could ever clear.
+    #[test]
+    fn a_host_that_could_not_answer_is_dropped_rather_than_kept() {
+        let mut slot = open();
+        let lease = slot.take(|| panic!("the open host is reused")).expect("a call took the browser");
+        slot.set_paused(true);
+        assert!(slot.paused(), "it was paused while the call ran");
+
+        slot.abandon(lease);
+        assert!(!slot.is_open(), "a host that could not answer leaves no session");
+        assert!(!slot.paused(), "and takes the pause with it, so nothing is left refusing every call");
+
+        // And the next browser is somebody else's.
+        assert!(slot.take(|| Ok("fresh".to_owned())).is_ok(), "a new browser can start");
+        assert!(!slot.paused(), "and it is not born paused");
+    }
+
+    /// **A pause pressed while a call owns the browser is the person's intent and
+    /// is recorded anyway.** Refusing it as busy would be a control that does
+    /// nothing while Kalsa carries on, which is the one thing a pause must never
+    /// be; the sidecar is told once that call has gone.
+    #[test]
+    fn a_pause_pressed_while_a_call_is_running_is_recorded_not_refused() {
+        let mut slot = open();
+        let lease = slot.take(|| panic!("the open host is reused")).expect("a call took the browser");
+        assert!(slot.is_busy(), "a call owns the browser");
+
+        assert!(slot.set_paused(true), "the pause is recorded while the call runs");
+        assert!(slot.paused(), "and it is still there when the call comes back");
+
+        assert!(slot.give_back(lease), "the session is not a casualty of pausing it");
+        assert!(slot.paused(), "so the pause survives to be given to the sidecar");
+
+        // A resume pressed over the same session is recorded too.
+        assert!(slot.set_paused(false));
+        assert!(!slot.paused());
+    }
+
+    /// **The clear holds the slot for as long as it runs.** A browser that
+    /// starts between the check and the rename is exactly what the check is for,
+    /// so the taking of it and the check are one move.
+    #[test]
+    fn a_clear_takes_the_slot_and_a_browser_cannot_start_under_it() {
+        let mut slot = idle();
+        assert!(slot.begin_clear(), "nothing is running, so a clear may");
+        assert!(!slot.begin_clear(), "and a second clear is refused rather than raced");
+        assert!(
+            matches!(slot.take(|| panic!("a browser started under a clear")), Err(BrowserError::Busy)),
+            "no call may take the browser while the profile is being emptied"
+        );
+
+        slot.end_clear();
+        assert!(slot.take(|| Ok("after".to_owned())).is_ok(), "and the browser comes back afterwards");
+
+        // And a clear against a browser in any state is refused on its own.
+        let mut open = open();
+        assert!(!open.begin_clear(), "a browser's profile is not emptied under it");
+    }
+
+    /// A pause is refused on nothing, and a pause twice moves nothing: either
+    /// would tell the page that a browser is paused when it is not.
+    #[test]
+    fn a_pause_needs_a_window_and_moves_only_once() {
+        let mut slot = idle();
+        assert!(!slot.set_paused(true), "there was no browser to pause");
+        assert!(!slot.paused());
+
+        slot.state = State::Open;
+        assert!(slot.set_paused(true));
+        assert!(!slot.set_paused(true), "a second press of the same pause says nothing new");
+
+        // A finished call is not a close, so a pause survives one.
+        let lease = slot.take(|| Ok("running".to_owned())).expect("the call took the browser");
+        assert!(slot.give_back(lease));
+        assert!(slot.paused(), "a call that came back did not end anything");
     }
 
     /// **A Stop cuts a call short, and the call that was running is the one that

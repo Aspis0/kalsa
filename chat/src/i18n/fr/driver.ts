@@ -18,4 +18,6 @@ export const DRIVER: typeof ENGLISH = {
   clear: "Effacer les données du navigateur de Kalsa",
   cleared: "Les données du navigateur de Kalsa ont été effacées.",
   clearFailed: "Kalsa n'a pas pu effacer les données de son navigateur. Rien n'a été modifié.",
+  clearOpen: "Fermez la fenêtre du navigateur pour les effacer.",
+  back: "Retour aux Réglages",
 };

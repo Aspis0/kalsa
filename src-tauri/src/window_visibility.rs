@@ -83,7 +83,7 @@ pub(crate) fn on_window_event(window: &Window<Wry>, event: &WindowEvent) {
         let app = window.app_handle().clone();
         let state = app.state::<crate::browser::state::BrowserState>();
         crate::browser::confirm::declined_by_the_window_going(&app, &state);
-        state.inner().end();
+        state.inner().end(&app);
         return;
     }
     if !matches!(

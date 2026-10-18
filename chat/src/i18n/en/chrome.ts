@@ -37,4 +37,6 @@ export const SETTINGS = {
   mail: "Mail",
   mailHint: "Read your mailbox in the chat, and reply.",
   mailOpen: "Set up mail",
+  browser: "Browser",
+  browserOpen: "Open the browser",
 };

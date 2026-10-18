@@ -32,9 +32,11 @@ export const SETTINGS = {
     "languageSystem": "跟随系统",
     "ai": "AI",
     "usingAi": (name: string) => `正在使用 ${name}`,
-    "mail": "",
+    "mail": "邮件",
     "mailHint": "在聊天里读取邮箱并回复。",
     "mailOpen": "设置邮件",
+    "browser": "浏览器",
+    "browserOpen": "打开浏览器",
     "aiDetails": "更换或查看详情"
   };
 

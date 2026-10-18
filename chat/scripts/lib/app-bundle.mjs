@@ -38,7 +38,7 @@ export async function loadApp() {
         export { canonicalToolName, repairToolCall } from "../src/lib/repairToolCall.ts";
         export { recoverToolCall } from "../src/lib/recoverToolCall.ts";
         export { phoneTools } from "../src/lib/phone/phoneTurn.ts";
-        export { fences, browserOpen } from "../src/lib/tools/browserCall.ts";
+        export { fences, browserOpen, browserClose } from "../src/lib/tools/browserCall.ts";
         export { noteBrowserStatus, browserUsable } from "../src/lib/browser/usable.ts";
         export { refreshBrowserStatus } from "../src/lib/browser/useStatus.ts";
         export { isBrowserRun } from "../src/lib/browser/runs.ts";
@@ -52,12 +52,15 @@ export async function loadApp() {
           DOTS as browserDots,
           pressPause as browserPressPause,
           currentCards as currentBrowserCards,
-          isPaused as isBrowserPaused,
           noteAnswered as noteBrowserAnswered,
           noteCards as noteBrowserCards,
-          setPaused as setBrowserPaused,
           takeOutcomes as takeBrowserOutcomes,
         } from "../src/lib/browser/confirm.ts";
+        export {
+          isOpen as isBrowserWindowOpen,
+          isPaused as isBrowserPaused,
+          startWindowBus as startBrowserWindowBus,
+        } from "../src/lib/browser/window.ts";
         export { publicHttpUrl } from "../src/lib/publicUrl.ts";
         export { streamChatCompletion } from "../src/lib/toolLoop.ts";
         export { offeredTools, executeToolCall } from "../src/lib/tools/registry.ts";

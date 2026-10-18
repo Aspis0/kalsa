@@ -17,4 +17,6 @@ export const DRIVER: typeof ENGLISH = {
   clear: "清除 Kalsa 的浏览器数据",
   cleared: "Kalsa 的浏览器数据已清除。",
   clearFailed: "Kalsa 无法清除浏览器数据。没有任何更改。",
+  clearOpen: "关闭浏览器窗口后才能清除。",
+  back: "返回设置",
 };

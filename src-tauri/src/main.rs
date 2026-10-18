@@ -2779,6 +2779,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             browser::session::brain_browser_confirm,
             browser::session::brain_browser_decline,
             browser::session::brain_browser_close,
+            browser::window::brain_browser_state,
             phone_chat::brain_phone_chat_event,
             brain_open_log_folder,
             brain_send_log,
@@ -3177,7 +3178,7 @@ fn shut_down_services(app: &tauri::AppHandle, stage: &dyn Fn(&'static str)) {
     // platform's backstop. Sync, like the window event's.
     stage("the browser");
     if let Some(browser) = app.try_state::<crate::browser::state::BrowserState>() {
-        browser.end();
+        browser.end(app);
     }
     if let Some(desk) = app.try_state::<Desk>() {
         stage("the pairing listener");

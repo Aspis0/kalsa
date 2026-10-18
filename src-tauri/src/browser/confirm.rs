@@ -80,10 +80,9 @@ pub(crate) const DECLINED: &str = "declined";
 /// asked at all, because a failure to read the list is not a failure of the
 /// click that came before it.
 pub(crate) async fn refresh(app: &AppHandle, state: &State<'_, BrowserState>) {
-    let Ok(app_data) = app.path().app_data_dir() else {
-        return;
-    };
-    let Ok(listed) = state.inner().browser().call(&app_data, "browser_waiting", Map::new()).await else {
+    let Ok(listed) = state.inner().call(app, "browser_waiting", Map::new()).await else {
+        // A sidecar that could not answer has already taken its cards with it,
+        // inside the call: this is only the case where the read never ran.
         return;
     };
     let cards = cards_of(&listed);
@@ -96,8 +95,7 @@ pub(crate) async fn refresh(app: &AppHandle, state: &State<'_, BrowserState>) {
     // half — which phone owns it, when it expires, who may press it — is the
     // phone bridge's, and it is told the whole list so nothing is left behind when
     // a phone is not there to be shown it.
-    let (for_phones, for_window): (Vec<Card>, Vec<Card>) =
-        cards.into_iter().partition(|card| crate::phone_chat::is_phone_conversation(&card.conversation));
+    let (for_phones, for_window) = split_by_window(cards);
     crate::phone_chat::route_cards(app, for_phones);
     let _ = app.emit(CARDS, for_window);
 }
@@ -273,9 +271,8 @@ pub(crate) async fn answer(
     // Only where it was raised: a card from another conversation is not this
     // one's to press, and it stays on the window for whoever did cause it.
     state.inner().pending().spend_in(&id, &conversation).ok_or(BrowserError::NoCard)?;
-    let app_data = app.path().app_data_dir().map_err(|_| CommandFailure::from(super::error::BrowserError::Storage))?;
     let tool = if allow { "browser_confirm" } else { "browser_decline" };
-    let said = match state.inner().browser().call(&app_data, tool, two(&id, &conversation)).await {
+    let said = match state.inner().call(app, tool, two(&id, &conversation)).await {
         Ok(said) => said,
         Err(refused) => {
             // **The card is spent and no answer came back.** The person pressed a
@@ -304,15 +301,21 @@ pub(crate) async fn answer(
 /// The person is told each one rather than being shown an empty window: "nothing
 /// was sent" and "we did not tell you what" are different, and only the second
 /// one is what happened.
-pub(crate) fn declined_by_the_window_going(app: &AppHandle, state: &State<'_, BrowserState>) {
+pub(crate) fn declined_by_the_window_going(app: &AppHandle, state: &BrowserState) {
     decline_all_and_tell_phones(app, state);
     for said in take_every_card(state) {
         let _ = app.emit(ANSWERED, said);
     }
+    // Nothing is left to answer: the phones have been told and the window has
+    // been told, so what the sidecar was holding goes with it rather than
+    // sitting on a store for a browser that will never come back.
+    state.pending().clear();
 }
 
-pub(crate) async fn decline_all(app: &AppHandle, state: &State<'_, BrowserState>) {
-    declined_by_the_window_going(app, state)
+/// The two places a card goes, and which is which. A card raised by a phone's
+/// turn is drawn on that phone and not on this window.
+fn split_by_window(cards: Vec<Card>) -> (Vec<Card>, Vec<Card>) {
+    cards.into_iter().partition(|card| crate::phone_chat::is_phone_conversation(&card.conversation))
 }
 
 /// Every card on the window, taken off it and reported as declined — **one
@@ -322,14 +325,13 @@ pub(crate) async fn decline_all(app: &AppHandle, state: &State<'_, BrowserState>
 /// It does not await anything: a decline never dispatches, so what is left to do
 /// is to say it. That is what lets a window event, which is not async, call the
 /// same thing the close command does.
-pub(crate) fn take_every_card(state: &State<'_, BrowserState>) -> Vec<Answered> {
+pub(crate) fn take_every_card(state: &BrowserState) -> Vec<Answered> {
     state
-        .inner()
         .pending()
         .cards()
         .into_iter()
         .filter_map(|card| {
-            state.inner().pending().spend_in(&card.id, &card.conversation)?;
+            state.pending().spend_in(&card.id, &card.conversation)?;
             Some(Answered { id: card.id, conversation: card.conversation, code: DECLINED.to_owned(), host: None })
         })
         .collect()
@@ -339,13 +341,8 @@ pub(crate) fn take_every_card(state: &State<'_, BrowserState>) -> Vec<Answered> 
 /// phone's.** A card raised by a phone's turn is not drawn here and is not
 /// answered here, so the empty list it is told must not claim it is still waiting
 /// for the owner to press something that was never on this screen.
-pub(crate) fn decline_all_and_tell_phones(app: &AppHandle, state: &State<'_, BrowserState>) {
-    let (phone_cards, window_cards): (Vec<Card>, Vec<Card>) = state
-        .inner()
-        .pending()
-        .cards()
-        .into_iter()
-        .partition(|card| crate::phone_chat::is_phone_conversation(&card.conversation));
+pub(crate) fn decline_all_and_tell_phones(app: &AppHandle, state: &BrowserState) {
+    let (phone_cards, window_cards) = split_by_window(state.pending().cards());
     let _ = app.emit(CARDS, window_cards);
     crate::phone_chat::decline_phones(app, phone_cards);
 }
@@ -359,7 +356,8 @@ fn two(id: &str, conversation: &str) -> Map<String, Value> {
 
 #[cfg(test)]
 mod tests {
-    use super::{cards_of, host_only, outcome_of, pending, Answered, CODES, DECLINED, UNCLEAR};
+    use super::{cards_of, host_only, outcome_of, pending, split_by_window, Answered, Card, CODES, DECLINED, UNCLEAR};
+    use std::time::Instant;
 
     /// **A phone's write is drawn on that phone and on no desktop.** The split is
     /// the conversation the card was stamped with, and the rule is the prefix: a
@@ -445,10 +443,8 @@ mod tests {
     fn a_second_press_of_the_same_card_finds_nothing_to_press_about() {
         let pending = pending::Pending::default();
         let cards = cards_of(r#"[{"id":"c1","method":"POST","url":"https://a.example/x","conversation":"chat-a","fields":[]}]"#);
-        for card in cards {
-            pending.note(card);
-        }
-        assert_eq!(pending.waiting(), 1);
+        pending.replace_with(cards, Instant::now());
+        assert_eq!(pending.cards().len(), 1);
         assert!(pending.spend_in("c1", "chat-a").is_some());
         assert!(pending.spend_in("c1", "chat-a").is_none());
     }
@@ -459,15 +455,18 @@ mod tests {
     #[test]
     fn a_card_is_answered_only_in_the_conversation_that_caused_it() {
         let pending = pending::Pending::default();
-        pending.note(pending::card_of("c1", "POST", "https://a.example/x", "chat-a", Vec::new()));
+        pending.replace_with(
+            vec![pending::card_of("c1", "POST", "https://a.example/x", "chat-a", Vec::new())],
+            Instant::now(),
+        );
         assert_eq!(
-            pending.card("c1").expect("it is on the window").conversation,
+            pending.cards().first().expect("it is on the window").conversation,
             "chat-a",
             "and it says which chat that is"
         );
 
         assert!(pending.spend_in("c1", "chat-b").is_none(), "another chat cannot press it");
-        assert_eq!(pending.waiting(), 1, "and it is still there for the chat that can");
+        assert_eq!(pending.cards().len(), 1, "and it is still there for the chat that can");
         assert!(pending.spend_in("c1", "chat-a").is_some(), "which can, exactly once");
     }
 
@@ -528,10 +527,12 @@ mod tests {
     #[test]
     fn a_window_that_closes_declines_everything_it_was_holding() {
         let pending = pending::Pending::default();
-        for (id, chat) in [("c1", "chat-a"), ("c2", "chat-a"), ("c3", "chat-b")] {
-            pending.note(pending::card_of(id, "POST", "https://a.example/x", chat, Vec::new()));
-        }
-        assert_eq!(pending.waiting(), 3);
+        let held: Vec<_> = [("c1", "chat-a"), ("c2", "chat-a"), ("c3", "chat-b")]
+            .into_iter()
+            .map(|(id, chat)| pending::card_of(id, "POST", "https://a.example/x", chat, Vec::new()))
+            .collect();
+        pending.replace_with(held, Instant::now());
+        assert_eq!(pending.cards().len(), 3);
 
         // What `decline_all` does, without the app handle: each card is taken in
         // the conversation that raised it, and each is reported as declined.
@@ -542,7 +543,7 @@ mod tests {
             }
         }
         assert_eq!(declined.len(), 3, "every card, not one for the window");
-        assert_eq!(pending.waiting(), 0, "and none of them is left on the window to answer");
+        assert_eq!(pending.cards().len(), 0, "and none of them is left on the window to answer");
         assert!(declined.iter().all(|one| one.code == DECLINED), "each is a declined request: {declined:?}");
         assert_eq!(
             declined.iter().map(|one| one.conversation.as_str()).collect::<Vec<&str>>(),
@@ -550,6 +551,21 @@ mod tests {
             "and each says which chat it belonged to, so its note lands there"
         );
         assert!(CODES.contains(&DECLINED));
+    }
+
+    /// **A card the owner cannot answer from this window is a card that must not
+    /// sit here looking answerable.** This is the split both the refresh and the
+    /// decline go through, so the two cannot drift: a phone's request is drawn on
+    /// that phone and declined on it, and the window is told about the rest.
+    #[test]
+    fn a_phones_card_goes_to_that_phone_and_not_to_the_window() {
+        let held: Vec<Card> = [("c1", "chat-a"), ("p1", "phone:1234")]
+            .into_iter()
+            .map(|(id, chat)| pending::card_of(id, "POST", "https://a.example/x", chat, Vec::new()))
+            .collect();
+        let (for_phones, for_window) = split_by_window(held);
+        assert_eq!(for_window.iter().map(|card| card.id.as_str()).collect::<Vec<&str>>(), vec!["c1"]);
+        assert_eq!(for_phones.iter().map(|card| card.id.as_str()).collect::<Vec<&str>>(), vec!["p1"]);
     }
 
     /// **What leaves this side is the code, the host and the conversation —

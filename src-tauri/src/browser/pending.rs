@@ -218,17 +218,6 @@ struct Shown {
 pub(crate) struct Pending(Mutex<Vec<Shown>>);
 
 impl Pending {
-    /// Remembers a card. The same id twice is one card: a request with an id
-    /// already on screen is the same request, not a new one to draw, and it is
-    /// not re-stamped — a person who takes a minute to look has not been given
-    /// any more time by the window noticing again.
-    pub(crate) fn note(&self, card: Card) {
-        let mut cards = self.lock();
-        if !cards.iter().any(|shown| shown.card.id == card.id) {
-            cards.push(Shown { card, since: Instant::now() });
-        }
-    }
-
     /// Replaces what is on the window with what the sidecar says is waiting,
     /// **keeping the time each card first appeared**. The sidecar is the truth
     /// about what exists; this is the only thing that knows how long a person
@@ -269,20 +258,6 @@ impl Pending {
         stale
     }
 
-    /// The card for one id, or `None` once it has been answered or given up on.
-    pub(crate) fn card(&self, id: &str) -> Option<Card> {
-        self.lock().iter().find(|shown| shown.card.id == id).map(|shown| shown.card.clone())
-    }
-
-    /// Takes a card off the window, because it has been answered or has expired.
-    /// A second press finds nothing, which is what makes an answer single-use on
-    /// this side too.
-    pub(crate) fn spend(&self, id: &str) -> Option<Card> {
-        let mut cards = self.lock();
-        let at = cards.iter().position(|shown| shown.card.id == id)?;
-        Some(cards.remove(at).card)
-    }
-
     /// **Takes a card off the window only where it was raised.** An id from one
     /// chat is not a card the other one can answer, and it is left on the window
     /// rather than dropped: the person who caused it is still looking at it, and
@@ -297,12 +272,6 @@ impl Pending {
     /// What the window draws, oldest first.
     pub(crate) fn cards(&self) -> Vec<Card> {
         self.lock().iter().map(|shown| shown.card.clone()).collect()
-    }
-
-    /// How many cards are on the window, for a test and for the window's own
-    /// teardown.
-    pub(crate) fn waiting(&self) -> usize {
-        self.lock().len()
     }
 
     /// Everything off the window: the window is gone, so nothing is waiting to
@@ -342,6 +311,17 @@ mod tests {
     /// The conversation these tests are holding cards for.
     const CHAT: &str = "chat-a";
 
+    /// Puts cards on the window the way the app does: the sidecar's list is what
+    /// is on it, and the window is what keeps the time each was first shown.
+    fn show(pending: &Pending, cards: Vec<Card>) {
+        pending.replace_with(cards, Instant::now());
+    }
+
+    /// Whether one card is on the window, read the way the window draws it.
+    fn is_shown(pending: &Pending, id: &str) -> bool {
+        pending.cards().iter().any(|shown| shown.id == id)
+    }
+
     fn card(id: &str) -> Card {
         card_of(
             id,
@@ -357,42 +337,41 @@ mod tests {
     #[test]
     fn a_card_is_shown_until_it_is_answered_and_then_it_is_gone() {
         let pending = Pending::default();
-        pending.note(card("c1"));
-        assert_eq!(pending.waiting(), 1);
-        assert!(pending.card("c1").is_some());
+        show(&pending, vec![card("c1")]);
+        assert_eq!(pending.cards().len(), 1);
+        assert!(is_shown(&pending, "c1"));
 
-        assert_eq!(pending.spend("c1").map(|gone| gone.id), Some("c1".to_owned()));
-        assert_eq!(pending.spend("c1"), None, "a second press finds nothing");
-        assert_eq!(pending.waiting(), 0);
+        assert_eq!(pending.spend_in("c1", CHAT).map(|gone| gone.id), Some("c1".to_owned()));
+        assert_eq!(pending.spend_in("c1", CHAT), None, "a second press finds nothing");
+        assert_eq!(pending.cards().len(), 0);
     }
 
     /// The same id is one card, not two to draw on top of each other.
     #[test]
     fn the_same_request_is_one_card() {
         let pending = Pending::default();
-        pending.note(card("c1"));
-        pending.note(card("c1"));
-        assert_eq!(pending.waiting(), 1);
+        show(&pending, vec![card("c1")]);
+        show(&pending, vec![card("c1")]);
+        assert_eq!(pending.cards().len(), 1, "the sidecar listing it twice is one card on the window");
     }
 
     /// Two requests at once are two cards, and answering one leaves the other.
     #[test]
     fn two_requests_are_two_cards_and_answering_one_leaves_the_other() {
         let pending = Pending::default();
-        pending.note(card("c1"));
-        pending.note(card("c2"));
-        assert_eq!(pending.waiting(), 2);
-        pending.spend("c1");
-        assert!(pending.card("c2").is_some());
+        show(&pending, vec![card("c1"), card("c2")]);
+        assert_eq!(pending.cards().len(), 2);
+        pending.spend_in("c1", CHAT);
+        assert!(is_shown(&pending, "c2"));
     }
 
     /// A window closing takes its cards with it: there is nobody left to answer.
     #[test]
     fn a_window_that_goes_takes_its_cards_with_it() {
         let pending = Pending::default();
-        pending.note(card("c1"));
+        show(&pending, vec![card("c1")]);
         pending.clear();
-        assert_eq!(pending.waiting(), 0);
+        assert_eq!(pending.cards().len(), 0);
     }
 
     /// The sidecar is the truth about what is waiting; this is the only thing
@@ -401,20 +380,20 @@ mod tests {
     #[test]
     fn the_sidecar_says_what_exists_and_the_window_says_how_long_it_has_been_there() {
         let pending = Pending::default();
-        pending.note(card("c1"));
-        let first_seen = pending.card("c1").expect("the card is there").asked_at_ms;
+        show(&pending, vec![card("c1")]);
+        let first_seen = pending.cards()[0].asked_at_ms;
         std::thread::sleep(Duration::from_millis(5));
 
         pending.replace_with(vec![card("c1"), card("c2")], Instant::now());
-        assert_eq!(pending.waiting(), 2, "the sidecar's two cards are the window's two");
+        assert_eq!(pending.cards().len(), 2, "the sidecar's two cards are the window's two");
         assert_eq!(
-            pending.card("c1").expect("the card is still there").asked_at_ms,
+            pending.cards()[0].asked_at_ms,
             first_seen,
             "a card already on screen keeps the time it was first shown"
         );
 
         pending.replace_with(Vec::new(), Instant::now());
-        assert_eq!(pending.waiting(), 0, "and a card the sidecar no longer holds is gone");
+        assert_eq!(pending.cards().len(), 0, "and a card the sidecar no longer holds is gone");
     }
 
     /// Nobody answered inside the five minutes, so the card comes off the window
@@ -423,15 +402,15 @@ mod tests {
     #[test]
     fn a_card_nobody_answered_is_given_up_on_and_never_offered_again() {
         let pending = Pending::default();
-        pending.note(card("c1"));
+        show(&pending, vec![card("c1")]);
         assert_eq!(pending.forget_stale(Instant::now()), Vec::<String>::new(), "a fresh card stays");
 
         std::thread::sleep(Duration::from_millis(5));
         pending.replace_with(Vec::new(), Instant::now());
-        pending.note(card("c1"));
+        show(&pending, vec![card("c1")]);
         let stale = pending.forget_stale(Instant::now() + ASKED_FOR + Duration::from_secs(1));
         assert_eq!(stale, vec!["c1".to_owned()], "an old card is given up on");
-        assert_eq!(pending.waiting(), 0, "and it is not on the window again");
+        assert_eq!(pending.cards().len(), 0, "and it is not on the window again");
     }
 
     /// **A URL is printed without the values its card marks as secret.** A GET

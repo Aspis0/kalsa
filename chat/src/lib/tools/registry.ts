@@ -13,7 +13,7 @@ import { readSearchPages } from "./searchPages";
 import { runMailDraft, runMailList, runMailRead } from "./mailCall";
 import { runMailShow } from "./mailShow";
 import { BROWSER_NAMES, BROWSER_TOOLS } from "./browserTools";
-import { isPaused } from "../browser/confirm";
+import { isPaused } from "../browser/window";
 import { browserUsable } from "../browser/usable";
 import { browserClick, browserFind, browserOpen, browserRead, browserType } from "./browserCall";
 import { mailAllowed } from "../mail/allowlist";

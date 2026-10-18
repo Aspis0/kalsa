@@ -32,9 +32,11 @@ export const SETTINGS = {
     "languageSystem": "Come il sistema",
     "ai": "AI",
     "usingAi": (name: string) => `In uso: ${name}`,
-    "mail": "",
+    "mail": "Mail",
     "mailHint": "Leggi la tua casella nella chat e rispondi.",
     "mailOpen": "Configura la mail",
+    "browser": "Browser",
+    "browserOpen": "Apri il browser",
     "aiDetails": "Cambia o vedi i dettagli"
   };
 

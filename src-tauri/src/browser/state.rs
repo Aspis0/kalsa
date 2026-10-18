@@ -1,11 +1,14 @@
 use std::sync::Arc;
 
+use tauri::{AppHandle, Manager};
+
 use tokio::sync::Mutex;
 
 use super::error::BrowserError;
 use super::fetch::Cancel;
 use super::host::Browser;
 use super::pending;
+use super::window::{self, WindowState};
 
 /// What the browser holds between calls.
 ///
@@ -15,6 +18,18 @@ use super::pending;
 /// locked across `host.call().await` would lock out every other browser command
 /// and would break the moment a window closes (docs/PLAN-BROWSER-2026-10-17.md:60).
 /// The pending confirms are a store of their own and no lock crosses a call.
+/// The one thing holding a clear, released when it is dropped — which a command
+/// that is cancelled before its work finishes will do for us.
+pub(crate) struct ClearGuard<'a> {
+    browser: &'a Browser,
+}
+
+impl Drop for ClearGuard<'_> {
+    fn drop(&mut self) {
+        self.browser.end_clear();
+    }
+}
+
 #[derive(Default)]
 pub(crate) struct BrowserState {
     running: Mutex<Option<Arc<Cancel>>>,
@@ -39,15 +54,79 @@ impl BrowserState {
         &self.pending
     }
 
-    /// Ends the session, for the window closing and the app quitting. Sync, so
-    /// a window event can end it without waiting on the runtime.
-    pub(crate) fn end(&self) {
-        self.browser.end();
+    /// What the page draws the window from, **read out of the slot in one move** —
+    /// so the state a page asks for and the events it listens to cannot disagree,
+    /// and neither can be a page's own guess.
+    pub(crate) fn window_state(&self) -> WindowState {
+        self.browser.window_state()
     }
 
-    /// Whether a browser is open, so clearing its data can refuse.
-    pub(crate) fn session_open(&self) -> bool {
+    /// **The person pressed Pausa**, which is recorded here whether or not the
+    /// sidecar has taken it yet — a session running is a session to pause, so
+    /// this is never refused as busy. The page is told at once: from this moment
+    /// the app's own gate offers no browser tool, and a pause that waited for the
+    /// slot would be a window in which Kalsa carried on driving.
+    pub(crate) fn pause(&self, app: &AppHandle, paused: bool) -> bool {
+        if self.browser.set_paused(paused) {
+            window::emit(app, self.window_state());
+            return true;
+        }
+        // Nothing moved: either there is no session, or it is already in the
+        // state asked for, and the page needs to hear neither.
         self.browser.is_open()
+    }
+
+    /// The emptying of the profile, taken as one move with the check for it.
+    /// The guard is what is given back — by being dropped, on every path: a
+    /// command that is cancelled mid-clear would otherwise hold the slot and
+    /// refuse every later browser for the life of the window.
+    pub(crate) fn begin_clear(&self) -> Option<ClearGuard<'_>> {
+        self.browser.begin_clear().then(|| ClearGuard { browser: &self.browser })
+    }
+
+    /// **One browser call, and the one place the slot is read afterwards.**
+    ///
+    /// Every caller goes through here — the chat's five tools, the pause and the
+    /// resume, the confirm and the decline, and the refresh of what is waiting —
+    /// because this is where the slot has settled and what it settled on is said
+    /// to the page. A caller that called the host for itself would move the slot
+    /// without saying anything, which is how a page ends up drawing a browser that
+    /// was abandoned under it.
+    ///
+    /// **A browser that is gone takes the cards it was holding with it.** Whether
+    /// it went because the host could not answer or because the person closed the
+    /// window, every request it was holding is declined and said: the sidecar
+    /// holding them died, so nobody is left to answer, and a card left on the
+    /// window outlives the thing it was about.
+    pub(crate) async fn call(
+        &self,
+        app: &AppHandle,
+        tool: &str,
+        args: serde_json::Map<String, serde_json::Value>,
+    ) -> Result<String, BrowserError> {
+        let app_data = app.path().app_data_dir().map_err(|_| BrowserError::Storage)?;
+        let said = self.browser.call(&app_data, tool, args).await;
+        if !self.browser.is_open() {
+            super::confirm::declined_by_the_window_going(app, self);
+        }
+        window::emit(app, self.window_state());
+        said
+    }
+
+    /// Ends the session, for the window closing and the app quitting — and says
+    /// so when there was one to end, so a page that was drawing a browser is not
+    /// left drawing it after the person closed the window. Sync, so a window
+    /// event can end it without waiting on the runtime.
+    ///
+    /// **The cards go with the session**, on the same path as a call that found
+    /// the browser gone: this is the same moment seen from the other side.
+    pub(crate) fn end(&self, app: &AppHandle) {
+        let had = self.browser.is_open() || self.browser.paused();
+        self.browser.end();
+        super::confirm::declined_by_the_window_going(app, self);
+        if had {
+            window::emit(app, self.window_state());
+        }
     }
 
     /// Takes the one download slot and hands back the flag the transfer reads.

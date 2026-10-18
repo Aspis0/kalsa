@@ -23,4 +23,6 @@ export const DRIVER = {
   // A clear that did not happen must not read as a clear that did. It says so
   // and leaves the press, because the button is still there and still means it.
   clearFailed: "Kalsa could not clear its browser data. Nothing was changed.",
+  clearOpen: "Close the browser window to clear this.",
+  back: "Back to Settings",
 };

@@ -111,16 +111,23 @@ pub(crate) async fn brain_browser_clear_data(
     if state.running().await.is_some() {
         return Err(BrowserError::Busy.into());
     }
-    // And a clear while the browser is open is the same mistake: the profile
-    // folder is in use, and emptying it leaves a live browser writing into a
-    // directory that no longer says what it is.
-    if state.session_open() {
-        return Err(BrowserError::Busy.into());
-    }
     let app_data = app_data(&app)?;
-    tokio::task::spawn_blocking(move || profile::clear(&app_data))
-        .await
-        .map_err(|_| BrowserError::Failed)??;
+    // **The slot is taken for as long as the clear runs, not merely checked.** A
+    // browser and a clear on one profile is the same mistake — the folder is in
+    // use, and emptying it leaves a live browser writing into a directory that no
+    // longer says what it is — and a check on its own leaves the window between
+    // the check and the rename for a call to slip into. This is the check and the
+    // holding of it as one move, so a browser that starts now is refused.
+    let Some(held) = state.begin_clear() else {
+        return Err(BrowserError::Busy.into());
+    };
+    // **The guard is released by being dropped**, which happens here and would
+    // happen anyway if this command were cancelled mid-clear — a guard kept past
+    // the end of the clear would refuse every later browser for the life of the
+    // window, which is the one thing a clear must never cost.
+    let answered = tokio::task::spawn_blocking(move || profile::clear(&app_data)).await;
+    drop(held);
+    answered.map_err(|_| BrowserError::Failed)??;
     Ok(())
 }
 

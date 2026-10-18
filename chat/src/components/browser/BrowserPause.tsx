@@ -13,13 +13,19 @@ import "./BrowserConfirm.css";
  * control that implied it would be is worse than no control. So the sentence
  * that says so sits next to the button rather than being left to be discovered,
  * and a card still waiting is still answered — pausing is not declining.
+ *
+ * **It is drawn only while a window is open**, because it is the window's
+ * control and not a setting of the app. On a fresh launch there is no browser
+ * anywhere, and a pause button over nothing is a promise about a window nobody
+ * has: the app said its messages stayed on this computer, and this was the one
+ * control on the screen speaking for something else.
  */
 export function BrowserPause() {
   const { table } = useLanguage();
   const t = table.confirm;
   // Pausing is about the window, which every chat shares, so this reads nothing
   // of any conversation's cards — it is the one control here that is not.
-  const { paused } = useConfirm("");
+  const { paused, windowOpen } = useConfirm("");
   const [asking, setAsking] = useState(false);
 
   // **The sidecar is told first, and the button shows what it said.** A control
@@ -32,6 +38,8 @@ export function BrowserPause() {
     await pressPause(!paused);
     setAsking(false);
   }
+
+  if (!windowOpen) return null;
 
   return <div className="browser-pause">
     <button
