@@ -11,6 +11,7 @@ export const RUST: {
   files: Record<string, (params: Record<string, unknown>, tag: string) => string>;
   vision: Record<string, (params: Record<string, unknown>, tag: string) => string>;
   web: Record<string, (params: Record<string, unknown>, tag: string) => string>;
+  browser: Record<string, (params: Record<string, unknown>, tag: string) => string>;
 } = {
   startup: {
     cannot_run_yet: () => "Kalsa ne peut pas encore fonctionner sur cet ordinateur. Cherche une mise à jour de l'app.",
@@ -98,5 +99,17 @@ export const RUST: {
     search_failed: () => "Kalsa n'a pas pu chercher sur le web. Réessaie.",
     page_failed: () => "Kalsa n'a pas pu ouvrir cette page. Réessaie.",
     open_failed: () => "Cet ordinateur n'a pas pu ouvrir le lien.",
+  },
+  browser: {
+    unsupported_platform: () => "Cet ordinateur n'a pas de navigateur que Kalsa puisse utiliser.",
+    busy: () => "Kalsa utilise déjà le navigateur. Réessaie dans un instant.",
+    cancelled: () => "Le téléchargement a été arrêté. Rien n'a été installé.",
+    download_failed: () => "Kalsa n'a pas pu télécharger son pilote de navigateur. Réessaie.",
+    driver_corrupt: () => "Le pilote du navigateur est endommagé, Kalsa n'a rien installé.",
+    driver_changed: () => "Le pilote du navigateur sur le disque n'est pas celui que Kalsa a installé.",
+    unpack_failed: () => "Le pilote du navigateur ne s'est pas décompressé en quelque chose d'utilisable.",
+    storage: () => "Kalsa n'a pas pu lire ou écrire son propre dossier.",
+    failed: () => "Kalsa n'a pas pu joindre le navigateur. Réessaie.",
+    refused: () => "Kalsa n'a pas voulu ouvrir cela.",
   },
 };

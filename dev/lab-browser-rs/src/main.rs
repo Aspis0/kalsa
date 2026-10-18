@@ -38,6 +38,7 @@ fn arg_usize(args: &serde_json::Value, key: &str, fallback: usize) -> usize {
     args.get(key).and_then(|value| value.as_u64()).map(|number| number as usize).unwrap_or(fallback)
 }
 
+
 /// A read, and what it printed: the refs it holds are the only ones the next
 /// call may act on, exactly as in the product.
 async fn read(sessions: &Sessions, page: &playwright_rs::protocol::Page, part: usize) -> Result<String, String> {
@@ -52,7 +53,7 @@ async fn read(sessions: &Sessions, page: &playwright_rs::protocol::Page, part: u
 
 /// One tool call, on the same page and under the same rules the product uses.
 async fn run(sessions: &Sessions, tool: &str, args: &serde_json::Value) -> Result<String, String> {
-    let page = sessions.page().await.map_err(|unavailable| unavailable.message().to_string())?;
+    let (page, landings) = sessions.page().await.map_err(|unavailable| unavailable.message().to_string())?;
     match tool {
         "browser_navigate" => {
             let raw = arg_str(args, "url").trim().to_string();
@@ -67,7 +68,7 @@ async fn run(sessions: &Sessions, tool: &str, args: &serde_json::Value) -> Resul
             page.goto(&url, None).await.map_err(|error| kalsa_browser::session::explain(&error))?;
             // A redirect hop is not offered to the route in this stack, so where
             // we landed is judged here.
-            if let Some(refusal) = guard::refused_landing(&page.url()) {
+            if let Some(refusal) = landings.refused(&page.url()).await {
                 return Err(refusal.reason().to_string());
             }
             read(sessions, &page, 1).await
@@ -89,6 +90,9 @@ async fn run(sessions: &Sessions, tool: &str, args: &serde_json::Value) -> Resul
             read(sessions, &page, 1).await
         }
         "browser_type" => {
+            // No `submit` here, exactly as in the product: Enter is decided by
+            // the crate from the field's own shape, and a lab that could press
+            // a key the product cannot would prove nothing about the product.
             let id = sessions.ref_of(&arg_str(args, "ref")).await.map_err(str::to_string)?;
             input::fill(&page, &id, &arg_str(args, "text"))
                 .await

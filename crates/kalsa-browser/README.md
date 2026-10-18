@@ -46,6 +46,28 @@ pointing at the installed Chrome, Edge or Brave (`src/find_browser.rs`), and
 server of their own, which the product guard refuses and which the tests
 therefore override through Playwright's own routing when they need an origin.
 
+## Enter
+
+A fill is followed by Enter when the field is a single-line text-like input —
+`text`, `search`, `email`, `url`, `tel`, `number` — **whether or not a `<form>`
+is around it**. The form is deliberately not part of the rule: TodoMVC's
+new-todo input, a chat box and most search boxes are one-line inputs with no
+form at all whose keydown handler commits what was typed, and a model that
+typed into one and pressed nothing was talking to a page that never heard it.
+
+A `<textarea>`, a `contenteditable` and a `<select>` never take Enter — the
+first two hold several lines by design, so a multi-line answer cannot submit
+itself halfway through being written, and the third is refused outright as
+`NotFillable`. A password field, and anything the page marks as a
+one-time code, is refused before anything is typed into it.
+
+Nothing here decides *whether* a write may happen. A `<form>` submits on Enter
+as a non-GET, and every non-GET goes through the hold (`src/hold.rs`) — refused
+in step 1, confirmed from step 4 — so the only thing this rule decides is whether
+Kalsa presses the key at all. What it cannot protect on its own is the window
+between the destination check and the keypress, which is re-read immediately
+before Enter (`RECHECK_BODY`) and written up under *Known limits*.
+
 ## What step 1 does not do
 
 Click and type are refused on a page whose request is not a GET, because the
@@ -75,8 +97,8 @@ code and believes otherwise.
   Opening is a thing a person does on purpose.
 - **A redirect is not intercepted.** In this stack a redirect followed within a
   navigation is never offered to a route handler: the first hop is judged and the
-  second is not, and the browser follows it. `guard::refused_landing` refuses to
-  read a page we ended up on, so the model is never shown what a redirected page
+  second is not, and the browser follows it. `Landings::refused` refuses to read a
+  page we ended up on, so the model is never shown what a redirected page
   says — but the request was made. Closing this needs something in front of the
   browser.
 - **Network-specific NAT64 prefixes.** `64:ff9b::/96` and the local-use
@@ -110,3 +132,10 @@ code and believes otherwise.
 - **Prompt injection, until step 3.** Page text is returned to the model fenced
   and with the run recoverable, or it is not, and until it is a page can say
   anything it likes in the voice of a person.
+- **The provenance gate is the model gate, and it runs in the renderer.** The
+  rule that an address must already have appeared in the conversation lives in
+  `chat/src/lib/tools/fetchProvenance.ts`, not here, so a renderer that does not
+  run it can call `brain_browser_open` directly with any address. What still
+  applies to such a call is the route guard below and everything in
+  `guard.rs`: non-http(s) schemes are refused, private and loopback addresses are
+  refused, and the landing record still has to agree before any text is read.

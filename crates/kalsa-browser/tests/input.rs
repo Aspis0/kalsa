@@ -7,6 +7,7 @@
 
 mod common;
 
+use kalsa_browser::input::Refused;
 use kalsa_browser::{input, snapshot};
 use playwright_rs::protocol::{Page, Playwright};
 
@@ -22,6 +23,8 @@ const SHAPES: &str = r#"
   <label for="outside">one line with no form</label>
   <input id="outside" type="text">
   <div id="editable" contenteditable="true">an editable answer</div>
+  <label for="choice">a choice of answers</label>
+  <select id="choice"><option>the first</option><option>the second</option></select>
   <label for="flipper">a field that turns on focus</label>
   <input id="flipper" type="text" onfocus="this.type='password'">
   <label for="otp">a one time code field</label>
@@ -52,6 +55,13 @@ const SHAPES: &str = r#"
     <label for="with-image">a field in the image form</label>
     <input id="with-image" type="text">
     <input id="picture" type="image" alt="the picture button" src="/x.png" formaction="mailto:shop@example.com">
+  </form>
+  <form id="icon-form" action="mailto:shop@example.com">
+    <button type="submit"><svg width="20" height="20" xmlns="http://www.w3.org/2000/svg"><rect width="20" height="20"></rect></svg><span id="icon-text">send the form</span></button>
+  </form>
+  <form id="labelled" action="/posted">
+    <input id="hidden-submit" type="submit" formaction="mailto:shop@example.com" value="go">
+    <label id="its-label" for="hidden-submit">a label for a submit input</label>
   </form>
   <form id="odd-method" method="weird" action="/posted">
     <label for="odd">a field in a method form</label>
@@ -94,15 +104,19 @@ async fn ref_of(page: &Page, name: &str) -> String {
     line[open + 1..close].to_string()
 }
 
-/// The four shapes the plan names, asked in the order that costs least: a field
-/// that is not pressed leaves the page exactly where it was, so the ones after
-/// it can still be filled.
+/// The shapes the plan names, asked in the order that costs least: a field that
+/// is not pressed leaves the page exactly where it was, so the ones after it can
+/// still be filled.
+///
+/// **A one-line field with no form around it is pressed**, and that is the whole
+/// change: TodoMVC's new-todo input, a chat box and a search box are exactly
+/// that, and a model that types into one and presses nothing has asked a page a
+/// question it never hears the end of.
 #[tokio::test]
-async fn enter_follows_only_the_one_line_field_that_has_a_form() {
+async fn enter_follows_any_one_line_field_and_nothing_else() {
     let (_playwright, page) = page_with_shapes("input-shapes").await;
 
     for (name, why) in [
-        ("one line with no form", "a field with no form has nothing to submit to"),
         ("a long answer", "a textarea holds several lines by design"),
         ("an editable answer", "an editable block is not an input"),
     ] {
@@ -111,9 +125,22 @@ async fn enter_follows_only_the_one_line_field_that_has_a_form() {
         assert!(!pressed, "{name} must not press Enter: {why}");
     }
 
-    let reference = ref_of(&page, "one line inside a form").await;
-    let pressed = input::fill(&page, &reference, "an answer").await.expect("the field is filled");
-    assert!(pressed, "a one-line field inside a form submits");
+    // A `<select>` never reaches the rule: there is nothing to type into it, so
+    // the fill is refused outright rather than written and left unpressed.
+    let reference = ref_of(&page, "a choice of answers").await;
+    assert_eq!(
+        input::fill(&page, &reference, "an answer").await.expect_err("a select cannot be typed into"),
+        Refused::NotFillable
+    );
+
+    for (name, why) in [
+        ("one line inside a form", "a form submits on Enter"),
+        ("one line with no form", "a page whose keydown commits the text is finished by Enter, form or no form"),
+    ] {
+        let reference = ref_of(&page, name).await;
+        let pressed = input::fill(&page, &reference, "an answer").await.expect("the field is filled");
+        assert!(pressed, "{why}");
+    }
 }
 
 /// A password field is refused before it is filled, and the model is told to ask
@@ -338,3 +365,36 @@ async fn a_form_with_a_method_the_browser_would_ignore_is_refused() {
     let refused = input::fill(&page, &reference, "an answer").await.expect_err("the method is refused");
     assert_eq!(refused, input::Refused::Destination);
 }
+
+/// **An icon inside a submit button submits with the button.** The icon is not
+/// form-associated and has no `form` of its own — reading its attributes checks
+/// nothing — so a `<button formaction="mailto:">` with a picture in it went
+/// unchecked until the control wrapping the icon was found and judged instead.
+#[tokio::test]
+async fn an_icon_inside_a_button_is_read_through_the_button() {
+    let (_playwright, page) = page_with_shapes("input-icon").await;
+    // The span is a plain child of the button: not form-associated, no `form`
+    // of its own, and the ref the read printed for it is the only way in.
+    let reference = ref_of(&page, "send the form").await;
+    let refused = input::click(&page, &reference).await.expect_err("the button posts to another program");
+    assert_eq!(refused, input::Refused::Destination);
+}
+
+/// **A label activates the control it labels**, and a label has no `form` of
+/// its own — so the control it points at is what a click resolves to, and that
+/// control's `formaction` is where the click would go.
+///
+/// The read prints a label as the plain text it is and hands out no ref for it,
+/// so a model cannot click one; what it *does* hand out is the control, and that
+/// is what is refused here. The rule that resolves a label to its control is
+/// held by `input.rs`'s own source-level test, which is where the rest of the
+/// destination clauses are held too.
+#[tokio::test]
+async fn the_control_a_label_points_at_is_refused_on_its_own_action() {
+    let (_playwright, page) = page_with_shapes("input-label").await;
+    let reference = ref_of(&page, "go").await;
+
+    let refused = input::click(&page, &reference).await.expect_err("the labelled input posts to another program");
+    assert_eq!(refused, input::Refused::Destination);
+}
+

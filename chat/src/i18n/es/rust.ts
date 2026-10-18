@@ -11,6 +11,7 @@ export const RUST: {
   files: Record<string, (params: Record<string, unknown>, tag: string) => string>;
   vision: Record<string, (params: Record<string, unknown>, tag: string) => string>;
   web: Record<string, (params: Record<string, unknown>, tag: string) => string>;
+  browser: Record<string, (params: Record<string, unknown>, tag: string) => string>;
 } = {
   startup: {
     cannot_run_yet: () => "Kalsa aún no puede funcionar en este equipo. Busca una actualización de la app.",
@@ -98,5 +99,17 @@ export const RUST: {
     search_failed: () => "Kalsa no pudo buscar en la web. Prueba de nuevo.",
     page_failed: () => "Kalsa no pudo abrir esa página. Prueba de nuevo.",
     open_failed: () => "Este equipo no pudo abrir el enlace.",
+  },
+  browser: {
+    unsupported_platform: () => "Este equipo no tiene un navegador que Kalsa pueda usar.",
+    busy: () => "Kalsa ya está usando el navegador. Prueba de nuevo en un momento.",
+    cancelled: () => "Se ha detenido la descarga. No se ha instalado nada.",
+    download_failed: () => "Kalsa no ha podido descargar su controlador del navegador. Prueba de nuevo.",
+    driver_corrupt: () => "El controlador del navegador está dañado, así que Kalsa no ha instalado nada.",
+    driver_changed: () => "El controlador del navegador del disco no es el que Kalsa instaló.",
+    unpack_failed: () => "El controlador del navegador no se ha descomprimido en algo utilizable.",
+    storage: () => "Kalsa no ha podido leer o escribir su propia carpeta.",
+    failed: () => "Kalsa no ha podido llegar al navegador. Prueba de nuevo.",
+    refused: () => "Kalsa no ha querido abrir eso.",
   },
 };

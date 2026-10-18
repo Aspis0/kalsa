@@ -7,6 +7,7 @@ import { streamChatCompletion } from "../toolLoop";
 import { executeToolCall, offeredTools } from "../tools/registry";
 import type { ToolDefinition } from "../tools/definitions";
 import { MAIL_NAMES } from "../tools/definitions";
+import { BROWSER_NAMES } from "../tools/browserTools";
 import { CONTEXT_RESERVE_TOKENS, wireSize } from "../attachments";
 import { loadSampling, samplingWire } from "../sampling";
 import { loadThinking, thinkingSupport } from "../thinking";
@@ -26,10 +27,17 @@ const FACTS_TIMEOUT_MS = 8000;
  * draws the cards itself, so a phone that keeps it would still put the
  * owner's mail in front of the person.
  */
-function phoneTools(webTools: boolean, language: Language, model: string, mail: boolean): ToolDefinition[] {
+/**
+ * The tools a phone turn may call. The browser is not one of them, and the
+ * filter is here rather than in `offeredTools` because the browser is offered
+ * on the desktop by a rule of its own — a stranger's phone must not be able to
+ * make this computer drive a browser it cannot see.
+ */
+export function phoneTools(webTools: boolean, language: Language, model: string, mail: boolean): ToolDefinition[] {
   return offeredTools(webTools, language, model).filter(
     (tool) =>
       tool.function.name !== "create_miniapp" &&
+      !BROWSER_NAMES.has(tool.function.name) &&
       (mail || !MAIL_NAMES.has(tool.function.name)),
   );
 }

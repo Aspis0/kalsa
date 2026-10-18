@@ -12,6 +12,7 @@ import { recoverToolCall } from "./recoverToolCall";
 import { runToolCall } from "./runToolCall";
 import { logUiEvent } from "./uiLog";
 import { MAIL_NAMES, MAIL_TOOLS, WEB_TOOLS } from "./tools/definitions";
+import { BROWSER_TOOLS } from "./tools/browserTools";
 import type { ToolDefinition } from "./tools/definitions";
 
 /**
@@ -316,8 +317,11 @@ function webResultIn(conversation: WireMessage[]): boolean {
 /** The tools whose results carry outside content into the conversation. Mail
     is outside content: every line of a mail is a stranger's words, fenced by
     the sidecar, and once it is in the wire the answer text is a channel it
-    can speak into — the same reason a page is. */
-const WEB_NAMES = new Set([...WEB_TOOLS, ...MAIL_TOOLS].map((tool) => tool.function.name));
+    can speak into — the same reason a page is, and the same reason a browser
+    tool's fenced page joins them. After any of them, text-to-tool-call
+    recovery is off: a recovery reads the conversation for `<|tool_call_start|>`
+    and a stranger's page is exactly who would put it there. */
+const WEB_NAMES = new Set([...WEB_TOOLS, ...MAIL_TOOLS, ...BROWSER_TOOLS].map((tool) => tool.function.name));
 
 /** The surface a round's tool lines are prefixed with. A phone's turn is
     marked as one: the tools a phone calls are this computer's, and without the

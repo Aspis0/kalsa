@@ -2,6 +2,7 @@ import type { WireMessage } from "../chat";
 import { PINNED_DOCS_MARK } from "../attachments";
 import { findSensitive } from "../webgate/sensitive";
 import { addressesIn, canonical, rememberAddresses } from "./addresses";
+import { BROWSER_NAMES } from "./browserTools";
 import { URL_LINE, pageTexts, providerText } from "./resultFormat";
 
 // One shape for an address wherever it is compared: the page reads under a
@@ -33,6 +34,11 @@ export interface FetchRefusal {
   text: string;
 }
 
+const USERINFO: FetchRefusal = {
+  code: "web.link_userinfo",
+  text: "Not run: that address carries a username or password in front of the host, so it was not opened. Ask the user for the page without them.",
+};
+
 const UNSEEN: FetchRefusal = {
   code: "web.link_unseen",
   text: "Not run: this link has not appeared in the conversation, so it was not opened. Use web_search to find the page, or ask the user for the link.",
@@ -51,7 +57,12 @@ const QUERY_UNSEEN: FetchRefusal = {
 /** The answers a web call gets when nothing ran. They quote the outgoing
     string — heldBack cuts it at eighty characters, so no scrub could remove
     the quote — so they are never provenance. */
-const NEVER_PROVENANCE = ["Not run:", "No search was made:", "No page was opened:"];
+const NEVER_PROVENANCE = [
+  "Not run:",
+  "No search was made:",
+  "No page was opened:",
+  "Nothing was searched for:",
+];
 
 /** Whether this answer is the refusal of a call that never ran. Such a call
  * opened nothing, so its address is not one this conversation has read —
@@ -76,6 +87,12 @@ const CREDENTIAL_PARAMS = new Set([
 /** The refusal for this address, or null when the rule lets it through to
     the gate. */
 export function fetchProvenanceRefusal(url: string, conversation: WireMessage[]): FetchRefusal | null {
+  // Before anything else, and before the address is canonicalised. `canonical`
+  // builds from the host alone, so `https://me:pw@bank.example/login` reads as
+  // `https://bank.example/login` — the very page the conversation saw — and a
+  // credential folded into the host is a credential sent to it. Whether the
+  // detectors happen to name it is beside the point; it is never opened.
+  if (carriesUserinfo(url)) return USERINFO;
   const { seen, userTexts } = seenCorpus(conversation);
   // Opening the address would send the credential to its host, so only the
   // user's own words excuse one; a page or a result quoting it does not.
@@ -154,7 +171,12 @@ function seenCorpus(conversation: WireMessage[]): { seen: Set<string>; userTexts
     if (message.role !== "tool" || typeof message.content !== "string") continue;
     const text = message.content;
     const call = calls.get(message.tool_call_id ?? "");
-    if (call === undefined || (call.name !== "web_search" && call.name !== "web_fetch")) continue;
+    if (call === undefined) continue;
+    // A browser page is outside content exactly as a fetched page is: a stranger
+    // wrote it. It arms what the model could have opened itself, which is the
+    // rule `web_fetch` already applies.
+    const isPage = call.name === "web_fetch" || BROWSER_NAMES.has(call.name);
+    if (!isPage && call.name !== "web_search") continue;
     // Arguments that cannot be read cannot be scrubbed out of the echo, so
     // the whole result stays out of the corpus.
     if (call.own === null) continue;
@@ -174,12 +196,32 @@ function seenCorpus(conversation: WireMessage[]): { seen: Set<string>; userTexts
       }
       for (const text of pageTexts(scrubbed)) rememberAddresses(text, seen);
     } else {
-      // A page fetched from an address the conversation carried: its text is
-      // outside content, not the model's.
-      rememberAddresses(scrubbed, seen);
+      // A page fetched from an address the conversation carried, or read in the
+      // browser: its text is outside content, not the model's. The fence is
+      // stripped first — its markers are the app's, and its warning line is an
+      // instruction the app wrote, not an address anyone should be able to arm.
+      rememberAddresses(pageBody(scrubbed), seen);
     }
   }
   return { seen, userTexts };
+}
+
+/** The page's own lines: the fenced block without the app's warning and markers,
+    which are the app's words and not the page's. */
+function pageBody(text: string): string {
+  const fenced = text.match(/^<kalsa-page-[0-9a-f]+>\n([\s\S]*?)\n<\/kalsa-page-[0-9a-f]+>$/m);
+  return fenced === null ? text : fenced[1];
+}
+
+/** Whether the address names a user or a password before its host. */
+function carriesUserinfo(url: string): boolean {
+  try {
+    const parsed = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(url) ? url : `https://${url}`);
+    return parsed.username !== "" || parsed.password !== "";
+  } catch {
+    // An address that will not parse is not one we open either way.
+    return false;
+  }
 }
 
 /** The credentials this address carries, as the text that would excuse each:

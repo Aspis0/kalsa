@@ -92,7 +92,7 @@ fn url(archive: &Archive) -> String {
 }
 
 /// Where the driver is unpacked, under Kalsa's own data folder.
-fn installed_dir(app_data: &Path) -> Result<PathBuf, BrowserError> {
+pub(crate) fn installed(app_data: &Path) -> Result<PathBuf, BrowserError> {
     Ok(app_data.join("browser").join("driver").join(dir_name()))
 }
 
@@ -106,7 +106,7 @@ pub(crate) fn status(app_data: &Path) -> Result<Status, BrowserError> {
     if archive.is_none() {
         return Ok(Status { supported: false, installed: false, size });
     }
-    let dir = installed_dir(app_data)?;
+    let dir = installed(app_data)?;
     let expected = archive.as_ref().map(|archive| archive.tree.as_str()).unwrap_or_default();
     // The tree digest no longer carries a mode, so the one thing a lost
     // executable bit would break is checked here instead: a `node` that cannot
@@ -160,7 +160,7 @@ pub(crate) fn install(
         None => fetch::get(&url(&archive), archive.size, &archive.sha256, cancel, progress)?,
     };
 
-    let dir = installed_dir(app_data)?;
+    let dir = installed(app_data)?;
     let staging = root.join(format!(".{}.staging", dir_name()));
     let _ = std::fs::remove_dir_all(&staging);
     unpack::unpack(&bytes, &staging)?;
@@ -286,7 +286,7 @@ mod tests {
         use std::os::unix::fs::PermissionsExt;
         let dir = std::env::temp_dir().join(format!("kalsa-driver-run-{}-{}", std::process::id(), name()));
         let _ = std::fs::remove_dir_all(&dir);
-        let tree = installed_dir(&dir).expect("a path");
+        let tree = installed(&dir).expect("a path");
         std::fs::create_dir_all(tree.join("package")).expect("scratch tree");
         std::fs::write(tree.join("node"), "runtime").expect("node");
         std::fs::write(tree.join("package/cli.js"), "console.log(1)").expect("cli");
@@ -347,7 +347,7 @@ mod tests {
             .expect("the check itself answers");
             assert!(kept.is_none(), "{name} must not be used");
             assert!(!packed.exists(), "{name} is left on disk for the next press to trust");
-            assert!(!installed_dir(&app_data).expect("a path").exists(), "{name} created a driver");
+            assert!(!installed(&app_data).expect("a path").exists(), "{name} created a driver");
             let _ = std::fs::remove_dir_all(&app_data);
         }
     }
@@ -389,7 +389,7 @@ mod tests {
             install(&app_data, &cancel, &mut |_, _| {}).err(),
             Some(BrowserError::Cancelled)
         );
-        assert!(!installed_dir(&app_data).expect("a path").exists(), "a cancelled install left a driver");
+        assert!(!installed(&app_data).expect("a path").exists(), "a cancelled install left a driver");
         let staging: Vec<PathBuf> = std::fs::read_dir(app_data.join("browser").join("driver"))
             .map(|entries| entries.filter_map(|entry| entry.ok().map(|entry| entry.path())).collect())
             .unwrap_or_default();

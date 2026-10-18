@@ -18,19 +18,30 @@ pub(crate) struct Answer {
     #[serde(rename = "isInput")]
     is_input: bool,
     kind: String,
-    #[serde(rename = "inForm")]
-    in_form: bool,
 }
 
 /// The types a person answers in one line and expects to be done with. A
-/// `<textarea>`, a `contenteditable` and a form-less input are not among them:
-/// the first two hold several lines by design, and the third has nothing to
-/// submit to.
-const SUBMITTABLE: &[&str] = &["text", "search", "email", "url", "tel", "number"];
+/// `<textarea>`, a `contenteditable` and a `<select>` are not among them: the
+/// first two hold several lines by design, and the third is not a field anyone
+/// types into at all.
+const ONE_LINE: &[&str] = &["text", "search", "email", "url", "tel", "number"];
 
-/// Press Enter after filling this field.
+/// Enter follows a one-line field, **whether or not it sits in a form**.
+///
+/// The form was never the point, and holding out for it is what made this rule
+/// wrong for the web as it is. TodoMVC, every chat box and most search boxes are
+/// single-line inputs with no form at all, whose keydown handler commits what was
+/// typed: under a form-only rule a model could type an answer into one of those
+/// and the page would never hear the rest of the request, which is the model
+/// staring at a field that took the words and did nothing with them.
+///
+/// What this can cost is a request, and that is not this function's business:
+/// every write Enter can set off is a non-GET, and a non-GET goes through the
+/// hold like every other write (`src/hold.rs`) — refused in this step, confirmed
+/// from step 4. The destination is still re-read immediately before the key goes
+/// down (see `fill`).
 fn presses_enter(answer: &Answer) -> bool {
-    answer.is_input && answer.in_form && SUBMITTABLE.contains(&answer.kind.as_str())
+    answer.is_input && ONE_LINE.contains(&answer.kind.as_str())
 }
 
 /// Whether the page's own findings end the call.
@@ -58,7 +69,7 @@ fn refused_by(answer: &Answer) -> Option<Refused> {
 ///    inside;
 /// 4. **only then** write, or click.
 const PRELUDE: &str = r"
-  const answer = (verdict, extra) => Object.assign({ verdict, isInput: false, kind: '', inForm: false }, extra || {});
+  const answer = (verdict, extra) => Object.assign({ verdict, isInput: false, kind: '' }, extra || {});
   // An address with no scheme in it is fine: the browser resolves it against the
   // page. An address that cannot be resolved at all is not, and is answered with
   // something `opens` will not take — a destination we cannot name is a
@@ -86,11 +97,41 @@ const PRELUDE: &str = r"
     const drawn = svg.href && svg.href.baseVal;
     return drawn || svg.getAttribute('xlink:href') || svg.getAttribute('href');
   };
-  // The form this element would submit, by the browser's own association and
-  // not by ancestry: a field whose form attribute names a form elsewhere on the
-  // page belongs to that form, and `closest('form')` would call it form-less
-  // and check nothing at all. `el.form` is what Enter and a click act on.
-  const formOf = el => el.form || null;
+  // The form this element would submit, found the way the browser finds it —
+  // and for an element that is not itself form-associated there is no
+  // `el.form` at all, which is the case that used to check nothing:
+  //
+  //  1. **Inside a button or an input.** A `<span>`, an `<svg>` or an `<img>`
+  //     that is a button's icon has no `form` property: it is not form-associated,
+  //     it is *inside* something that is. The control is found with
+  //     `closest('button, input')` and **that control's** form and its own
+  //     `formaction`/`formmethod` are what a click submits with. Reading the
+  //     icon's own (absent) attributes is exactly how a mailto: button with a
+  //     picture in it went unchecked.
+  //  2. **A label, or anything inside one.** `label.control` is the element the
+  //     label is for, and a click anywhere on the label — text, an `<span>`, an
+  //     `<svg>` — activates that element. So it is the *nearest* label that
+  //     decides, found with `closest('label')`: a label inside a button is still
+  //     answered by the button above, and a label for a submit input submits
+  //     with that input whoever was clicked.
+  //  3. **`el.form`** — the browser's own association, so a field whose `form`
+  //     attribute names a form elsewhere on the page is judged by that form and
+  //     `closest('form')` would call it form-less and check nothing at all.
+  //  4. **Ancestry**, as the last resort for anything else.
+  const controlOf = el => {
+    if (el.closest && el.closest('button, input') !== null) return el.closest('button, input');
+    const label = el.closest ? el.closest('label') : null;
+    if (label !== null && label.control) return label.control;
+    return null;
+  };
+  const formOf = el => {
+    const control = controlOf(el);
+    if (control !== null) return control.form || null;
+    return el.form || null;
+  };
+  // The control a click submits with, where the attributes must be read from:
+  // the button or input wrapping an icon, the labelled control, or the element.
+  const submitterEl = el => controlOf(el) || el;
   // The default button: the control Enter submits with, computed the way the
   // browser computes it — the first entry of the form's own listed elements,
   // `form.elements`, that is a submit button and is not disabled. That is where
@@ -129,13 +170,16 @@ const PRELUDE: &str = r"
   const badDestination = el => {
     const form = formOf(el);
     const submitter = defaultButtonOf(form);
+    // An icon inside a button submits with the *button*, so the button's own
+    // `formaction` and `formmethod` are what a click on the icon is judged by.
+    const own = submitterEl(el);
     const href = linkHref(el);
     return !knownMethod(methodOf(submitter, 'formmethod'))
       || !knownMethod(methodOf(form, 'method'))
-      || !knownMethod(methodOf(el, 'formmethod'))
+      || !knownMethod(methodOf(own, 'formmethod'))
       || !opens(protocolOf(form && form.getAttribute('action')))
       || !opens(protocolOf(submitter && submitter.getAttribute('formaction')))
-      || !opens(protocolOf(el.getAttribute('formaction')))
+      || !opens(protocolOf(own.getAttribute && own.getAttribute('formaction')))
       || !(href === null || opens(protocolOf(href)));
   };
 ";
@@ -156,7 +200,7 @@ const FILL_BODY: &str = r"
     || auto.includes('one-time-code');
   if (secret) return answer('secret');
 
-  const here = { isInput, kind, inForm: formOf(el) !== null };
+  const here = { isInput, kind };
   if (badDestination(el)) return answer('destination', here);
 
   if (isInput || el instanceof HTMLTextAreaElement) el.value = text;
@@ -167,11 +211,10 @@ const FILL_BODY: &str = r"
 ";
 
 const CLICK_BODY: &str = r"
-  const form = formOf(el);
-  if (badDestination(el)) return answer('destination', { inForm: form !== null });
+  if (badDestination(el)) return answer('destination');
 
   el.click();
-  return answer('ok', { inForm: form !== null });
+  return answer('ok');
 ";
 
 /// Re-reads the destination and nothing else, so the check that decides whether
@@ -244,15 +287,17 @@ pub async fn click(page: &Page, id: &str) -> Result<(), Refused> {
     Ok(())
 }
 
-/// Fill a field, and press Enter after it only when the field says Enter means
-/// something. A password field is never typed into: the model has no business
-/// holding one, and a value it typed would sit in the transcript.
+/// Fill a field, and press Enter after it when the field is a one-line answer.
+/// A password field is never typed into: the model has no business holding one,
+/// and a value it typed would sit in the transcript.
 ///
 /// The value is written and judged in one task, and **judged again before the
 /// key is pressed**, because the write itself runs page code: `input` and
 /// `change` fire, and a handler for either can turn the form we judged into a
 /// form that would post somewhere else. A second check that finds it changed
-/// refuses and presses nothing.
+/// refuses and presses nothing. That check is now the whole of what stands
+/// between a fill and a page that acts on it, and it stands because Enter can
+/// now follow a field with no form around it — see `presses_enter`.
 pub async fn fill(page: &Page, id: &str, text: &str) -> Result<bool, Refused> {
     let element = refs::at(page, id);
     let filled: Answer = element.evaluate::<Answer, &str>(&fill_expression(), Some(text)).await.map_err(|_| Refused::Gone)?;
@@ -272,39 +317,42 @@ pub async fn fill(page: &Page, id: &str, text: &str) -> Result<bool, Refused> {
 
 #[cfg(test)]
 mod tests {
-    use super::{presses_enter, refused_by, Answer, Refused, SUBMITTABLE};
+    use super::{presses_enter, refused_by, Answer, Refused, ONE_LINE};
 
-    fn answered(verdict: &str, is_input: bool, kind: &str, in_form: bool) -> Answer {
-        Answer { verdict: verdict.to_string(), is_input, kind: kind.to_string(), in_form }
+    fn answered(verdict: &str, is_input: bool, kind: &str) -> Answer {
+        Answer { verdict: verdict.to_string(), is_input, kind: kind.to_string() }
     }
 
-    /// The rule, over every shape it has to answer for. Enter follows a
-    /// one-line answer inside a form, and nothing else.
+    /// The rule, over every shape it has to answer for. **The form is not part
+    /// of it.** A one-line field is followed by Enter whether or not a `<form>`
+    /// is around it, because the pages that commit on Enter — TodoMVC, a chat
+    /// box, a search box — are mostly not in one, and a model typing into one of
+    /// those and pressing nothing is a model waiting for ever.
     #[test]
-    fn enter_follows_a_one_line_field_that_has_a_form_to_submit_to() {
-        for kind in SUBMITTABLE {
-            assert!(presses_enter(&answered("ok", true, kind, true)), "{kind} in a form submits");
-            assert!(!presses_enter(&answered("ok", true, kind, false)), "{kind} with no form does not");
+    fn enter_follows_any_one_line_field() {
+        for kind in ONE_LINE {
+            assert!(presses_enter(&answered("ok", true, kind)), "{kind} is finished with Enter");
         }
     }
 
     /// A multi-line answer would submit itself halfway through being written,
-    /// which is the one thing the field types exist to prevent.
+    /// which is the one thing the field types exist to prevent. A password field
+    /// is refused before any of this, and a `<select>` is not a field at all.
     #[test]
     fn a_multi_line_or_unusual_field_is_filled_and_left_alone() {
         for kind in ["password", "checkbox", "radio", "file", "hidden", "date", "range", "submit", "button"] {
-            assert!(!presses_enter(&answered("ok", true, kind, true)), "{kind} must not submit");
+            assert!(!presses_enter(&answered("ok", true, kind)), "{kind} must not submit");
         }
-        assert!(!presses_enter(&answered("ok", false, "", true)), "a textarea does not submit");
-        assert!(!presses_enter(&answered("ok", false, "text", true)), "an editable block does not submit");
+        assert!(!presses_enter(&answered("ok", false, "")), "a textarea does not submit");
+        assert!(!presses_enter(&answered("ok", false, "text")), "an editable block does not submit");
     }
 
     #[test]
     fn what_the_page_found_becomes_what_the_model_is_told() {
-        assert_eq!(refused_by(&answered("secret", false, "", false)), Some(Refused::Password));
-        assert_eq!(refused_by(&answered("destination", false, "", true)), Some(Refused::Destination));
-        assert_eq!(refused_by(&answered("unfillable", false, "", false)), Some(Refused::NotFillable));
-        assert_eq!(refused_by(&answered("ok", true, "text", true)), None);
+        assert_eq!(refused_by(&answered("secret", false, "")), Some(Refused::Password));
+        assert_eq!(refused_by(&answered("destination", false, "")), Some(Refused::Destination));
+        assert_eq!(refused_by(&answered("unfillable", false, "")), Some(Refused::NotFillable));
+        assert_eq!(refused_by(&answered("ok", true, "text")), None);
     }
 
     #[test]
@@ -339,7 +387,7 @@ mod destinations {
             // element's. An image button submits like any other submitter.
             "methodOf(form, 'method')",
             "methodOf(submitter, 'formmethod')",
-            "methodOf(el, 'formmethod')",
+            "methodOf(own, 'formmethod')",
             // The browser's own association, so a field whose form attribute
             // names a form elsewhere on the page is judged by that form.
             "el.form",
@@ -363,6 +411,26 @@ mod destinations {
         );
     }
 
+    /// An element that is not itself form-associated is judged by the control it
+    /// lives in. A `<span>` or an `<svg>` inside a `<button>` has no `form` of
+    /// its own — reading its attributes checks nothing — so a
+    /// `<button formaction="mailto:">` with a picture in it went unchecked. The
+    /// same is true of anything inside a `<label>`, including the label itself:
+    /// the click lands on the text, and the control is the one it labels, so it
+    /// is found with `closest('label')` and `label.control`.
+    #[test]
+    fn an_element_that_is_not_form_associated_is_judged_by_the_control_it_lives_in() {
+        for clause in [
+            "el.closest('button, input')",
+            "el.closest('label')",
+            "label.control",
+            "control.form",
+            "const submitterEl = el => controlOf(el) || el",
+        ] {
+            assert!(PRELUDE.contains(clause), "the destination check no longer reads {clause}");
+        }
+    }
+
     /// `input type=image` is **not** a listed element, so it is never in
     /// `form.elements` and never the default button — Enter is not activation,
     /// and an image only submits when it is clicked. Asserted as the shape of
@@ -373,8 +441,11 @@ mod destinations {
         assert!(PRELUDE.contains("is not in this list"), "the rule no longer says why");
         // Its own formaction and formmethod are read on the element itself,
         // which is the path a click on it takes.
-        assert!(PRELUDE.contains("protocolOf(el.getAttribute('formaction'))"), "a clicked image's action is unread");
-        assert!(PRELUDE.contains("methodOf(el, 'formmethod')"), "a clicked image's method is unread");
+        assert!(PRELUDE.contains("own.getAttribute && own.getAttribute('formaction')"), "a clicked image's action is unread");
+        assert!(PRELUDE.contains("methodOf(own, 'formmethod')"), "a clicked image's method is unread");
+        // And `own` is the element or the control wrapping it, so an icon inside
+        // a button is judged by the button.
+        assert!(PRELUDE.contains("const submitterEl = el => controlOf(el) || el"), "the control an icon lives in is not found");
     }
 
     /// The check runs again between the write and the key press, and the second

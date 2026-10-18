@@ -13,7 +13,8 @@ import { find, snapshot } from "./snapshot.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PLAYWRIGHT = resolve(HERE, "../../chat/node_modules/playwright-core/index.mjs");
-export const RS_BINARY = resolve(HERE, "../lab-browser-rs/target/release/lab-browser-rs");
+export const RS_CRATE = resolve(HERE, "../lab-browser-rs");
+export const RS_BINARY = resolve(RS_CRATE, "target/release/lab-browser-rs");
 
 /** Refs go stale when the page moves, so one that no longer resolves is a real
  *  failure the model can recover from. Models echo the brackets we print. */
@@ -23,6 +24,7 @@ const brief = (error) => String(error?.message ?? error).split("\n")[0].slice(0,
  *  values without a word — so the source goes over the wire as text. Playwright
  *  takes the same text either way, which is what lets one verifier read both. */
 const source = (expr) => (typeof expr === "function" ? expr.toString() : String(expr ?? ""));
+
 
 const nodeBackend = async () => {
   const { chromium } = await import(PLAYWRIGHT);
@@ -61,7 +63,21 @@ const nodeBackend = async () => {
           const box = locator(args.ref);
           await box.click({ timeout: 10000 });
           await box.fill(String(args.text ?? ""));
-          if (args.submit) await box.press("Enter");
+          // Enter is not an argument here, exactly as in the product: it follows
+          // a one-line field because the field is one line, form or no form —
+          // the same rule the Rust crate applies in `input.rs`. `submit` used to
+          // be read here and nowhere else, which is how the node backend and the
+          // rs backend came to disagree about the very same page.
+          // The list travels **inside** the expression: this runs in the page,
+          // where nothing from this module exists, and a `ReferenceError` here
+          // would be caught as "not a one-line field" and quietly press nothing.
+          const oneLine = await box
+            .evaluate((el) => {
+              const one = ["text", "search", "email", "url", "tel", "number"];
+              return el instanceof HTMLInputElement && one.includes(String(el.type).toLowerCase());
+            })
+            .catch(() => false);
+          if (oneLine) await box.press("Enter");
           await page.waitForLoadState("domcontentloaded", { timeout: 8000 }).catch(() => {});
           url = page.url();
           return await read();

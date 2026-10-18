@@ -160,6 +160,18 @@ async fn page_of(sessions: &Sessions) -> Result<(Page, Landings), CallToolResult
 /// answered Chrome with a private address while answering us with a public one
 /// are both only visible here. Neither the text nor the refs are returned, so
 /// the model never acts on what such a page says.
+///
+/// **The address is read on both sides of the read, and so is the count of
+/// navigations, and that is the whole guard.** Judging a URL and then taking
+/// text from the page are two moments, and a page can navigate between them — a
+/// meta refresh, a `setTimeout`, a banner that redirects — so a check bound only
+/// to the first moment says nothing about the text that was returned. So the URL
+/// is read before the check and again after the text is taken, and **so is the
+/// count of main-frame navigations**: a page that reloads, or posts a form at the
+/// address it is already on, is a different document on an address that reads the
+/// same, and the address alone would call that a page that never left. Text from
+/// a page that moved is not returned at all: the whole read starts over from the
+/// top, once, and a page that keeps moving is refused rather than read for ever.
 async fn page_text<F, Fut>(
     sessions: &Sessions,
     page: &Page,
@@ -167,20 +179,81 @@ async fn page_text<F, Fut>(
     take: F,
 ) -> Result<String, CallToolResult>
 where
-    F: FnOnce() -> Fut,
+    F: Fn() -> Fut,
     Fut: Future<Output = Result<String, playwright_rs::Error>>,
 {
-    if let Some(refusal) = landings.refused(&page.url()).await {
-        return Err(view::refused(refusal.reason()));
-    }
-    match take().await {
-        // What a read printed, kept so the next call can act on one of its refs.
-        Ok(text) => {
-            sessions.remember(&text).await;
-            Ok(text)
+    for _ in 0..READ_ATTEMPTS {
+        // A click, Enter or an open can navigate, and what is judged below is
+        // the page as it is *now*, not the one the last call was reading.
+        settle(page).await;
+        let before = page.url();
+        // Read before the check and again after the text is taken, so a
+        // navigation to the address the page is already on — a reload, a form
+        // posted at itself — cannot pass as the page that was judged.
+        let navigations = landings.navigations().await;
+        if let Some(refusal) = landings.refused(&before).await {
+            return Err(view::refused(refusal.reason()));
         }
-        Err(error) => Err(gone(sessions, page, &error).await),
+        let text = match take().await {
+            Ok(text) => text,
+            Err(error) => return Err(gone(sessions, page, &error).await),
+        };
+        if !unmoved(&before, &page.url(), navigations, landings.navigations().await) {
+            // The page moved while we were reading it. This text belongs to a
+            // document nothing checked, so it is dropped and the read starts
+            // again against the page that is actually there now.
+            continue;
+        }
+        // What a read printed, kept so the next call can act on one of its refs.
+        sessions.remember(&text).await;
+        return Ok(text);
     }
+    Err(view::refused(MOVED))
+}
+
+/// Whether the text just taken belongs to the document that was judged.
+///
+/// A read is two moments and a page can navigate between them. Text taken while
+/// the page moved belongs to an address nothing checked, so this is the whole
+/// decision — and it is made on **both** the address and the count of
+/// navigations, on both sides of the read: a check bound to the first moment
+/// says nothing about what was returned after it.
+///
+/// The count is what sees a page that went somewhere and came back. A reload,
+/// and a form posted at the address it is already on, leave the address exactly
+/// as it was, so comparing addresses calls them the same page — and they are
+/// not: the text is the new document's, and no check has been made on it. Every
+/// main-frame navigation moves the count (`landing::Landings::navigations`),
+/// whatever the address, so one that lands in between makes this false.
+fn unmoved(before: &str, after: &str, navigations: u64, now: u64) -> bool {
+    navigations == now && same_address(before, after)
+}
+
+/// Whether two addresses are the same one, compared the way a record is keyed.
+fn same_address(before: &str, after: &str) -> bool {
+    // Compared the way a record is keyed, by `landing::key_of`, so the two can
+    // never disagree about what counts as the same address. A fragment is
+    // never sent to a server, so an anchor jump is the same document — and a
+    // read that called that a navigation would refuse a page that never left.
+    crate::landing::key_of(before) == crate::landing::key_of(after)
+}
+
+/// Said when the page would not stay still long enough to be read. It is one
+/// line and it says what happened, because a model told "no page was read" with
+/// no reason will try the same thing again.
+const MOVED: &str =
+    "No page was read: it kept navigating while it was being read, so there was no moment to read it at.";
+
+/// How many times a read is started over when the page keeps moving under it.
+/// One: a page that navigates once is worth reading again, and a page that
+/// navigates on every read is not a page anyone is asking to be read.
+const READ_ATTEMPTS: usize = 2;
+
+/// Lets a navigation finish before anything is taken from the page. Best
+/// effort — a page that never fires `load` must not make the read impossible,
+/// which is why the address is read again afterwards and not trusted from here.
+async fn settle(page: &Page) {
+    let _ = page.wait_for_load_state(Some(playwright_rs::protocol::WaitUntil::Load)).await;
 }
 
 async fn read_text(
@@ -351,5 +424,48 @@ mod tests {
         for written in ["http://example.com/", "https://example.com/", "mailto:a@b.example"] {
             assert_eq!(address_of(written), written);
         }
+    }
+
+    /// The read is bound to the address it judged, and the only thing that binds
+    /// it is comparing the address on both sides. A page that moves between them
+    /// has text taken from an address nothing checked, and returning it is the
+    /// fail-open the whole landing module exists to prevent.
+    #[test]
+    fn text_is_returned_only_when_the_page_stayed_where_it_was_checked() {
+        assert!(super::same_address("https://a.example/x", "https://a.example/x"));
+        // The fragment is not part of the address the server saw, and a read
+        // never changes one, so this is the same page.
+        assert!(
+            super::same_address("https://a.example/x", "https://a.example/x#deep"),
+            "an anchor jump is the same document: # is never sent to a server"
+        );
+        // These are not: a redirect, a different page of the same site, and a
+        // name that resolved somewhere else entirely.
+        for (before, after) in [
+            ("https://a.example/x", "https://a.example/y"),
+            ("https://a.example/x", "https://b.example/x"),
+            ("https://a.example/x", "about:blank"),
+        ] {
+            assert!(!super::same_address(before, after), "{before} then {after} must not count as the same page");
+        }
+    }
+
+    /// **The address is not enough on its own.** A page that reloads, or posts a
+    /// form at the address it is already on, is a new document on an address
+    /// that reads exactly the same — comparing addresses calls that a page that
+    /// never left, and returns text from a document no check was made on. The
+    /// count of navigations is what sees it.
+    #[test]
+    fn text_is_returned_only_when_the_page_did_not_navigate_at_all() {
+        let here = "https://a.example/x";
+        assert!(super::unmoved(here, here, 7, 7), "a page that stayed is the page that was judged");
+        assert!(
+            !super::unmoved(here, here, 7, 8),
+            "a reload of the same address is a different document, and must be read again"
+        );
+        assert!(
+            !super::unmoved(here, "https://a.example/y", 7, 7),
+            "a different address is refused however few navigations"
+        );
     }
 }

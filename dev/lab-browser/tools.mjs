@@ -59,13 +59,14 @@ export const TOOLS = [
     type: "function",
     function: {
       name: "browser_type",
-      description: "Type text into the element with this ref. Set submit to press Enter after typing.",
+      description:
+        "Type text into the element with this ref. Enter follows on its own for a " +
+        "one-line field; there is no submit argument.",
       parameters: {
         type: "object",
         properties: {
           ref: { type: "string", description: "Ref of a textbox, e.g. e8" },
           text: { type: "string", description: "The text to type" },
-          submit: { type: "boolean", description: "Press Enter afterwards to submit the form" },
         },
         required: ["ref", "text"],
       },

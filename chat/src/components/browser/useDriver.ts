@@ -7,6 +7,7 @@ import {
   onDriverProgress,
 } from "../../lib/driver";
 import { INITIAL_DRIVER, reduceDriver } from "../../lib/driverState";
+import { refreshBrowserStatus } from "../../lib/browser/useStatus";
 import type { DriverState } from "../../lib/driverState";
 
 export interface DriverApi {
@@ -39,6 +40,8 @@ export function useDriver(): DriverApi {
     let live = true;
     driverStatus().then(
       status => {
+        // The row shows what the app's own start-time read found; the row's is
+        // for what it may have changed since.
         if (live) dispatch({ type: "checked", ...status });
       },
       () => {},
@@ -71,6 +74,9 @@ export function useDriver(): DriverApi {
     downloadDriver().then(
       status => {
         close();
+        // The driver is installed now, and that is what the chat's tool list
+        // turns on. Nothing else knows the answer changed.
+        void refreshBrowserStatus();
         dispatch({ type: "finished", ...status });
       },
       error => {

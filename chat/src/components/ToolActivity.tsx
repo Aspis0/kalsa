@@ -7,6 +7,8 @@ import { Openable } from "./Openable";
 import { Icon } from "./Icon";
 import { MiniappView } from "./miniapp/MiniappView";
 import { isMailRun } from "../lib/mail/runs";
+import { isBrowserRun } from "../lib/browser/runs";
+import { rustSentence } from "../lib/rustText";
 import "./ToolActivity.css";
 import { TOOL_STOPPED } from "../lib/types";
 import type { ToolRun } from "../lib/types";
@@ -87,7 +89,7 @@ export function MiniappRows({
 }
 
 function ToolRow({ run, awaitingOk }: { run: ToolRun; awaitingOk: boolean }) {
-  const { table } = useLanguage();
+  const { table, tag } = useLanguage();
   const t = table.tools;
   // A mail run has one row while the turn is still working on its answer: the
   // answer's first word, or the end of the turn, is what puts the cards there
@@ -102,6 +104,32 @@ function ToolRow({ run, awaitingOk }: { run: ToolRun; awaitingOk: boolean }) {
   }
   const args = readArguments(run.name, run.arguments).args;
   const query = typeof args.query === "string" ? args.query : "";
+  // A browser run says what it did in the browser, in the app's own words, and
+  // never shows an address: the model wrote it and a page wrote the addresses
+  // on it, so neither is text a row can put on the screen.
+  if (isBrowserRun(run.name)) {
+    const browserFailed = run.state === "failed" || run.state === "refused";
+    return (
+      <p className={`tool-run${browserFailed ? " tool-run-failed" : ""}`}>
+        {run.state === "running" ? <span className="tool-spin" aria-hidden="true" /> : null}
+        <span>
+          {browserFailed
+            ? // A code carries the reason — "Kalsa is already using the
+              // browser" is a different thing to read from "the driver is
+              // damaged" — so it is asked for by code and falls back to the
+              // app's own one-line failure, never to the model's words.
+              run.resultCode === undefined
+              ? t.browserDidNotRun
+              : rustSentence(table.rust, { code: run.resultCode }, tag)
+            : run.name === "browser_open"
+              ? t.browserOpened
+              : run.name === "browser_find"
+                ? t.browserFound
+                : t.browserRead}
+        </span>
+      </p>
+    );
+  }
   // The fragment is dropped at the door and never offered back on the card:
   // the model may have coined it after an address the conversation had seen.
   const asked = typeof args.url === "string" ? args.url.trim().split("#")[0] : "";

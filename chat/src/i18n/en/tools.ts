@@ -14,6 +14,12 @@ export const TOOLS = {
   mailReady: "Your mail is ready.",
   pageNotOpened: "Kalsa couldn't open that page. Try again.",
   searchDidNotRun: "Kalsa couldn't search the web. Try again.",
+  // The browser row says what happened and nothing else: no address (the model
+  // wrote it, a page wrote the others) and no page text.
+  browserOpened: "Kalsa opened a page in the browser.",
+  browserRead: "Kalsa read the page.",
+  browserFound: "Kalsa looked for the text on the page.",
+  browserDidNotRun: "Kalsa did not do that in the browser.",
   couldNotFinish: "Kalsa couldn't finish checking. Ask again.",
   read: (what: string) => `Kalsa read ${what}`,
   aPage: "a page",

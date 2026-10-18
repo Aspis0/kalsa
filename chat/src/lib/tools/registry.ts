@@ -12,6 +12,9 @@ import { fetchProvenanceRefusal, searchQueryRefusal } from "./fetchProvenance";
 import { readSearchPages } from "./searchPages";
 import { runMailDraft, runMailList, runMailRead } from "./mailCall";
 import { runMailShow } from "./mailShow";
+import { BROWSER_NAMES, BROWSER_TOOLS, withheld } from "./browserTools";
+import { browserUsable } from "../browser/usable";
+import { browserFind, browserOpen, browserRead } from "./browserCall";
 import { mailAllowed } from "../mail/allowlist";
 import { isMailRun } from "../mail/runs";
 import { carriesMail } from "../mail/fence";
@@ -63,7 +66,12 @@ export interface WebGate {
 export function offeredTools(enabled: boolean, language: Language, model: string): ToolDefinition[] {
   if (!available()) return [];
   const mail = mailAllowed(model) ? [...MAIL_TOOLS, mailShowTool(language)] : [];
-  return enabled ? [...TOOL_DEFINITIONS, ...mail] : [CREATE_MINIAPP_TOOL, ...mail];
+  const web = enabled ? TOOL_DEFINITIONS : [CREATE_MINIAPP_TOOL];
+  // The browser is offered on its own terms, behind the owner's web switch or
+  // not: what it reads is a page this computer fetched and checked, not a
+  // request the engine sends. So it sits behind the driver being installed and
+  // a browser existing, and behind nothing else.
+  return browserUsable() ? [...web, ...mail, ...BROWSER_TOOLS] : [...web, ...mail];
 }
 
 /**
@@ -92,6 +100,12 @@ export async function executeToolCall(
 ): Promise<ToolOutcome> {
   // The turn can be stopped while the arguments are being read; starting a
   // request nobody is waiting for would be work and traffic for nothing.
+  //
+  // A browser call that is refused here has **never run**, so it must not end
+  // the session: the session is shared, and closing it would tear a page out
+  // from under the calls already in flight over one Stop. The only Stop→close
+  // path is the abort listener in `throughBrowser`, which fires for a Stop that
+  // lands on a call that did run.
   if (signal?.aborted) return stopped(stoppedText);
   const record = args && typeof args === "object" ? (args as Record<string, unknown>) : {};
   try {
@@ -173,6 +187,34 @@ export async function executeToolCall(
       if (!(await admitted(gate, "web_fetch", url, armed(gate, conversation), conversation, signal))) return heldBack(url, signal, stoppedText);
       return { text: await through("brain_web_fetch", { url }, signal), ok: true };
     }
+    if (BROWSER_NAMES.has(name)) {
+      // The browser runs on this computer and reads a page the app already
+      // chose to open, so the web switch says nothing about it — and the gate
+      // does not either, because the page was fetched by the sidecar before any
+      // of this. What does apply is provenance: an address the conversation has
+      // never carried is refused here exactly as web_fetch refuses it, and
+      // never reaches the sidecar.
+      if (name === "browser_open") {
+        const url = typeof record.url === "string" ? record.url.trim() : "";
+        if (!url) return { text: "No page was opened: the address was empty.", ok: false };
+        const bare = url.split("#")[0];
+        const refusal = fetchProvenanceRefusal(bare, conversation);
+        if (refusal !== null) return { text: refusal.text, ok: false, resultCode: refusal.code };
+        return { text: await browserOpen(bare, signal), ok: true };
+      }
+      if (name === "browser_read") {
+        // No page number is the first page, which is what the model means by
+        // leaving it out; a number that is not a whole one is a different thing.
+        const page = record.page === undefined ? 1 : wholePage(record.page);
+        if (page === null) return { text: "No page was read: the page number was not a whole number.", ok: false };
+        return { text: await browserRead(page === 1 ? undefined : page, signal), ok: true };
+      }
+      const text = typeof record.text === "string" ? record.text.trim() : "";
+      if (!text) return { text: "Nothing was searched for: there were no words to look for.", ok: false };
+      return { text: await browserFind(text, signal), ok: true };
+    }
+    const notYet = withheld(name);
+    if (notYet !== null) return { text: notYet, ok: false, resultCode: "web.not_offered_yet" };
     return { text: `There is no tool called “${name}”.`, ok: false };
   } catch (error) {
     // A coded refusal from Rust: the wire keeps the English the model
@@ -187,6 +229,12 @@ export async function executeToolCall(
       error instanceof Error ? error.message : typeof coded?.code === "string" ? coded.code : String(error);
     return { text: `${name} could not run: ${detail}`, ok: false };
   }
+}
+
+/** The page number the model asked for, a whole number and nothing else. */
+function wholePage(value: unknown): number | null {
+  const number = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
+  return Number.isInteger(number) && number > 0 ? number : null;
 }
 
 /**

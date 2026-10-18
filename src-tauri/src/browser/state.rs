@@ -4,6 +4,7 @@ use tokio::sync::Mutex;
 
 use super::error::BrowserError;
 use super::fetch::Cancel;
+use super::host::Browser;
 
 /// What the browser holds between calls.
 ///
@@ -16,9 +17,28 @@ use super::fetch::Cancel;
 #[derive(Default)]
 pub(crate) struct BrowserState {
     running: Mutex<Option<Arc<Cancel>>>,
+    /// The sidecar and the session it holds. Its own lock is taken and given
+    /// back around each call and is never held across one — see `host.rs`.
+    browser: Browser,
 }
 
 impl BrowserState {
+    /// The sidecar and the session it holds.
+    pub(crate) fn browser(&self) -> &Browser {
+        &self.browser
+    }
+
+    /// Ends the session, for the window closing and the app quitting. Sync, so
+    /// a window event can end it without waiting on the runtime.
+    pub(crate) fn end(&self) {
+        self.browser.end();
+    }
+
+    /// Whether a browser is open, so clearing its data can refuse.
+    pub(crate) fn session_open(&self) -> bool {
+        self.browser.is_open()
+    }
+
     /// Takes the one download slot and hands back the flag the transfer reads.
     /// A second press is refused rather than queued behind the first.
     pub(crate) async fn begin(&self) -> Result<Arc<Cancel>, BrowserError> {

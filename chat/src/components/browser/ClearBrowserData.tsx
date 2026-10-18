@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLanguage } from "../../i18n/useLanguage";
 import { clearBrowserData } from "../../lib/driver";
+import { refreshBrowserStatus } from "../../lib/browser/useStatus";
 import { Icon } from "../Icon";
 
 /** The one control over what the browser kept: the logins, the cookies and
@@ -37,7 +38,16 @@ export function ClearBrowserData() {
       {asking ? <button
         type="button"
         className="settings-btn is-primary"
-        onClick={() => clearBrowserData().then(() => setOutcome("done"), () => setOutcome("failed"))}
+        onClick={() =>
+          clearBrowserData().then(
+            () => {
+              // A clear leaves the driver in place, so the tools stay offered —
+              // and the row must say so from the same read the app started with.
+              void refreshBrowserStatus();
+              setOutcome("done");
+            },
+            () => setOutcome("failed"),
+          )}
       >
         <Icon name="trash" size={17} />
         {t.clear}

@@ -2769,6 +2769,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             browser::commands::brain_browser_driver_download,
             browser::commands::brain_browser_driver_cancel,
             browser::commands::brain_browser_clear_data,
+            browser::session::brain_browser_open,
+            browser::session::brain_browser_read,
+            browser::session::brain_browser_find,
+            browser::session::brain_browser_close,
             phone_chat::brain_phone_chat_event,
             brain_open_log_folder,
             brain_send_log,
@@ -3158,6 +3162,16 @@ fn shut_down_services(app: &tauri::AppHandle, stage: &dyn Fn(&'static str)) {
         room_events::stop_event_pump(&brain);
         stage("the door");
         brain.stop_door();
+    }
+    // A browser is a window the person is looking at, and the app going away is
+    // that window closing. The window event already ends the session when the
+    // window goes; this is the path an exit takes that never fires one — a quit
+    // from the menu bar, a shutdown, an update — and it ends the same session by
+    // the same call, so the child dies here rather than being left to the
+    // platform's backstop. Sync, like the window event's.
+    stage("the browser");
+    if let Some(browser) = app.try_state::<crate::browser::state::BrowserState>() {
+        browser.end();
     }
     if let Some(desk) = app.try_state::<Desk>() {
         stage("the pairing listener");

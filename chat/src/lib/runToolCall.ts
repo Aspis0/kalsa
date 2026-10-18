@@ -57,10 +57,15 @@ export async function runToolCall(
   ctx: CallContext,
 ): Promise<CallAnswer> {
   if (definition === null) {
+    // The call was never offered, so its arguments are the model's own text that
+    // nothing here is going to run — a value it typed, a password-looking
+    // string, an address. It is not put on the record: a run that never ran has
+    // nothing to say about what was asked for, and `store.ts` writes whatever it
+    // is handed straight to localStorage.
     const record: ToolRun = {
       id: call.id,
       name: call.name,
-      arguments: call.arguments,
+      arguments: "",
       result: ctx.say.notOffered,
       state: "refused",
     };

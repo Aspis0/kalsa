@@ -2,6 +2,7 @@ import { TOOL_STOPPED } from "./types";
 import { normalizeMiniapp } from "./miniapp/normalize";
 import { mailCount, normalizeMail } from "./mail/normalize";
 import { isMailRun } from "./mail/runs";
+import { isBrowserRun } from "./browser/runs";
 import type { ChatErrorKind } from "./chat";
 import type {
   ChatMessage,
@@ -290,7 +291,7 @@ function cleanToolRuns(value: unknown[]): { toolRuns?: ToolRun[] } {
  * same way — it was never sent, and rewriting it costs the owner less than
  * storing it would.
  */
-function forDisk(messages: ChatMessage[]): unknown[] {
+export function forDisk(messages: ChatMessage[]): unknown[] {
   return messages.map((message) => {
     // The subject is a stranger's words: the thread shows it while the chat is
     // open and the disk keeps none of it.
@@ -300,8 +301,16 @@ function forDisk(messages: ChatMessage[]): unknown[] {
       ...shown,
       toolRuns: message.toolRuns.map((run) => {
         const count = run.mail === undefined ? undefined : mailCount(run.mail);
-        if (!isMailRun(run.name)) {
+        if (!isMailRun(run.name) && !isBrowserRun(run.name)) {
           return count === undefined ? run : { ...run, mailShown: count };
+        }
+        if (isBrowserRun(run.name)) {
+          // A page is a stranger's words and localStorage is the browser's disk.
+          // The run keeps its name and the counts it stood for, and nothing
+          // else: no arguments (an address, which may carry a query), no result
+          // (the page), and no count of lines that would say how much was read.
+          const { arguments: _args, result: _result, ...rest } = run;
+          return { ...rest, arguments: "", result: "" };
         }
         // A mail run keeps its name and its count, never its arguments or its
         // result: a body was read into one, a reply written into the other.

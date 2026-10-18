@@ -111,6 +111,12 @@ pub(crate) async fn brain_browser_clear_data(
     if state.running().await.is_some() {
         return Err(BrowserError::Busy.into());
     }
+    // And a clear while the browser is open is the same mistake: the profile
+    // folder is in use, and emptying it leaves a live browser writing into a
+    // directory that no longer says what it is.
+    if state.session_open() {
+        return Err(BrowserError::Busy.into());
+    }
     let app_data = app_data(&app)?;
     tokio::task::spawn_blocking(move || profile::clear(&app_data))
         .await

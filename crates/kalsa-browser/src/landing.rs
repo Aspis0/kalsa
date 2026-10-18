@@ -15,13 +15,27 @@
 //! "is this the document, or one of its hundred subresources" has to be found on
 //! the *request*, because `ResponseObject` names no frame at all — the whole of
 //! its public surface is `status`, `url`, `body`, `server_addr`, `sizes`,
-//! `headers` (`response.rs:114-281`). So the request comes first and is used as
-//! a mark: `Request::is_navigation_request` is `resourceType == "document"`
+//! `headers` (`response.rs:114-281`). So the request is the entry point:
+//! `Request::is_navigation_request` is `resourceType == "document"`
 //! (`request.rs:283`), and a document request belonging to the main frame is one
 //! whose `Frame::parent_frame` is `None` — the API says so in as many words
 //! (*"or `None` if this is the top-level (main) frame"*, `frame.rs:186-187`). An
 //! iframe's document passes the first test and fails the second; a stylesheet
 //! fails the first.
+//!
+//! **The response is then asked of the request that wanted it.** `ResponseObject`
+//! carries no back-pointer to its request — in 0.20.1 there is no `request()`
+//! on it at all — so a response event can only be matched to a mark by address,
+//! and matching on an address is a guess: the same address visited twice has two
+//! requests, and a late answer to the first would answer for the second. The
+//! pairing is instead made by the driver, for the one request that is being
+//! waited on: `Request::response()` is an RPC whose reply is that request's own
+//! response and is `None` when the request failed (`request.rs:137`, *"Sends a
+//! `response` RPC call to the Playwright server"*, the reply carrying the
+//! response guid the server resolved for this request). So each navigation opens
+//! its own wait and files what that wait returns — no address is ever matched to
+//! a response by guessing, and the mark it carries is what says a later visit to
+//! the same address has taken the answer's place.
 //!
 //! **Keyed by the address without its fragment**, because `#` is never sent to a
 //! server: two URLs differing only in `#` are one request, and answering under
@@ -39,19 +53,19 @@
 //! recorded; what is left is a page that navigates a lot, and the entry for the
 //! address being read is the one that must survive it.
 
-use std::collections::BTreeSet;
+use std::collections::BTreeMap;
 use std::net::IpAddr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use playwright_rs::protocol::{BrowserContext, Request, ResponseObject};
+use playwright_rs::protocol::{page, BrowserContext, Request};
 use tokio::sync::Mutex;
 
 use crate::guard::{decide, is_our_own, Refusal, Verdict};
 
-/// How many answered addresses are kept, and how many unanswered navigations may
-/// be waiting for theirs. Only whole-page navigations reach either, so these are
-/// both a long walk through history and not a page's worth of assets.
+/// How many answered addresses are kept, and how many navigations may be waiting
+/// for theirs. Only whole-page navigations reach either, so these are both a long
+/// walk through history and not a page's worth of assets.
 const LANDING_RECORDS: usize = 64;
 
 /// How long a read waits for the record of the address it is about to show. The
@@ -72,10 +86,18 @@ type Answers = Vec<(String, Option<IpAddr>)>;
 #[derive(Clone)]
 struct Store {
     answers: Answers,
-    /// Addresses the browser asked for as main-frame navigations, and whose
-    /// response has not been filed yet. A response not in here is a
-    /// subresource's, and is not recorded.
-    pending: BTreeSet<String>,
+    /// The newest navigation begun for an address, and the number it was given.
+    /// A response is filed only under the mark that asked for it: the same
+    /// address visited twice has two marks, and an answer to the first visit
+    /// arriving late is filed under neither, because the second visit's mark is
+    /// the one standing there. A response for an address with no mark is not
+    /// filed at all — it is a subresource's, or a page we never asked for.
+    pending: BTreeMap<String, u64>,
+    /// How many main-frame navigations the browser has begun. A read takes it
+    /// before it judges an address and again after it takes text, because a page
+    /// that goes somewhere and comes back — a reload, a form posted at itself —
+    /// leaves the address it is on exactly as it was.
+    navigations: u64,
     /// Set by a read before it waits, so a navigation arriving mid-wait cannot
     /// push out the record that read depends on.
     shown: Option<String>,
@@ -84,7 +106,7 @@ struct Store {
 
 impl Default for Store {
     fn default() -> Self {
-        Self { answers: Answers::new(), pending: BTreeSet::new(), shown: None, settle: SETTLE }
+        Self { answers: Answers::new(), pending: BTreeMap::new(), navigations: 0, shown: None, settle: SETTLE }
     }
 }
 
@@ -140,40 +162,81 @@ impl Landings {
         }
     }
 
-    /// Remembers an address the browser is fetching as the main document. Its
-    /// response is filed; every other response in the world is not.
-    async fn mark(&self, request: &Request) {
-        if !is_main_frame_navigation(request) {
-            return;
-        }
-        let Some(key) = key_of(request.url()) else {
-            return;
-        };
-        let mut store = self.0.lock().await;
-        // A navigation that never answers leaves a mark behind, so the set is
-        // bounded too. Forgetting one costs a refused read, never a false one.
-        if store.pending.len() >= LANDING_RECORDS {
-            let oldest = store.pending.iter().next().cloned();
-            if let Some(oldest) = oldest {
-                store.pending.remove(&oldest);
-            }
-        }
-        store.pending.insert(key);
+    /// How many main-frame navigations have been begun so far.
+    ///
+    /// A read takes this before it judges an address and again after it has
+    /// taken the text, because comparing addresses alone cannot see a page that
+    /// navigated and came back: a reload and a form posted at itself leave the
+    /// address exactly as it was, and the text belongs to a document no check
+    /// has been made on. A navigation anywhere in the browser moves it, so a
+    /// second page loading is enough — the cost of that is a read that starts
+    /// over, never one that returns text from a page it did not judge.
+    pub async fn navigations(&self) -> u64 {
+        self.0.lock().await.navigations
     }
 
-    /// Files a response under its own address, if it is the main document's.
-    async fn record(&self, response: &ResponseObject) {
+    /// Remembers a navigation the browser is beginning as the main document,
+    /// gives it its number, and drops any answer filed for that address.
+    ///
+    /// **And any answer already filed under that address is dropped.** The same
+    /// URL is not the same place twice: a name that answered Chrome from the
+    /// open internet a minute ago can answer it from this computer's own
+    /// network now, and the first answer is no evidence about the second. So
+    /// the moment a new navigation starts, the old one stops counting, and a
+    /// read that arrives before the new response is filed finds nothing and is
+    /// refused — which is the right way round. Keeping the old answer would be
+    /// the fail-open, and it would look like a working guard.
+    async fn mark(&self, request: &Request) -> Option<u64> {
+        if !is_main_frame_navigation(request) {
+            return None;
+        }
+        let mut store = self.0.lock().await;
+        store.navigations += 1;
+        let mark = store.navigations;
+        if let Some(key) = key_of(request.url()) {
+            forget(&mut store, &key);
+            // A navigation that never answers leaves a mark behind, so the map
+            // is bounded too. Forgetting one costs a refused read, never a false
+            // one: the response it was waiting for has nowhere to be filed.
+            if store.pending.len() >= LANDING_RECORDS && !store.pending.contains_key(&key) {
+                let oldest = store.pending.keys().next().cloned();
+                if let Some(oldest) = oldest {
+                    store.pending.remove(&oldest);
+                }
+            }
+            store.pending.insert(key, mark);
+        }
+        Some(mark)
+    }
+
+    /// Files the answer to one navigation, under the mark that asked for it.
+    ///
+    /// A mark that has been superseded — a later visit to the same address — is
+    /// not this one, and its answer is dropped rather than filed: it belongs to
+    /// a document that is no longer the one on screen, and the address is not
+    /// what says so.
+    async fn file(&self, mark: u64, response: &page::Response) {
         let Some(key) = key_of(response.url()) else {
             return;
         };
-        if !self.0.lock().await.pending.remove(&key) {
-            return;
-        }
         let Ok(address) = response.server_addr().await else {
             return;
         };
+        let peer = address.and_then(|remote| peer_of(&remote.ip_address));
+        self.file_under(mark, key, peer).await;
+    }
+
+    /// The one place an answer is filed: under the mark that asked for it, or
+    /// not at all. The check is here rather than in `file` so it lands **after**
+    /// the round trip for the peer address — a navigation that began while we
+    /// were reading it has to be able to say no.
+    async fn file_under(&self, mark: u64, key: String, peer: Option<IpAddr>) {
         let mut store = self.0.lock().await;
-        note(&mut store, &key, address.and_then(|address| address.ip_address.parse().ok()));
+        if store.pending.get(&key) != Some(&mark) {
+            return;
+        }
+        store.pending.remove(&key);
+        note(&mut store, &key, peer);
     }
 
     /// A record already holding these answers, so the check that reads it can be
@@ -195,6 +258,52 @@ impl Landings {
     pub async fn waiting(&self, settle: Duration) {
         self.0.lock().await.settle = settle;
     }
+
+    /// Begins a main-frame navigation to `url`, as `mark` does for a real
+    /// request, and answers with the number it was given. A `Request` cannot be
+    /// built in a test, so what is testable is entered here: the answer a
+    /// navigation drops, and the answer a later one supersedes.
+    #[cfg(test)]
+    pub async fn navigating(&self, url: &str) -> u64 {
+        let mut store = self.0.lock().await;
+        store.navigations += 1;
+        let mark = store.navigations;
+        let key = key_of(url).expect("a navigation is to a web address");
+        forget(&mut store, &key);
+        store.pending.insert(key, mark);
+        mark
+    }
+
+    /// Answers one navigation, as `file` does for a real response, and refuses
+    /// the answer of anything else.
+    #[cfg(test)]
+    pub async fn answering(&self, mark: u64, url: &str, address: &str) {
+        let key = key_of(url).expect("an answer is to a web address");
+        self.file_under(mark, key, address.parse().ok()).await;
+    }
+}
+
+/// Drops any answer filed under `key`, because a new navigation to that address
+/// has started and the old one is about something else.
+fn forget(store: &mut Store, key: &str) {
+    store.answers.retain(|(seen, _)| seen != key);
+}
+
+/// The peer a response named, as an address the rules can be applied to.
+///
+/// Chromium writes an IPv6 peer in an authority's brackets — measured on the
+/// browser this runs on, `demo.playwright.dev` answers as
+/// `[2606:50c0:8003::153]` — and an IPv4 one bare (`93.184.216.34`). Brackets are
+/// not part of the address, so a string read as an address with them still in it
+/// is not an address at all: every page on an IPv6-only host was filed as having
+/// named no peer, and so was refused for ever as `Unseen`.
+///
+/// Only the brackets come off. A name that is not an address stays unreadable,
+/// which is what this module refuses on — taking a guess at one would be the
+/// fail-open the whole store exists to prevent.
+fn peer_of(named: &str) -> Option<IpAddr> {
+    let bare = named.strip_prefix('[').and_then(|rest| rest.strip_suffix(']')).unwrap_or(named);
+    bare.trim().parse().ok()
 }
 
 /// Whether this request is the main document's and nothing else's: a document,
@@ -227,9 +336,14 @@ fn note(store: &mut Store, key: &str, server: Option<IpAddr>) {
 /// The address an answer is filed under: http(s) only, fragment dropped, scheme
 /// left exactly as it was written.
 ///
+/// Public because a read has to compare addresses the way the records are keyed:
+/// `#` is never sent to a server, so a page jumping to an anchor is the same
+/// document and the same answer, and a read that called that a navigation would
+/// refuse a page that never went anywhere.
+///
 /// `None` for anything else, because there is nothing to look up — a page we
 /// never asked for, or a scheme we would have refused before making a request.
-fn key_of(url: &str) -> Option<String> {
+pub fn key_of(url: &str) -> Option<String> {
     let (scheme, rest) = url
         .strip_prefix("http://")
         .map(|rest| ("http://", rest))
@@ -247,23 +361,30 @@ fn key_of(url: &str) -> Option<String> {
 /// is about to show was actually served from. Installed beside the route and
 /// before it: a response for a request that is then refused never arrives, which
 /// is the right way round.
+///
+/// The wait is **on its own task**. A handler here is awaited inline by the
+/// event dispatcher (`event_registry.rs:98-104`), and a wait that sits inside
+/// one is a wait that other handlers and waiters are queued behind; the write
+/// side of the connection is a lock held only for the send itself
+/// (`connection.rs:464-474`), so the rest of the browser carries on regardless.
 pub async fn watch(context: &BrowserContext, landings: &Landings) -> Result<(), playwright_rs::Error> {
     let marked = landings.clone();
     context
         .on_request(move |request| {
             let marked = marked.clone();
             async move {
-                marked.mark(&request).await;
-                Ok(())
-            }
-        })
-        .await?;
-    let recorded = landings.clone();
-    context
-        .on_response(move |response| {
-            let recorded = recorded.clone();
-            async move {
-                recorded.record(&response).await;
+                let Some(mark) = marked.mark(&request).await else {
+                    return Ok(());
+                };
+                let filed = marked.clone();
+                let waiting = request.clone();
+                tokio::spawn(async move {
+                    // The driver answers for this request alone, or says the
+                    // request failed and there is nothing to file.
+                    if let Ok(Some(response)) = waiting.response().await {
+                        filed.file(mark, &response).await;
+                    }
+                });
                 Ok(())
             }
         })
@@ -272,9 +393,9 @@ pub async fn watch(context: &BrowserContext, landings: &Landings) -> Result<(), 
 
 #[cfg(test)]
 mod tests {
-    use super::{key_of, note, Landings, Store, LANDING_RECORDS};
+    use super::{key_of, note, peer_of, Landings, Store, LANDING_RECORDS};
     use crate::guard::Refusal;
-    use std::net::IpAddr;
+    use std::net::{IpAddr, Ipv6Addr};
     use std::time::Duration;
 
     /// A literal public address, so the lexical rules pass with no resolver and
@@ -364,6 +485,109 @@ mod tests {
             quick(&landings).await;
             assert_eq!(landings.refused(PUBLIC).await, expected, "{first:?} then {second:?}");
         }
+    }
+
+    /// **A new navigation to an address drops the answer filed for it.** The
+    /// same URL is not the same place twice: a name that answered from the open
+    /// internet a minute ago can answer from this computer's network now, and
+    /// the old answer is no evidence about the second visit. Keeping it would
+    /// be a fail-open that looked exactly like a working guard — the page's own
+    /// address was checked, just not this time round.
+    #[tokio::test]
+    async fn a_second_visit_to_the_same_address_does_not_borrow_the_first_answers() {
+        let landings = Landings::holding(vec![(PUBLIC, "93.184.216.34")]).await;
+        quick(&landings).await;
+        assert_eq!(landings.refused(PUBLIC).await, None, "the first visit answers");
+
+        // The name now answers from this computer's own network, and the
+        // navigation starts before the response is filed.
+        let second = landings.navigating(PUBLIC).await;
+        assert_eq!(
+            landings.refused(PUBLIC).await,
+            Some(Refusal::Unseen),
+            "the first visit's answer stood in for the second"
+        );
+
+        // And the new answer is what counts once it arrives.
+        landings.answering(second, PUBLIC, "192.168.1.20").await;
+        assert_eq!(landings.refused(PUBLIC).await, Some(Refusal::Address));
+    }
+
+    /// **A late answer to an earlier visit is not the answer to this one.** The
+    /// address is the same both times, so nothing about the address says which
+    /// document a response belongs to — the driver pairs each response with the
+    /// one request that asked for it (`Request::response`, `request.rs:137`),
+    /// and the mark it answers is the one standing under that address. Here the
+    /// first visit's answer turns up after the second visit has begun: it is
+    /// dropped, and the read is refused rather than answered by the wrong
+    /// document.
+    #[tokio::test]
+    async fn a_late_answer_to_an_earlier_visit_cannot_answer_for_the_visit_on_screen() {
+        let landings = Landings::new();
+        quick(&landings).await;
+        let first = landings.navigating(PUBLIC).await;
+        let second = landings.navigating(PUBLIC).await;
+        landings.answering(first, PUBLIC, "93.184.216.34").await;
+        assert_eq!(
+            landings.refused(PUBLIC).await,
+            Some(Refusal::Unseen),
+            "the first visit's answer was filed for the second"
+        );
+        landings.answering(second, PUBLIC, "93.184.216.34").await;
+        assert_eq!(landings.refused(PUBLIC).await, None, "the second visit's own answer is the one that counts");
+    }
+
+    /// An answer to something we never asked for is a subresource's, or a page
+    /// that was never opened. There is no mark for it, so there is nowhere it
+    /// may be filed.
+    #[tokio::test]
+    async fn an_answer_to_something_we_never_asked_for_is_not_filed() {
+        let landings = Landings::new();
+        quick(&landings).await;
+        landings.answering(1, PUBLIC, "93.184.216.34").await;
+        assert_eq!(landings.refused(PUBLIC).await, Some(Refusal::Unseen));
+    }
+
+    /// **A peer in brackets is the address inside them.** Chromium writes an
+    /// IPv6 peer the way an authority writes one — `[2606:50c0:8003::153]`, and
+    /// `[::1]:443` where the port came with it — and an IPv4 one bare. Read as
+    /// an address with the brackets still in it, an IPv6 peer is not an address
+    /// at all, so every page on an IPv6-only host was filed as naming no peer
+    /// and refused for ever: the guard refusing a page it had in fact reached.
+    ///
+    /// The brackets come off and nothing else does — a name that is not an
+    /// address stays unreadable, because unreadable is what this refuses on.
+    #[test]
+    fn a_peer_written_in_brackets_is_the_address_inside_them() {
+        assert_eq!(peer_of("[2606:50c0:8003::153]"), "2606:50c0:8003::153".parse().ok());
+        assert_eq!(peer_of("[::1]"), Some(IpAddr::V6(Ipv6Addr::LOCALHOST)), "a loopback peer is one of ours");
+        assert_eq!(peer_of("93.184.216.34"), "93.184.216.34".parse().ok(), "an IPv4 peer is already bare");
+        for unreadable in ["", "not an address", "[not an address]", "[2606:50c0:8003::153"] {
+            assert_eq!(peer_of(unreadable), None, "{unreadable:?} must stay unreadable");
+        }
+    }
+
+    /// Dropping one address's answer is not dropping the store.
+    #[tokio::test]
+    async fn a_new_navigation_drops_its_own_address_only() {
+        let landings = Landings::holding(vec![(PUBLIC, "93.184.216.34"), ("http://198.51.100.7/other", "198.51.100.7")]).await;
+        landings.navigating(PUBLIC).await;
+        quick(&landings).await;
+        assert_eq!(landings.refused(PUBLIC).await, Some(Refusal::Unseen));
+        assert_eq!(landings.refused("http://198.51.100.7/other").await, None);
+    }
+
+    /// The count a read watches: it only ever goes up, and it moves for every
+    /// main-frame navigation whatever the address. A page that reloads itself is
+    /// the case the address cannot see.
+    #[tokio::test]
+    async fn every_navigation_is_given_its_own_number() {
+        let landings = Landings::new();
+        assert_eq!(landings.navigations().await, 0);
+        landings.navigating(PUBLIC).await;
+        landings.navigating(PUBLIC).await;
+        landings.navigating("http://198.51.100.7/other").await;
+        assert_eq!(landings.navigations().await, 3, "a page that reloads itself must move the count");
     }
 
     /// One answer per address, however many arrive — which is what makes the

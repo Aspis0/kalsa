@@ -45,7 +45,7 @@ const script = {
     if (state.added.length < TODOS.length) {
       const todo = TODOS[state.added.length];
       state.added.push(todo);
-      return { name: "browser_type", args: { ref: refOn(page, 'textbox "What needs to be done\\?"'), text: todo, submit: true } };
+      return { name: "browser_type", args: { ref: refOn(page, 'textbox "What needs to be done\\?"'), text: todo } };
     }
     if (!state.toggled) {
       state.toggled = true;
@@ -75,7 +75,7 @@ const script = {
   5(state, page, prose) {
     if (!state.searched) {
       state.searched = true;
-      return { name: "browser_type", args: { ref: refOn(page, 'searchbox "Cerca in Wikipedia"'), text: "Brooklyn", submit: true } };
+      return { name: "browser_type", args: { ref: refOn(page, 'searchbox "Cerca in Wikipedia"'), text: "Brooklyn" } };
     }
     const found = page.match(/\d{1,3}(?:[.    ]\d{3}){1,2}/)?.[0] ?? "2.736.074";
     const digits = found.replace(/[.   ]/g, "").replace(/\s+/g, "");

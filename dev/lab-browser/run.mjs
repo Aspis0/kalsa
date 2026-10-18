@@ -3,8 +3,12 @@
 //   node run.mjs --endpoint http://127.0.0.1:8080 --model qwen3.6-35b-a3b
 //                [--think false] [--tasks 1,2] [--runs 3]
 //   node run.mjs --fake --tasks 1,2        # no model: proves the harness
+//
+// --backend rs builds dev/lab-browser-rs first and stops on its exit code, so a
+// run can never be a report on a binary left over from an earlier afternoon.
+import { spawnSync } from "node:child_process";
 import { runTask, STEP_CAP, WALL_CAP_MS } from "./agent.mjs";
-import { openBackend } from "./backends.mjs";
+import { openBackend, RS_CRATE } from "./backends.mjs";
 import { ask } from "./engine.mjs";
 import { fakeModel, fakeTasks } from "./fake.mjs";
 import { SYSTEM_PROMPT, tasksFor } from "./tasks.mjs";
@@ -47,6 +51,23 @@ function summary(rows, runs) {
   return `${table}\n\nwhy runs were not ok:\n${notes}`;
 }
 
+/**
+ * Build the Rust backend, and fail loudly if it will not build.
+ *
+ * `PLAYWRIGHT_SKIP_DRIVER_DOWNLOAD` is set because the crate's build script
+ * refuses to download a driver and says so otherwise; the driver this lab runs
+ * against is named by `PLAYWRIGHT_DRIVER_PATH` at run time, not at build time.
+ */
+function buildRs() {
+  const built = spawnSync("cargo", ["build", "--release"], {
+    cwd: RS_CRATE,
+    stdio: ["ignore", "inherit", "inherit"],
+    env: { ...process.env, PLAYWRIGHT_SKIP_DRIVER_DOWNLOAD: "1" },
+  });
+  if (built.error) throw new Error(`the rust backend could not be built: ${built.error.message}`);
+  if (built.status !== 0) throw new Error(`the rust backend did not build: cargo exited ${built.status}`);
+}
+
 async function main() {
   const fake = hasFlag("fake");
   // node drives Playwright in process; rs drives the Rust binary over JSON lines.
@@ -73,6 +94,14 @@ async function main() {
       throw new Error(`the fake model only plays tasks ${fakeTasks().join(",")}; ask for --tasks ${fakeTasks().join(",")}`);
     }
   }
+
+  // The Rust backend is built here rather than left to whoever built it last.
+  //
+  // It is a file at a fixed path, and a run that cannot build it starts whatever
+  // is already sitting there without a word — which is how "the lab passes"
+  // becomes a claim about code from three hours ago, against a source tree that
+  // no longer even compiles. So: build, take its exit code, and stop.
+  if (backend === "rs") buildRs();
 
   console.log(
     JSON.stringify({ event: "start", backend, model: fake ? fakeName : model, endpoint: fake ? null : endpoint, think, runs, tasks: tasks.map((t) => t.id) }),

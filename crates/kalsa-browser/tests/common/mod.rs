@@ -167,8 +167,19 @@ pub async fn serve(files: &[File]) -> (String, Arrived) {
 /// route, so this opens the one address the server is on and hands everything
 /// else back to the product guard, without a test-only switch in the crate.
 pub async fn sessions_on(name: &str, base: &str) -> (kalsa_browser::session::Sessions, Page) {
+    let (sessions, page, _landings) = sessions_watching(name, base).await;
+    (sessions, page)
+}
+
+/// The same window with the store of answers handed back, for the tests that
+/// read one — they are the only ones that need to know what the browser actually
+/// recorded.
+pub async fn sessions_watching(
+    name: &str,
+    base: &str,
+) -> (kalsa_browser::session::Sessions, Page, kalsa_browser::landing::Landings) {
     let sessions = kalsa_browser::session::Sessions::new(profile(name));
-    let (page, _landings) = sessions.page().await.expect("the installed browser starts");
+    let (page, landings) = sessions.page().await.expect("the installed browser starts");
     let base = base.to_string();
     page.route("**/*", move |route| {
         let base = base.clone();
@@ -182,7 +193,7 @@ pub async fn sessions_on(name: &str, base: &str) -> (kalsa_browser::session::Ses
     })
     .await
     .expect("the test route is installed");
-    (sessions, page)
+    (sessions, page, landings)
 }
 
 /// A profile directory of our own, thrown away at the end of the test.

@@ -9,7 +9,7 @@
 
 use std::sync::atomic::{AtomicI8, Ordering};
 
-use tauri::{Emitter, Window, WindowEvent, Wry};
+use tauri::{Emitter, Manager, Window, WindowEvent, Wry};
 
 /// The event the page listens for (`chat/src/lib/pageVisible.ts`). Its
 /// payload is [`WindowShown`].
@@ -71,6 +71,12 @@ pub(crate) fn window_hidden(window: Window<Wry>) -> bool {
 /// drag that resizes a visible window announces nothing.
 pub(crate) fn on_window_event(window: &Window<Wry>, event: &WindowEvent) {
     if window.label() != crate::MAIN_WINDOW_LABEL {
+        return;
+    }
+    // A browser that outlives its window is a window nobody can see and nothing
+    // can stop. The app quitting closes the window, so this covers both.
+    if matches!(event, WindowEvent::CloseRequested { .. } | WindowEvent::Destroyed) {
+        window.app_handle().state::<crate::browser::state::BrowserState>().inner().end();
         return;
     }
     if !matches!(

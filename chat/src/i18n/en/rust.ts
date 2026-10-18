@@ -4,7 +4,7 @@
 
 export type RustSentence = (params: Record<string, unknown>, tag: string) => string;
 
-export const RUST: { startup: Record<string, RustSentence>; choice: Record<string, RustSentence>; app: Record<string, RustSentence>; invite: Record<string, RustSentence>; pairing: Record<string, RustSentence>; update: Record<string, RustSentence>; road: Record<string, RustSentence>; files: Record<string, RustSentence>; vision: Record<string, RustSentence>; web: Record<string, RustSentence> } = {
+export const RUST: { startup: Record<string, RustSentence>; choice: Record<string, RustSentence>; app: Record<string, RustSentence>; invite: Record<string, RustSentence>; pairing: Record<string, RustSentence>; update: Record<string, RustSentence>; road: Record<string, RustSentence>; files: Record<string, RustSentence>; vision: Record<string, RustSentence>; web: Record<string, RustSentence>; browser: Record<string, RustSentence> } = {
   startup: {
     cannot_run_yet: () => "Kalsa can't run on this computer yet. Check for an app update.",
     no_suitable_choice: () =>
@@ -94,5 +94,17 @@ export const RUST: { startup: Record<string, RustSentence>; choice: Record<strin
     search_failed: () => "Kalsa couldn't search the web. Try again.",
     page_failed: () => "Kalsa couldn't open that page. Try again.",
     open_failed: () => "This computer couldn't open the link.",
+  },
+  browser: {
+    unsupported_platform: () => "This computer has no browser Kalsa can use.",
+    busy: () => "Kalsa is already using the browser. Try again in a moment.",
+    cancelled: () => "The download was stopped. Nothing was installed.",
+    download_failed: () => "Kalsa couldn't download its browser driver. Try again.",
+    driver_corrupt: () => "The browser driver is damaged, so Kalsa unpacked nothing.",
+    driver_changed: () => "The browser driver on disk is not the one Kalsa installed.",
+    unpack_failed: () => "The browser driver didn't unpack into something usable.",
+    storage: () => "Kalsa couldn't read or write its own folder.",
+    failed: () => "Kalsa couldn't reach the browser. Try again.",
+    refused: () => "Kalsa wouldn't open that.",
   },
 };

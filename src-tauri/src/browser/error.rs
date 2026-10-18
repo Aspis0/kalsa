@@ -26,6 +26,9 @@ pub(crate) enum BrowserError {
     Unpack,
     Storage,
     Failed,
+    /// The sidecar answered that it will not do it. Its own words are for the
+    /// model; what the page gets is one plain line saying so.
+    Refused,
 }
 
 impl BrowserError {
@@ -40,6 +43,7 @@ impl BrowserError {
             Self::Unpack => "browser.unpack_failed",
             Self::Storage => "browser.storage",
             Self::Failed => "browser.failed",
+            Self::Refused => "browser.refused",
         }
     }
 }
@@ -72,6 +76,7 @@ fn fallback(error: BrowserError) -> &'static str {
         BrowserError::Changed => "Kalsa's browser driver has changed on disk, so it was not started.",
         BrowserError::Unpack => "The browser driver Kalsa downloaded could not be unpacked, so it was not installed.",
         BrowserError::Storage => "Kalsa could not write to its data folder.",
+        BrowserError::Refused => "the browser would not open that.",
         BrowserError::Failed => "Something went wrong with Kalsa's browser. Try again.",
     }
 }
@@ -92,6 +97,7 @@ mod tests {
             BrowserError::Unpack,
             BrowserError::Storage,
             BrowserError::Failed,
+            BrowserError::Refused,
         ];
         let mut codes: Vec<&str> = all.iter().map(|error| error.code()).collect();
         codes.sort_unstable();

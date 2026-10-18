@@ -18,11 +18,17 @@ import { build } from "../node_modules/esbuild/lib/main.js";
 // `catalog.*` Rust also emits, but those never reach rustSentence (the thread,
 // the machine card and internal paths own them), so they are neither checked
 // nor wanted here.
-const GROUPS = new Set(["app", "choice", "files", "invite", "pairing", "road", "startup", "update", "vision", "web"]);
+const GROUPS = new Set(["app", "browser", "choice", "files", "invite", "pairing", "road", "startup", "update", "vision", "web"]);
 
 // Dotted literals that share a group's name but are not error codes: a stored
 // settings file, and the two telemetry event names.
-const NOT_CODES = new Set(["pairing.json", "web.search", "web.fetch"]);
+// `browser.browser_open` and its four siblings are the tool pins in
+// `src-tauri/src/browser/tool_pins.json`: a tool the sidecar declares, not a
+// sentence that reaches the page. They are dotted and share a group's name, so
+// they are named here rather than left to fail every run.
+const TOOL_PINS = ["browser_click", "browser_find", "browser_open", "browser_read", "browser_type"];
+
+const NOT_CODES = new Set(["pairing.json", "web.search", "web.fetch", ...TOOL_PINS.map((tool) => `browser.${tool}`)]);
 
 /** The codes the Rust source carries, derived — not transcribed. Every dotted
     lowercase string literal under src-tauri/src and crates/, kept when its

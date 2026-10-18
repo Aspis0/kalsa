@@ -32,9 +32,13 @@ Revised after three luna hostile audits, 2026-10-17.
 
 ## Enter, decided in code
 
-Fill, then press Enter **iff** the node is an `HTMLInputElement` of type `text, search, email, url, tel, number` **and** has a `<form>` ancestor. Otherwise do not: a `<textarea>`, a `contenteditable` or a form-less input is filled and left alone, so a multi-line answer cannot submit itself.
+Fill, then press Enter **iff** the node is an `HTMLInputElement` of type `text, search, email, url, tel, number`, **with or without a `<form>` ancestor**. Otherwise do not: a `<textarea>`, a `contenteditable` or a `<select>` is filled and left alone — the first two hold several lines by design, so a multi-line answer cannot submit itself, and the third is not a field anyone types into at all.
 
-Proved by unit tests over those four shapes — **not** by E4B on todomvc. E4B's failure was real and is a code fix, but it is not the gate. And the rule is about the field, not the network: a todomvc-style JS app makes no request at all on Enter, so it costs nothing to ask.
+**The form is not part of the rule, and holding out for it is what made the rule wrong.** TodoMVC's new-todo input, a chat box and most search boxes are single-line inputs with no form at all, whose keydown handler commits what was typed: under a form-only rule a model typed its answer into one and pressed nothing, and the page never heard the rest of the request. That is the model watching a field take its words and do nothing with them. E4B's todomvc failure was this, and it was a code fix after all.
+
+What pressing Enter can cost is a request, and that is the hold's business, not this rule's: every write Enter can set off is a non-GET, and a non-GET is held like every other write — refused in slice 1, confirmed from step 4. A JS app that commits on Enter issues no request at all, so there is nothing there to hold. The destination re-read immediately before the key goes down (`RECHECK_BODY`) is unchanged.
+
+Proved by unit tests over these shapes **and** over a real browser in `tests/input.rs`, where a one-line field inside a form and one with no form both take Enter, a textarea and an editable block do not, and a `<select>` is refused before anything is written.
 
 ## Submission is a held request, not a cancelled event
 
@@ -44,7 +48,7 @@ A `preventDefault` on the submit event is not enough, for two separate reasons. 
 2. The confirm card shows **the actual held request**: URL, method, and the serialized body field names with values **exactly as sent**, hidden fields included.
 3. On confirm, **that same held request continues**. On decline it is aborted and the model is told plainly.
 
-This binds the card to the payload the site would really have received, and it covers script-initiated submits because a script's request is a route like any other. The Enter rule above stays: a JS app that commits on Enter issues no request, so there is nothing to hold.
+This binds the card to the payload the site would really have received, and it covers script-initiated submits because a script's request is a route like any other. The Enter rule above stands unchanged by this: a JS app that commits on Enter issues no request, so there is nothing to hold, and a form that submits on Enter issues a non-GET, which is held like any other write.
 
 GET navigations — form submits with `method=get`, and link clicks — are **reads**. That is stated in Risks, not buried.
 

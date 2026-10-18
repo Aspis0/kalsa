@@ -6,6 +6,7 @@
 // unmounts.
 
 import { useEffect, useState } from "react";
+import { useBrowserStatus } from "./lib/browser/useStatus";
 import { loadSettings, loadTheme, saveSettings, saveTheme, themeChoiceMade } from "./lib/settings";
 import type { Theme } from "./lib/settings";
 import type { ChatSettings } from "./lib/types";
@@ -85,6 +86,9 @@ export function App() {
   // notice is rendered at the stage's level so it survives navigation.
   const { state } = useBrain();
   const engine = useEngineRecovery(state?.kind ?? null);
+  // What the chat offers the browser tools behind, read once the app is up
+  // rather than when Settings happens to be opened.
+  useBrowserStatus();
 
   // One hop along the surfaces. Hops between settings surfaces extend the
   // walk so back can retrace it one step at a time; the chat is not on the

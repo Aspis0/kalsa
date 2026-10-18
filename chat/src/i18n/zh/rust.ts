@@ -11,6 +11,7 @@ export const RUST: {
   files: Record<string, (params: Record<string, unknown>, tag: string) => string>;
   vision: Record<string, (params: Record<string, unknown>, tag: string) => string>;
   web: Record<string, (params: Record<string, unknown>, tag: string) => string>;
+  browser: Record<string, (params: Record<string, unknown>, tag: string) => string>;
 } = {
   startup: {
     cannot_run_yet: () => "Kalsa 还不能在这台电脑上运行。请检查应用更新。",
@@ -98,5 +99,17 @@ export const RUST: {
     search_failed: () => "Kalsa 无法搜索网络。请再试。",
     page_failed: () => "Kalsa 无法打开那个页面。请再试。",
     open_failed: () => "这台电脑无法打开该链接。",
+  },
+  browser: {
+    unsupported_platform: () => "这台电脑没有 Kalsa 能用的浏览器。",
+    busy: () => "Kalsa 正在使用浏览器。请稍后再试。",
+    cancelled: () => "下载已停止。没有安装任何内容。",
+    download_failed: () => "Kalsa 无法下载浏览器驱动。请重试。",
+    driver_corrupt: () => "浏览器驱动已损坏，Kalsa 没有安装任何内容。",
+    driver_changed: () => "磁盘上的浏览器驱动不是 Kalsa 安装的那一个。",
+    unpack_failed: () => "浏览器驱动没有解压成可用的内容。",
+    storage: () => "Kalsa 无法读取或写入自己的文件夹。",
+    failed: () => "Kalsa 无法连接到浏览器。请重试。",
+    refused: () => "Kalsa 没有打开那个内容。",
   },
 };

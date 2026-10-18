@@ -37,8 +37,14 @@ export async function loadApp() {
         export { accumulate, readArguments, wireArguments, MAX_ARGUMENTS } from "../src/lib/toolCalls.ts";
         export { canonicalToolName, repairToolCall } from "../src/lib/repairToolCall.ts";
         export { recoverToolCall } from "../src/lib/recoverToolCall.ts";
+        export { phoneTools } from "../src/lib/phone/phoneTurn.ts";
+        export { fences, browserOpen } from "../src/lib/tools/browserCall.ts";
+        export { noteBrowserStatus, browserUsable } from "../src/lib/browser/usable.ts";
+        export { refreshBrowserStatus } from "../src/lib/browser/useStatus.ts";
+        export { isBrowserRun } from "../src/lib/browser/runs.ts";
         export { guideCut, guideNotValidJson, guideProblem } from "../src/lib/guideRetry.ts";
         export { TOOL_DEFINITIONS, WEB_TOOLS } from "../src/lib/tools/definitions.ts";
+        export { BROWSER_TOOLS } from "../src/lib/tools/browserTools.ts";
         export { publicHttpUrl } from "../src/lib/publicUrl.ts";
         export { streamChatCompletion } from "../src/lib/toolLoop.ts";
         export { offeredTools, executeToolCall } from "../src/lib/tools/registry.ts";
@@ -57,7 +63,7 @@ export async function loadApp() {
         export { displayTitle } from "../src/components/miniapp/title.ts";
         export { MINIAPP as ITALIAN_MINIAPP } from "../src/i18n/it/miniapp.ts";
         export { runCreateMiniapp } from "../src/lib/tools/createMiniapp.ts";
-        export { createStore } from "../src/lib/store.ts";
+        export { createStore, forDisk } from "../src/lib/store.ts";
         export { createAttachGate, NEW_CHAT } from "../src/lib/attachGate.ts";
         export { buildPinnedContext, estTokens, turnDocBlock } from "../src/lib/attachments.ts";
         export { sentDatePhrase } from "../src/lib/sentDate.ts";
