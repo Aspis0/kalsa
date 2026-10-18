@@ -188,6 +188,11 @@ pub(crate) struct Field {
     pub name: String,
     pub value: String,
     pub secret: bool,
+    /// The words the page puts beside the field, for the person to read next to its
+    /// value. **Display only**, cleaned and capped by the sidecar, and absent when the
+    /// page gave none. A phone that predates it ignores the key.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
 }
 
 /// What stands in for a value in anything that is not the card.
@@ -328,7 +333,7 @@ mod tests {
             "POST",
             "https://shop.example/order",
             CHAT,
-            vec![Field { name: "city".to_owned(), value: "Bologna".to_owned(), secret: false }],
+            vec![Field { name: "city".to_owned(), value: "Bologna".to_owned(), secret: false, label: None }],
         )
     }
 
@@ -419,8 +424,8 @@ mod tests {
     #[test]
     fn an_address_is_printed_with_its_secret_values_dotted() {
         let fields = vec![
-            Field { name: "password".to_owned(), value: "hunter2".to_owned(), secret: true },
-            Field { name: "page".to_owned(), value: "2".to_owned(), secret: false },
+            Field { name: "password".to_owned(), value: "hunter2".to_owned(), secret: true, label: None },
+            Field { name: "page".to_owned(), value: "2".to_owned(), secret: false, label: None },
         ];
         let printed = format!(
             "{:?}",
@@ -440,7 +445,7 @@ mod tests {
     /// stand finds no match and prints the value it exists to hide.
     #[test]
     fn a_secret_under_a_written_name_is_dotted_too() {
-        let fields = vec![Field { name: "pass word".to_owned(), value: "hunter2".to_owned(), secret: true }];
+        let fields = vec![Field { name: "pass word".to_owned(), value: "hunter2".to_owned(), secret: true, label: None }];
         for written in ["pass+word=hunter2", "pass%20word=hunter2"] {
             let printed =
                 format!("{:?}", card_of("c1", "GET", &format!("https://a.example/go?{written}"), CHAT, fields.clone()));
@@ -455,7 +460,7 @@ mod tests {
     /// server as the value on its own.
     #[test]
     fn a_secret_value_is_dotted_whatever_the_page_called_the_field() {
-        let fields = vec![Field { name: "token".to_owned(), value: "hunter2".to_owned(), secret: true }];
+        let fields = vec![Field { name: "token".to_owned(), value: "hunter2".to_owned(), secret: true, label: None }];
         let printed = format!(
             "{:?}",
             card_of("c1", "GET", "https://a.example/go?session=prefix-hunter2-suffix&page=2", CHAT, fields)
@@ -474,7 +479,7 @@ mod tests {
     /// a log, and it is deliberately blind to the field names.
     #[test]
     fn a_secret_is_dotted_wherever_it_sits_and_whatever_the_field_is_called() {
-        let fields = vec![Field { name: "a-form-field".to_owned(), value: "hunter2".to_owned(), secret: true }];
+        let fields = vec![Field { name: "a-form-field".to_owned(), value: "hunter2".to_owned(), secret: true, label: None }];
         // No query pair carries it, and its name matches nothing, so the field
         // cannot be used to find it: the whole address is dotted.
         for url in ["https://a.example/hunter2/page", "https://hunter2.example/page"] {
@@ -495,7 +500,7 @@ mod tests {
     }
     #[test]
     fn an_address_still_carrying_a_secret_is_printed_as_dots() {
-        let fields = vec![Field { name: "token".to_owned(), value: "hunter2".to_owned(), secret: true }];
+        let fields = vec![Field { name: "token".to_owned(), value: "hunter2".to_owned(), secret: true, label: None }];
         for url in ["https://a.example/hunter2/page", "https://hunter2.example/page"] {
             let printed = format!("{:?}", card_of("c1", "GET", url, CHAT, fields.clone()));
             assert!(!printed.contains("hunter2"), "the value reached a log: {printed}");
@@ -503,7 +508,7 @@ mod tests {
         }
         // A field with no value carries nothing, so it cannot make an address
         // unsafe: it still dots the pair it is named after, and no other.
-        let empty = vec![Field { name: "token".to_owned(), value: String::new(), secret: true }];
+        let empty = vec![Field { name: "token".to_owned(), value: String::new(), secret: true, label: None }];
         let printed = format!("{:?}", card_of("c1", "GET", "https://a.example/go?token=x&page=2", CHAT, empty));
         assert!(printed.contains("token=\u{2022}"), "its own name is still dotted: {printed}");
         assert!(printed.contains("page=2"), "and an empty value takes nothing else with it: {printed}");
@@ -521,7 +526,7 @@ mod tests {
             "POST",
             "https://shop.example/login",
             CHAT,
-            vec![Field { name: "password".to_owned(), value: "hunter2".to_owned(), secret: true }],
+            vec![Field { name: "password".to_owned(), value: "hunter2".to_owned(), secret: true, label: None }],
         );
         assert_eq!(built.method, "POST");
         assert!(built.asked_at_ms > 0, "a card with no time is a card with no clock");

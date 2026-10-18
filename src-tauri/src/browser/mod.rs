@@ -4,6 +4,7 @@
 //! The chat is offered three read tools over one sidecar that lives from the
 //! first call to the window closing.
 
+pub(crate) mod codes;
 pub(crate) mod commands;
 pub(crate) mod confirm;
 pub(crate) mod host;

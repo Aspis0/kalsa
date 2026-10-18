@@ -30,13 +30,14 @@ export const BROWSER = {
  * the request, not what it does to the model.
  */
 export const CONFIRM = {
-  title: "Kalsa wants to send this",
+  wantsToSend: (host: string) => `${host} wants to send:`,
+  /** Said under the host when the request goes over plain `http`. */
+  insecure: "Not a secure connection",
   waiting: "Nothing has been sent yet.",
   /** The method is the site's own word, so it is shown as it stands. */
   allow: "Send it",
   decline: "Don't send it",
   asking: "Sending…",
-  fields: "What it would send",
   none: "No fields — just the request.",
   paused: "Paused",
   resume: "Resume",

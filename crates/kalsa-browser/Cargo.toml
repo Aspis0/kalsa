@@ -47,4 +47,4 @@ percent-encoding = "2"
 # setting makes, which is the only way to know the test can fail.
 [dev-dependencies]
 playwright-rs = "=0.20.1"
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "process"] }

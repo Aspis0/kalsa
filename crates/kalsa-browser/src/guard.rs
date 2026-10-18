@@ -314,6 +314,7 @@ pub async fn install(
             let (holding, typed) = (holding.clone(), typed.clone());
             async move {
                 let request = route.request();
+                holding.see_request(&request).await;
                 if let Verdict::Refused(_) = decide(request.url()).await {
                     return route.abort(Some("blockedbyclient")).await;
                 }

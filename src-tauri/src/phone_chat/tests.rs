@@ -2,7 +2,7 @@
 //! refuses, what it forwards, what it stores, and what a new pairing drops.
 
 use std::cell::Cell;
-use std::sync::mpsc::{self, Sender};
+use std::sync::mpsc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -186,6 +186,47 @@ fn a_draft_for_another_mail_than_the_pinned_one_is_refused_and_stores_nothing() 
     assert_eq!(lock(&bridge.drafts).count(), 0);
 }
 
+/// **The turn's own line about what it did** (docs §3.2). It is a name the
+/// protocol now has, and a phone that does not know it ignores it — so this
+/// build may send it. What is checked is the shape: text and nothing else,
+/// because the phone draws the line as it arrives and a field it cannot draw
+/// must not arrive.
+#[test]
+fn the_turn_recap_reaches_the_phone_as_one_line_of_text() {
+    let (bridge, events) = bridge_with_request("turn", None);
+    bridge
+        .accept(
+            "req",
+            "recap",
+            json!({"text": "Kalsa ha: chiesto reg.example.org · scritto in 2 campi · nessun clic"}),
+        )
+        .expect("a recap is a turn event now");
+    let said = events.try_recv().expect("the line was forwarded");
+    assert_eq!(said.name, "recap");
+    assert_eq!(
+        said.data["text"],
+        "Kalsa ha: chiesto reg.example.org · scritto in 2 campi · nessun clic"
+    );
+}
+
+#[test]
+fn a_recap_that_is_not_a_line_of_text_is_refused() {
+    let (bridge, events) = bridge_with_request("turn", None);
+    for data in [json!({}), json!({"text": 42}), json!({"line": "x"})] {
+        assert_eq!(bridge.accept("req", "recap", data.clone()), Err("bad_event"), "{data}");
+    }
+    assert!(events.try_recv().is_err());
+}
+
+#[test]
+fn a_recap_is_not_a_read_event() {
+    let (bridge, _events) = bridge_with_request("read", None);
+    assert_eq!(
+        bridge.accept("req", "recap", json!({"text": "x"})),
+        Err("wrong_kind")
+    );
+}
+
 #[test]
 fn a_draft_for_the_pinned_mail_is_kept() {
     let (bridge, events) = bridge_with_request("turn", Some(105));
@@ -329,6 +370,27 @@ fn card_data(card_id: &str) -> Value {
     })
 }
 
+/// **The phone's card carries each field's label where the page gave one, and a field
+/// the page gave none has no `label` key at all** — so a phone that predates labels
+/// reads the same card it always did.
+#[test]
+fn the_phone_card_carries_a_label_only_where_the_page_gave_one() {
+    let mut card = held(1, "cred", "turn-1", "c-label");
+    card.fields = vec![
+        pending::Field {
+            name: "custname".to_owned(),
+            value: "Giulia".to_owned(),
+            secret: false,
+            label: Some("Nome e cognome".to_owned()),
+        },
+        pending::Field { name: "csrf".to_owned(), value: "a-token".to_owned(), secret: false, label: None },
+    ];
+    let wire = super::card_wire(&card);
+    assert_eq!(wire["fields"][0]["label"], "Nome e cognome");
+    assert_eq!(wire["fields"][0]["value"], "Giulia", "the value is what goes, labelled or not");
+    assert!(wire["fields"][1].get("label").is_none(), "no label is no key: {}", wire["fields"][1]);
+}
+
 /// One card as the sidecar is holding it, for the phone `device` under the
 /// credential `cred`, raised on the turn `request`.
 fn held(device: u32, cred: &str, request: &str, id: &str) -> Held {
@@ -373,7 +435,7 @@ fn bridge_with_two_phones() -> Bridge {
 /// The id of the ninth card a phone is offered — the first one refused.
 const NINTH: usize = 8;
 
-fn routed(device: u32, request: &str, id: &str) -> pending::Card {
+fn routed(device: u32, _request: &str, id: &str) -> pending::Card {
     pending::card_of(id, "POST", "https://shop.example/order", &cards::conversation_of(DeviceId::new(device)), vec![])
 }
 
@@ -744,7 +806,7 @@ fn a_phone_is_never_asked_about_more_than_eight_requests_at_once() {
 /// it down from the moment the card arrived.
 #[test]
 fn a_card_says_how_long_the_person_has_left_rather_than_when_they_must_answer() {
-    let bridge = bridge_with_request("turn", None);
+    let _bridge = bridge_with_request("turn", None);
     let fresh = Held { created: Instant::now(), ..held(1, "cred-a", "req", ID) };
     let wire = super::card_wire(&fresh);
     assert!(wire.get("answer_by_ms").is_none(), "an absolute deadline crossed: {wire}");

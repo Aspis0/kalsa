@@ -7,8 +7,13 @@ import type { Mail, MailDraft, MailRecord } from "../mail/types";
 import type { ToolRun } from "../types";
 
 export function sendPhoneEvent(request: string, event: string, data: unknown): void {
-  // A send that fails has no one left to tell: the door ends the request on its own side.
-  void invoke("brain_phone_chat_event", { request, event, data }).catch(() => {});
+  // **A send that fails is logged, not swallowed.** The door ends the request on
+  // its own side, so nobody is left to tell the person — and a quiet catch is
+  // how an event goes missing for a week and nobody can say which. The console
+  // is the only place this has a voice, so it is where it goes.
+  void invoke("brain_phone_chat_event", { request, event, data }).catch((why: unknown) => {
+    console.error(`phone turn ${request}: the ${event} event did not go out`, why);
+  });
 }
 
 export interface PhoneSink {
@@ -16,6 +21,8 @@ export interface PhoneSink {
   delta: (text: string) => void;
   toolRun: (run: ToolRun) => void;
   read: (record: MailRecord, body: string) => void;
+  /** What Kalsa did in the turn, as one line, sent before the turn ends. */
+  recap: (line: string) => void;
   done: () => void;
   fail: (code: string) => void;
 }
@@ -56,6 +63,10 @@ export function phoneSink(send: (event: string, data: unknown) => void): PhoneSi
       held.push({ event, data });
     },
     read: (record, body) => emit("read", { record: recordWire(record), body }),
+    // **The turn's own line goes out before whatever ends it**, on every ending:
+    // an answer, a failure, a Stop. It is the last thing the phone says about the
+    // turn, and it is the same line the desktop draws.
+    recap: (line) => emit("recap", { text: line }),
     done: () => end("done", {}),
     fail: (code) => end("error", { code }),
   };

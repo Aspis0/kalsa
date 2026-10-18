@@ -796,6 +796,7 @@ async fn a_caught_submission_to_a_refused_address_is_never_held() {
             has_file: false,
             target: None,
             secrets: Vec::new(),
+            labels: Default::default(),
         };
         assert!(
             kalsa_browser::mcp::held_submission(&page, &holds, common::CHAT, kalsa_browser::mcp::the_address, Some(caught))

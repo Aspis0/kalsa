@@ -23,6 +23,7 @@ use serde_json::Map;
 
 use crate::guard;
 use crate::hold::{self, Holds, Outcome};
+use crate::label;
 use crate::landing::Landings;
 use crate::submit;
 use crate::{body, input};
@@ -463,11 +464,19 @@ async fn waiting(sessions: &Sessions) -> CallToolResult {
                 // it has to be is this. `secret` says how the window draws it —
                 // dots, with a Show button — and nothing on this side of the wire
                 // ever blanks it.
-                "fields": card.fields.iter().map(|field| serde_json::json!({
-                    "name": field.name,
-                    "value": field.value,
-                    "secret": field.secret,
-                })).collect::<Vec<serde_json::Value>>(),
+                // **The label is what the page says the field is, for the person to read**
+                // beside its value. It is absent rather than empty when the page gave none.
+                "fields": card.fields.iter().map(|field| {
+                    let mut shown = serde_json::json!({
+                        "name": field.name,
+                        "value": field.value,
+                        "secret": field.secret,
+                    });
+                    if let Some(label) = &field.label {
+                        shown["label"] = serde_json::Value::from(label.as_str());
+                    }
+                    shown
+                }).collect::<Vec<serde_json::Value>>(),
             })
         })
         .collect();
@@ -579,6 +588,7 @@ async fn open(sessions: &Sessions, args: OpenArgs) -> CallToolResult {
     // catches carries this conversation, and a card raised in another chat is not
     // this one's to press.
     holds.navigated_by(&args.conversation).await;
+    holds.forget_labels().await;
     // Another address is another site: what the person typed into a password
     // field on the last one is theirs, and it is not carried here.
     holds.forget_typed().await;
@@ -713,6 +723,9 @@ pub async fn acting<T, F>(
 where
     F: Future<Output = T>,
 {
+    // What the page calls its fields is read first, while nothing has acted: a write
+    // the action causes is then labelled from it without the card waiting on the page.
+    holds.learn_labels(page.url(), label::read_page(page).await).await;
     let (acted, caught) = submit::caught_by(page, act).await;
     let id = held_write(page, holds, conversation, before, judge, caught).await;
     (acted, id)
@@ -805,10 +818,11 @@ pub async fn held_submission(
         holds.refuse("the request is sent in a form the person cannot read").await;
         return None;
     };
-    let body::Shown::Fields(fields) = body::fields_of(&caught.pairs, &caught.secrets) else {
+    let body::Shown::Fields(mut fields) = body::fields_of(&caught.pairs, &caught.secrets) else {
         holds.refuse("the request carries a body too large to be shown").await;
         return None;
     };
+    label::apply(&mut fields, &caught.labels, &holds.typed().await.values());
     let ticket = hold::Ticket::of_parts(&caught.method, &caught.url, &submit::content_type_of(&caught), body);
     let card = hold::Card {
         id: String::new(),

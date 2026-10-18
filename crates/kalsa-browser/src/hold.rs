@@ -18,6 +18,7 @@
 //! **Nothing is held across a call.** The mutex is taken to move a held request
 //! in or out and given back before the route is dispatched.
 
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -27,6 +28,7 @@ use tokio::sync::Mutex;
 use playwright_rs::protocol::{Request, Route};
 
 use crate::body::{self, Field};
+use crate::label;
 
 /// One field of a card. Re-exported because the card is public and a caller
 /// reading it is reading fields.
@@ -229,6 +231,10 @@ struct Inner {
     /// when it did. A request the page makes by itself, later, belongs to this:
     /// its document was written by that call, and the page cannot say otherwise.
     navigated: String,
+    /// What the page calls its named fields, read by the call that last acted, and the
+    /// address of the document they were read from. A write is labelled from these only
+    /// while its own document is still that one; see `label.rs`.
+    labels: Option<PageLabels>,
     /// What the person typed into a secret field on the page in this window. The
     /// window's own state rather than a side table, so **opening another address
     /// forgets it** and a secret typed on one site cannot mask — or hold — a
@@ -238,6 +244,13 @@ struct Inner {
     /// than hold again. **Exactly one, matched on the whole request, and spent
     /// on first use** — see [`Ticket`].
     pass: Option<Ticket>,
+}
+
+/// What the page was read to say about its fields, and the address it was read from.
+#[derive(Clone)]
+struct PageLabels {
+    url: String,
+    labels: HashMap<String, String>,
 }
 
 /// The held writes, keyed by the id the card shows. Cheap to clone and cloned
@@ -318,6 +331,37 @@ impl Holds {
     /// What the person typed into a secret field here, for the route and the
     /// card. Cheap to read: the catcher fills it as they type, over a binding,
     /// so nothing here has to ask the page.
+    /// Records what the page calls its fields, as the call that is acting reads them,
+    /// with the address of the document they were read from.
+    pub async fn learn_labels(&self, url: String, labels: HashMap<String, String>) {
+        self.inner.lock().await.labels = Some(PageLabels { url, labels });
+    }
+
+    /// What the page calls its named fields, **only for the document they were read
+    /// from**: a write from any other document is labelled by nothing, and the card
+    /// draws the names.
+    pub async fn labels_for(&self, document_url: &str) -> HashMap<String, String> {
+        match &self.inner.lock().await.labels {
+            Some(read) if read.url == document_url => read.labels.clone(),
+            _ => HashMap::new(),
+        }
+    }
+
+    /// Forgets what the page was read to say. Called when the window opens an address,
+    /// and for every navigation the window makes: the labels of the page left behind
+    /// are not the labels of the page that comes next.
+    pub async fn forget_labels(&self) {
+        self.inner.lock().await.labels = None;
+    }
+
+    /// Every request the window makes goes through here before anything else: a
+    /// navigation is a new document, so what was read from the old one is forgotten.
+    pub async fn see_request(&self, request: &Request) {
+        if request.is_navigation_request() {
+            self.forget_labels().await;
+        }
+    }
+
     pub async fn typed(&self) -> crate::secret::Typed {
         self.inner.lock().await.typed.clone()
     }
@@ -782,7 +826,7 @@ pub async fn hold_write(
         return park(holds, shown, route).await;
     }
     let typed = holds.typed().await.values();
-    let fields = match body::show(&content_type, &body) {
+    let mut fields: Vec<Field> = match body::show(&content_type, &body) {
         // **The real values, flagged where a name reads as a secret or where the
         // value is one the person typed.** A request that got this far has no
         // element behind it, so that is all there is — and all it can do is add
@@ -800,6 +844,8 @@ pub async fn hold_write(
             return Ok(());
         }
     };
+    let page_url = request.frame().map(|frame| frame.url()).unwrap_or_default();
+    label::apply(&mut fields, &holds.labels_for(&page_url).await, &typed);
     park(holds, Card { id: String::new(), method: request.method().to_ascii_uppercase(), url: request.url().to_owned(), fields, conversation: String::new() }, route).await
 }
 
@@ -847,7 +893,7 @@ pub(crate) fn address_of(url: &str, typed: &[String]) -> Card {
             // it over the person's shoulder either — while a value the *person*
             // typed is theirs whatever it is called.
             let secret = body::secret_name(&name) || crate::secret::holds(&value, typed);
-            body::Field { secret, name: name.into_owned(), value: value.into_owned() }
+            body::Field { secret, name: name.into_owned(), value: value.into_owned(), label: None }
         })
         .collect();
     // **A secret in the path is a secret nobody can see on the card.** The query
@@ -866,7 +912,7 @@ pub(crate) fn address_of(url: &str, typed: &[String]) -> Card {
             .flatten()
             .find(|segment| typed.iter().filter(|value| value.chars().count() >= crate::secret::MIN_SECRET).any(|value| segment.contains(value.as_str())))
         {
-            fields.push(body::Field { secret: true, name: "the path".to_owned(), value: part.to_owned() });
+            fields.push(body::Field { secret: true, name: "the path".to_owned(), value: part.to_owned(), label: None });
         }
     }
     Card { id: String::new(), method: "GET".to_owned(), url: url.to_owned(), fields, conversation: String::new() }
@@ -941,7 +987,7 @@ mod tests {
             id: String::new(),
             method: "POST".to_owned(),
             url: "https://shop.example/order".to_owned(),
-            fields: vec![Field { name: "city".to_owned(), value: "Bologna".to_owned(), secret: false }],
+            fields: vec![Field { name: "city".to_owned(), value: "Bologna".to_owned(), secret: false, label: None }],
             // Stamped by `hold`, which is the point: whatever is here is replaced.
             conversation: "chat-asked-for-it".to_owned(),
         }
@@ -1056,7 +1102,7 @@ mod tests {
         assert_eq!(shown.id, id);
         assert_eq!(shown.method, "POST");
         assert_eq!(shown.url, "https://shop.example/order");
-        assert_eq!(shown.fields[0], Field { name: "city".to_owned(), value: "Bologna".to_owned(), secret: false });
+        assert_eq!(shown.fields[0], Field { name: "city".to_owned(), value: "Bologna".to_owned(), secret: false, label: None });
         assert_eq!(holds.waiting().await, 1);
     }
 

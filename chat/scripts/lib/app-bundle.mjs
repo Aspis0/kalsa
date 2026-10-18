@@ -37,7 +37,7 @@ export async function loadApp() {
         export { accumulate, readArguments, wireArguments, MAX_ARGUMENTS } from "../src/lib/toolCalls.ts";
         export { canonicalToolName, repairToolCall } from "../src/lib/repairToolCall.ts";
         export { recoverToolCall } from "../src/lib/recoverToolCall.ts";
-        export { phoneTools } from "../src/lib/phone/phoneTurn.ts";
+        export { phoneTools, phoneConversation, runPhoneTurn } from "../src/lib/phone/phoneTurn.ts";
         export { fences, browserOpen, browserClose } from "../src/lib/tools/browserCall.ts";
         export { noteBrowserStatus, browserUsable } from "../src/lib/browser/usable.ts";
         export { refreshBrowserStatus } from "../src/lib/browser/useStatus.ts";
@@ -48,12 +48,13 @@ export async function loadApp() {
         export { browserAnswer } from "../src/lib/tools/browserCall.ts";
         export {
           answer as browserAnswerNow,
-          browserOutcomesNote,
-          DOTS as browserDots,
-          pressPause as browserPressPause,
           currentCards as currentBrowserCards,
+          destinationOf as browserDestinationOf,
           noteAnswered as noteBrowserAnswered,
           noteCards as noteBrowserCards,
+          settledFor as settledBrowserCards,
+          DOTS as browserDots,
+          pressPause as browserPressPause,
           takeOutcomes as takeBrowserOutcomes,
         } from "../src/lib/browser/confirm.ts";
         export {
@@ -62,6 +63,10 @@ export async function loadApp() {
           startWindowBus as startBrowserWindowBus,
         } from "../src/lib/browser/window.ts";
         export { publicHttpUrl } from "../src/lib/publicUrl.ts";
+        export { actionKey, decide, filed, newLedger, BROWSER_CALLS_PER_TURN } from "../src/lib/callLedger.ts";
+        export { recapLine, recapOf } from "../src/lib/browser/recap.ts";
+        export { closeRecap, sayRuns, takeNote } from "../src/lib/browser/note.ts";
+        export { BROWSER_CODES, browserCode, browserCodeWords, isDeterministic } from "../src/lib/browser/codes.ts";
         export { streamChatCompletion } from "../src/lib/toolLoop.ts";
         export { offeredTools, executeToolCall } from "../src/lib/tools/registry.ts";
         export { thinkingSupport } from "../src/lib/thinking.ts";

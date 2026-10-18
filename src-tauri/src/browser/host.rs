@@ -32,6 +32,7 @@ use kalsa_mcp::registry::Registry;
 use kalsa_mcp::server_id::ServerId;
 use serde_json::{Map, Value};
 
+use super::codes::BrowserCode;
 use super::error::BrowserError;
 use super::program;
 use super::window::WindowState;
@@ -336,7 +337,7 @@ impl Browser {
         person: bool,
     ) -> Result<String, BrowserError> {
         if HOST_ONLY.contains(&tool) != person {
-            return Err(BrowserError::Refused);
+            return Err(BrowserError::Refused(BrowserCode::Refused));
         }
         // **The generation is read before the lease is taken.** Taking the lease
         // first leaves a window in which a Stop lands and this call has already
@@ -380,8 +381,11 @@ impl Browser {
             BrowserError::Failed
         })? {
             CallOutcome::Ran(result) => {
+                // **The sidecar's sentence goes to the model and its own code
+                // goes to the page**, so a refusal that says why can be acted on
+                // and the window never has to read prose to know what happened.
                 if result.is_error {
-                    return Err(BrowserError::Refused);
+                    return Err(BrowserError::Refused(BrowserCode::of(&result)));
                 }
                 Ok(result.for_model.join("\n"))
             }
@@ -531,7 +535,7 @@ fn start(app_data: &Path) -> Result<Host<SealedStdioLauncher>, BrowserError> {
 
 #[cfg(test)]
 mod tests {
-    use super::{keep_the_host, qualified, wait_for_stop, Browser, BrowserError, Host, Registry, SealedStdioLauncher, ServerRecord, Slot, State, Trust, CONVERSATION};
+    use super::{keep_the_host, qualified, the_window_went, wait_for_stop, Browser, BrowserCode, BrowserError, Host, Registry, SealedStdioLauncher, ServerRecord, Slot, State, Trust, CONVERSATION};
     use kalsa_mcp::error::Error;
     use kalsa_mcp::outcome::{CallOutcome, ToolResult};
     use kalsa_mcp::pins::Pins;
@@ -1034,9 +1038,9 @@ mod tests {
         let browser = Browser::default();
         let app_data = PathBuf::from("/nonexistent/kalsa-browser-app-data");
 
-        assert_eq!(browser.call(&app_data, "browser_confirm", Map::new()).await.err(), Some(BrowserError::Refused));
-        assert_eq!(browser.call(&app_data, "browser_waiting", Map::new()).await.err(), Some(BrowserError::Refused));
-        assert_eq!(browser.call_host(&app_data, "browser_open", Map::new()).await.err(), Some(BrowserError::Refused));
+        assert_eq!(browser.call(&app_data, "browser_confirm", Map::new()).await.err(), Some(BrowserError::Refused(BrowserCode::Refused)));
+        assert_eq!(browser.call(&app_data, "browser_waiting", Map::new()).await.err(), Some(BrowserError::Refused(BrowserCode::Refused)));
+        assert_eq!(browser.call_host(&app_data, "browser_open", Map::new()).await.err(), Some(BrowserError::Refused(BrowserCode::Refused)));
         assert!(!browser.is_open(), "and no browser was started");
     }
 }

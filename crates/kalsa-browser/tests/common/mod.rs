@@ -560,6 +560,9 @@ pub async fn confirming_window_for(
         let (base, holding, also) = (served.clone(), holding.clone(), also.clone());
         async move {
             let request = route.request();
+            // The same navigation rule the product's route keeps: a new document forgets
+            // what the last one was read to say.
+            holding.see_request(&request).await;
             let url = request.url();
             // **Which of this window's sites is asking.** There is one, or two
             // for the proofs that need a second one; anything else belongs to the

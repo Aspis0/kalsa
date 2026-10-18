@@ -8,6 +8,8 @@ import { Icon } from "./Icon";
 import { MiniappView } from "./miniapp/MiniappView";
 import { isMailRun } from "../lib/mail/runs";
 import { isBrowserRun } from "../lib/browser/runs";
+import { recapLine } from "../lib/browser/recap";
+import type { Recap } from "../lib/browser/recap";
 import { rustSentence } from "../lib/rustText";
 import "./ToolActivity.css";
 import { TOOL_STOPPED } from "../lib/types";
@@ -56,14 +58,32 @@ export function ToolActivity({ runs, awaitingOk, mailPending = false }: { runs: 
   const rows = runs.filter((run) =>
     run.name === MINIAPP ? false : isMailRun(run.name) ? run.state === "running" || (mailPending && run.state === "ok") : true,
   );
-  if (rows.length === 0) return null;
+  // **The turn's own line, after its work.** It is what Kalsa did rather than
+  // what each call was, so it goes last and outside the rows: a browser turn
+  // that filled three fields and never clicked says so here, which is the fact
+  // no row on its own can tell. The record is counts, and the words are built
+  // here — in the language being read now, not the one it was written in.
+  const said = [...rows].reverse().find((run) => run.recap !== undefined)?.recap;
+  if (rows.length === 0) return said === undefined ? null : <RecapLine recap={said} />;
   return (
-    <div className="tool-activity">
-      {rows.map((run) => (
-        <ToolRow key={run.id} run={run} awaitingOk={awaitingOk} />
-      ))}
-    </div>
+    <>
+      <div className="tool-activity">
+        {rows.map((run) => (
+          <ToolRow key={run.id} run={run} awaitingOk={awaitingOk} />
+        ))}
+      </div>
+      {said === undefined ? null : <RecapLine recap={said} />}
+    </>
   );
+}
+
+/** What Kalsa did in the turn, said in the language of the window it is drawn
+    in. Fixed copy, so it is drawn as text and nothing else: no address, no
+    label, nothing a page or a model chose — except the host an open asked for,
+    which is this app's own parse of its own argument. */
+function RecapLine({ recap }: { recap: Recap }) {
+  const { table } = useLanguage();
+  return <p className="tool-recap">{recapLine(recap, table.tools.recap)}</p>;
 }
 
 /** The mini apps a turn built: the build's own line, then the view it drew. */

@@ -16,6 +16,15 @@
   line-height: 22px;
 }
 
+/* What Kalsa did in the turn: the last line, in the thread's own quiet voice,
+   and not a row — there is nothing to open under it and nothing to retry. */
+.tool-recap {
+  margin: 6px 0 0;
+  color: var(--tx3);
+  font-size: 15px;
+  line-height: 22px;
+}
+
 /* A running mail call, and the cards that are still waiting for the answer's
    first word. One step louder than the web row it borrows its spinner from: a
    real mailbox read is seconds of silence, and a line too quiet to notice is

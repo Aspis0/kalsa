@@ -8,13 +8,16 @@ import { streamChatCompletion } from "../toolLoop";
 import { armedConversation, executeToolCall, offeredTools } from "../tools/registry";
 import type { ToolDefinition } from "../tools/definitions";
 import { MAIL_NAMES } from "../tools/definitions";
-import { browserOutcomesNote, takeOutcomes } from "../browser/confirm";
+import { closeRecap, sayRuns, takeNote } from "../browser/note";
+import { recapLine } from "../browser/recap";
+import { isBrowserRun } from "../browser/runs";
+import { filed, newLedger } from "../callLedger";
 import { CONTEXT_RESERVE_TOKENS, wireSize } from "../attachments";
 import { loadSampling, samplingWire } from "../sampling";
 import { loadThinking, thinkingSupport } from "../thinking";
 import { TABLES } from "../../i18n";
 import type { Language } from "../../i18n";
-import type { LiveSettings } from "../types";
+import type { LiveSettings, ToolRun } from "../types";
 import type { PhoneSink } from "./phoneEvents";
 import type { PhoneTurn } from "./phoneRequest";
 import { phoneWire } from "./phoneWire";
@@ -189,13 +192,29 @@ export async function runPhoneTurn(
   // outcome comes back under. A turn with no device has no conversation, and so
   // no card and no writes.
   const conversation = turn.device === null ? "" : phoneConversation(turn.device);
+  // What this turn has already done with the browser, and what it failed at.
+  const calls = newLedger();
+  // **What Kalsa did, said once at the end of the turn** — on the phone as on the
+  // desktop, and from the same runs, so the two can never disagree.
+  const done: ToolRun[] = [];
+  const closeTurn = (): void => {
+    if (!done.some((run) => isBrowserRun(run.name))) return;
+    // The runs go to the model on this phone's next turn; the line goes out with
+    // this one, on every ending. Same record, same words as the desktop draws.
+    sayRuns(conversation, done);
+    const said = closeRecap(conversation, done);
+    if (said === null) return;
+    sink.recap(recapLine(said, TABLES[turn.language].tools.recap));
+  };
   // What became of a request the person was asked about since this phone last
   // spoke, drained **for this phone only** and carried like the mail note, read by
   // the model alone. An outcome belongs to the phone that was asked.
-  const browserNote = browserOutcomesNote(takeOutcomes(conversation));
-  const said = wire.wire.map((message, at) =>
-    at === wire.wire.length - 1 && browserNote !== "" ? { ...message, browserNote } : message,
-  );
+  //
+  // **On the wire, not beside it.** A rider the wire builder does not read is
+  // a rider that never reaches the model, and a recap the model cannot read is
+  // not a note — it is a line the desktop keeps and the phone silently loses.
+  const browserNote = takeNote(conversation, TABLES[turn.language].tools.recap);
+  const said = browserNote === "" ? wire.wire : [...wire.wire, noteMessage(browserNote)];
   // **Whether this chat is holding the owner's mail**, asked of the wire the
   // model is about to be given — so the *offer* is right for a phone that starts
   // the turn holding it.
@@ -245,7 +264,7 @@ export async function runPhoneTurn(
         if ((armed || phoneArmed(saidByLoop)) && BROWSER_WRITES.has(name)) {
           return { text: ARMED_REFUSAL, ok: false, resultCode: "web.armed" };
         }
-        return executeToolCall(
+        const answered = executeToolCall(
           name,
           args,
           runSignal,
@@ -262,9 +281,20 @@ export async function runPhoneTurn(
           // and its outcome rides this phone's next turn. Empty when the turn
           // named no phone, which is why such a turn is offered no writes.
           conversation,
+          // **A phone turn has the browser's ledger too.** It drives the same
+          // browser the desktop drives, so the same action failing twice is the
+          // same loop, and the same code is what ends it.
+          calls,
         );
+        return answered.then((outcome) => {
+          filed(calls, name, args, outcome);
+          return outcome;
+        });
       },
-      onToolRun: sink.toolRun,
+      onToolRun: (run: ToolRun) => {
+        done.push(run);
+        sink.toolRun(run);
+      },
       toolPhrases: TABLES[turn.language].tools,
       thinking: loadThinking(settings.model),
       // The phone cannot take a frame back: a round that turns out to be a
@@ -278,9 +308,25 @@ export async function runPhoneTurn(
       phone: true,
     });
   } catch (error) {
+    closeTurn();
     return sink.fail(failureCode(error, signal));
   }
+  closeTurn();
   return signal.aborted ? sink.fail("cancelled") : sink.done();
+}
+
+/**
+ * The recap, as a message the model reads.
+ *
+ * **A word on the wire, not a property beside it.** The desktop rides the note
+ * on the person's own message, where `attachments.ts` folds it into the content
+ * that is sent; a phone builds its wire by itself and nothing there folds a
+ * rider in, so a note left on the side would be dropped before the request was
+ * made. This is one plain message saying the same thing — the same line, the
+ * same fence — and it is the last thing in the request, so it is read last.
+ */
+function noteMessage(note: string): WireMessage {
+  return { role: "user", content: note };
 }
 
 /** The protocol's codes (docs/PHONE-CHAT-PROTOCOL.md §3). The chat's own failure

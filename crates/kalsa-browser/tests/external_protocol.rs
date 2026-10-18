@@ -16,9 +16,10 @@
 
 mod common;
 
+use playwright_rs::protocol::Page;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 /// A page whose submit button names an external protocol, in every shape that
 /// can reach one: the form's own action, a button's `formaction`, and a link.
@@ -111,6 +112,82 @@ async fn a_navigation_to_an_external_protocol_is_never_offered_to_the_route() {
 ///
 /// Nothing here can open anything on the machine running it: no destination in
 /// this file has a handler.
+/// How long a page is given to arrive somewhere.
+///
+/// **The control has to arrive, so it is waited for.** `page.url()` says what the
+/// page is on and not what it is about to do, and a navigation that has not
+/// committed yet is invisible to it. The nap that stood in for this was a guess
+/// at how long that takes, and the guess is short on a loaded machine: an
+/// ordinary address read as refused, and the suite failed for a reason that had
+/// nothing to do with the guard.
+const ARRIVED: Duration = Duration::from_secs(5);
+
+/// How long a page that is not going anywhere is left to prove it.
+///
+/// **Absence needs a window, and nothing here is a guess about it.** Nothing in
+/// this file arrives on its own: the guard decides before the default action
+/// runs, so the only question is whether anything starts at all, and a second is
+/// generous for that. The document below is checked afterwards, so "the page did
+/// not move" is a statement about the page and not only about its address.
+const SETTLED: Duration = Duration::from_secs(1);
+
+/// Writes the page's own mark of which document it is showing, after the load
+/// and before whatever the page is about to do. **A page that navigates loses it
+/// with everything else in there**, which is what makes "the address did not
+/// change" a claim about the page and not only about its address bar.
+async fn mark_document(page: &Page) {
+    let _ = page
+        .evaluate::<(), ()>(
+            r#"() => {
+                const said = document.createElement('p');
+                said.id = '__kalsa_this_document';
+                said.textContent = 'here';
+                document.body.appendChild(said);
+              }"#,
+            None,
+        )
+        .await;
+}
+
+/// That the page is still showing the document it was marked on. An address that
+/// has not changed and a page that has not moved are not the same claim, and only
+/// the second one is about the document.
+async fn still_showing(page: &Page) -> bool {
+    page.evaluate::<(), bool>(
+        r#"() => document.getElementById('__kalsa_this_document')?.textContent === 'here'"#,
+        None,
+    )
+    .await
+    .unwrap_or(false)
+}
+
+/// Where the page has ended up: there, or still at `home` once the bound passes.
+async fn arrived_at(page: &Page, home: &str) -> String {
+    let until = Instant::now() + ARRIVED;
+    loop {
+        let url = page.url();
+        if url != home || Instant::now() >= until {
+            return url;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+}
+
+/// Waits for the page to have ended up, the way the assertion about it needs.
+///
+/// **`refused` is the whole difference.** A page that has to move is waited for,
+/// because the address it is about to take is not yet on it. A page that must
+/// not is given a window and then looked at, so a refusal is a decision the
+/// guard made rather than a timing that ran out — and it is told apart from a
+/// control that did not arrive by which of the two assertions below failed.
+async fn settled_at(page: &Page, home: &str, refused: bool) -> String {
+    if refused {
+        tokio::time::sleep(SETTLED).await;
+        return page.url();
+    }
+    arrived_at(page, home).await
+}
+
 #[tokio::test]
 async fn every_shape_a_page_can_navigate_from_is_refused_on_the_window() {
     let (base, _arrived) = common::serve(&[
@@ -149,14 +226,19 @@ async fn every_shape_a_page_can_navigate_from_is_refused_on_the_window() {
     for (destination, refused) in [("kalsaprobe://from-shape", true), ("about:blank", true), ("/next", false)] {
         for (name, shape) in &shapes {
             let _ = page.goto(&base, None).await;
+            mark_document(&page).await;
             let _ = page.evaluate::<String, ()>(&format!("s => {{ {} }}", shape.replace("DEST", destination)), None).await;
             if name.starts_with("Enter") {
                 page.keyboard().press("Enter", None).await.expect("the key goes down");
             }
-            tokio::time::sleep(Duration::from_millis(400)).await;
-            let moved = page.url() != home;
+            let url = settled_at(&page, &home, refused).await;
+            let moved = url != home;
             if refused {
-                assert!(!moved, "{name} to {destination}: the page navigated away, to {}", page.url());
+                assert!(!moved, "{name} to {destination}: the page navigated away, to {url}");
+                assert!(
+                    still_showing(&page).await,
+                    "{name} to {destination}: the document was replaced although the address never changed"
+                );
             } else {
                 assert!(moved, "{name} to {destination}: an ordinary address was refused, so the refusals above prove nothing");
             }
@@ -199,8 +281,19 @@ async fn every_shape_a_page_can_navigate_from_is_refused_on_the_window() {
     )
     .await;
     let _ = page.evaluate::<(), ()>("() => document.getElementById('swapper').click()", None).await;
-    tokio::time::sleep(Duration::from_millis(400)).await;
+    // **The page's own handler is the condition**, so it is waited for rather
+    // than slept past: it runs before the click's default action does, and a
+    // machine busy enough to answer it late would otherwise be read as one that
+    // never answered at all.
+    let until = Instant::now() + ARRIVED;
+    while ran.load(Ordering::SeqCst) == 0 && Instant::now() < until {
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
     assert_eq!(ran.load(Ordering::SeqCst), 1, "the page's own handler did not run, so nothing was refused");
+    // **And then the document is given its window**, because the thing under test
+    // is what the page did afterwards, and "afterwards" is not observable from
+    // the instant the handler ran.
+    tokio::time::sleep(SETTLED).await;
     assert!(
         !page.url().starts_with("about:"),
         "a click handler moved the link to another program and the page followed it: {}",
@@ -238,6 +331,7 @@ async fn the_button_a_submission_names_is_judged_and_not_only_the_form() {
 
     for (destination, refused) in [("about:blank", true), ("/next", false)] {
         let _ = page.goto(&base, None).await;
+        mark_document(&page).await;
         let to = destination.to_string();
         let _ = page
             .evaluate::<String, ()>(
@@ -246,10 +340,14 @@ async fn the_button_a_submission_names_is_judged_and_not_only_the_form() {
                 Some(&to),
             )
             .await;
-        tokio::time::sleep(Duration::from_millis(400)).await;
-        let moved = page.url() != home;
+        let url = settled_at(&page, &home, refused).await;
+        let moved = url != home;
         if refused {
-            assert!(!moved, "requestSubmit(danger) to {destination}: the page went to {}", page.url());
+            assert!(!moved, "requestSubmit(danger) to {destination}: the page went to {url}");
+            assert!(
+                still_showing(&page).await,
+                "requestSubmit(danger) to {destination}: the document was replaced although the address never changed"
+            );
         } else {
             assert!(
                 moved,

@@ -3,6 +3,9 @@ import { normalizeMiniapp } from "./miniapp/normalize";
 import { mailCount, normalizeMail } from "./mail/normalize";
 import { isMailRun } from "./mail/runs";
 import { isBrowserRun } from "./browser/runs";
+import { isBrowserCode } from "./browser/codes";
+import { nothingSaid } from "./browser/recap";
+import type { Recap } from "./browser/recap";
 import type { ChatErrorKind } from "./chat";
 import type {
   ChatMessage,
@@ -157,15 +160,21 @@ function isValidMessage(value: unknown): value is ChatMessage {
 
 /** What is kept of a browser note read back off disk.
  *
- * **A note is only ever a code and a host, in this app's own sentences** — see
- * `browser/confirm.ts`. Anything carrying a path, a query or a fragment is
+ * **A note is only ever this app's own account of what it did** — see
+ * `browser/recap.ts`. Anything carrying a path, a query or a fragment is
  * therefore not one of ours, and dropping it here means a stranger's site cannot
  * get a token out of a URL and onto a disk through an outcome, whatever wrote it
  * and however old the write was.
+ *
+ * **The fence is taken off first.** The note reaches the disk fenced, the way
+ * any page text does, and a closing marker is a slash of this app's own making:
+ * judged whole, every fenced note carries one and every one of them was being
+ * dropped. What is judged is what the note says.
  */
 function cleanNote(value: unknown): string {
   if (typeof value !== "string" || value === "") return "";
-  return /[/?#]/.test(value) ? "" : value;
+  const said = value.replace(/<\/?kalsa-page-[0-9a-f]+>/g, "");
+  return /[/?#]/.test(said) ? "" : value;
 }
 
 function cleanMessage(value: unknown): ChatMessage | null {
@@ -275,6 +284,8 @@ function cleanToolRuns(value: unknown[]): { toolRuns?: ToolRun[] } {
     // The envelope stays in the record the app reads; `forDisk` is what keeps
     // it off localStorage. What reaches disk is the count it stood for.
     const mail = r.mail === undefined ? null : normalizeMail(r.mail);
+    const code = storedCode(r.name, r.resultCode);
+    const recap = normalizeRecap(r.recap);
     runs.push({
       id: r.id,
       name: r.name,
@@ -291,11 +302,71 @@ function cleanToolRuns(value: unknown[]): { toolRuns?: ToolRun[] } {
       // kept result is a prefix, and the card must still say what was read.
       ...(typeof r.pagesRead === "number" && r.pagesRead > 0 ? { pagesRead: Math.round(r.pagesRead) } : {}),
       // The refusal's code is how the screen words a failure; dropping it here
-      // would make a notice vanish on the next store write.
-      ...(typeof r.resultCode === "string" && r.resultCode !== "" ? { resultCode: r.resultCode } : {}),
+      // would make a notice vanish on the next store write. **Judged against
+      // the closed set first**: this field is a string in `localStorage`, so
+      // whatever was last written there is what comes back, and the window
+      // looks its sentence up by it.
+      ...(code === undefined ? {} : { resultCode: code }),
+      // **The turn's own line about what it did**: counts, and the only part
+      // of the turn kept that says something about the turn rather than about
+      // one call. The words are built when the line is drawn.
+      ...(recap === null ? {} : { recap }),
     });
   }
   return runs.length > 0 ? { toolRuns: runs } : {};
+}
+
+/** The code a stored run keeps: the browser's own closed set for a browser run,
+    because that is what the window words itself by, and whatever the mailbox or
+    the web gate gave it otherwise — those two have tables of their own and drop
+    a word they have no sentence for on their own. */
+function storedCode(name: string, code: unknown): string | undefined {
+  if (typeof code !== "string" || code === "") return undefined;
+  return isBrowserRun(name) && !isBrowserCode(code) ? undefined : code;
+}
+
+/**
+ * What Kalsa did, read back into one closed shape.
+ *
+ * **A record off the disk is data, not a record**: every field is checked and
+ * every count is rounded, because a number that came back as `NaN` is a line
+ * that renders as "NaN fields" and a name that came back as an address is a
+ * stranger's words on the window. Null is a run whose recap is not one, and it
+ * is dropped rather than drawn as zeroes.
+ */
+function normalizeRecap(value: unknown): Recap | null {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
+  const said = value as Record<string, unknown>;
+  const count = (key: string): number => {
+    const n = said[key];
+    return typeof n === "number" && Number.isFinite(n) && n > 0 ? Math.round(n) : 0;
+  };
+  const flag = (key: string): boolean => said[key] === true;
+  const opened = count("opened");
+  const typed = count("typed");
+  const clicked = count("clicked");
+  const waiting = count("waiting");
+  const sent = count("sent");
+  const recap: Recap = {
+    opened,
+    // The hosts are already gone by the time this reads one: `forDisk` strips
+    // them, so a line drawn after a reload says "a site" and says nothing false.
+    asked: "",
+    typed,
+    clicked,
+    tried: flag("tried"),
+    clickInterrupted: flag("clickInterrupted"),
+    waiting,
+    sent,
+    declined: count("declined"),
+    expired: count("expired"),
+    gone: count("gone"),
+    unsendable: count("unsendable"),
+    unclear: count("unclear"),
+    sentTo: [],
+    stopped: flag("stopped"),
+  };
+  return nothingSaid(recap) ? null : recap;
 }
 
 /**
@@ -324,8 +395,16 @@ export function forDisk(messages: ChatMessage[]): unknown[] {
           // The run keeps its name and the counts it stood for, and nothing
           // else: no arguments (an address, which may carry a query), no result
           // (the page), and no count of lines that would say how much was read.
+          // **And no host in the turn's own line**, for the same reason the
+          // arguments go: an address is something the model wrote. The line is
+          // still true without it — it says "a site" where it said the name.
           const { arguments: _args, result: _result, ...rest } = run;
-          return { ...rest, arguments: "", result: "" };
+          return {
+            ...rest,
+            arguments: "",
+            result: "",
+            ...(run.recap ? { recap: { ...run.recap, asked: "", sentTo: [] } } : {}),
+          };
         }
         // A mail run keeps its name and its count, never its arguments or its
         // result: a body was read into one, a reply written into the other.

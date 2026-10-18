@@ -22,10 +22,6 @@ export interface WindowState {
   seq: number;
 }
 
-/** The event, and the command's name: the page listens for the state and asks
-    for the same one. */
-const STATE = "brain_browser_state";
-
 let state: WindowState = { open: false, paused: false, seq: 0 };
 const listeners = new Set<() => void>();
 
@@ -78,7 +74,11 @@ function note(payload: unknown): void {
     the window it was driving is still there — this is what puts it back. */
 async function read(): Promise<void> {
   try {
-    note(await invoke<WindowState>(STATE));
+    // **A literal, and not a name.** `scripts/command-contract.mjs` decides what
+    // the page invokes by call site, not by name, so a command reached through a
+    // variable is a command it cannot see — and an uncalled one it cannot see is
+    // a command it would call dead while the binary has it registered.
+    note(await invoke<WindowState>("brain_browser_state"));
   } catch {
     // A read that failed says nothing, and what it leaves behind is "no window":
     // the tools stay offered to the chat's own gate, and no Pausa is drawn over a
@@ -97,7 +97,9 @@ async function read(): Promise<void> {
  * of the two, and the number says which.
  */
 export async function startWindowBus(): Promise<() => void> {
-  const stop = await listen(STATE, note);
+  // The event of the same name, which is an event and not a command use: it
+  // rides `listen`, and the contract guard counts it as one.
+  const stop = await listen("brain_browser_state", note);
   await read();
   return stop;
 }

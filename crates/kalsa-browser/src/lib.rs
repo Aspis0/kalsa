@@ -9,6 +9,7 @@
 //! second copy. The rest is inside the server.
 
 mod body;
+mod label;
 pub mod env;
 pub mod find_browser;
 pub mod guard;

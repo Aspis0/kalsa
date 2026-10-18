@@ -57,25 +57,14 @@
   font-size: 12.5px;
 }
 
-/* What became of the request they just answered. It sits above the cards in the
-   same panel and says the one thing: the card they pressed is gone, and this is
-   what it did. Quiet, because the news is the sentence and not the styling. */
+/* What became of a card the person answered. It takes the card's place in the panel
+   and says the one thing: what it did. Quiet, because the news is the sentence and not
+   the styling. */
 .browser-confirm-outcome {
   color: var(--muted);
   font-size: 12.5px;
   margin: 0;
   padding: 6px 10px;
-}
-
-/* The address is the one thing on the card a person needs to judge a request,
-   so it is shown whole and wraps rather than being elided: "…" where a stranger
-   hides the part that matters is exactly what a phishing page wants. */
-.browser-confirm-where {
-  margin: 8px 0 0;
-  color: var(--muted);
-  font-family: var(--mono);
-  font-size: 12px;
-  overflow-wrap: anywhere;
 }
 
 .browser-confirm-fields {
@@ -171,4 +160,11 @@
 .browser-pause-button.is-paused {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+/* A plain-http destination: said once, under the host, in the warning ink. */
+.browser-confirm-insecure {
+  color: var(--warn-ink);
+  font-size: 12.5px;
+  margin: 4px 0 0;
 }

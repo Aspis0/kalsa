@@ -28,12 +28,13 @@ export const BROWSER = {
  * y no del modelo: el botón dice qué le hace a la petición.
  */
 export const CONFIRM = {
-  title: "Kalsa quiere enviar esto",
+  wantsToSend: (host: string) => `${host} quiere enviar:`,
+  /** Said under the host when the request goes over plain `http`. */
+  insecure: "Conexión no segura",
   waiting: "Todavía no se ha enviado nada.",
   allow: "Enviarlo",
   decline: "No enviarlo",
   asking: "Enviando…",
-  fields: "Qué enviaría",
   none: "Sin campos: solo la petición.",
   paused: "En pausa",
   resume: "Reanudar",

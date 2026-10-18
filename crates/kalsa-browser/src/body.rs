@@ -37,6 +37,9 @@ use std::fmt;
 use serde::Serialize;
 use serde_json::Value;
 
+/// Why a body is refused when its text is not UTF-8. One line, and it names the kind.
+const NOT_TEXT: &str = "the request carries bytes that are not text, so it cannot be shown";
+
 /// The most of a body a card may carry. Sixteen kilobytes is a card, not a
 /// scroll: past this the person is being asked to approve something they cannot
 /// read, which is the thing this module exists to prevent.
@@ -66,6 +69,11 @@ pub struct Field {
     /// else** — the value above is the value that will be sent, and the person
     /// can read it with the Show button.
     pub secret: bool,
+    /// The words the page puts beside this field, cleaned and capped (see
+    /// [`crate::label`]). **Display only**: nothing decides on it, and a field the
+    /// page gave no words to is drawn with its name.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
 }
 
 /// What a `Debug` prints for a value: dots, and never the value.
@@ -134,7 +142,10 @@ pub(crate) fn show(content_type: &str, body: &[u8]) -> Shown {
     }
     let kind = content_type.split(';').next().unwrap_or("").trim().to_ascii_lowercase();
     match kind.as_str() {
-        "application/x-www-form-urlencoded" => Shown::Fields(urlencoded(body)),
+        "application/x-www-form-urlencoded" => match urlencoded(body) {
+            Some(fields) => Shown::Fields(fields),
+            None => Shown::Refused(NOT_TEXT),
+        },
         "multipart/form-data" => multipart(content_type, body),
         "application/json" | "text/json" => json(body),
         _ => Shown::Refused("the request is sent in a form the person cannot read"),
@@ -163,14 +174,73 @@ pub(crate) fn fields_of(pairs: &[(String, String)], secrets: &[String]) -> Shown
 /// One field, as it was sent. The value is carried whatever it is; `secret` says
 /// only how the card draws it.
 fn field(name: &str, value: &str, secret: bool) -> Field {
-    Field { name: name.to_owned(), value: value.to_owned(), secret }
+    Field { name: name.to_owned(), value: value.to_owned(), secret, label: None }
 }
 
 /// The pairs of a form post, in the order the page wrote them.
-fn urlencoded(body: &[u8]) -> Vec<Field> {
-    url::form_urlencoded::parse(body)
-        .map(|(name, value)| field(&name, &value, secret_name(&name)))
+///
+/// **Strictly**: a field whose bytes are not UTF-8 is not text. A card that showed it
+/// with replacement characters would be showing a value nobody sent, so the whole body
+/// is refused instead.
+fn urlencoded(body: &[u8]) -> Option<Vec<Field>> {
+    body.split(|byte| *byte == b'&')
+        .filter(|pair| !pair.is_empty())
+        .map(|pair| {
+            let (name, value) = match pair.iter().position(|byte| *byte == b'=') {
+                Some(at) => (&pair[..at], &pair[at + 1..]),
+                None => (pair, &pair[pair.len()..]),
+            };
+            let (name, value) = (form_text(name)?, form_text(value)?);
+            Some(field(&name, &value, secret_name(&name)))
+        })
         .collect()
+}
+
+/// One name or value of a form body: `+` is a space and `%XX` is the byte it names. A
+/// `%` that names no byte is kept as written, as a form decoder keeps it. The bytes
+/// must be UTF-8, or there is no text to show.
+fn form_text(bytes: &[u8]) -> Option<String> {
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut index = 0;
+    while index < bytes.len() {
+        let byte = bytes[index];
+        if byte == b'+' {
+            out.push(b' ');
+            index += 1;
+            continue;
+        }
+        if byte == b'%' && index + 2 < bytes.len() {
+            if let (Some(high), Some(low)) =
+                ((bytes[index + 1] as char).to_digit(16), (bytes[index + 2] as char).to_digit(16))
+            {
+                out.push((high * 16 + low) as u8);
+                index += 3;
+                continue;
+            }
+        }
+        out.push(byte);
+        index += 1;
+    }
+    String::from_utf8(out).ok()
+}
+
+/// The name a part's `Content-Disposition` gives, read from the header as the browser
+/// wrote it: its case is the page's. `name="` counts only at the start of a parameter,
+/// so `filename="` is never taken for it.
+fn name_of(head: &str) -> Option<String> {
+    let lowered = head.to_ascii_lowercase();
+    let mut from = 0;
+    while let Some(found) = lowered[from..].find("name=\"") {
+        let at = from + found;
+        let start = at + "name=\"".len();
+        let parameter_start = at == 0 || matches!(lowered.as_bytes()[at - 1], b';' | b' ' | b'\t');
+        if parameter_start {
+            let end = head[start..].find('"')? + start;
+            return Some(head[start..end].to_owned());
+        }
+        from = start;
+    }
+    None
 }
 
 /// The text parts of a multipart post. A part that carries a file refuses the
@@ -189,20 +259,24 @@ fn multipart(content_type: &str, body: &[u8]) -> Shown {
         let Some(split) = find(part, b"\r\n\r\n") else {
             continue;
         };
-        let head = String::from_utf8_lossy(&part[..split]).to_ascii_lowercase();
-        let value = String::from_utf8_lossy(&part[split + 4..]).trim_end_matches("\r\n").to_string();
-        if head.contains("filename=") {
+        // Strictly: a header or a value that is not UTF-8 is not text, and is refused.
+        let (Ok(head), Ok(value)) = (std::str::from_utf8(&part[..split]), std::str::from_utf8(&part[split + 4..])) else {
+            return Shown::Refused(NOT_TEXT);
+        };
+        let value = value.trim_end_matches("\r\n");
+        let lowered = head.to_ascii_lowercase();
+        if lowered.contains("filename=") {
             return Shown::Refused("the request carries a file, and a card cannot show a file");
         }
         // A part with its own content type is a part that is not text, whether
         // or not the page gave it a filename.
-        if head.contains("content-type:") && !head.contains("content-type: text/") {
+        if lowered.contains("content-type:") && !lowered.contains("content-type: text/") {
             return Shown::Refused("the request carries a file, and a card cannot show a file");
         }
-        let Some(name) = between(&head, "name=\"", "\"") else {
+        let Some(name) = name_of(head) else {
             return Shown::Refused("the request is sent in a form the person cannot read");
         };
-        fields.push(field(&name, &value, secret_name(&name)));
+        fields.push(field(&name, value, secret_name(&name)));
     }
     Shown::Fields(fields)
 }
@@ -256,12 +330,6 @@ fn split_on<'a>(haystack: &'a [u8], needle: &[u8]) -> Vec<&'a [u8]> {
     }
     pieces.push(rest);
     pieces
-}
-
-fn between(text: &str, from: &str, to: &str) -> Option<String> {
-    let start = text.find(from)? + from.len();
-    let end = text[start..].find(to)? + start;
-    Some(text[start..end].to_owned())
 }
 
 #[cfg(test)]
@@ -423,4 +491,36 @@ mod tests {
             "over the cap there is no card, whichever way the request arrived"
         );
     }
+
+    /// **A field whose bytes are not text is not shown as text.** A replacement character
+    /// on the card would be a value nobody sent, so the body is refused, in each of the
+    /// three shapes, and the refusal names the kind rather than the content.
+    #[test]
+    fn a_body_whose_text_is_not_utf8_is_refused_not_shown_with_replacements() {
+        assert_eq!(refused(show("application/x-www-form-urlencoded", b"city=%FF")), super::NOT_TEXT);
+        assert_eq!(refused(show("application/x-www-form-urlencoded", b"city=\xFF")), super::NOT_TEXT);
+        let multipart = b"--b\r\nContent-Disposition: form-data; name=\"city\"\r\n\r\n\xFF\r\n--b--";
+        assert_eq!(refused(show("multipart/form-data; boundary=b", multipart)), super::NOT_TEXT);
+        assert!(matches!(show("application/json", b"{\"city\":\"\xFF\"}"), Shown::Refused(_)), "JSON that is not UTF-8 is refused");
+    }
+
+    /// Valid percent-encoding is still decoded, and `+` is still a space, so the strict
+    /// reader changes nothing about a body that is text.
+    #[test]
+    fn a_form_body_of_text_decodes_as_a_form_does() {
+        let shown = fields(show("application/x-www-form-urlencoded", b"city=B%C3%B3logna+x&bad=100%"));
+        assert_eq!(shown[0].value, "Bólogna x");
+        assert_eq!(shown[1].value, "100%", "a % that names no byte is kept as written");
+    }
+
+    /// **A multipart field keeps the name the page wrote, case and all.** Lowercasing the
+    /// header made the card show a name the browser never sent.
+    #[test]
+    fn a_multipart_name_keeps_its_case_and_a_filename_is_never_taken_for_it() {
+        let body = b"--b\r\nContent-Disposition: form-data; name=\"CustName\"\r\n\r\nGiulia\r\n--b--";
+        let shown = fields(show("multipart/form-data; boundary=b", body));
+        assert_eq!(shown[0].name, "CustName");
+        assert_eq!(shown[0].value, "Giulia");
+    }
+
 }

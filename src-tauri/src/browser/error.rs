@@ -4,6 +4,8 @@
 
 use serde::Serialize;
 
+use super::codes::BrowserCode;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum BrowserError {
     /// The machine is not one Kalsa ships a driver for.
@@ -26,9 +28,11 @@ pub(crate) enum BrowserError {
     Unpack,
     Storage,
     Failed,
-    /// The sidecar answered that it will not do it. Its own words are for the
-    /// model; what the page gets is one plain line saying so.
-    Refused,
+    /// The sidecar answered that it will not do it. **Its own words are for the
+    /// model and its own code is for the page**, so the two can be told apart and
+    /// neither is built from the other. An answer with no code is a refusal,
+    /// which is what `BrowserCode::Refused` says.
+    Refused(BrowserCode),
     /// Nobody pressed this twice: the id was already answered, it had expired,
     /// or there was never a card. A person pressing "send" on a request that is
     /// not waiting is owed a sentence, not an error to guess at.
@@ -52,7 +56,7 @@ impl BrowserError {
             Self::Unpack => "browser.unpack_failed",
             Self::Storage => "browser.storage",
             Self::Failed => "browser.failed",
-            Self::Refused => "browser.refused",
+            Self::Refused(said) => said.as_str(),
             Self::NoCard => "browser.no_pending_request",
             Self::Stopped => "browser.stopped",
         }
@@ -95,7 +99,7 @@ fn fallback(error: BrowserError) -> &'static str {
         BrowserError::Changed => "Kalsa's browser driver has changed on disk, so it was not started.",
         BrowserError::Unpack => "The browser driver Kalsa downloaded could not be unpacked, so it was not installed.",
         BrowserError::Storage => "Kalsa could not write to its data folder.",
-        BrowserError::Refused => "the browser would not open that.",
+        BrowserError::Refused(_) => "the browser would not open that.",
         BrowserError::NoCard => "that request is not waiting for an answer any more.",
         BrowserError::Stopped => "Kalsa stopped that. Nothing it was doing was carried on.",
         BrowserError::Failed => "Something went wrong with Kalsa's browser. Try again.",
@@ -118,7 +122,7 @@ mod tests {
             BrowserError::Unpack,
             BrowserError::Storage,
             BrowserError::Failed,
-            BrowserError::Refused,
+            BrowserError::Refused(BrowserCode::Refused),
             BrowserError::NoCard,
         ];
         let mut codes: Vec<&str> = all.iter().map(|error| error.code()).collect();

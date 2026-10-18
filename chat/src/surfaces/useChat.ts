@@ -6,7 +6,7 @@
 // because the state lives in any particular file.
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { browserOutcomesNote, takeOutcomes } from "../lib/browser/confirm";
+import { takeNote } from "../lib/browser/note";
 import { createStore, uid } from "../lib/store";
 import { firstCharacters, titleFor } from "../lib/text";
 import { activateChat, eraseChat, fetchContextSize, serverBase } from "../lib/chat";
@@ -890,7 +890,11 @@ export function useChat(shell: ChatShell) {
     // Drained for **this** conversation only: an outcome belongs to the chat
     // whose turn caused the request, and a turn in another chat is not where it
     // gets read.
-    const browserNote = browserOutcomesNote(takeOutcomes(conv.id));
+    // **What Kalsa did, read now.** Built at this moment out of the last turn's
+    // runs, the answers the person has given since and the cards still on the
+    // window — not the line drawn at the end of that turn, which said what was
+    // true then. Fenced, because it names a host.
+    const browserNote = takeNote(conv.id, table.tools.recap);
     // Blocked words never reach the model: the decline is the answer instead.
     const decline = contentDecline(text, table.contentFilter);
     const sentAt = new Date();

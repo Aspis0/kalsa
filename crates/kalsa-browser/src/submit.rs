@@ -33,6 +33,7 @@
 //! window is never swallowed: a submission while the catcher is disarmed goes
 //! straight out, exactly as it always did.
 
+use std::collections::HashMap;
 use std::future::Future;
 
 use playwright_rs::protocol::Page;
@@ -48,6 +49,7 @@ use serde::Deserialize;
 /// submit: what a page can do to it is described where it is written.
 const CATCHER: &str = r"
   (() => {
+    /*labels*/
     const held = { armed: false, mark: 0, caught: [], typed: [] };
     // Non-enumerable and not reassignable: a page can still read the catcher's
     // own bookkeeping, and there is no version of this where it cannot — but it
@@ -110,8 +112,9 @@ const CATCHER: &str = r"
         for (const [name, value] of new FormData(form, submitter)) {
           if (typeof value !== 'string') { hasFile = true; continue; }
           pairs.push([name, value]);
-          const control = Array.from(form.elements || []).find((el) => el && el.name === name);
-          if (control && isSecretField(control)) secrets.push(name);
+          // A name is secret when **any** control carrying it is: a text box and a password
+          // box sharing a name must not leave the value of the text box undotted.
+          if (Array.from(form.elements || []).some((el) => el && el.name === name && isSecretField(el))) secrets.push(name);
         }
       } catch (error) {
         // `FormData(form, submitter)` throws when the submitter is not a member
@@ -125,7 +128,10 @@ const CATCHER: &str = r"
       // on the wire twice, and the card with it — so what the person approved
       // and what a server receives were both different from what the browser
       // would have sent on its own.
-      held.caught.push({ method, url, enctype, pairs, hasFile, target: attribute(form, 'target') ?? null, secrets });
+      // The page's own words for each named field of this form, read now, while
+      // the form is still in front of us. Display only: see `label.rs`.
+      const labels = labelsIn(form, null);
+      held.caught.push({ method, url, enctype, pairs, hasFile, target: attribute(form, 'target') ?? null, secrets, labels });
     }, true);
   })();
 ";
@@ -148,7 +154,7 @@ const TAKE: &str = r"() => {
   const caught = held.caught[held.mark];
   if (!caught) return null;
   held.caught.splice(held.mark, 1);
-  return { method: caught.method, url: caught.url, enctype: caught.enctype, pairs: caught.pairs, hasFile: caught.hasFile, target: caught.target, secrets: caught.secrets || [] };
+  return { method: caught.method, url: caught.url, enctype: caught.enctype, pairs: caught.pairs, hasFile: caught.hasFile, target: caught.target, secrets: caught.secrets || [], labels: caught.labels || {} };
 }";
 
 /// Builds the request Rust captured and submits it, **in one synchronous turn**.
@@ -245,6 +251,10 @@ pub struct Submission {
     /// decide on.
     #[serde(default)]
     pub secrets: Vec<String>,
+    /// The page's words for each named field, by name — display only. A field
+    /// with no entry is drawn with its name.
+    #[serde(default)]
+    pub labels: HashMap<String, String>,
 }
 
 /// Why a submission has no card.
@@ -307,7 +317,8 @@ pub fn content_type_of(submission: &Submission) -> String {
 /// after every navigation: a listener on one document dies with that document,
 /// and a window that has navigated once must still catch the next write.
 pub async fn install(page: &Page) -> Result<(), playwright_rs::Error> {
-    let catcher = format!("{PREDICATE}{CATCHER}", PREDICATE = crate::secret::classifier_declaration());
+    let catcher = format!("{PREDICATE}{CATCHER}", PREDICATE = crate::secret::classifier_declaration())
+        .replace("/*labels*/", crate::label::LABELS_JS);
     // **One script, not two.** There is no captured `submit` to order against
     // anything any more: what used to be a second init script is gone, so there
     // is no window in which this one could take the browser's method before

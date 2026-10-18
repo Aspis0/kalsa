@@ -27,12 +27,13 @@ export const BROWSER = {
  * 请求本身，而不是模型：按钮说明的是它对这个请求做了什么。
  */
 export const CONFIRM = {
-  title: "Kalsa 想发送这个请求",
+  wantsToSend: (host: string) => `${host} 想要发送：`,
+  /** Said under the host when the request goes over plain `http`. */
+  insecure: "连接不安全",
   waiting: "还没有发送任何内容。",
   allow: "发送",
   decline: "不发送",
   asking: "发送中…",
-  fields: "它会发送的内容",
   none: "没有字段：只有这个请求。",
   paused: "已暂停",
   resume: "继续",

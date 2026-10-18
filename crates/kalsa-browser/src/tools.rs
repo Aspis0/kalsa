@@ -161,7 +161,8 @@ pub(crate) fn waiting() -> Tool {
     Tool::new(
         "browser_waiting",
         "Every request waiting for the person, oldest first: what each would send, as fields, with \
-any secret already masked. Host-only: a model is never offered this.",
+any secret already masked, and each field's label where the page gave one. Host-only: a model \
+is never offered this.",
         schema(json!({
             "type": "object",
             "properties": {},

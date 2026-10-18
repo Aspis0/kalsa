@@ -15,11 +15,28 @@ import { runMailShow } from "./mailShow";
 import { BROWSER_NAMES, BROWSER_TOOLS } from "./browserTools";
 import { isPaused } from "../browser/window";
 import { browserUsable } from "../browser/usable";
-import { browserClick, browserFind, browserOpen, browserRead, browserType } from "./browserCall";
+import { browserClick, browserFind, browserOpen, browserRead, browserType, fence } from "./browserCall";
+import { browserCode } from "../browser/codes";
+import * as ledger from "../callLedger";
 import { mailAllowed } from "../mail/allowlist";
 import { isMailRun } from "../mail/runs";
 import { carriesMail } from "../mail/fence";
 import type { Language } from "../../i18n";
+
+/**
+ * The sentence a call the turn has already refused gets. **The code is the
+ * reason, and the model is told so in as many words as it takes to stop
+ * asking** — "you have already tried this" is not something a model can act on,
+ * but a code it has seen twice is.
+ */
+function refusedTwice(code: string, name: string): string {
+  const what = `browser.${name.replace(/^browser_/, "").replace(/_/g, " ")}`;
+  return code === "browser.too_many_steps"
+    ? `No more browser steps this turn: Kalsa has already run ${ledger.BROWSER_CALLS_PER_TURN}. Answer the person, or stop asking the browser.`
+    : code === "browser.already_run"
+      ? `You already asked for that ${what} since the page last changed, and have its answer above. Do not ask again.`
+      : `You already asked for that ${what} in this turn and it failed with ${code}, which will not change on a second try. Say what you will do instead, or stop.`;
+}
 
 /** What one held call looks like to the page: which tool, the exact string
     that would leave, what the detectors saw in it, and what armed the gate at
@@ -123,6 +140,11 @@ export async function executeToolCall(
    *  can be in, so a caller that forgot raises cards it cannot itself answer —
    *  refused here and in the UI, rather than sent to the wrong chat. */
   conversationId = "",
+  /** What this turn has already done and already failed at, for the browser's
+   *  five tools. Absent means no ledger — a caller that never had one keeps the
+   *  behaviour of a turn with nothing to remember, which is the honest answer
+   *  for a turn that did not open a page. */
+  calls: ledger.Ledger | null = null,
 ): Promise<ToolOutcome> {
   // The turn can be stopped while the arguments are being read; starting a
   // request nobody is waiting for would be work and traffic for nothing.
@@ -238,6 +260,21 @@ export async function executeToolCall(
       if (isPaused() && BROWSER_NAMES.has(name)) {
         return { text: PAUSED, ok: false, resultCode: "browser.paused" };
       }
+      // **What the turn already knows about this exact action.** Asked before any
+      // argument is read and before the browser is asked anything: a call that
+      // already ran in this round reuses its answer, and one that failed with a
+      // code is refused with that code rather than run again. There is no retry
+      // here and none below — the same element fails the same way.
+      if (calls !== null && BROWSER_NAMES.has(name)) {
+        const said = ledger.decide(calls, name, record);
+        if (!said.run) {
+          return {
+            text: refusedTwice(said.code, name),
+            ok: false,
+            resultCode: said.answer === null ? said.code : "browser.already_run",
+          };
+        }
+      }
       if (name === "browser_open") {
         const url = typeof record.url === "string" ? record.url.trim() : "";
         if (!url) return { text: "No page was opened: the address was empty.", ok: false };
@@ -308,7 +345,9 @@ export async function executeToolCall(
     // reads, the code rides along for the screen.
     const coded = error as { code?: unknown; text?: unknown };
     if (coded !== null && typeof coded === "object" && typeof coded.code === "string" && typeof coded.text === "string") {
-      return { text: coded.text, ok: false, resultCode: coded.code };
+      // **A refusal is fenced like an answer.** It can carry the page's own words
+      // — a label, a field name — and those are page text like any other.
+      return { text: fence(coded.text), ok: false, resultCode: browserCode(coded.code) };
     }
     // Anything else is a surprise and is passed on as it reads. A rejected command
     // with only a code says that code, not "[object Object]".

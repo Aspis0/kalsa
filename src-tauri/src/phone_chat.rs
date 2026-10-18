@@ -46,6 +46,7 @@ const EVENTS: &[&str] = &[
     "read",
     "browser_card",
     "browser_outcome",
+    "recap",
     "error",
     "done",
 ];

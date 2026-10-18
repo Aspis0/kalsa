@@ -20,6 +20,7 @@ const TURN_EVENTS: &[&str] = &[
     "draft",
     "browser_card",
     "browser_outcome",
+    "recap",
     "error",
     "done",
 ];
@@ -40,6 +41,9 @@ const MAX_FIELDS: usize = 200;
 /// One field's value. A body is capped by the sidecar as well; this is the cap on
 /// what one phone frame will carry.
 const VALUE_BYTES: usize = 8 * 1024;
+/// One field's label: the sidecar caps it at sixty characters, and four bytes is the
+/// most a character takes, so this is the same cap in the bytes this road carries.
+const LABEL_BYTES: usize = 60 * 4;
 /// The address on a card. **The sidecar's own number** — [`hold::MAX_URL`] —
 /// repeated here because this is the other end of the wire: a card at every cap
 /// has to fit in one phone frame, and an address nobody reads is not worth the
@@ -85,6 +89,10 @@ pub(super) fn check(
         }
         "browser_card" => browser_card(data),
         "browser_outcome" => browser_outcome(data),
+        // **What Kalsa did, in one line** (docs §3). Text and nothing else: it
+        // is drawn as it arrives, so a shape this check does not name is a line
+        // the phone cannot draw and must not show a field of as if it could.
+        "recap" => text(data, "text", TEXT_BYTES).is_some(),
         "error" => text(data, "code", CODE_BYTES).is_some(),
         "done" => data.is_object(),
         _ => false,
@@ -185,6 +193,11 @@ fn field(one: &Value) -> bool {
     text(one, "name", ID_BYTES).is_some()
         && text(one, "value", VALUE_BYTES).is_some()
         && matches!(one.get("secret"), Some(Value::Bool(_)) | None)
+        && match one.get("label") {
+            // Absent is the field the page gave no words to; present is words, bounded.
+            None => true,
+            Some(_) => text(one, "label", LABEL_BYTES).is_some(),
+        }
 }
 
 /// What became of a card: a code from the desktop's own set, and **a host only
@@ -227,7 +240,7 @@ mod tests {
     use serde_json::{json, Value};
 
     use super::{
-        check, reply_id, ADDRESS_BYTES, BAD_EVENT, BODY_BYTES, REPLY_PIN, SUBJECT_BYTES, WRONG_KIND,
+        check, reply_id, ADDRESS_BYTES, BAD_EVENT, BODY_BYTES, LABEL_BYTES, REPLY_PIN, SUBJECT_BYTES, WRONG_KIND,
     };
 
     fn card_set(item: Value) -> Value {
@@ -293,6 +306,30 @@ mod tests {
             Err(BAD_EVENT)
         );
         assert!(check("turn", None, "cards", &card_set(good_card())).is_ok());
+    }
+
+    /// **A label is optional and bounded.** A browser card with one is a card, and a
+    /// label that is not a string, or is longer than the cap, is refused rather than drawn.
+    #[test]
+    fn a_browser_card_field_label_is_optional_and_bounded_and_nothing_else() {
+        let card_with = |field: Value| {
+            json!({
+                "card_id": "c1",
+                "method": "POST",
+                "url": "https://shop.example/order",
+                "fields": [field],
+                "asked_at_ms": 1,
+                "answer_in_ms": 1,
+            })
+        };
+        let plain = json!({"name": "city", "value": "Bologna", "secret": false});
+        assert!(check("turn", None, "browser_card", &card_with(plain.clone())).is_ok(), "no label is a field");
+        let labelled = json!({"name": "city", "value": "Bologna", "secret": false, "label": "La città"});
+        assert!(check("turn", None, "browser_card", &card_with(labelled)).is_ok());
+        let not_words = json!({"name": "city", "value": "Bologna", "secret": false, "label": 7});
+        assert_eq!(check("turn", None, "browser_card", &card_with(not_words)), Err(BAD_EVENT), "not a string");
+        let too_long = json!({"name": "city", "value": "Bologna", "secret": false, "label": "x".repeat(LABEL_BYTES + 1)});
+        assert_eq!(check("turn", None, "browser_card", &card_with(too_long)), Err(BAD_EVENT), "over the cap");
     }
 
     #[test]

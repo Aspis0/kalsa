@@ -23,6 +23,9 @@ import { blobToDataUrl } from "../lib/images";
 import { selectWireImages, wireBodyBytes, WIRE_BODY_BUDGET } from "../lib/wireBudget";
 import type { WireImage } from "../lib/wireBudget";
 import { executeToolCall, offeredTools } from "../lib/tools/registry";
+import { filed, newLedger } from "../lib/callLedger";
+import { closeRecap, sayRuns } from "../lib/browser/note";
+import { isBrowserRun } from "../lib/browser/runs";
 import type { GateCheck } from "../lib/tools/registry";
 import { covered, remember } from "../lib/webgate/allowance";
 import type { Allowances } from "../lib/webgate/allowance";
@@ -255,6 +258,10 @@ export function useChatTurns({ store, announce, contextSizes, saveMailDraft }: T
       // The mail this turn was opened for, if it was: a reply written for
       // another one is refused however the model names it.
       const openedFor = [...before].reverse().find((m) => m.role === "user")?.mailId;
+      // What this turn has already done with the browser, and what it already
+      // failed at. One per turn, and it dies with it: a failure on this page is
+      // not a failure on the page the next turn opens.
+      const calls = newLedger();
       // The whole store of attachments rides the build: the pinned ones as
       // the system message's block, the per-turn ones through the ids their
       // messages bound.
@@ -478,6 +485,23 @@ export function useChatTurns({ store, announce, contextSizes, saveMailDraft }: T
           saveMailDraft(run.mail.replyToId, { to: run.mail.to, subject: run.mail.subject, body: run.mail.body });
         }
       }
+      // **The turn's own line about what it did**, said once at the boundary —
+      // whether the loop answered or the person stopped it, because a Stop is
+      // exactly when the owner needs to know what had already happened. Built
+      // from this turn's runs and nothing else.
+      const closeTurn = (): void => {
+        const runs = bufs.current.get(assistantId)?.toolRuns ?? [];
+        if (!runs.some((run) => isBrowserRun(run.name))) return;
+        // **The runs go to the model, the line goes to the person, and the two
+        // are built from the same record at the same moment.** The model reads
+        // them on its next turn, when the answers are in — this line is what the
+        // person is looking at now.
+        sayRuns(conversationId, runs);
+        const said = closeRecap(conversationId, runs);
+        if (said === null) return;
+        const last = [...runs].reverse().find((run) => isBrowserRun(run.name));
+        if (last !== undefined) ingestToolRun({ ...last, recap: said });
+      };
       try {
         await streamChatCompletion({
           endpoint: currentSettings.endpoint,
@@ -508,8 +532,8 @@ export function useChatTurns({ store, announce, contextSizes, saveMailDraft }: T
           // for the same reason: B's model was never sent A's document, so
           // A's attachment must not put a question into B's turn — noise is
           // what teaches the owner to click through.
-          runTool: (name, args, runSignal, conversation) =>
-            executeToolCall(
+          runTool: (name, args, runSignal, conversation) => {
+            const answered = executeToolCall(
               name,
               args,
               runSignal,
@@ -524,7 +548,13 @@ export function useChatTurns({ store, announce, contextSizes, saveMailDraft }: T
               undefined,
               currentSettings.webTools,
               conversationId,
-            ),
+              calls,
+            );
+            return answered.then((outcome) => {
+              filed(calls, name, args, outcome);
+              return outcome;
+            });
+          },
           onToolRun: ingestToolRun,
           onWithdraw: withdraw,
           toolPhrases: words.current.tools,
@@ -552,8 +582,10 @@ export function useChatTurns({ store, announce, contextSizes, saveMailDraft }: T
             ? Math.max(0, Math.round((answerStartedAt ?? performance.now()) - thoughtStartedAt))
             : undefined;
         persistLive(ms !== undefined ? { reasoningMs: ms } : undefined);
+        closeTurn();
         announce(!hasAnswer && hasThought ? shell.thinkingComplete : shell.responseComplete);
       } catch (error) {
+        closeTurn();
         if (error instanceof ChatRequestError && error.kind === "aborted") {
           persistLive({ stopped: true });
           announce(shell.responseStopped);

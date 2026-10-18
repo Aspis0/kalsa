@@ -138,6 +138,7 @@ fn cards_of(listed: &str) -> Vec<Card> {
                             name: string_of(field, "name")?,
                             value: string_of(field, "value")?,
                             secret: field.get("secret").and_then(Value::as_bool).unwrap_or(false),
+                            label: string_of(field, "label"),
                         })
                     })
                     .collect()
@@ -412,6 +413,20 @@ mod tests {
         assert_eq!(cards[1].fields[0].value, "hunter2", "with the value on it, because that is what goes");
         assert!(!format!("{:?}", cards[1].fields[0]).contains("hunter2"), "while nothing prints it");
         assert!(cards[0].asked_at_ms > 0, "a card with no time is a card with no clock");
+    }
+
+    /// **A field's label reaches the card, and a field the sidecar gave none keeps
+    /// none.** The label is the page's words, drawn beside the value; a sidecar that
+    /// sends no label at all draws the card it always did.
+    #[test]
+    fn a_field_label_reaches_the_card_and_a_field_without_one_keeps_none() {
+        let listed = r#"[{"id":"c1","method":"POST","url":"https://shop.example/order","fields":[
+          {"name":"custname","value":"Giulia","secret":false,"label":"Nome e cognome"},
+          {"name":"csrf","value":"a-token","secret":false}]}]"#;
+        let cards = cards_of(listed);
+        assert_eq!(cards[0].fields[0].label.as_deref(), Some("Nome e cognome"));
+        assert_eq!(cards[0].fields[0].value, "Giulia", "the value is what goes");
+        assert_eq!(cards[0].fields[1].label, None, "and a field with no label keeps none");
     }
 
     /// A card the person would be answering blind is not drawn at all: no

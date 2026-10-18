@@ -2,10 +2,10 @@ import { useEffect, useState } from "react";
 
 import {
   currentCards,
-  latestOutcome,
+  settledFor,
   subscribe,
   type Card,
-  type Outcome,
+  type Settled,
 } from "./confirm";
 import { isOpen, isPaused, subscribe as watchWindow } from "./window";
 
@@ -28,7 +28,7 @@ import { isOpen, isPaused, subscribe as watchWindow } from "./window";
  */
 export function useConfirm(conversation: string): {
   cards: Card[];
-  outcome: Outcome | null;
+  settled: Settled[];
   paused: boolean;
   windowOpen: boolean;
 } {
@@ -46,7 +46,7 @@ export function useConfirm(conversation: string): {
   void version;
   return {
     cards: currentCards().filter((card) => card.conversation === conversation),
-    outcome: latestOutcome(conversation),
+    settled: settledFor(conversation),
     paused: isPaused(),
     windowOpen: isOpen(),
   };

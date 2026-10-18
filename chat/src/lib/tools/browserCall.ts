@@ -157,7 +157,11 @@ export async function browserClose(): Promise<void> {
 }
 
 /** The warning, the page, and the closing marker — a marker this call drew. */
-function fence(body: unknown): string {
+/** Fences what the sidecar said, **whether it said it as an answer or as a
+    refusal**. A refusal can carry the page's own words — which field was empty,
+    which button could not be pressed — and those are page text like any other,
+    so they reach the model inside the fence and nowhere else. */
+export function fence(body: unknown): string {
   const nonce = marker();
   const text = typeof body === "string" ? body : String(body ?? "");
   return [WARNING, `<${nonce}>`, text, `</${nonce}>`].join("\n");

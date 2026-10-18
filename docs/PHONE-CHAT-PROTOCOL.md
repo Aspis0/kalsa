@@ -99,6 +99,7 @@ a slow mail read is not silence.
 | `draft` | `{"draft_id":"<32 hex>","reply_to_id":"105","to":"…","to_name":"…","subject":"…","body":"…"}` | a reply draft; nothing was sent |
 | `browser_card` | see §3.1 | a request held for the person; nothing was sent |
 | `browser_outcome` | `{"card_id":"<32 hex>","code":"…","host":"…"}` | what became of a card the phone did not answer |
+| `recap` | `{"text":"…"}` | what Kalsa did in the turn, in one line (§3.2) |
 | `error` | `{"code":"…"}` | the turn failed; terminal |
 | `done` | `{}` | the turn ended; terminal |
 
@@ -138,7 +139,7 @@ A credential that is not paired reaches none of this: there is no turn, so there
   "method": "POST",
   "url": "https://shop.example/order",
   "fields": [
-    {"name": "size", "value": "L", "secret": false},
+    {"name": "custname", "value": "Giulia", "secret": false, "label": "Nome e cognome"},
     {"name": "passphrase_2", "value": "hunter2", "secret": true}
   ],
   "asked_at_ms": 1767225600000,
@@ -155,6 +156,7 @@ A credential that is not paired reaches none of this: there is no turn, so there
 | `fields[].name` | string ≤ 256 | the field's name |
 | `fields[].value` | string ≤ 8 KiB | **the real value, always** |
 | `fields[].secret` | boolean | draw this one as dots, behind a Show button |
+| `fields[].label` | string ≤ 240 bytes, **optional** | the words the page puts beside the field — draw them as `label: value`. Absent when the page gave none: draw the field's `name` instead |
 | `asked_at_ms` | integer | when the card was first shown — **the computer's clock, for logs only** |
 | `answer_in_ms` | integer | how many milliseconds of the person's five minutes are left, counted from the moment this card arrives |
 
@@ -170,6 +172,13 @@ computer; **do not compute a deadline from it.**
 A longer address is refused before it is ever held — there would be no card to ask about —
 and the model is told why in one line. A card at every other cap (200 fields of 8 KiB) has
 to fit in one phone frame, and an address nobody is going to read is not worth a megabyte.
+
+**`label` is display text, and optional.** It is the page's own words, cleaned by the computer:
+control characters and text-reordering marks are removed, runs of space collapse, and it is
+capped at 60 characters (the 240-byte bound is the same cap in UTF-8). Nothing decides on it:
+the value, the request and `secret` are the same with or without it. A phone that predates
+labels ignores the key and draws the card it always did; a phone that reads it draws the
+label in place of the name, and only where the key is there.
 
 **`secret: true` is a drawing instruction, not a filter.** The value crosses the wire because
 the card is what the person is deciding on: a person is not asked to send a form they cannot
@@ -279,6 +288,31 @@ once: the next turn drains it, and the one after does not see it again.
 
 An outcome raised by a card that expired, or by a phone that unpairs, is reported the same
 way, so the model is never left carrying a request it believes is still waiting for an answer.
+
+### 3.2 The turn recap
+
+`recap` carries **what Kalsa did in the turn, in one line**, in the phone's language:
+
+```
+Kalsa ha: chiesto reg.example.org · scritto in 2 campi · 1 invio in attesa della tua risposta
+```
+
+It is **this computer's own account of its own runs** — the calls it made and the answers it got
+back — and never the page's own words about them. It comes out **once per turn that used the
+browser**, on every ending: an answer, a failure, or a Stop, and always **before** the turn's
+terminal frame, so a phone that stops reading at `done` has still had it.
+
+**The phone must draw `text` as it is**: one quiet line, the same way the desktop draws it after
+the tool rows. It is not a tool row, not a card and not markdown, and it is never parsed for a
+host, a count or a code — a line that changes shape is still a line, and the phone shows it or it
+does not. A phone that does not know this event ignores it: `parseTurnSseFrame` in
+`src/engine/remote/turnSse.ts` returns `ignore` for any name it does not name, so a recap
+arriving at an older phone costs it nothing and loses the line.
+
+**The model reads the same line**, on the phone's next turn and once only: it rides the request
+as a last plain message, fenced exactly as a tool result is, because it can name a host. It is
+built when the next turn starts — out of the runs, the answers given since, and the cards still
+on the window — so it says what is true then and not what was true at the end of the last turn.
 
 ## 4. Open a mail
 

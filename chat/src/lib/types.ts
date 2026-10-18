@@ -1,4 +1,5 @@
 import type { ChatErrorKind } from "./chat";
+import type { Recap } from "./browser/recap";
 import type { Miniapp } from "./miniapp/types";
 import type { Mail } from "./mail/types";
 
@@ -27,6 +28,13 @@ export interface ToolRun {
   /** The stable code a Rust refusal carried, for the screen; the wire
       and the stored text keep the English the model reads. */
   resultCode?: string;
+  /** **What Kalsa did in this turn, as counts** (`browser/recap.ts`). It rides
+      the turn's last browser run, because that is the run the thread draws
+      last. **The words are built when the line is drawn**, not stored: a
+      reloaded chat is read in whatever language the person is reading it in,
+      and a sentence kept in the language it was written in would read as
+      foreign. */
+  recap?: Recap;
   /** A miniapp this call built here. It is rendered in the thread and kept
       with the conversation; the wire only ever carries `result`. */
   miniapp?: Miniapp;

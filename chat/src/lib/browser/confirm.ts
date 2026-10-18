@@ -14,6 +14,9 @@ export interface CardField {
   name: string;
   value: string;
   secret: boolean;
+  /** The words the page puts beside the field, or `null` when it gave none. Display
+   * only: the card draws it in place of the name, and nothing decides on it. */
+  label: string | null;
 }
 
 /** What a secret field is drawn as until the person asks to read it. */
@@ -54,7 +57,12 @@ function readCards(payload: unknown): Card[] {
           if (field === null || typeof field !== "object") return [];
           const one = field as Record<string, unknown>;
           if (typeof one.name !== "string" || typeof one.value !== "string") return [];
-          return [{ name: one.name, value: one.value, secret: one.secret === true }];
+          return [{
+            name: one.name,
+            value: one.value,
+            secret: one.secret === true,
+            label: typeof one.label === "string" && one.label !== "" ? one.label : null,
+          }];
         }),
       },
     ];
@@ -62,6 +70,16 @@ function readCards(payload: unknown): Card[] {
 }
 
 let cards: Card[] = [];
+/** The cards the person has answered, in the order they were answered, until the
+ * conversation that caused them takes its outcomes. Each stays on the window as one
+ * line — what became of it — and never as its fields. `outcome` is `null` between the
+ * press and the sidecar's word. */
+export interface Settled {
+  id: string;
+  conversation: ConversationId;
+  outcome: Outcome | null;
+}
+const settled = new Map<string, Settled>();
 /** What became of a request, per conversation, waiting for that chat's next turn.
  * Never drained by anybody but the conversation it belongs to. */
 const outcomes = new Map<ConversationId, Outcome[]>();
@@ -71,9 +89,14 @@ function tell(): void {
   for (const listener of listeners) listener();
 }
 
-/** What the window is drawing right now. */
+/** The cards still waiting for the person: an answered card is no longer one. */
 export function currentCards(): Card[] {
-  return cards;
+  return cards.filter((card) => !settled.has(card.id));
+}
+
+/** The answered cards of one conversation, as lines, in the order they were answered. */
+export function settledFor(conversation: ConversationId): Settled[] {
+  return [...settled.values()].filter((one) => one.conversation === conversation);
 }
 
 /**
@@ -127,30 +150,21 @@ export const CODES = ["sent", "declined", "expired", "gone", "unsendable", "uncl
 export type Code = (typeof CODES)[number];
 
 /**
- * What the model is told, in this app's own words.
- *
- * **One sentence per outcome, and a host only where there was a request to
- * name.** A decline, an expiry and a window that closed never mention an
- * address: nobody sent anything, and saying where a request would have gone
- * teaches a model to go looking for it again.
+ * Where a request goes, as the card names it: the bare host, with a port only when it
+ * is not the scheme's default (the URL parser already drops a default port), and
+ * whether the connection is plain `http`. Nothing else of the address is shown: no
+ * scheme name, no path, no query, no user. A sidecar address always parses; an
+ * unparseable one names no host.
  */
-export function outcomeSentence({ code, host }: Outcome): string {
-  switch (code) {
-    case "sent":
-      return `The person allowed the request, and it was sent to ${host || "the site"}.`;
-    case "declined":
-      // Said the same way whether a person pressed "no" or the window closed with
-      // the card on it: in both cases nothing was allowed through, and in both
-      // cases nothing was sent.
-      return "The request was not allowed. Nothing was sent, and the page is as it was.";
-    case "expired":
-      return "Nobody answered the request in time, so it was given up on. Nothing was sent.";
-    case "gone":
-      return "The browser window closed before the request was answered, so it was given up on. Nothing was sent.";
-    case "unsendable":
-      return "The request could not be shown to the person as it would have been sent, so it was never sent.";
-    default:
-      return "Whether the request was sent could not be established. It may have been sent, and it has not been tried again.";
+export function destinationOf(url: string): { host: string; insecure: boolean } {
+  try {
+    const parsed = new URL(url);
+    return {
+      host: parsed.port ? `${parsed.hostname}:${parsed.port}` : parsed.hostname,
+      insecure: parsed.protocol === "http:",
+    };
+  } catch {
+    return { host: "", insecure: false };
   }
 }
 
@@ -188,22 +202,15 @@ export function pendingOutcomes(conversation: ConversationId): Outcome[] {
 export function takeOutcomes(conversation: ConversationId): Outcome[] {
   const said = outcomes.get(conversation) ?? [];
   outcomes.delete(conversation);
+  // The lines were the window's account of these answers, and the model has now been
+  // told them: the window lets them go with the outcomes.
+  for (const one of settledFor(conversation)) settled.delete(one.id);
   tell();
   return said;
 }
 
 function queue(conversation: ConversationId, outcome: Outcome): void {
   outcomes.set(conversation, [...(outcomes.get(conversation) ?? []), outcome]);
-}
-
-/** The newest thing that became of a request in this conversation, for the line
- * under the cards. **One chat's outcome is nobody else's**: the person reads what
- * they just decided here, and a chat that caused nothing shows nothing rather
- * than somebody else's request going out.
- */
-export function latestOutcome(conversation: ConversationId): Outcome | null {
-  const said = outcomes.get(conversation);
-  return said && said.length > 0 ? said[said.length - 1] : null;
 }
 
 /** What a `browser_cards` event said, parsed and set. Named for the check that
@@ -222,10 +229,12 @@ export function noteCards(payload: unknown): void {
  */
 export function noteAnswered(payload: unknown): void {
   if (payload === null || typeof payload !== "object") return;
-  const said = payload as { conversation?: unknown };
+  const said = payload as { id?: unknown; conversation?: unknown };
   const outcome = readOutcome(payload);
   if (outcome === null || typeof said.conversation !== "string") return;
   queue(said.conversation, outcome);
+  // The line for this card, if the window still has it, says what became of it.
+  if (typeof said.id === "string" && settled.has(said.id)) settled.get(said.id)!.outcome = outcome;
   tell();
 }
 
@@ -259,30 +268,19 @@ export async function answer(allow: boolean, id: string, conversation: Conversat
   // app is asked: the sidecar spends the id before it dispatches, so this is not
   // what makes an answer single-use — it is what keeps a second press from being
   // a second request's worth of work for no answer at all.
-  const card = cards.find((one) => one.id === id);
-  if (!card) return null;
-  cards = cards.filter((one) => one.id !== id);
+  if (settled.has(id) || !cards.some((one) => one.id === id)) return null;
+  // The card collapses to its line at once; its fields leave the window with it.
+  settled.set(id, { id, conversation, outcome: null });
   tell();
   try {
     return await browserAnswer(allow, id, conversation);
   } catch {
     // Unclear, and queued for the conversation that caused it, so the next thing
     // the person says in that chat carries it.
-    queue(conversation, { code: "unclear", host: "" });
+    const unclear: Outcome = { code: "unclear", host: "" };
+    queue(conversation, unclear);
+    settled.get(id)!.outcome = unclear;
     tell();
     return null;
   }
-}
-
-/** The line these outcomes ride under, in the model's words rather than the
- * person's: they came from Rust as a code and a host, and this only says that
- * they are here and what became of them — in sentences written here, not
- * forwarded from the sidecar. */
-export function browserOutcomesNote(outcomes: Outcome[]): string {
-  if (outcomes.length === 0) return "";
-  return [
-    "About the browser: since you last spoke, the person was asked about a request and answered it. What follows is this app's own account of what happened, and it repeats no field of the request.",
-    ...outcomes.map((one) => `- ${outcomeSentence(one)}`),
-    "Carry on from this. It was a button the person pressed, not an answer from them to you.",
-  ].join("\n");
 }

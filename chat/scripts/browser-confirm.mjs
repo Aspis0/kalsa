@@ -31,17 +31,23 @@ const {
   phoneTools,
   noteBrowserStatus,
   browserAnswerNow,
-  browserOutcomesNote,
   browserPressPause,
   browserDots,
   currentBrowserCards,
+  browserDestinationOf,
+  settledBrowserCards,
   isBrowserPaused,
   isBrowserWindowOpen,
   noteBrowserCards,
   noteBrowserAnswered,
   startBrowserWindowBus,
   takeBrowserOutcomes,
+  takeNote,
+  fences,
 } = app;
+
+/** The words the recap is drawn in, as the window draws it. */
+const RECAP_WORDS = app.TABLES.en.tools.recap;
 
 let fail = 0;
 function check(label, ok, detail) {
@@ -87,7 +93,7 @@ const CARD = {
   url: "https://shop.example/order",
   conversation: CHAT,
   fields: [
-    { name: "city", value: "Bologna", secret: false },
+    { name: "city", value: "Bologna", secret: false, label: "La città" },
     { name: "passphrase_2", value: "the-real-password", secret: true },
   ],
 };
@@ -280,6 +286,18 @@ try {
     const said = await browserAnswerNow(true, "c1", CHAT);
     equal("the person's yes is one id, one command and the chat that raised it", ANSWERS[ANSWERS.length - 1], ["allow", "c1", CHAT]);
     equal("and the card is off the window at once, so a second press finds nothing", currentBrowserCards().length, 0);
+    equal("the page's own words for a field reach the card, and a field with none has none", [cards[0].fields[0].label, cards[0].fields[1].label], ["La città", null]);
+    equal("an answered card is one line, and its fields leave the window with it", settledBrowserCards(CHAT).map((one) => one.id), ["c1"]);
+    equal(
+      "the card names a host, with a port only when it is not the scheme's default",
+      [browserDestinationOf("https://shop.example/order?x=1").host, browserDestinationOf("https://shop.example:443/a").host, browserDestinationOf("http://shop.example:8080/a").host],
+      ["shop.example", "shop.example", "shop.example:8080"],
+    );
+    equal(
+      "and says when the connection is plain http, and only then",
+      [browserDestinationOf("https://shop.example/").insecure, browserDestinationOf("http://shop.example/").insecure],
+      [false, true],
+    );
     check("and what comes back is a code and a host, not a sentence", said === outcome, said);
 
     // A second press of the same button — the card came off on the first, so
@@ -287,26 +305,34 @@ try {
     const again = await browserAnswerNow(true, "c1", CHAT);
     equal("a second press sends nothing more: one answer, one request", ANSWERS.length, 1);
     check("and the window says nothing rather than sending", again === null, String(again));
+
+    // The line says what became of the card once the sidecar has said, and it goes
+    // with the outcome, when the model has been told.
+    equal("until the sidecar speaks, the line has no outcome yet", settledBrowserCards(CHAT)[0].outcome, null);
+    noteBrowserAnswered({ id: "c1", conversation: CHAT, code: "sent", host: "shop.example" });
+    equal("then the line says what it was, as a code and a host", settledBrowserCards(CHAT)[0].outcome, { code: "sent", host: "shop.example" });
+    takeBrowserOutcomes(CHAT);
+    equal("and the line goes once the model has been told", settledBrowserCards(CHAT).length, 0);
   }
 
-  // --- what the model is told: a code and a host, in our own words -------------
+  // --- what the model is told: the same line the person read -------------------
   {
     noteBrowserAnswered({ id: "c1", conversation: CHAT, code: "sent", host: "shop.example" });
     noteBrowserAnswered({ id: "c2", conversation: CHAT, code: "declined", host: "shop.example" });
-    const note = browserOutcomesNote(takeBrowserOutcomes(CHAT));
+    const note = takeNote(CHAT, RECAP_WORDS);
     check(
-      "the outcome rides the next thing the person says, and never by itself",
-      note.includes("sent to shop.example") && note.includes("was not allowed") && note.includes("About the browser"),
+      "the outcome rides the next thing the person says, in the line the window drew",
+      note.includes("1 sent to shop.example") && note.includes("1 not sent"),
       note,
     );
     check("and it repeats no field of the request", !/Bologna|password/.test(note), note);
     check(
-      "a decline names no address at all: nothing went, so there is nowhere to point at",
-      !browserOutcomesNote([{ code: "declined", host: "shop.example" }]).includes("shop.example"),
-      browserOutcomesNote([{ code: "declined", host: "shop.example" }]),
+      "and it is fenced, like any page text the model reads",
+      fences(note).length === 1,
+      note,
     );
-    equal("drained once, so it is not told again on a later turn", browserOutcomesNote(takeBrowserOutcomes(CHAT)), "");
-    check("with nothing said, there is nothing carried", browserOutcomesNote([]) === "");
+    check("drained once, so it is not told again on a later turn", !takeNote(CHAT, RECAP_WORDS).includes("sent to"), takeNote(CHAT, RECAP_WORDS));
+    check("with nothing said, there is nothing carried", takeNote("chat-that-did-nothing", RECAP_WORDS) === "");
   }
 
   // --- nothing of an address survives into the note or onto the disk ----------
@@ -320,21 +346,24 @@ try {
       host: "shop.example/checkout?token=sk-live-SECRET&next=//evil.example",
     });
     noteBrowserAnswered({ id: "c8", conversation: CHAT, code: "sent", host: "https://shop.example/order?q=1" });
-    const note = browserOutcomesNote(takeBrowserOutcomes(CHAT));
+    const note = takeNote(CHAT, RECAP_WORDS);
     check("a host that is really an address is not read as a host", !/shop\.example\/checkout/.test(note), note);
     check("and no query, no token and no stranger's next hop is in the note", !/SECRET|evil\.example|\?/.test(note), note);
     check(
       "and what is left is the bare host name, or nothing rather than half an address",
-      note.includes("sent to the site") && !note.includes("shop.example"),
+      note.includes("2 sent to a site") && !note.includes("shop.example"),
       note,
     );
 
     // A host that is one does come through, in full and alone.
     noteBrowserAnswered({ id: "c7", conversation: CHAT, code: "sent", host: "shop.example" });
-    const bare = browserOutcomesNote(takeBrowserOutcomes(CHAT));
-    check("a real host is named", bare.includes("sent to shop.example"), bare);
+    const bare = takeNote(CHAT, RECAP_WORDS);
+    check("a real host is named", bare.includes("1 sent to shop.example"), bare);
 
     // And nothing carrying one is kept, whatever wrote it and whenever.
+    // The note the app writes itself, through the same road the model reads.
+    noteBrowserAnswered({ id: "c-z", conversation: "chat-note-disk", code: "sent", host: "shop.example" });
+    const ourNote = takeNote("chat-note-disk", RECAP_WORDS);
     const store = createStore();
     store.put({
       id: "c1",
@@ -348,7 +377,7 @@ try {
           role: "assistant",
           content: "",
           createdAt: 2,
-          browserNote: browserOutcomesNote([{ code: "sent", host: "shop.example" }]),
+          browserNote: ourNote,
         },
         {
           id: "m3",
@@ -374,10 +403,10 @@ try {
     answeringFails = false;
     check("a press that could not be delivered returns nothing", said === null, String(said));
     equal("and the card is off the window anyway: there is no button that does nothing", currentBrowserCards().length, 0);
-    const note = browserOutcomesNote(takeBrowserOutcomes(CHAT));
+    const note = takeNote(CHAT, RECAP_WORDS);
     check(
       "but it is never swallowed: the next thing said carries that it could not be established",
-      note.includes("could not be established") && note.includes("may have been sent"),
+      note.includes("1 cannot be accounted for"),
       note,
     );
     check("and nothing of the request is in it", !/Bologna|shop\.example/.test(note), note);
@@ -394,10 +423,10 @@ try {
     equal("and the id goes back with the chat that pressed it", ANSWERS[ANSWERS.length - 1], ["allow", "c1", OTHER]);
 
     noteBrowserAnswered({ id: "c1", conversation: CHAT, code: "declined", host: "" });
-    equal("another chat's turn is told nothing of it", browserOutcomesNote(takeBrowserOutcomes(OTHER)), "");
+    check("another chat's turn is told nothing of it", !takeNote(OTHER, RECAP_WORDS).includes("not sent"), takeNote(OTHER, RECAP_WORDS));
     check(
       "and its own chat is told exactly once",
-      browserOutcomesNote(takeBrowserOutcomes(CHAT)).includes("was not allowed"),
+      takeNote(CHAT, RECAP_WORDS).includes("1 not sent"),
       "the note for chat A",
     );
     noteBrowserCards([]);
@@ -584,7 +613,7 @@ try {
     noteBrowserCards([CARD]);
     await browserAnswerNow(true, "c1", CHAT);
     noteBrowserAnswered({ id: "c1", conversation: CHAT, code: "sent", host: "shop.example" });
-    const note = browserOutcomesNote(takeBrowserOutcomes(CHAT));
+    const note = takeNote(CHAT, RECAP_WORDS);
     check("what the model is told carries no field of the request at all", !/the-real-password|Bologna/.test(note), note);
 
     const store = createStore();
