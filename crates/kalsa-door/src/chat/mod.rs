@@ -6,6 +6,7 @@
 //! the whole `/kalsa/` prefix.
 
 mod body;
+mod browser;
 mod hook;
 mod mail;
 mod turn;
@@ -41,12 +42,15 @@ const MAX_PENDING: usize = 8;
 /// How long a wait on the page looks for a stop or a cut before it looks again.
 const SLICE: Duration = Duration::from_secs(1);
 
-/// What one device may have running at once in each lane: a turn, and a mail
-/// read or send. The lanes are apart, so a read never refuses a turn.
+/// What one device may have running at once in each lane: a turn, a mail read or
+/// send, and a browser answer. The lanes are apart, so a read never refuses a
+/// turn — and neither does an answer, which is the one thing a running turn is
+/// waiting for.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub(super) enum Lane {
     Turn,
     Mail,
+    Browser,
 }
 
 /// The app's hook, the door's one-request-per-lane rule and the admission cap.
@@ -140,12 +144,13 @@ struct Job {
     shared: Arc<Shared>,
 }
 
-/// The route's template, or `None` for a path that is not one of the three.
+/// The route's template, or `None` for a path that is not one of these.
 pub(crate) fn route_name(target: &[u8]) -> Option<&'static str> {
     match path_of(target) {
         b"/kalsa/chat/turn" => Some("/kalsa/chat/turn"),
         b"/kalsa/chat/mail/read" => Some("/kalsa/chat/mail/read"),
         b"/kalsa/chat/mail/send" => Some("/kalsa/chat/mail/send"),
+        b"/kalsa/chat/browser/answer" => Some("/kalsa/chat/browser/answer"),
         _ => None,
     }
 }
@@ -225,7 +230,7 @@ fn run(mut client: TcpStream, job: Job, deadline: Instant) {
             ),
             None => answer(&mut client, bad_request, origin, deadline, &json!({"error": "bad_request"})),
         },
-        _ => match body.as_deref().and_then(body::send_request) {
+        Some("/kalsa/chat/mail/send") => match body.as_deref().and_then(body::send_request) {
             Some((draft_id, edited)) => mail::start(
                 client,
                 &chat,
@@ -235,6 +240,12 @@ fn run(mut client: TcpStream, job: Job, deadline: Instant) {
                 origin,
                 deadline,
             ),
+            None => answer(&mut client, bad_request, origin, deadline, &json!({"error": "bad_request"})),
+        },
+        _ => match body.as_deref().and_then(body::answer_request) {
+            Some((card_id, allow)) => {
+                browser::start(client, &chat, shared, device, browser::Press { card_id, allow }, origin, deadline)
+            }
             None => answer(&mut client, bad_request, origin, deadline, &json!({"error": "bad_request"})),
         },
     }

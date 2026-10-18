@@ -9,11 +9,12 @@ import type { ToolDefinition } from "./definitions";
  * model has no way to answer that itself, and is told so in the sidecar's own
  * instructions, so the offer is honest rather than a promise it cannot keep.
  *
- * **Desktop only, and the filter that keeps it that way** is in
- * `phone/phoneTurn.ts`: `BROWSER_NAMES` is what it reads, so a phone is offered
- * no browser tool at all. A stranger's phone must not be able to make this
- * computer drive a window it cannot see — and, before the phone gets the card
- * too, it must not be able to send a write nobody on the phone was asked about.
+ * **A phone is offered the reads and not the writes**, and the filter that says
+ * so is in `phone/phoneTurn.ts`: `BROWSER_WRITES` is the two tools that can put a
+ * request in front of a person, and they are offered to a phone only when the
+ * turn names the phone it authenticated as. A turn with no device has nobody who
+ * could be shown the card, so a card raised there would be one nobody is ever
+ * asked about — better no write than a write nobody answers.
  *
  * The descriptions are short and plain, and say what the answer is rather than
  * how to use the browser: the model reads them in every language this app

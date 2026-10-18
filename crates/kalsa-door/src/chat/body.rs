@@ -46,6 +46,23 @@ pub(super) fn send_request(body: &[u8]) -> Option<(String, Option<String>)> {
     Some((draft_id.to_string(), edited))
 }
 
+/// The card an answer names and which button was pressed. **`send` and `decline`
+/// and nothing else**: an answer that named its own verb would be a door inventing
+/// an action, and the two the desktop has are the only two a phone gets.
+pub(super) fn answer_request(body: &[u8]) -> Option<(String, bool)> {
+    let value: Value = serde_json::from_slice(body).ok()?;
+    let card_id = value.get("card_id")?.as_str()?;
+    if card_id.len() != 32 || !card_id.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return None;
+    }
+    let allow = match value.get("answer")?.as_str()? {
+        "send" => true,
+        "decline" => false,
+        _ => return None,
+    };
+    Some((card_id.to_string(), allow))
+}
+
 /// One message as the page takes it. Any other key the phone sent is not
 /// passed on.
 fn message(value: &Value) -> Option<Value> {

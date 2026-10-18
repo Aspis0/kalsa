@@ -25,7 +25,7 @@ import type { Language } from "../../i18n";
     that would leave, what the detectors saw in it, and what armed the gate at
     all — the documents pinned, and whether the mailbox is in the conversation. */
 export interface GateCheck {
-  tool: "web_search" | "web_fetch";
+  tool: "web_search" | "web_fetch" | "browser_click" | "browser_type";
   outgoing: string;
   findings: GateFinding[];
   /** The ids of the documents pinned, so an allowance is per document, not per name. */
@@ -273,6 +273,13 @@ export async function executeToolCall(
       if (name === "browser_click") {
         const ref = typeof record.ref === "string" ? record.ref.trim() : "";
         if (!ref) return { text: "Nothing was clicked: there was no element to click.", ok: false };
+        // **A click is a gate call too.** A click navigates, and on a page the
+        // model was given — a document, a mail — the address it lands on is the
+        // document's own words going to a stranger's server. Not asking here is
+        // how a search that asks becomes a click that does not.
+        const allowed = await admitted(gate, "browser_click", ref, armed(gate, conversation), conversation, signal);
+        if (!allowed) return heldBack(ref, signal, stoppedText);
+        if (signal?.aborted) return stopped(stoppedText);
         return { text: await browserClick(ref, conversationId, signal), ok: true };
       }
       if (name === "browser_type") {
@@ -283,6 +290,12 @@ export async function executeToolCall(
         if (typeof record.text !== "string") {
           return { text: "Nothing was typed: there were no words to type.", ok: false };
         }
+        // **And what is typed is the model's own words going out.** This is the
+        // one browser call that carries text, so it is the one that most needs the
+        // gate: a passphrase read out of a mail, typed into a form, submitted.
+        const allowed = await admitted(gate, "browser_type", record.text, armed(gate, conversation), conversation, signal);
+        if (!allowed) return heldBack(record.text, signal, stoppedText);
+        if (signal?.aborted) return stopped(stoppedText);
         return { text: await browserType(ref, record.text, conversationId, signal), ok: true };
       }
       const text = typeof record.text === "string" ? record.text.trim() : "";

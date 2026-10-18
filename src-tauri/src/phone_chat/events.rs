@@ -18,6 +18,8 @@ const TURN_EVENTS: &[&str] = &[
     "tool_run",
     "cards",
     "draft",
+    "browser_card",
+    "browser_outcome",
     "error",
     "done",
 ];
@@ -32,6 +34,28 @@ const ADDRESS_BYTES: usize = 512;
 const BODY_BYTES: usize = 64 * 1024;
 const ID_BYTES: usize = 256;
 const CODE_BYTES: usize = 64;
+/// Fields on one browser card. A form with more than this is not a form a person
+/// reads before answering it, and the card is the thing they are deciding on.
+const MAX_FIELDS: usize = 200;
+/// One field's value. A body is capped by the sidecar as well; this is the cap on
+/// what one phone frame will carry.
+const VALUE_BYTES: usize = 8 * 1024;
+/// The address on a card. **The sidecar's own number** — [`hold::MAX_URL`] —
+/// repeated here because this is the other end of the wire: a card at every cap
+/// has to fit in one phone frame, and an address nobody reads is not worth the
+/// megabyte it would take to refuse it. Named from the sidecar's rule, so the
+/// two cannot drift.
+pub(crate) const URL_BYTES: usize = 8 * 1024;
+
+/// What became of a request, as the desktop's own closed set. A code outside it is
+/// refused: the phone writes its own sentence per code, and inventing one here is
+/// how a stranger's words would end up on a phone's screen.
+const OUTCOME_CODES: &[&str] = &["sent", "declined", "expired", "gone", "unsendable", "unclear"];
+
+/// The card id an event names, when it names one the shape allows.
+pub(super) fn card_id(data: &Value) -> Option<String> {
+    text(data, "card_id", ID_BYTES).map(str::to_owned)
+}
 
 /// Checks one page event against the kind of its request and, for a turn that
 /// was pinned to a mail, against that mail's id.
@@ -59,6 +83,8 @@ pub(super) fn check(
             data.get("record").is_some_and(Value::is_object)
                 && text(data, "body", TEXT_BYTES).is_some()
         }
+        "browser_card" => browser_card(data),
+        "browser_outcome" => browser_outcome(data),
         "error" => text(data, "code", CODE_BYTES).is_some(),
         "done" => data.is_object(),
         _ => false,
@@ -136,6 +162,60 @@ fn labels(value: &Value) -> bool {
                     .iter()
                     .all(|reason| reason.as_str().is_some_and(|code| code.len() <= ID_BYTES))
         })
+}
+
+/// One browser card as the phone is shown it. **The value crosses**: the card is
+/// what the person decides on, so it is drawn exactly as the desktop draws it —
+/// the real value with a flag saying to show dots and a Show button. Whether the
+/// flag is honest is the app's business, not this file's; what is checked here is
+/// the shape, because the page is the WebView.
+fn browser_card(data: &Value) -> bool {
+    card_id(data).is_some()
+        && text(data, "method", ID_BYTES).is_some()
+        && text(data, "url", URL_BYTES).is_some()
+        && data.get("asked_at_ms").is_some_and(Value::is_u64)
+        && data.get("answer_in_ms").is_some_and(Value::is_u64)
+        && data
+            .get("fields")
+            .and_then(Value::as_array)
+            .is_some_and(|fields| fields.len() <= MAX_FIELDS && fields.iter().all(field))
+}
+
+fn field(one: &Value) -> bool {
+    text(one, "name", ID_BYTES).is_some()
+        && text(one, "value", VALUE_BYTES).is_some()
+        && matches!(one.get("secret"), Some(Value::Bool(_)) | None)
+}
+
+/// What became of a card: a code from the desktop's own set, and **a host only
+/// where a request went** — the same rule the desktop keeps, so a decline, an
+/// expiry and a window that closed never put an address on a phone.
+fn browser_outcome(data: &Value) -> bool {
+    let Some(code) = text(data, "code", CODE_BYTES) else {
+        return false;
+    };
+    if !OUTCOME_CODES.contains(&code) {
+        return false;
+    }
+    match data.get("host") {
+        None => true,
+        Some(Value::String(host)) => code == "sent" && bare_host(host),
+        Some(_) => false,
+    }
+}
+
+/// **A bare host, or nothing** — the desktop's own rule, checked again on this
+/// road. Letters, digits, dots, dashes and underscores, or a bracketed IPv6
+/// address. A path, a query, a port and a `user@` are all refused: whatever a
+/// stranger's site put in its address is not something to hand a phone.
+fn bare_host(host: &str) -> bool {
+    if host.is_empty() || host.len() > ADDRESS_BYTES {
+        return false;
+    }
+    let bracketed = host.strip_prefix('[').and_then(|rest| rest.strip_suffix(']')).is_some_and(|name| {
+        !name.is_empty() && name.chars().all(|c| c.is_ascii_hexdigit() || matches!(c, ':' | '.'))
+    });
+    bracketed || host.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_'))
 }
 
 fn text<'a>(value: &'a Value, key: &str, max: usize) -> Option<&'a str> {

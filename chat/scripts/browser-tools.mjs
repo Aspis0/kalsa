@@ -47,6 +47,9 @@ const OFFERED = ["browser_open", "browser_read", "browser_find"];
 const WRITES = ["browser_click", "browser_type"];
 /** What each command was asked for, so a refusal can prove nothing left. */
 const OPENED = [];
+/** Every click and type that actually reached the app, so a proof about the gate
+    holding one back is about the call not happening and not about the wording. */
+const ACTED = [];
 const READS = [];
 const FINDS = [];
 const CLOSED = [];
@@ -84,6 +87,10 @@ globalThis.window = {
         if (command === "brain_browser_find") {
           FINDS.push(args.text);
           return pageBody;
+        }
+        if (command === "brain_browser_click" || command === "brain_browser_type") {
+          ACTED.push(command === "brain_browser_click" ? args.ref : `${args.ref}:${args.text}`);
+          return "OK";
         }
         if (command === "brain_web_fetch") {
           OPENED.push(args.url);
@@ -143,11 +150,15 @@ try {
     // Click and type arrived with step 4 and are proved in browser-confirm.mjs.
     // What matters here is that adding them did not widen the phone: see below.
 
-    const phone = phoneTools(true, "en", "any-model", true).map((tool) => tool.function.name);
+    // A phone turn drives the same browser once it has said which phone it is —
+    // the card it raises is what proves it — and is offered no write before that.
+    const phone = phoneTools(true, "en", "any-model", true, "2").map((tool) => tool.function.name);
+    equal("a named phone turn is offered the whole browser", phone.filter((name) => OFFERED.includes(name)), OFFERED);
+    const unnamed = phoneTools(true, "en", "any-model", true, null).map((tool) => tool.function.name);
     check(
-      "a phone turn is offered no browser tool at all, reads or writes",
-      !phone.some((name) => OFFERED.includes(name) || WRITES.includes(name)),
-      phone.join(","),
+      "and an unnamed one no write, since no card of its could be shown anywhere",
+      unnamed.includes("browser_read") && !unnamed.some((name) => WRITES.includes(name)),
+      unnamed.join(","),
     );
   }
 
@@ -202,6 +213,61 @@ try {
     const allowed = await executeToolCall("browser_open", { url: "https://news.example/story" }, undefined, { ...gate, confirm: async () => true }, [{ role: "user", content: "Read https://news.example/story" }], "any-model", undefined, undefined, true);
     check("an allowed ask opens the page", allowed.ok === true && OPENED.length === 1, allowed.text);
     OPENED.length = 0;
+  }
+
+  // --- the gate asks about a click and a type, as it asks about a fetch -------
+  //
+  // A click navigates, and on a page the model was given — a pinned document, a
+  // mail — the address it lands on is that document's own words going to a
+  // stranger's server. Typing is the one browser call that carries the model's
+  // own text out. Neither used to ask, which made the ask on `browser_open` a
+  // thing a model chose by using a different tool.
+  {
+    const armed = [{ role: "user", content: "Read the lease" }];
+    const gate = (answer) => ({
+      documents: () => [{ id: "doc-1", name: "the lease" }],
+      confirm: async (check) => {
+        ACTED.length = 0;
+        asks.push(check);
+        return answer;
+      },
+      firstSearch: () => null,
+    });
+    const asks = [];
+
+    ACTED.length = 0;
+    let r = await executeToolCall("browser_click", { ref: "e7" }, undefined, gate(false), armed, "any-model", undefined, undefined, true);
+    check("a click is asked about, and a refused ask holds it", r.ok === false && /did not allow/i.test(r.text), r.text);
+    check("and nothing was clicked", ACTED.length === 0, ACTED.join(","));
+    check("and the ask named the click", asks.length === 1 && asks[0].tool === "browser_click", JSON.stringify(asks));
+
+    r = await executeToolCall("browser_click", { ref: "e7" }, undefined, gate(true), armed, "any-model", undefined, undefined, true);
+    check("an allowed click really clicks", r.ok === true && ACTED.length === 1, `${r.text} | ${ACTED.join(",")}`);
+
+    ACTED.length = 0;
+    r = await executeToolCall("browser_type", { ref: "e8", text: "hunter2" }, undefined, gate(false), armed, "any-model", undefined, undefined, true);
+    check("a type is asked about, and a refused ask holds it", r.ok === false && /did not allow/i.test(r.text), r.text);
+    check("and nothing was typed", ACTED.length === 0, ACTED.join(","));
+    check(
+      "and the ask carried the words that were about to leave",
+      asks.at(-1)?.tool === "browser_type" && asks.at(-1)?.outgoing === "hunter2",
+      JSON.stringify(asks),
+    );
+
+    r = await executeToolCall("browser_type", { ref: "e8", text: "hunter2" }, undefined, gate(true), armed, "any-model", undefined, undefined, true);
+    check("an allowed type really types", r.ok === true && ACTED.length === 1, `${r.text} | ${ACTED.join(",")}`);
+
+    // **An unarmed turn is untouched**: no pinned document, no gate to ask, and
+    // the calls go out as they did before the gate existed.
+    ACTED.length = 0;
+    asks.length = 0;
+    // A gate with nothing pinned behind it, and a conversation with no mail in
+    // it: the same call, on a turn the owner is not asking about anything.
+    const unarmed = { ...gate(false), documents: () => [] };
+    r = await executeToolCall("browser_click", { ref: "e7" }, undefined, unarmed, [{ role: "user", content: "hi" }], "any-model", undefined, undefined, true);
+    check("and a turn with nothing pinned is not asked about at all", r.ok === true && asks.length === 0, `${r.text} | ${JSON.stringify(asks)}`);
+    check("so its click happens", ACTED.length === 1, ACTED.join(","));
+    ACTED.length = 0;
   }
 
   // --- what is offered is what runs, in both positions of the switch ----------

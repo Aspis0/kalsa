@@ -6,12 +6,15 @@
 
 import { createServer } from "node:http";
 import {
+  BROWSER_CARD,
+  BROWSER_OUTCOME,
   CARDS,
   DRAFT,
   MAIL_OFF,
   MAIL_ON,
   bridge,
   NOW,
+  PHONE,
   SETTINGS,
   USER,
   check,
@@ -31,17 +34,33 @@ function requests(app) {
   equal(
     "a turn parses with its reply and language",
     readPhoneRequest({ request: "r1", kind: "turn", mail: true, turn: { messages: [USER("hi")], reply_for: "105", language: "it" } }),
-    { request: "r1", mail: true, body: { kind: "turn", turn: { messages: [USER("hi")], replyFor: "105", language: "it" } } },
+    { request: "r1", mail: true, device: null, body: { kind: "turn", turn: { messages: [USER("hi")], replyFor: "105", language: "it", device: null } } },
   );
   equal(
     "a payload that says nothing about the mailbox reads as closed",
     readPhoneRequest({ request: "r3", kind: "turn", turn: { messages: [USER("hi")] } }),
-    { request: "r3", mail: false, body: { kind: "turn", turn: { messages: [USER("hi")], replyFor: null, language: "en" } } },
+    { request: "r3", mail: false, device: null, body: { kind: "turn", turn: { messages: [USER("hi")], replyFor: null, language: "en", device: null } } },
+  );
+  equal(
+    "the device comes from beside the turn, which the app put there from the credential",
+    readPhoneRequest({ request: "r4", device: "2", kind: "turn", turn: { messages: [USER("hi")], language: "en" } }),
+    { request: "r4", mail: false, device: "2", body: { kind: "turn", turn: { messages: [USER("hi")], replyFor: null, language: "en", device: null } } },
+  );
+  equal(
+    "and a turn that names another phone in its body cannot move it",
+    readPhoneRequest({ request: "r6", device: "2", mail: true, kind: "turn", turn: { messages: [USER("hi")], language: "en", device: "7" } }),
+    { request: "r6", mail: true, device: "2", body: { kind: "turn", turn: { messages: [USER("hi")], replyFor: null, language: "en", device: null } } },
+    "the body's number is read by nobody: the app's own is the only one that reaches the turn",
+  );
+  equal(
+    "a device that is not a number is no device at all",
+    readPhoneRequest({ request: "r5", kind: "turn", turn: { messages: [USER("hi")] }, device: "phone:2" }).device,
+    null,
   );
   equal(
     "a turn without reply or language defaults to no mail and English",
     readPhoneRequest({ request: "r2", kind: "turn", turn: { messages: [USER("hi")] } }).body.turn,
-    { messages: [USER("hi")], replyFor: null, language: "en" },
+    { messages: [USER("hi")], replyFor: null, language: "en", device: null },
   );
   const bad = [
     ["no kind", { request: "b1", turn: { messages: [USER("x")] } }],
@@ -420,11 +439,106 @@ async function phoneMailWeb(app) {
   check("phone with mail: the refused query never reached the engine", !searched.some((q) => q.includes("attacker.example")), JSON.stringify(searched));
 }
 
+/** A phone turn's browser. The card goes to that phone and to no desktop; the
+    write is still offered the same rules; and the outcome comes back to the same
+    phone's next turn, the way the desktop's own note does. */
+async function phoneBrowser(app) {
+  console.log("\n# a phone turn's browser");
+  // The browser is offered only where a driver is installed, exactly as on the
+  // desktop: this is a phone driving the same computer's browser, not a browser
+  // of its own.
+  app.noteBrowserStatus({ supported: true, installed: true, kind: "chrome" });
+  const browser = (name) => name.startsWith("browser_");
+  const tools = (device) =>
+    app
+      .phoneTools(SETTINGS.webTools, "en", SETTINGS.model, MAIL_ON, device)
+      .map((tool) => tool.function.name);
+
+  // A turn that names its phone gets the whole browser, writes included: it is a
+  // paired phone and it drives the same browser the desktop drives.
+  const named = tools(PHONE);
+  check("a phone turn that names itself is offered the browser", named.filter(browser).length === 5, JSON.stringify(named));
+  check(
+    "and the writes are among them",
+    ["browser_click", "browser_type"].every((name) => named.includes(name)),
+    JSON.stringify(named),
+  );
+  // A turn that does not gets the reads and nothing that could raise a card
+  // nobody would be shown.
+  const anonymous = tools(null);
+  check(
+    "a turn that names no phone is offered the reads and no writes",
+    anonymous.filter(browser).every((name) => !["browser_click", "browser_type"].includes(name)),
+    JSON.stringify(anonymous),
+  );
+  check("and it keeps no mini app either", !anonymous.includes("create_miniapp"), JSON.stringify(anonymous));
+
+  // The conversation is the phone's, one per device, and never a desktop's: a
+  // desktop conversation is a UUID, so the two can never be the same string.
+  const conversation = app.phoneConversation(PHONE);
+  check("the conversation is this phone's own", conversation === `phone:${PHONE}`, conversation);
+  check("and a different phone is a different conversation", app.phoneConversation("3") !== conversation);
+
+  // The browser call this turn makes is stamped with that conversation, so the
+  // card it raises comes back to this phone and not to a chat.
+  const { loop } = fakeLoop(async (o) => {
+    const signal = new AbortController().signal;
+    await o.runTool("browser_click", { ref: "e4" }, signal, undefined);
+  });
+  const { sink } = recorder(app);
+  await app.runPhoneTurn(turnOf([USER("buy it")], { device: PHONE }), SETTINGS, sink, new AbortController().signal, MAIL_ON, {
+    loop,
+    facts: facts(),
+  });
+  const clicked = bridge.calls.filter((c) => c.command === "brain_browser_click");
+  check(
+    "so the click carries this phone's conversation",
+    clicked.length === 1 && clicked[0].args.conversation === conversation,
+    JSON.stringify(clicked.map((c) => c.args.conversation)),
+  );
+
+  // **The outcome reaches the model in this phone's next turn.** It is queued
+  // under the phone's conversation and drained into the browser note, and the
+  // note rides the last user message like the desktop's own.
+  app.noteAnswered({ id: BROWSER_CARD.card_id, conversation, code: "sent", host: "shop.example" });
+  let wire2 = null;
+  const second = fakeLoop(async (o) => {
+    wire2 = o.messages;
+  });
+  await app.runPhoneTurn(turnOf([USER("did it go?")], { device: PHONE }), SETTINGS, recorder(app).sink, new AbortController().signal, MAIL_ON, {
+    loop: second.loop,
+    facts: facts(),
+  });
+  const last = wire2[wire2.length - 1];
+  check(
+    "the phone's next turn is told what became of it",
+    typeof last.browserNote === "string" && last.browserNote.includes("shop.example") && /allowed the request/.test(last.browserNote),
+    JSON.stringify(last.browserNote),
+  );
+  // And the note is the app's own account: it says where the request went and
+  // nothing of what it held, so a phone's next turn cannot carry a form's fields.
+  check(
+    "without repeating the card, or any field of it",
+    !last.browserNote.includes(BROWSER_CARD.card_id) && !last.browserNote.includes("hunter2"),
+    JSON.stringify(last.browserNote),
+  );
+  // And it is told once: drained, not repeated on every turn afterwards.
+  let wire3 = null;
+  await app.runPhoneTurn(turnOf([USER("and now?")], { device: PHONE }), SETTINGS, recorder(app).sink, new AbortController().signal, MAIL_ON, {
+    loop: fakeLoop(async (o) => {
+      wire3 = o.messages;
+    }).loop,
+    facts: facts(),
+  });
+  check("and only once", wire3[wire3.length - 1].browserNote === undefined, JSON.stringify(wire3[wire3.length - 1].browserNote));
+}
+
 await withPhone(async (app) => {
   requests(app);
   wire(app);
   await turns(app);
   await refusedReasoning(app);
   await phoneMailWeb(app);
+  await phoneBrowser(app);
 });
 summary();

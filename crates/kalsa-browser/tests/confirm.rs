@@ -313,9 +313,46 @@ async fn a_body_the_person_cannot_be_shown_is_refused_and_nothing_is_sent() {
     assert!(holds.ids().await.is_empty(), "nothing is held: there is no card to ask about");
     assert_eq!(seen.since(before), Vec::<String>::new(), "and nothing was sent");
     assert_eq!(
-        holds.take_outcomes().await,
-        vec![Outcome::Unrenderable("the request carries a file, and a card cannot show a file")],
+        holds.take_outcomes(common::CHAT).await,
+        vec![Outcome::Unrenderable("the request carries a file, and a card cannot show a file".to_owned())],
         "and the model is told why, in one line"
+    );
+}
+
+/// **An address nobody is going to read is not a card.** The address crosses as it
+/// is, whole, to the window, to the phone and into the note the model reads, so a
+/// page that puts twenty kilobytes in its query would spend the person's screen —
+/// and, on the phone's side, a card event that has to fit in one megabyte — on a
+/// line they cannot check. A card that cannot be checked is a card they cannot
+/// answer, so the write is refused: nothing is held, nothing is sent, and the
+/// model is told why in one line.
+///
+/// The button builds the address, so the request is exactly at the cap, and the
+/// cap is the sidecar's own number rather than a copy of it.
+#[tokio::test]
+async fn an_address_over_the_cap_is_refused_and_nothing_is_held() {
+    let long = format!(
+        r#"<h1>the shop</h1>
+  <button type="button" onclick="fetch('/order?q=' + 'a'.repeat({}), {{method: 'POST', body: 'x'}}); this.textContent = 'sent'">fill the query</button>
+  <script>document.addEventListener('submit', () => {{}});</script>"#,
+        hold::MAX_URL
+    );
+    let (base, arrived) = common::serve(&[common::page(&long)]).await;
+    let (_sessions, page, holds) = common::confirming_window("confirm-long-url", &base).await;
+
+    let seen = Arrivals::of(&arrived);
+    let before = seen.so_far();
+    let long_ref = ref_of(&page, "fill the query").await;
+    assert!(clicking(&page, &holds, &long_ref).await.is_none(), "an address over the cap is refused, never held");
+    tokio::time::sleep(Duration::from_millis(300)).await;
+
+    assert!(holds.ids().await.is_empty(), "nothing is held: there is no card to ask about");
+    assert_eq!(seen.since(before), Vec::<String>::new(), "and nothing was sent");
+    let said = holds.take_outcomes(common::CHAT).await;
+    assert_eq!(said.len(), 1, "and the model is told once: {said:?}");
+    assert!(
+        matches!(&said[0], Outcome::Unrenderable(why) if why.contains("8 KiB")),
+        "in one plain line saying why: {said:?}"
     );
 }
 
@@ -456,7 +493,7 @@ async fn a_value_the_person_typed_is_on_the_card_and_printed_nowhere() {
 
     // And the model is told a request existed and not one word of what it said.
     holds.answer(&waiting, common::CHAT, false).await;
-    for outcome in holds.take_outcomes().await {
+    for outcome in holds.take_outcomes(common::CHAT).await {
         let said = outcome.sentence();
         assert!(!said.contains("hunter2") && !said.contains("giulia"), "{said}");
     }
@@ -480,8 +517,8 @@ async fn a_write_in_a_form_the_card_cannot_show_is_refused_rather_than_guessed_a
     assert!(holds.ids().await.is_empty(), "there is no card to ask about");
     assert_eq!(seen.since(before), Vec::<String>::new(), "and nothing was sent");
     assert_eq!(
-        holds.take_outcomes().await,
-        vec![Outcome::Unrenderable("the request is sent in a form the person cannot read")],
+        holds.take_outcomes(common::CHAT).await,
+        vec![Outcome::Unrenderable("the request is sent in a form the person cannot read".to_owned())],
         "and the model is told why, in one line"
     );
 }
@@ -763,7 +800,7 @@ async fn a_caught_submission_to_a_refused_address_is_never_held() {
                 .is_none(),
             "{scheme} is refused, not held"
         );
-        let said = holds.take_outcomes().await.last().expect("the model is told").sentence();
+        let said = holds.take_outcomes(common::CHAT).await.last().expect("the model is told").sentence();
         assert!(said.contains("No request was sent"), "{scheme}: what it was told — {said}");
     }
     assert_eq!(holds.waiting().await, 0, "and nothing is left on the window");
@@ -803,64 +840,89 @@ async fn a_click_on_a_submit_whose_action_is_another_program_is_refused() {
     assert_eq!(arrived.requests().len(), asked_before, "and nothing on the wire");
 }
 
-/// **A request that means something different server-side cannot claim the
-/// answer, however identical it looks.** The ticket compares what a request
-/// *is* — method, address, content type, bytes — and headers are not compared,
-/// because the browser varies them. So it also requires the request to be a
-/// navigation of the main frame: a `fetch` carrying the same URL, the same body
-/// and `X-HTTP-Method-Override` is never a navigation, so it is held like any
-/// other write and the answer is still there for the navigation FIRE starts.
-#[tokio::test]
-async fn a_request_that_races_the_approved_one_with_a_different_meaning_is_held() {
-    let (base, arrived) = common::serve(&[common::page(LEAKY), common::page_at("/order", "<h1>the order went through</h1>")]).await;
-    let (_sessions, page, holds) = common::confirming_window("confirm-override", &base).await;
+const NAVIGATION: &str = r#"async payload => {
+    const [url, body] = JSON.parse(payload);
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = url;
+    document.body.appendChild(form);
+    for (const pair of new URLSearchParams(body)) {
+        const field = document.createElement('input');
+        field.type = 'hidden';
+        field.name = pair[0];
+        field.value = pair[1];
+        form.appendChild(field);
+    }
+    form.submit();
+}"#;
 
-    // A page with a button whose own action is a fetch with the override header,
-    // so the race is the page's and not ours.
-    page.evaluate::<(), ()>(
-        r"() => {
-          const race = () => fetch('/order', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/x-www-form-urlencoded', 'X-HTTP-Method-Override': 'DELETE'},
-            body: 'city=Bologna',
-          });
-          document.getElementById('racer').addEventListener('submit', (event) => {
-            event.preventDefault();
-            race();
-            return false;
-          }, true);
-          const original = HTMLFormElement.prototype.submit;
-          HTMLFormElement.prototype.submit = function () {
-            race();
-            return original.apply(this, arguments);
-          };
-        }",
-        None,
+/// **A probe with the approved request's own bytes cannot claim the answer.**
+///
+/// This is the claim that was made and was false. The route compared method,
+/// address, content type and body; a `fetch` carrying all four byte for byte
+/// passed that test, so it spent the person's answer and went, and whether that
+/// happened came down to which request reached the route first. **The route asks
+/// the whole of the ticket now**, which includes what the request *is*: the
+/// person's submission is a navigation of the main frame, and a page's `fetch`
+/// never is one.
+///
+/// **No race, so no luck.** The ticket is armed here and the probe is issued from
+/// script, where it can only ever be a fetch. There is no ordering to get right,
+/// and the old code fails this on every run. What is proved is the thing that was
+/// wrong: the answer survives the probe, and the real navigation still spends it.
+#[tokio::test]
+async fn a_probe_that_is_not_a_navigation_cannot_spend_the_answer() {
+    let (base, arrived) =
+        common::serve(&[common::page(SHOP), common::page_at("/order", "<h1>the order went through</h1>")]).await;
+    let (_playwright, _context, page, holds) = common::browser_allowing_holding("hold-probe", &base, "").await;
+    page.goto(&base, None).await.expect("the fixture is open");
+
+    // Exactly what the form below would send, to the byte.
+    let order = format!("{base}/order");
+    let body = "city=Bologna";
+    holds.pass_next(kalsa_browser::hold::Ticket::of_parts(
+        "POST",
+        &order,
+        "application/x-www-form-urlencoded",
+        body.as_bytes().to_vec(),
+    ))
+    .await;
+
+    // The probe: same method, same address, same content type, same bytes, and
+    // not a navigation because it was never going to be one.
+    page.evaluate::<String, ()>(
+        r#"async payload => {
+            const [url, body] = JSON.parse(payload);
+            await fetch(url, {
+              method: 'POST',
+              headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+              body,
+            });
+        }"#,
+        Some(&serde_json::json!([order, body]).to_string()),
     )
     .await
-    .expect("the page arms its race");
+    .ok();
+    // Long enough for the probe to have been held rather than merely slow.
+    tokio::time::sleep(Duration::from_millis(600)).await;
 
-    let buy = ref_of(&page, "race it").await;
-    let id = click_holds(&page, &holds, &buy).await;
-    assert!(is_a_card_id(&id), "our own write is held as a card: {id}");
-    let approved = arrived.requests().len();
+    assert!(
+        arrived.body_of("/order").is_none(),
+        "a fetch spent the answer and went: {:?}",
+        arrived.received()
+    );
+    assert!(holds.answer_pending().await, "and it spent the answer, so the real request cannot go");
 
-    holds.answer(&id, common::CHAT, true).await;
-    let body = poll_for_body(&arrived, "/order", 20).await.unwrap_or_default();
-    assert!(body.contains("city=Bologna"), "and the approved one goes: {body}");
-    let racers = arrived
-        .received()
-        .into_iter()
-        .filter(|one| one.line.starts_with("POST /order"))
-        .count();
-    assert_eq!(racers, 1, "exactly one POST /order — the raced one was held, not passed: {:?}", arrived.received());
-    assert!(approved > 0, "and the card existed before anything went");
+    // The real thing: a form that navigates, with the same address and the same
+    // body. This is the request the person was shown, and it is the one the
+    // answer was for.
+    page.evaluate::<String, ()>(NAVIGATION, Some(&serde_json::json!([order, body]).to_string())).await.ok();
+
+    let sent = poll_for_body(&arrived, "/order", 30).await.unwrap_or_default();
+    assert!(sent.contains(body), "the navigation the person approved went: {sent}");
+    assert!(!holds.answer_pending().await, "and it spent the answer, once");
 }
 
-/// **A page's own `submit` is not what dispatches.** Replacing
-/// `HTMLFormElement.prototype.submit` with a helper is ordinary, and it used to
-/// turn an answered card into a silent no-op with the model told it went — the
-/// capture is taken before the page's scripts run, so this one is a no-op.
 #[tokio::test]
 async fn a_page_that_replaces_submit_does_not_stop_the_approved_request() {
     let (base, arrived) = common::serve(&[common::page(LEAKY), common::page_at("/tokens", "<h1>posted</h1>")]).await;
@@ -1083,6 +1145,120 @@ async fn while_paused_the_persons_own_submit_goes_and_resume_holds_ours_again() 
     assert_ne!(after, waiting, "after a resume our own write is held again, with its own card");
     assert_eq!(holds.waiting().await, 2);
     assert_eq!(holds.answer(&waiting, common::CHAT, false).await, hold::Answer::Spent(Outcome::Declined), "and the old card is still answerable");
+}
+
+/// **Pausa is the person's claim on the window, not the page's licence to send.**
+///
+/// It used to let *every* request through. That is right for a click and wrong
+/// for a `fetch`: a page that keeps posting to a server while the person sits
+/// reading is not the person acting, and a pause that waved it through was a
+/// pause that held nothing at all. The rule is now the shape of the request — a
+/// navigation of the main frame — and everything else falls through to the rules
+/// below it, which is where the held writes and the secret-carrying GET live.
+#[tokio::test]
+async fn while_paused_the_persons_navigation_goes_and_the_pages_own_writes_do_not() {
+    let (base, arrived) = common::serve(&[
+        common::page(SHOP),
+        common::page_at("/order", "<h1>the order went through</h1>"),
+        common::page_at("/telemetry", "<h1>noted</h1>"),
+    ])
+    .await;
+    let (sessions, page, holds) = common::confirming_window("confirm-paused-fetches", &base).await;
+
+    sessions.set_paused(true);
+    assert!(sessions.paused(), "the window is paused");
+
+    // **A page's own post is not the person acting.** It is held, like any other
+    // write, and nothing reaches the server.
+    page.evaluate::<String, ()>(
+        // **Fired, not awaited.** A held request is a request that never answers,
+        // and a promise waiting on one is a test that never finishes.
+        r#"url => {
+            fetch(url, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: 'beacon=telemetry',
+            }).catch(() => {});
+        }"#,
+        Some(&format!("{base}/telemetry")),
+    )
+    .await
+    .ok();
+    tokio::time::sleep(Duration::from_millis(600)).await;
+    assert!(
+        arrived.body_of("/telemetry").is_none(),
+        "a page's own post went out while the person was holding the browser: {:?}",
+        arrived.received()
+    );
+    assert_eq!(holds.waiting().await, 1, "and it is held as a card, which is what a write is");
+
+    // **The person's own submission still goes**, or pausing would freeze the
+    // page they are using — the one thing a pause may not do.
+    page.evaluate::<(), ()>("() => document.getElementById('order').requestSubmit()", None)
+        .await
+        .expect("the person submits");
+    assert!(poll_for_body(&arrived, "/order", 20).await.is_some(), "their own navigation went out as it always did");
+
+    // **A GET carrying a secret is still held while paused.** Pausing is about
+    // what the person is doing; it is not a permission for the page to mail a
+    // passphrase to whoever, and that check sits below the pause on purpose.
+    page.goto(&base, None).await.expect("back to the shop");
+    let _ = page.wait_for_load_state(Some(playwright_rs::protocol::WaitUntil::Load)).await;
+    holds.typed_in(1, "hunter2-the-passphrase").await;
+    page.evaluate::<String, ()>(
+        // Fired and not awaited, for the same reason.
+        r#"payload => {
+            const [base, secret] = JSON.parse(payload);
+            fetch(base + '/telemetry?k=' + encodeURIComponent(secret)).catch(() => {});
+        }"#,
+        Some(&format!(r#"["{base}","hunter2-the-passphrase"]"#)),
+    )
+    .await
+    .ok();
+    tokio::time::sleep(Duration::from_millis(600)).await;
+    assert!(
+        !arrived.asked_for("/telemetry?k="),
+        "a GET carrying a passphrase went out while the browser was paused: {:?}",
+        arrived.requests()
+    );
+}
+
+/// **One chat is never told what happened in another.**
+///
+/// The outcome is how a model learns a person decided something, and it is said
+/// in front of the next tool call. Which call it is said in front of used to be
+/// whoever happened to call next: drain the store, hand over everything, and a
+/// chat that never asked about a request would be told which host it went to.
+/// Both halves are now matched on the conversation that caused them, and this
+/// proves the one that matters — that B's tool result contains nothing of A's.
+#[tokio::test]
+async fn an_outcome_is_told_to_the_conversation_that_caused_it_and_to_no_other() {
+    let (base, _arrived) = common::serve(&[common::page(SHOP)]).await;
+    let (sessions, page, holds) = common::confirming_window("confirm-told", &base).await;
+
+    // Chat A drives a write and answers it: no. That outcome is A's news.
+    holds.in_conversation("chat-a").await;
+    let city = ref_of(&page, "the city").await;
+    let (pressed, held) = filling(&page, &holds, &city, "Bologna").await;
+    assert!(pressed);
+    let id = held.expect("chat A raised a card");
+    assert_eq!(holds.card(&id).await.map(|card| card.conversation), Some("chat-a".to_owned()));
+    assert!(matches!(holds.answer(&id, "chat-a", false).await, hold::Answer::Spent(_)), "and it is answered in A");
+
+    // **B asks next and is told nothing.** This is the whole claim.
+    holds.in_conversation("chat-b").await;
+    // **The sentence the model would read, not the name of the variant.** What
+    // this is about is what reaches a transcript.
+    let no = "did not allow";
+    let said_to_b = mcp::told_for(&sessions, "chat-b").await;
+    assert!(!said_to_b.contains(no), "chat B was told about chat A's request: {said_to_b}");
+
+    // **A asks next and is told.** The outcome waited rather than being lost.
+    let said_to_a = mcp::told_for(&sessions, "chat-a").await;
+    assert!(said_to_a.contains(no), "chat A was not told about its own request: {said_to_a}");
+    // And it is told once.
+    let again = mcp::told_for(&sessions, "chat-a").await;
+    assert!(again.is_empty(), "and not again on the next call: {again}");
 }
 
 /// **Pausa refuses all five, the three reads as well as the two writes.** The

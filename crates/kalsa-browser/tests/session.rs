@@ -63,37 +63,55 @@ async fn a_window_closed_while_a_call_is_in_flight_is_one_clean_line() {
     assert!(sessions.page().await.is_ok(), "a fresh window replaces the dead one");
 }
 
-/// A cancelled navigation is not a dead window. `ERR_ABORTED` is what a load the
-/// person stopped, or a page that answered with something else, looks like — and
-/// the browser is still open and still usable afterwards. Reporting it as a
-/// closed window would throw away a working browser over one cancelled load, so
-/// the session is left exactly as it was.
+/// A cancelled navigation is not a dead window, and the session is kept.
+/// **What is claimed, exactly:** when a navigation is aborted, (1) the error is
+/// not classified as a closed window or a dead driver — it gets the plain
+/// sentence, because from the driver's side an abort and a stop look the same —
+/// and (2) told the window had gone, the session **does not** drop it, so the next
+/// call carries on in the same browser instead of opening a fresh one over a load
+/// a person cancelled.
+///
+/// **How the abort is made, and why this is not a race:** the *fixture* aborts the
+/// navigation — the test's route handles it and calls `abort("aborted")`, which is
+/// what Chromium reports as `net::ERR_ABORTED`. Nothing here starts two
+/// navigations at once and nothing waits on a clock for one to overtake the other.
+/// The previous shape of this test did both, and could not have won: committing
+/// the first navigation makes Chromium commit a `chrome-error://` page for the
+/// second, so the second fails whatever the timing, and the test's own `if let
+/// Err` then let a run pass by asserting nothing at all. This one asks the
+/// browser to cancel the load, exactly as it does for a person pressing stop.
 #[tokio::test]
 async fn a_cancelled_navigation_keeps_the_session() {
-    let (base, _arrived) =
-        common::serve(&[common::page("<h1>here</h1>"), common::page("<h1>late</h1>").slow(Duration::from_millis(3000))])
-            .await;
+    let (base, _arrived) = common::serve(&[common::page("<title>the window</title><h1>here</h1>")]).await;
     let (sessions, page) = common::sessions_on("session-aborted", &base).await;
     page.goto(&base, None).await.expect("the page loads");
+    assert_eq!(page.title().await.unwrap_or_default(), "the window", "the window is the one we opened");
 
-    // Two navigations, the first of which the second cancels. That is what
-    // ERR_ABORTED is, and nothing is closed to make it happen.
-    let cancelled = tokio::spawn({
-        let page = page.clone();
-        let slow = format!("{base}/slow");
-        async move { page.goto(&slow, None).await }
-    });
-    tokio::time::sleep(Duration::from_millis(200)).await;
-    page.goto(&base, None).await.expect("the second navigation goes through");
-    let first = cancelled.await.expect("the first task finished");
-    if let Err(error) = first {
-        assert_ne!(session::reason_of(&error), Some(session::Reason::Closed), "an abort is not a closed window");
-    }
+    // Added after the session's own route, so it is the one that sees this
+    // request, and only requests for this one path are touched — every other
+    // navigation here is the session's own business.
+    let aborted = format!("{base}/aborted");
+    page.route(&aborted, |route| async move { route.abort(Some("aborted")).await })
+        .await
+        .expect("the aborting route is installed");
 
-    // The window is untouched: the next call reads the page normally.
+    // The navigation is cancelled by the browser, and it says so.
+    let error = page.goto(&aborted, None).await.expect_err("the navigation was aborted");
+    assert!(error.to_string().contains("ERR_ABORTED"), "the fixture did not abort it as it meant to: {error}");
+
+    // Claim (1): an abort is not a window that closed and not a driver that
+    // died. Either would throw the browser away over one cancelled load.
+    assert_eq!(session::reason_of(&error), None, "an abort is neither a closed window nor a dead driver");
+    assert_eq!(session::explain(&error), "the page did not answer that call; try again");
+
+    // Claim (2): told the window had gone, the session keeps it — the one place
+    // that decision is made. A fresh window would have no title yet, so the
+    // title is what says "same window" rather than "a new one".
+    sessions.forget_if_gone(&error, &page).await;
+    let (again, _landings, _holds) = sessions.page().await.expect("and it is still ours");
+    assert_eq!(again.title().await.unwrap_or_default(), "the window", "the session opened a fresh window over one cancelled load");
     let text = kalsa_browser::snapshot::snapshot(&page, 1).await.expect("the page still answers");
-    assert!(text.contains("url:"), "the session still has a page: {text}");
-    assert!(sessions.page().await.is_ok(), "and the session is still ours");
+    assert!(text.contains("url:"), "and it is the same page: {text}");
 }
 
 /// A dead window is not a dead session: the next call opens a fresh one, in the

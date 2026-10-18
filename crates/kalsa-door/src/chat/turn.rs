@@ -23,7 +23,20 @@ const PING: Duration = Duration::from_secs(10);
 
 /// The events a turn passes on as they come. `accepted` is consumed for the
 /// `turn` frame, and `error` or `done` ends the stream.
-const STREAMED: &[&str] = &["reasoning", "delta", "tool_run", "cards", "draft"];
+///
+/// **`browser_card` and `browser_outcome` ride it too**, because a card is raised
+/// inside the turn that caused it and the phone has to be holding the socket to
+/// be shown it. Neither ends the turn: a card is an answer the person will give
+/// later, not the turn finishing.
+const STREAMED: &[&str] = &[
+    "reasoning",
+    "delta",
+    "tool_run",
+    "cards",
+    "draft",
+    "browser_card",
+    "browser_outcome",
+];
 
 pub(super) fn start(
     mut client: TcpStream,

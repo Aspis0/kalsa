@@ -215,6 +215,21 @@ code and believes otherwise.
   submitter is computed the way the browser computes it and why the destination
   is re-read immediately before Enter. Closing this properly needs something in
   front of the browser, like the redirect case below.
+- **A secret that is re-encoded before it is sent is a secret this crate cannot
+  follow.** `secret::carries` looks for what the person typed **inside** the
+  address — in a host label, a path segment, a query name or value, anywhere a
+  server would read it, and percent-decoded first so `%68unter2` is `hunter2`
+  here too. That is containment rather than equality on purpose: a real secret
+  travels welded to something else, and equality would pass every one of them.
+  What it does not do is **undo an encoding**. A value base64'd, hex'd, XOR'd or
+  chopped into pieces before it goes into a query parameter is a different string
+  by the time it reaches the address, and this crate has no way to know it was
+  ever a secret — the information is gone by the time it is looking. So
+  `?data=eyJ2IjoiaHVudGVyMiJ9` is not found, and saying otherwise would be a
+  claim about a decoder this crate does not have. Closing it means deciding the
+  encodings worth decoding and paying for it on every GET; it is a real gap, not
+  a rounding error, and it is written here so nobody reads the code above and
+  believes otherwise.
 - **A multipart form is refused, not approximated.** The browser chooses the
   boundary when it builds the request, so the bytes cannot be written out before
   the card exists, and there is then no way to promise that what goes is what the

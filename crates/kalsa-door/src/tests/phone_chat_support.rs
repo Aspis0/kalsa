@@ -8,7 +8,7 @@ use std::sync::Mutex;
 use std::thread;
 use std::time::{Duration, Instant};
 
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use super::room_support::{devices_labeled, read_all};
 use crate::clocks::Clocks;
@@ -32,17 +32,29 @@ pub(super) fn token() -> String {
 pub(super) struct Page {
     pub(super) pages: Mutex<Vec<Sender<ChatEvent>>>,
     pub(super) opens: Mutex<Vec<(String, Value)>>,
+    /// The device every open carried, beside `opens`: a proof about *whose*
+    /// request this is needs the number the credential resolved to, which the
+    /// body cannot hold and so cannot be asked about.
+    pub(super) open_devices: Mutex<Vec<u32>>,
     pub(super) stops: Mutex<Vec<String>>,
     pub(super) sends: Mutex<Vec<(String, Option<String>)>>,
     pub(super) send_answer: Option<Result<String, String>>,
+    /// Every browser answer, with the device that made it: a proof about whose
+    /// card it was needs to see which phone pressed it.
+    pub(super) answers: Mutex<Vec<(u32, String, bool)>>,
+    pub(super) answer_browser: Option<Result<Value, String>>,
     pub(super) refuse_opens: bool,
     /// The devices the app holds switched off this computer's mail, by id.
     pub(super) mail_off: Vec<u32>,
 }
 
 impl PhoneChat for Page {
-    fn open(&self, _device: DeviceId, kind: &'static str, body: Value) -> Option<Opened> {
-        self.opens.lock().unwrap().push((kind.to_string(), body));
+    fn open(&self, device: DeviceId, kind: &'static str, body: Value) -> Option<Opened> {
+        {
+            let mut opens = self.opens.lock().unwrap();
+            opens.push((kind.to_string(), body));
+            self.open_devices.lock().unwrap().push(device.value());
+        }
         if self.refuse_opens {
             return None;
         }
@@ -69,6 +81,19 @@ impl PhoneChat for Page {
     fn mail_allowed(&self, device: DeviceId) -> bool {
         !self.mail_off.contains(&device.value())
     }
+
+    /// The app's own rule: **a card is spent before anything is dispatched**, so a
+    /// second answer of the same id finds nothing at all. Modelled here rather than
+    /// configured, because a harness that always says yes would prove the door
+    /// forwards and nothing about whether a request can be sent twice.
+    fn answer_browser(&self, device: DeviceId, card_id: &str, allow: bool) -> Result<Value, String> {
+        let mut answers = self.answers.lock().unwrap();
+        answers.push((device.value(), card_id.to_string(), allow));
+        if answers.iter().filter(|(_, id, _)| id == card_id).count() > 1 {
+            return Err("card_unknown".to_string());
+        }
+        self.answer_browser.clone().unwrap_or_else(|| Ok(json!({"code": "sent", "host": "shop.example"})))
+    }
 }
 
 impl Page {
@@ -86,6 +111,11 @@ impl Page {
 
     pub(super) fn opened(&self) -> Vec<(String, Value)> {
         self.opens.lock().unwrap().clone()
+    }
+
+    /// The device every open so far carried, in order.
+    pub(super) fn opened_devices(&self) -> Vec<u32> {
+        self.open_devices.lock().unwrap().clone()
     }
 
     /// Waits until the door has stopped request `request`, or gives up.

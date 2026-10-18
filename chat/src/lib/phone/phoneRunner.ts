@@ -1,6 +1,12 @@
 // Answers the phone's requests from this window. Two listeners, one per Rust
 // event; mounted once at the app root so an answer does not depend on which
 // page is on screen.
+//
+// **A card and an outcome do not come through here.** They arrive on the phone's
+// own stream — the same one its turn is being read from — and this used to
+// listen for a second copy of each and forward it onto that same stream, so a
+// phone was handed every card twice. The window's job is the turn; the door's
+// stream is the phone's, and it writes there directly.
 
 import { available, listen } from "../tauri";
 import { loadSettings } from "../settings";
@@ -10,9 +16,28 @@ import { phoneSink, sendPhoneEvent } from "./phoneEvents";
 import { readPhoneRequest, requestIdOf } from "./phoneRequest";
 import { runPhoneRead } from "./phoneRead";
 import { runPhoneTurn } from "./phoneTurn";
+import type { PhoneBody, PhoneTurn } from "./phoneRequest";
+
+type TurnBody = Extract<PhoneBody, { kind: "turn" }>;
 
 const REQUEST_EVENT = "phone-chat-request";
 const STOP_EVENT = "phone-chat-stop";
+
+/**
+ * The turn a request is run as.
+ *
+ * **The device goes on beside the turn, from the app.** It is what the app
+ * resolved the credential to, and the browser writes of this turn are stamped
+ * with it — so a card raised here is drawn on that phone, and its outcome comes
+ * back under the same conversation. The phone's own body carries no device: it
+ * cannot learn its own number (the pairing seal hands back the credential and
+ * nothing else) and the door builds the turn without the field, so the app's is
+ * the only one there is. A body that tries is `device: null` here already, and
+ * is overwritten by this.
+ */
+export function turnFor(body: TurnBody, device: string | null): PhoneTurn {
+  return { ...body.turn, device };
+}
 
 /** Starts answering. The returned function aborts what is running and removes
     both listeners. */
@@ -30,7 +55,7 @@ export function startPhoneChatRunner(): () => void {
     const envelope = readPhoneRequest(payload);
     // A request id already running is not a second request: its answers belong to the first.
     if (envelope === null || live.has(envelope.request)) return;
-    const { request, body, mail } = envelope;
+    const { request, body, mail, device } = envelope;
     const sink = phoneSink((event, data) => sendPhoneEvent(request, event, data));
     if (body === null) return sink.fail("bad_request");
     // The door refuses a mail route before it ever reaches the page, so this
@@ -45,7 +70,7 @@ export function startPhoneChatRunner(): () => void {
     live.set(request, controller);
     const work =
       body.kind === "turn"
-        ? runPhoneTurn(body.turn, currentSettings(), sink, controller.signal, mail)
+        ? runPhoneTurn(turnFor(body, device), currentSettings(), sink, controller.signal, mail)
         : runPhoneRead(body.id, sink, controller.signal);
     void work.catch(() => sink.fail("engine")).finally(() => live.delete(request));
   }

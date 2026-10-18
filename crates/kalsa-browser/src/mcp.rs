@@ -57,7 +57,13 @@ async fn guarded(sessions: &Sessions, answer: impl Future<Output = CallToolResul
         Ok(result) => result,
         Err(_) => view::refused("that call could not be completed; try again"),
     };
-    told(sessions, result).await
+    // **In the conversation that caused them.** `guarded` does not know it, so
+    // the store names it: the call that is running right now is stamped on every
+    // request it causes, and that is what an outcome is matched on. Without it
+    // whichever chat happened to call next would be handed the news about
+    // somebody else's request.
+    let conversation = sessions.holds().await.stamp_for_our_call().await;
+    told(sessions, &conversation, result).await
 }
 
 /// The model's answer with **what became of every request the person was asked
@@ -69,9 +75,21 @@ async fn guarded(sessions: &Sessions, answer: impl Future<Output = CallToolResul
 /// front of the next thing the model asks for, because that is the only moment
 /// it can act on one. The turn never waits for a person and never hangs: the
 /// model carries on, and the next call tells it what happened.
-async fn told(sessions: &Sessions, result: CallToolResult) -> CallToolResult {
-    let outcomes = sessions.holds().await.take_outcomes().await;
-    view::prefixed(result, &outcomes.iter().map(Outcome::sentence).collect::<Vec<String>>())
+async fn told(sessions: &Sessions, conversation: &str, result: CallToolResult) -> CallToolResult {
+    view::prefixed(result, &outcomes_for(sessions, conversation).await)
+}
+
+/// The lines a call in this conversation is prefixed with, and nothing else.
+async fn outcomes_for(sessions: &Sessions, conversation: &str) -> Vec<String> {
+    sessions.holds().await.take_outcomes(conversation).await.iter().map(Outcome::sentence).collect()
+}
+
+/// **What the model is told in front of a call in `conversation`**, as the text it
+/// reads. The same lines [`told`] puts in front of a result, taken from the same
+/// place — so a proof about which conversation hears an outcome is about this
+/// code and not about a re-statement of it.
+pub async fn told_for(sessions: &Sessions, conversation: &str) -> String {
+    outcomes_for(sessions, conversation).await.join("\n\n")
 }
 
 pub struct BrowserServer {
@@ -150,14 +168,14 @@ impl BrowserServer {
                 let sessions = sessions.clone();
                 move |Parameters(args): Parameters<IdArgs>| {
                     let sessions = sessions.clone();
-                    async move { guarded(&sessions, answer(&sessions, args, true)).await }
+                    async move { guarded(&sessions, give_up(&sessions, args, true)).await }
                 }
             }))
             .with_route(ToolRoute::new(tools::decline(), {
                 let sessions = sessions.clone();
                 move |Parameters(args): Parameters<IdArgs>| {
                     let sessions = sessions.clone();
-                    async move { guarded(&sessions, answer(&sessions, args, false)).await }
+                    async move { guarded(&sessions, give_up(&sessions, args, false)).await }
                 }
             }));
         BrowserServer { tool_router, sessions }
@@ -266,6 +284,12 @@ struct IdArgs {
     id: String,
     #[serde(default)]
     conversation: String,
+    /// Why the caller is giving this request up, when nobody was asked about it.
+    /// **Absent for a person's own answer**, and read as one: only the app knows
+    /// the difference between "the person said no" and "there is nobody left to
+    /// ask", and the model is told which happened.
+    #[serde(default)]
+    why: Option<String>,
 }
 
 /// The address as typed, with a scheme the browser can use. A model writes
@@ -470,9 +494,16 @@ async fn resume(sessions: &Sessions) -> CallToolResult {
 /// in one would be a path and a query on a stranger's site on their way to the
 /// model and then to a disk. Whoever shows the outcome builds the words; this
 /// only says which outcome it was and where.
-async fn answer(sessions: &Sessions, args: IdArgs, yes: bool) -> CallToolResult {
+/// An answer, with **the caller's reason carried through when it has one** — see
+/// [`IdArgs::why`] and `hold::Holds::answer_why`. A person's "no" is a decline; the
+/// app letting a hold go because nobody is left to ask is not, and the model is
+/// told which of the two it was.
+async fn give_up(sessions: &Sessions, args: IdArgs, yes: bool) -> CallToolResult {
     let holds = sessions.holds().await;
-    match holds.answer(&args.id, &args.conversation, yes).await {
+    // A reason is only read where it is true: a "send" that also carries a reason
+    // is a send, and the reason is dropped rather than believed.
+    let why = if yes { None } else { args.why };
+    match holds.answer_why(&args.id, &args.conversation, yes, why.as_deref()).await {
         hold::Answer::Spent(outcome) => view::answered(
             serde_json::json!({ "code": outcome.code(), "host": outcome.host() }).to_string(),
         ),
@@ -706,7 +737,10 @@ async fn held_write(
     if let Some(id) = held_submission(page, holds, conversation, judge, caught).await {
         return Some(id);
     }
-    held_by(page, holds, before).await
+    // **Only a card of this call's own conversation.** A page that raises a card
+    // while some other chat is driving must not hand that chat an id it cannot
+    // answer, and must not report "awaiting confirm" for somebody else's write.
+    held_by(page, holds, conversation, before).await
 }
 
 /// One caught submission, as a card waiting for a person, with the request it
@@ -802,12 +836,14 @@ pub async fn held_submission(
 /// bounded window to appear: past that the page is read as it stands, which is
 /// what it would be anyway. It is looked for rather than waited on with a
 /// timeout, because this loop's deadline is its own.
-async fn held_by(page: &Page, holds: &Holds, before: &[String]) -> Option<String> {
+async fn held_by(page: &Page, holds: &Holds, conversation: &str, before: &[String]) -> Option<String> {
     let deadline = Instant::now() + HELD_WINDOW;
     loop {
         let waiting = holds.ids().await;
-        if let Some(id) = waiting.iter().find(|id| !before.contains(id)) {
-            return Some(id.clone());
+        for id in waiting.iter().filter(|id| !before.contains(id)) {
+            if holds.card(id).await.is_some_and(|card| card.conversation == conversation) {
+                return Some(id.clone());
+            }
         }
         if Instant::now() >= deadline {
             return None;

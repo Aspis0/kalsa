@@ -28,7 +28,7 @@
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::time::Duration;
 
-use playwright_rs::protocol::BrowserContext;
+use playwright_rs::protocol::{BrowserContext, Request};
 use tokio::net::lookup_host;
 use tokio::time::timeout;
 use url::{Host, Url};
@@ -323,7 +323,17 @@ pub async fn install(
                 // Their own submissions are not ours to hold: a held navigation
                 // freezes the page it is holding, which is the one thing a
                 // person cannot be asked to sit through.
-                if holding.paused() {
+                //
+                // **A navigation of the main frame and nothing else.** "The
+                // person is using the browser" is a claim about clicks and
+                // submissions, and a `fetch`, an `XHR` or a beacon is not one: it
+                // is the page talking to a server while the person sits there,
+                // and holding it is the whole reason this rule is not a blanket
+                // one. Those fall through to the rules below and are held like any
+                // other write, **and so is a GET carrying a secret** — pausing is
+                // about what the person is doing, not a permission for the page
+                // to send whatever it likes.
+                if holding.paused() && is_the_person_navigating(&request) {
                     return route.continue_(None).await;
                 }
                 let typed = typed.values();
@@ -339,6 +349,17 @@ pub async fn install(
             }
         })
         .await
+}
+
+/// Whether this request is the person moving the window: a navigation, of the
+/// frame they are looking at. A sub-resource, a data request or a page's own
+/// fetch is never one, however the page made it.
+///
+/// **Public so the test fixtures ask the same question the product does.** A
+/// stand-in that answered "yes while paused" would let every browser proof pass
+/// against a route that no longer exists.
+pub fn is_the_person_navigating(request: &Request) -> bool {
+    request.is_navigation_request() && request.frame().and_then(|frame| frame.parent_frame()).is_none()
 }
 
 #[cfg(test)]

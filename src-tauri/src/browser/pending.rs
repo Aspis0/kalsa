@@ -66,22 +66,107 @@ impl std::fmt::Debug for Card {
 /// is the leak this exists to stop. So anything that is not a query pair we can
 /// read is left exactly as it was, and only the values whose name a secret field
 /// carries are replaced.
+///
+/// **Decoded before it is compared, because an address is not written the way a
+/// field is named.** A page that types into `pass word` puts `pass+word` or
+/// `pass%20word` in the query, so comparing the encoded name against the typed
+/// one finds nothing and prints the value that was there to be hidden. Names and
+/// values are both read decoded, and a value that merely *carries* a secret —
+/// the same containment `secret::carries` uses, because a secret does not travel
+/// as one whole piece — is replaced whatever it is called.
+///
+/// And the whole thing is checked once more at the end: **an address that still
+/// carries a secret value after masking is printed as dots, in one piece.** A
+/// decode this file got wrong, a pair it could not split, a secret in the path or
+/// the host — all of them end in the same place, and none of them ends in a log
+/// line holding somebody's password.
 fn masked_address(url: &str, fields: &[Field]) -> String {
-    let Some((address, query)) = url.split_once('?') else {
+    let secrets: Vec<&Field> = fields.iter().filter(|field| field.secret).collect();
+    if secrets.is_empty() {
         return url.to_owned();
+    }
+    let masked = match url.split_once('?') {
+        None => url.to_owned(),
+        Some((address, query)) => {
+            let masked: Vec<String> = query
+                .split('&')
+                .map(|pair| {
+                    let (name, value) = pair.split_once('=').unwrap_or((pair, ""));
+                    let name = decode(name);
+                    let value = decode(value);
+                    let carries = secrets
+                        .iter()
+                        .any(|field| field.name == name || (!field.value.is_empty() && value.contains(&field.value)));
+                    if carries {
+                        format!("{name}={DOTS}")
+                    } else {
+                        pair.to_owned()
+                    }
+                })
+                .collect();
+            format!("{address}?{}", masked.join("&"))
+        }
     };
-    let masked: Vec<String> = query
-        .split('&')
-        .map(|pair| {
-            let (name, value) = pair.split_once('=').unwrap_or((pair, ""));
-            if fields.iter().any(|field| field.secret && field.name == name) {
-                format!("{name}={DOTS}")
-            } else {
-                pair.to_owned()
+    if carries_any(&masked, &secrets) { DOTS.to_owned() } else { masked }
+}
+
+/// Whether a secret value is anywhere in an address, raw or decoded — **the
+/// check the masker makes on its own output**, so a masking it could not do by
+/// name is caught anyway.
+///
+/// **It is not a check on the fields.** It asks the address, and it asks it
+/// whole: a value that is in the path or the host is in no query pair to replace,
+/// and the fields beside it are careful never to print — so an address that still
+/// carries one is printed as dots in one piece. Every card reaches a `Debug`, and
+/// a `Debug` is what a log line, a panic and a failing test read first.
+fn carries_any(address: &str, secrets: &[&Field]) -> bool {
+    let decoded = decode(address);
+    secrets.iter().any(|field| {
+        !field.value.is_empty() && (address.contains(&field.value) || decoded.contains(&field.value))
+    })
+}
+
+/// A percent-decoded, form-decoded string: `%20` and `+` are both a space.
+/// Anything that is not a valid escape is left as it was, because this is a log
+/// line and a broken escape is not a reason to print less of it than it can.
+fn decode(text: &str) -> String {
+    let bytes = text.as_bytes();
+    let mut out: Vec<u8> = Vec::with_capacity(bytes.len());
+    let mut at = 0;
+    while at < bytes.len() {
+        match bytes[at] {
+            b'+' => {
+                out.push(b' ');
+                at += 1;
             }
-        })
-        .collect();
-    format!("{address}?{}", masked.join("&"))
+            b'%' if at + 2 < bytes.len() => {
+                match (hex(bytes[at + 1]), hex(bytes[at + 2])) {
+                    (Some(high), Some(low)) => {
+                        out.push(high << 4 | low);
+                        at += 3;
+                    }
+                    _ => {
+                        out.push(bytes[at]);
+                        at += 1;
+                    }
+                }
+            }
+            byte => {
+                out.push(byte);
+                at += 1;
+            }
+        }
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
+fn hex(byte: u8) -> Option<u8> {
+    match byte {
+        b'0'..=b'9' => Some(byte - b'0'),
+        b'a'..=b'f' => Some(byte - b'a' + 10),
+        b'A'..=b'F' => Some(byte - b'A' + 10),
+        _ => None,
+    }
 }
 
 /// One field of a card: the value as it will be sent, and whether the window
@@ -368,6 +453,82 @@ mod tests {
 
         let nothing = card_of("c1", "GET", "https://a.example/app.css", CHAT, Vec::new());
         assert!(format!("{nothing:?}").contains("app.css"), "an address with no query is printed as it is");
+    }
+
+    /// **A field is named the way a person named it, and an address is written
+    /// the way an address is written.** `pass word` goes into the query as
+    /// `pass+word` or `pass%20word`, so a masker that compares the two as they
+    /// stand finds no match and prints the value it exists to hide.
+    #[test]
+    fn a_secret_under_a_written_name_is_dotted_too() {
+        let fields = vec![Field { name: "pass word".to_owned(), value: "hunter2".to_owned(), secret: true }];
+        for written in ["pass+word=hunter2", "pass%20word=hunter2"] {
+            let printed =
+                format!("{:?}", card_of("c1", "GET", &format!("https://a.example/go?{written}"), CHAT, fields.clone()));
+            assert!(!printed.contains("hunter2"), "the value reached a log through {written}: {printed}");
+            assert!(printed.contains("\u{2022}"), "and the address is still there, dotted: {printed}");
+        }
+    }
+
+    /// **A secret does not travel as one whole piece, and it is not always under
+    /// the name a page chose for it** — the same containment `secret::carries`
+    /// uses, because a value welded to an id is the same mail to a stranger's
+    /// server as the value on its own.
+    #[test]
+    fn a_secret_value_is_dotted_whatever_the_page_called_the_field() {
+        let fields = vec![Field { name: "token".to_owned(), value: "hunter2".to_owned(), secret: true }];
+        let printed = format!(
+            "{:?}",
+            card_of("c1", "GET", "https://a.example/go?session=prefix-hunter2-suffix&page=2", CHAT, fields)
+        );
+        assert!(!printed.contains("hunter2"), "a value inside a bigger one still reached a log: {printed}");
+        assert!(printed.contains("page=2"), "while the rest of the address is still readable: {printed}");
+    }
+
+    /// **What masking could not do by name is caught at the end anyway, and the
+    /// check is on the address rather than on the fields.** A secret in the path
+    /// or the host is in no query pair to replace, so the whole address is printed
+    /// as dots: a log line that says nothing about where the address went is worth
+    /// more than one that holds somebody's password. The sidecar is what names a
+    /// path secret, so a card that arrives here with no field at all has nothing
+    /// to check against — this is the last thing standing between an address and
+    /// a log, and it is deliberately blind to the field names.
+    #[test]
+    fn a_secret_is_dotted_wherever_it_sits_and_whatever_the_field_is_called() {
+        let fields = vec![Field { name: "a-form-field".to_owned(), value: "hunter2".to_owned(), secret: true }];
+        // No query pair carries it, and its name matches nothing, so the field
+        // cannot be used to find it: the whole address is dotted.
+        for url in ["https://a.example/hunter2/page", "https://hunter2.example/page"] {
+            let printed = format!("{:?}", card_of("c1", "GET", url, CHAT, fields.clone()));
+            assert!(!printed.contains("hunter2"), "the value reached a log through {url}: {printed}");
+            assert!(printed.contains("url: \"\u{2022}"), "and the address itself is not printed: {printed}");
+        }
+
+        // **And an address that carries nothing is not treated as one that might.**
+        // This is containment, not suspicion: a field marked secret is a value the
+        // person does not want read out, and a page may hold one and not put it
+        // in every address it makes. Hiding every address would leave the person
+        // unable to tell what they are agreeing to.
+        for url in ["https://a.example/go?session=zzz", "https://a.example/go"] {
+            let printed = format!("{:?}", card_of("c1", "GET", url, CHAT, fields.clone()));
+            assert!(printed.contains("a.example"), "an address that carries nothing is still read: {printed}");
+        }
+    }
+    #[test]
+    fn an_address_still_carrying_a_secret_is_printed_as_dots() {
+        let fields = vec![Field { name: "token".to_owned(), value: "hunter2".to_owned(), secret: true }];
+        for url in ["https://a.example/hunter2/page", "https://hunter2.example/page"] {
+            let printed = format!("{:?}", card_of("c1", "GET", url, CHAT, fields.clone()));
+            assert!(!printed.contains("hunter2"), "the value reached a log: {printed}");
+            assert!(printed.contains("url: \"\u{2022}"), "and the address itself is not printed: {printed}");
+        }
+        // A field with no value carries nothing, so it cannot make an address
+        // unsafe: it still dots the pair it is named after, and no other.
+        let empty = vec![Field { name: "token".to_owned(), value: String::new(), secret: true }];
+        let printed = format!("{:?}", card_of("c1", "GET", "https://a.example/go?token=x&page=2", CHAT, empty));
+        assert!(printed.contains("token=\u{2022}"), "its own name is still dotted: {printed}");
+        assert!(printed.contains("page=2"), "and an empty value takes nothing else with it: {printed}");
+        assert!(printed.contains("a.example"), "nor is the whole address hidden: {printed}");
     }
 
     /// **A card says when it was shown, and a secret field crosses with its

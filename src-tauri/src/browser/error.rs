@@ -67,6 +67,14 @@ pub(crate) struct CommandFailure {
     text: &'static str,
 }
 
+impl CommandFailure {
+    /// The code alone, for a caller that speaks in codes rather than sentences —
+    /// the phone's answer route, which hands one to the phone.
+    pub(crate) fn code(&self) -> &'static str {
+        self.code
+    }
+}
+
 impl From<BrowserError> for CommandFailure {
     fn from(error: BrowserError) -> Self {
         Self { code: error.code(), text: fallback(error) }

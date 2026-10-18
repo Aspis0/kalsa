@@ -29,6 +29,18 @@ const PATIENCE: Duration = Duration::from_secs(10);
 /// How often to look while waiting for the tree to go.
 const LOOK: Duration = Duration::from_millis(100);
 
+/// How long the browser's process set must stop changing before we believe we
+/// have seen all of it.
+///
+/// **This is the whole of the flake, and it was a race rather than a slowness.**
+/// Chrome starts helpers over a second or so — a zygote, a gpu process, a
+/// renderer per page — and the old test took its picture the moment the driver
+/// and *one* browser process appeared. Every helper born after that photograph
+/// was not in it: not waited for, not reported, and if the driver was killed
+/// while one was still being spawned, an orphan could be left running. The
+/// browser had not been slow; the test had been early, and early is a race.
+const SETTLE: Duration = Duration::from_millis(600);
+
 /// Ending the session leaves no node driver and no Chrome of ours behind.
 ///
 /// The sidecar is killed the way the host kills it — SIGKILL, no warning, no
@@ -59,10 +71,16 @@ fn ending_the_session_leaves_no_driver_and_no_browser_running() {
         running.driver,
         running.browser
     );
-    assert!(took < PATIENCE, "they took {took:?} to appear, which is a start-up claim of its own");
+    assert!(
+        took < PATIENCE + SETTLE,
+        "they took {took:?} to appear and settle, which is a start-up claim of its own"
+    );
 
     sidecar.kill();
-    let waited = wait_for_all(&running);
+    // **Every process that ever belonged to us, not only the ones in the
+    // photograph.** A helper born while we were looking is still ours, and the
+    // verdict is about the window leaving nothing behind.
+    let waited = wait_for_all(&profile, &running);
 
     // Whatever survived is stopped here, so a failure does not leave a browser
     // running on somebody's machine — and then said.
@@ -90,7 +108,7 @@ struct Row {
 }
 
 /// What a session was holding up while it was open.
-#[derive(Default)]
+#[derive(Default, Clone)]
 struct Running {
     /// Playwright's node driver: a child of the sidecar, and the only one.
     driver: Option<u32>,
@@ -127,12 +145,30 @@ fn running(profile: &str, sidecar: u32) -> Running {
 /// that never appears is a finding, and a wait that never ends is not.
 fn wait_for_start(profile: &str, sidecar: u32) -> (Running, Duration) {
     let started = Instant::now();
+    // The budget is the patience plus the settle, and they are different things:
+    // a browser that takes its time is allowed to, so long as it finishes
+    // arriving rather than never arriving.
+    let budget = PATIENCE + SETTLE;
+    let mut last: HashSet<u32> = HashSet::new();
+    let mut quiet_since = Instant::now();
     loop {
         let found = running(profile, sidecar);
-        if found.driver.is_some() && !found.browser.is_empty() {
+        // **The same set, not the same number.** A helper that dies and is
+        // replaced leaves the count where it was while everything about the
+        // browser changed, and comparing sizes would call that settled. The
+        // timer restarts on a *change*: quiet is the absence of one.
+        let now: HashSet<u32> = found.all().into_iter().collect();
+        if now != last {
+            quiet_since = Instant::now();
+        }
+        last = now;
+        if found.driver.is_some()
+            && !found.browser.is_empty()
+            && quiet_since.elapsed() >= SETTLE
+        {
             return (found, started.elapsed());
         }
-        if started.elapsed() >= PATIENCE {
+        if started.elapsed() >= budget {
             return (found, started.elapsed());
         }
         std::thread::sleep(LOOK);
@@ -140,11 +176,23 @@ fn wait_for_start(profile: &str, sidecar: u32) -> (Running, Duration) {
 }
 
 /// How long it took for every one of them to go, given a deadline.
-fn wait_for_all(running: &Running) -> Duration {
-    let wanted: HashSet<u32> = running.all().into_iter().collect();
+///
+/// **Two conditions, and both have to hold.** The processes in the photograph
+/// must be gone, *and* nothing new may be matching our profile: a helper that
+/// appears after the kill is one the driver left behind, and stopping the wait
+/// while it is still appearing is how an orphan is missed.
+fn wait_for_all(profile: &str, was: &Running) -> Duration {
+    let wanted: HashSet<u32> = was.all().into_iter().collect();
     let started = Instant::now();
     while started.elapsed() < PATIENCE {
-        if wanted.iter().all(|pid| !alive(*pid)) {
+        // `u32::MAX` is a pid nobody has: the lookup is by profile, so the
+        // driver is not found by parentage here and `was` covers it.
+        let stragglers: Vec<u32> = running(profile, u32::MAX)
+            .all()
+            .into_iter()
+            .chain(wanted.iter().copied().filter(|pid| alive(*pid)))
+            .collect();
+        if stragglers.is_empty() {
             break;
         }
         std::thread::sleep(LOOK);

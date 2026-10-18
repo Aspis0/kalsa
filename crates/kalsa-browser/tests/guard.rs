@@ -130,11 +130,14 @@ async fn an_address_refused_on_its_own_never_reaches_the_network() {
     let (base, arrived) = common::serve(&[common::page("<h1>here</h1>")]).await;
     let (_playwright, page) = window_on(&base, "guard-literal").await;
     page.goto(&base, None).await.expect("the page loads");
-    let allowed = arrived.requests().len();
+    // **The icon is not a request this test made.** Chromium fetches a tab's
+    // `/favicon.ico` whenever it gets round to it, from no navigation here, so
+    // it is left out of the count rather than waited for.
+    let allowed = arrived.except_icons();
 
     for address in ["http://100.64.0.1/", "http://127.0.0.1:9/", "http://localhost./"] {
         assert!(page.goto(address, None).await.is_err(), "{address} loaded");
     }
     tokio::time::sleep(Duration::from_millis(400)).await;
-    assert_eq!(arrived.requests().len(), allowed, "nothing extra arrived: {:?}", arrived.requests());
+    assert_eq!(arrived.except_icons(), allowed, "nothing extra arrived: {:?}", arrived.requests());
 }

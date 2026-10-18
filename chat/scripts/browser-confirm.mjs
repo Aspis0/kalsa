@@ -150,11 +150,17 @@ try {
     const names = offeredTools(true, "en", "any-model").map((tool) => tool.function.name);
     equal("a driver offers the three reads and the two writes", names.filter((name) => OFFERED.includes(name)), OFFERED);
 
-    const phone = phoneTools(true, "en", "any-model", true).map((tool) => tool.function.name);
+    // **A phone turn drives the same browser**, under the same offer: it is a
+    // paired phone and it is the person. What it must not be is a phone that
+    // cannot be told which phone it is — a write behind an unidentified turn is a
+    // card with nobody to show it, so it is not offered.
+    const named = phoneTools(true, "en", "any-model", true, "2").map((tool) => tool.function.name);
+    equal("a phone turn that names its phone is offered the whole browser", named.filter((name) => OFFERED.includes(name)), OFFERED);
+    const anonymous = phoneTools(true, "en", "any-model", true, null).map((tool) => tool.function.name);
     check(
-      "a phone turn is offered no browser tool at all, so a phone can never send a write",
-      !phone.some((name) => OFFERED.includes(name)),
-      phone.join(","),
+      "and a turn that names no phone is offered the reads and neither write",
+      anonymous.includes("browser_open") && !anonymous.includes("browser_click") && !anonymous.includes("browser_type"),
+      anonymous.join(","),
     );
   }
 

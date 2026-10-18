@@ -30,9 +30,12 @@ const RECORD = {
 
 async function reads(app) {
   console.log("\n# the mail read");
+  // A read names no phone: it is the mailbox, not the model, and a card cannot
+  // be raised by one. The envelope says so rather than leaving it out.
   equal("a read parses", app.readPhoneRequest({ request: "r3", kind: "read", mail: true, read: { id: "105" } }), {
     request: "r3",
     mail: true,
+    device: null,
     body: { kind: "read", id: "105" },
   });
   check("a read id that is not digits is answered, not parsed", app.readPhoneRequest({ request: "r4", kind: "read", read: { id: "1x" } }).body === null);
@@ -103,6 +106,15 @@ async function runner(app) {
   bridge.answer = async () => undefined;
   const stop = app.startPhoneChatRunner();
   check("both listeners are registered", bridge.handlers.has("phone-chat-request") && bridge.handlers.has("phone-chat-stop"));
+  // **One path to the phone, and it is not this one.** A card and an outcome are
+  // written straight onto the phone's own stream by the door. This used to listen
+  // for a second copy of each and forward it onto that same stream, which sent
+  // every phone every card twice.
+  check(
+    "no second road for a card or an outcome",
+    !bridge.handlers.has("browser_phone_cards") && !bridge.handlers.has("browser_phone_outcome"),
+    [...bridge.handlers.keys()].join(","),
+  );
   emit("phone-chat-request", { request: "e1", kind: "turn", turn: { messages: [] } });
   equal("a request with a bad body is answered bad_request, not accepted", phoneEvents(), [["error", { code: "bad_request" }]]);
   bridge.calls.length = 0;
@@ -156,9 +168,47 @@ async function runner(app) {
     ["accepted", {}],
     ["error", { code: "cancelled" }],
   ]);
+
+  // **The turn runs as the phone that authenticated, whatever the body claimed.**
+  // The envelope's device is what the app resolved the credential to and it is
+  // what a card of this turn is stamped with; the body carries no device to
+  // compete with, and one that put a number there would be parsed to null
+  // before this ever runs. So a phone cannot talk itself into another phone's
+  // conversation, and cannot be left out of its own.
+  const turn = app.readPhoneRequest({
+    request: "e8",
+    device: "2",
+    mail: true,
+    kind: "turn",
+    turn: { messages: [USER("apri il browser")], device: "7" },
+  }).body;
+  equal("the app's own number is the turn's", app.turnFor(turn, "2").device, "2");
+  equal(
+    "and the browser writes of that turn are stamped with its conversation",
+    app.phoneConversation(app.turnFor(turn, "2").device),
+    "phone:2",
+  );
+  // Belt and braces, stated as such: parsing already drops a body's device, so
+  // this shape cannot reach the runner from a payload. If one ever did, the
+  // app's number still overwrites it — the conversation a card is stamped with
+  // is the credential's either way.
+  equal(
+    "a turn that somehow carried a device still runs as the phone that authenticated",
+    app.turnFor({ kind: "turn", turn: { messages: [USER("hi")], replyFor: null, language: "en", device: "7" } }, "2").device,
+    "2",
+  );
+  equal("a turn from a payload with no device is run with none", app.turnFor(app.readPhoneRequest({ request: "e9", mail: true, kind: "turn", turn: { messages: [USER("hi")] } }).body, null).device, null);
+
   bridge.answer = async () => undefined;
   await stop();
-  check("stopping removes both listeners", bridge.unlistened === 2 && bridge.handlers.size === 0, `unlistened=${bridge.unlistened}`);
+  // Both listeners and no more: a card and an outcome are the phone's own
+  // stream's business, and a listener left behind would keep answering a window
+  // nobody is running.
+  check(
+    "stopping removes every listener",
+    bridge.unlistened === 2 && bridge.handlers.size === 0,
+    `unlistened=${bridge.unlistened} handlers=${bridge.handlers.size}`,
+  );
 }
 
 await withPhone(async (app) => {

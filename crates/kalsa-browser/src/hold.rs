@@ -91,7 +91,22 @@ fn masked_address(url: &str, fields: &[Field]) -> String {
     }
     let query = query.finish();
     masked.set_query(if query.is_empty() { None } else { Some(&query) });
-    masked.to_string()
+    // **What masking could not do by name is caught at the end anyway.** A secret
+    // in the path, or a value the query spelled differently, is in no pair this
+    // loop could replace — and a card is what a log line, a panic or a failing
+    // test reaches first. So the address is read once more, and one that still
+    // carries a value of a field marked secret is printed as dots in one piece:
+    // a log line that says nothing about where the address went is worth more
+    // than one that holds somebody's password.
+    let printed = masked.to_string();
+    if fields
+        .iter()
+        .filter(|field| field.secret && !field.value.is_empty())
+        .any(|field| printed.contains(&field.value))
+    {
+        return crate::body::DOTS.to_owned();
+    }
+    printed
 }
 
 /// What became of a held request once it was answered, expired, or went away.
@@ -108,7 +123,7 @@ pub enum Outcome {
     /// The window went while it waited. Nothing was sent.
     Gone,
     /// A body the person cannot be shown. Nothing was sent, and this is why.
-    Unrenderable(&'static str),
+    Unrenderable(String),
     /// The press landed and the answer never came back. **Never retried.**
     Ambiguous,
 }
@@ -192,6 +207,9 @@ struct Held {
     answer_it: Answering,
 }
 
+/// One outcome and the conversation that caused it.
+type Settled = (String, Outcome);
+
 #[derive(Default)]
 struct Inner {
     /// In the order they were held: the newest is last, which is the one a call
@@ -199,7 +217,11 @@ struct Inner {
     held: Vec<Held>,
     /// What the model has not been told yet, carried on its next tool result:
     /// it cannot act on an answer before it acts at all.
-    outcomes: Vec<Outcome>,
+    /// Every outcome, each with the conversation it belongs to. **Kept whole**
+    /// until the conversation that caused it comes back for it, because an
+    /// outcome drained by whoever happens to be calling next is an outcome in the
+    /// wrong chat.
+    outcomes: Vec<Settled>,
     /// The conversation whose call is **running right now**. A request we caused
     /// — a click, a fill — belongs to it.
     calling: String,
@@ -301,6 +323,15 @@ impl Holds {
     }
 
     /// Forgets it, for a window that has opened somewhere else.
+    /// Records a value as one the person typed into a secret field.
+    ///
+    /// **For a proof, and for the product's own catcher**: it is the same
+    /// add-only list the page can add to, so a proof that wrote it directly is
+    /// writing the same thing the page writes, not a side door round it.
+    pub async fn typed_in(&self, field: u64, value: &str) {
+        self.inner.lock().await.typed.record(field, value.to_owned());
+    }
+
     pub async fn forget_typed(&self) {
         self.inner.lock().await.typed.forget();
     }
@@ -328,11 +359,28 @@ impl Holds {
     /// store-wide "current" is the wrong shape — a request that arrives while a
     /// different chat is reading would be stamped with that chat, and the person
     /// who caused it could not answer their own card.
+    ///
+    /// **Eight per conversation, and the ninth is not held.** A person is being
+    /// asked to decide on a stranger's write; eight on one screen is already as
+    /// much as anybody reads, and a ninth is answered by pressing the top one. So
+    /// the store refuses it — the same number the phone side keeps, because it is
+    /// the same screen — and the caller is told, in one line, that the request
+    /// went nowhere rather than left in a hold with a route parked behind it.
     pub async fn hold(&self, mut card: Card, conversation: &str, answer_it: Answering) -> String {
         let mut inner = self.inner.lock().await;
+        // The id is made before anything is decided, so a caller that is told its
+        // request went nowhere is still holding the id the model was given.
         card.id = new_id();
-        card.conversation = conversation.to_owned();
         let id = card.id.clone();
+        if inner.held.iter().filter(|held| held.card.conversation == conversation).count() >= MAX_HELD {
+            drop(inner);
+            self.refuse(FULL).await;
+            // The route is answered as a refusal, not parked: there is no card to
+            // ask about, so there is nothing to wait for.
+            (answer_it)(false).await;
+            return id;
+        }
+        card.conversation = conversation.to_owned();
         let began = (self.now)();
         inner.held.push(Held { card, began, answer_it });
         id
@@ -341,13 +389,26 @@ impl Holds {
     /// A body the person cannot be shown is not held at all: there is no card to
     /// ask about, and holding a request nobody can see is a request waiting to
     /// be sent on a shrug.
-    pub async fn refuse(&self, why: &'static str) {
-        self.inner.lock().await.outcomes.push(Outcome::Unrenderable(why));
+    pub async fn refuse(&self, why: impl Into<String>) {
+        let mut inner = self.inner.lock().await;
+        let whose = inner.calling.clone();
+        inner.outcomes.push((whose, Outcome::Unrenderable(why.into())));
     }
 
     /// What the model has not been told yet, in the order it happened.
-    pub async fn take_outcomes(&self) -> Vec<Outcome> {
-        self.inner.lock().await.outcomes.drain(..).collect()
+    /// **What happened, in the conversation that caused it — and nothing else.**
+    ///
+    /// An outcome belongs to the turn whose request it settles. Draining the lot
+    /// would hand one chat the news about another chat's request, and the news is
+    /// a sentence about something a person decided: which is not a thing to read
+    /// in a conversation that never asked. What is not taken stays here, for the
+    /// conversation it belongs to.
+    pub async fn take_outcomes(&self, conversation: &str) -> Vec<Outcome> {
+        let mut inner = self.inner.lock().await;
+        let (mine, theirs): (Vec<Settled>, Vec<Settled>) =
+            inner.outcomes.drain(..).partition(|(whose, _)| whose == conversation);
+        inner.outcomes = theirs;
+        mine.into_iter().map(|(_, outcome)| outcome).collect()
     }
 
     /// The card for one held request, for the person about to be asked.
@@ -377,6 +438,19 @@ impl Holds {
     /// The person's answer. **The id is taken before anything is dispatched**, so
     /// a second press finds nothing, and nothing is ever attempted twice.
     pub async fn answer(&self, id: &str, conversation: &str, yes: bool) -> Answer {
+        self.answer_why(id, conversation, yes, None).await
+    }
+
+    /// The same, with **the reason the caller is giving the request up**, which is
+    /// not always that the person said no.
+    ///
+    /// **A decline that nobody was asked for is not a decline.** When the app lets
+    /// a hold go because there is nobody left to answer it — a phone that has been
+    /// unpaired, a write refused for want of a decision — `why` is what the model
+    /// is told, in the same plain line every other refusal uses. Settling those as
+    /// `Declined` would tell the model the person refused, which is the one thing
+    /// it would then be right to try again.
+    pub async fn answer_why(&self, id: &str, conversation: &str, yes: bool, why: Option<&str>) -> Answer {
         // Expiry comes first: a request nobody answered may not still be sent.
         self.expire().await;
         // Found and taken in **one** acquisition of the lock. Two acquisitions
@@ -408,13 +482,19 @@ impl Holds {
         // waits on the network is ever waited on holding it.
         let dispatched = (held.answer_it)(yes).await;
         let outcome = match (yes, dispatched) {
-            (false, _) => Outcome::Declined,
+            // **Nobody was asked**, so that is what is said: a decline with a
+            // reason is not the person refusing, and a model told they refused
+            // would try again.
+            (false, _) => match why {
+                Some(why) => Outcome::Unrenderable(why.to_owned()),
+                None => Outcome::Declined,
+            },
             (true, true) => Outcome::Sent { host: host_of(&held.card.url).unwrap_or_default() },
             // It was answered yes and could not be sent. Say so, and never try
             // again.
             (true, false) => Outcome::Ambiguous,
         };
-        self.inner.lock().await.outcomes.push(outcome.clone());
+        self.inner.lock().await.outcomes.push((held.card.conversation.clone(), outcome.clone()));
         Answer::Spent(outcome)
     }
 
@@ -456,23 +536,32 @@ impl Holds {
 
     /// Whether **this** request is the one just answered, asked of the store by
     /// the route before it holds anything.
+    ///
+    /// **The whole of [`Ticket::matches`], and not a part of it.** A `fetch`
+    /// carrying the same method, address, content type and bytes is not the
+    /// request the person was shown — it is the same request made by somebody
+    /// else's code, and spending the answer on it is how "yes" turns into
+    /// "something else". It is held like any other write, and the ticket is left
+    /// there for the navigation that really is ours.
     pub async fn takes_pass(&self, request: &Request) -> bool {
-        let (method, url, content_type, body) = (
-            request.method().to_owned(),
-            request.url().to_owned(),
-            request.headers().get("content-type").cloned().unwrap_or_default(),
-            request.post_data_buffer().unwrap_or_default(),
-        );
-        self.takes_parts(&method, &url, &content_type, &body).await
+        let mut inner = self.inner.lock().await;
+        if !inner.pass.as_ref().is_some_and(|wanted| wanted.matches(request)) {
+            return false;
+        }
+        inner.pass = None;
+        true
     }
 
-    /// The same, over the four things that make a request a request.
+    /// The four-part comparison on its own, with no request and no frame.
     ///
-    /// **The ticket is spent only by the request it was made for.** A request
-    /// that does not match is held like any other write and leaves the ticket
-    /// alone: burning the answer on a probe would send nothing at all while the
-    /// person was told the request had gone, which is the worst outcome here,
-    /// and it is also a way to answer yes and send something else.
+    /// **A test's tool and nothing the product can reach.** The route asks
+    /// [`Self::takes_pass`], which asks the whole of [`Ticket::matches`]; there is
+    /// no path from a request to this, and that is the point. It stays for the
+    /// case it is good at — telling two bodies apart without a browser — and it
+    /// is deliberately *not* what a probe is stopped by: a probe with a
+    /// byte-identical body passes this and is still held, because it is not a
+    /// navigation.
+    #[cfg(test)]
     pub async fn takes_parts(&self, method: &str, url: &str, content_type: &str, body: &[u8]) -> bool {
         let mut inner = self.inner.lock().await;
         if !inner.pass.as_ref().is_some_and(|wanted| wanted.matches_parts(method, url, content_type, body)) {
@@ -486,12 +575,11 @@ impl Holds {
     /// request with nobody left to answer it is not dispatched.
     pub async fn decline_all(&self, outcome: Outcome) {
         let taken: Vec<Held> = self.inner.lock().await.held.drain(..).collect();
-        let answered = !taken.is_empty();
         for held in taken {
+            // **Each card's outcome lands in that card's conversation**, so a
+            // window closing over two chats tells each of them about its own.
+            self.inner.lock().await.outcomes.push((held.card.conversation.clone(), outcome.clone()));
             (held.answer_it)(false).await;
-        }
-        if answered {
-            self.inner.lock().await.outcomes.push(outcome);
         }
     }
 
@@ -514,12 +602,9 @@ impl Holds {
             }
             expired
         };
-        let was_any = !taken.is_empty();
         for held in taken {
+            self.inner.lock().await.outcomes.push((held.card.conversation.clone(), Outcome::Expired));
             (held.answer_it)(false).await;
-        }
-        if was_any {
-            self.inner.lock().await.outcomes.push(Outcome::Expired);
         }
     }
 }
@@ -637,6 +722,29 @@ pub fn is_read(method: &str) -> bool {
     method.eq_ignore_ascii_case("GET")
 }
 
+/// **The longest address a card may carry.** Eight kilobytes is far past any
+/// address a person reads and far short of the one-megabyte frame a phone's card
+/// event has to fit in, so a card at its caps — a maximum body in every one of
+/// two hundred fields — still crosses whole. **Capped here, where the card is
+/// made**, so the rule is one number in one place rather than the same number
+/// restated by a caller on each side of the wire.
+pub const MAX_URL: usize = 8 * 1024;
+
+/// **How many held requests one conversation may have waiting at once.** Eight,
+/// and the same eight the phone bridge keeps, because it is the same screen: a
+/// person is being asked to decide on a stranger's write, and a ninth is a queue
+/// they clear by pressing the top one.
+pub const MAX_HELD: usize = 8;
+
+/// What the model is told about a write refused because the person was already
+/// being asked about eight others. One plain line, said once, and nothing held.
+const FULL: &str = "the person was already being asked about eight other requests, so this one was never put to them";
+
+/// What the model is told about an address too long to draw a card for. One
+/// plain line, and no card: the request was refused rather than held, so nothing
+/// is waiting for anybody.
+const TOO_LONG: &str = "its address is longer than 8 KiB, which is more than a card can show a person";
+
 /// **Holds one write, or refuses it.** The route that would have dispatched it
 /// is parked in the store with the card, and this handler returns without
 /// answering it: an answer arrives on its own call, minutes later.
@@ -654,6 +762,18 @@ pub async fn hold_write(
     let headers = request.headers();
     let content_type = headers.get("content-type").cloned().unwrap_or_default();
     let body = request.post_data_buffer().unwrap_or_default();
+    // **An address nobody is going to read is not a card.** The address crosses
+    // as it is, whole, to the window, to the phone and into the note the model
+    // reads, so a page that puts twenty kilobytes in its query would spend the
+    // person's screen and the phone's one-megabyte frame on a line they cannot
+    // check — and a card that cannot be checked is a card they cannot answer. It
+    // is refused here for the same reason a body the person cannot be shown is:
+    // there would be no card to ask about, so the model is told why instead.
+    if request.url().len() > MAX_URL {
+        holds.refuse(TOO_LONG).await;
+        route.abort(Some("blockedbyclient")).await?;
+        return Ok(());
+    }
     // A read that is not one has nothing in a body to show: what it carries is
     // in its address, and the address is shown whole.
     if is_read(request.method()) {
@@ -719,7 +839,7 @@ pub(crate) fn address_of(url: &str, typed: &[String]) -> Card {
     let Ok(parsed) = url::Url::parse(url) else {
         return Card { id: String::new(), method: "GET".to_owned(), url: url.to_owned(), fields: Vec::new(), conversation: String::new() };
     };
-    let fields: Vec<Field> = parsed
+    let mut fields: Vec<Field> = parsed
         .query_pairs()
         .map(|(name, value)| {
             // **By name or by value.** The name is what a page can choose, and a
@@ -730,6 +850,25 @@ pub(crate) fn address_of(url: &str, typed: &[String]) -> Card {
             body::Field { secret, name: name.into_owned(), value: value.into_owned() }
         })
         .collect();
+    // **A secret in the path is a secret nobody can see on the card.** The query
+    // is read pair by pair, so a query value that is one the person typed is
+    // marked where it is; a path segment that carries the same value is in no
+    // pair, so nothing above finds it — and the address is shown whole, so it
+    // would go to the person, and to every log line that prints the card, with a
+    // value in it that the fields beside it are careful not to print. So it is
+    // **named here**, as a field of its own: the card then says what is in the
+    // path that it should not, which is the only thing a masker, a person or a
+    // log line can act on.
+    if crate::secret::carries(url, typed) && !fields.iter().any(|field| field.secret) {
+        if let Some(part) = parsed
+            .path_segments()
+            .into_iter()
+            .flatten()
+            .find(|segment| typed.iter().filter(|value| value.chars().count() >= crate::secret::MIN_SECRET).any(|value| segment.contains(value.as_str())))
+        {
+            fields.push(body::Field { secret: true, name: "the path".to_owned(), value: part.to_owned() });
+        }
+    }
     Card { id: String::new(), method: "GET".to_owned(), url: url.to_owned(), fields, conversation: String::new() }
 }
 
@@ -749,7 +888,7 @@ pub fn awaiting(id: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{address_of, Answer, Card, Holds, Outcome, Ticket, EXPIRY};
+    use super::{address_of, Answer, Card, Holds, Outcome, Ticket, EXPIRY, FULL, MAX_HELD};
     use crate::body::Field;
     use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
     use std::sync::Arc;
@@ -901,7 +1040,7 @@ mod tests {
 
         assert_eq!(holds.answer(&id, CHAT, true).await, Answer::Spent(Outcome::Sent { host: "shop.example".to_owned() }));
         assert!(sent.dispatched(), "the held request is the one that goes");
-        assert_eq!(holds.take_outcomes().await, vec![Outcome::Sent { host: "shop.example".to_owned() }]);
+        assert_eq!(holds.take_outcomes(CHAT).await, vec![Outcome::Sent { host: "shop.example".to_owned() }]);
     }
 
     /// The card is the request as it would have been received, and the id on it
@@ -938,7 +1077,7 @@ mod tests {
 
         clock.advance(Duration::from_secs(2));
         assert_eq!(holds.cards().await, Vec::<Card>::new(), "an expired request is no longer a card");
-        assert_eq!(holds.take_outcomes().await, vec![Outcome::Expired]);
+        assert_eq!(holds.take_outcomes(CHAT).await, vec![Outcome::Expired]);
         assert!(sent.dropped() && !sent.dispatched(), "an expired request is never dispatched");
 
         assert_eq!(holds.answer(&id, CHAT, true).await, Answer::Unknown, "an expired id may not be sent");
@@ -962,7 +1101,72 @@ mod tests {
         assert_eq!(holds.cards().await, Vec::<Card>::new());
         assert_eq!(holds.answer(&id, CHAT, true).await, Answer::Unknown);
         assert!(sent.dropped() && !sent.dispatched(), "nothing is dispatched when the window goes");
-        assert_eq!(holds.take_outcomes().await, vec![Outcome::Gone]);
+        // **One per card, not one per window.** Each is stamped with the
+        // conversation that caused it, so a window closing over two chats tells
+        // each of them about its own and neither about the other's.
+        assert_eq!(holds.take_outcomes(CHAT).await, vec![Outcome::Gone, Outcome::Gone]);
+    }
+
+    /// **Eight requests, and the ninth is not held.** A person is being asked to
+    /// decide on a stranger's write, and one screen holding eight of them is
+    /// already as much as anybody reads — a ninth is answered by pressing the top
+    /// one. So the store refuses it: the route is answered as a refusal rather
+    /// than parked, and the model is told in one line that the request went
+    /// nowhere. Nothing is left in a hold with a page waiting behind it.
+    #[tokio::test]
+    async fn a_ninth_request_in_one_conversation_is_refused_and_not_held() {
+        let holds = holds_in(CHAT).await;
+        let mut sent = Vec::new();
+        for _ in 0..MAX_HELD {
+            let (route, _) = Sent::default().answering();
+            holds.hold(card(), CHAT, route).await;
+            sent.push(Sent::default());
+        }
+        assert_eq!(holds.waiting().await, MAX_HELD, "every request up to the cap is held");
+
+        let (route, refused) = Sent::default().answering();
+        holds.hold(card(), CHAT, route).await;
+        assert!(refused.dropped() && !refused.dispatched(), "the ninth request is answered as a refusal, not parked");
+        assert_eq!(holds.waiting().await, MAX_HELD, "and it is not held");
+        assert_eq!(
+            holds.take_outcomes(CHAT).await,
+            vec![Outcome::Unrenderable(FULL.to_owned())],
+            "and the model is told once, in one plain line"
+        );
+
+        // Another conversation's cap is its own.
+        let other = holds_in("chat-b").await;
+        let (route, refused) = Sent::default().answering();
+        other.hold(card(), "chat-b", route).await;
+        assert!(!refused.dropped(), "one conversation was refused for another's backlog");
+    }
+
+    /// **A decline nobody asked for is not a decline.** The app lets a hold go
+    /// when there is nobody left to answer it — a phone that was unpaired, a write
+    /// refused for want of a decision — and settles it with its own reason. Told
+    /// "declined", the model reads that the person refused and tries again, which
+    /// is the one thing a request nobody was shown must not earn.
+    #[tokio::test]
+    async fn a_decline_with_a_reason_says_nobody_was_asked_and_not_that_the_person_said_no() {
+        let holds = holds_in(CHAT).await;
+        let (sent, _answered) = Sent::default().answering();
+        let id = holds.hold(card(), CHAT, sent).await;
+
+        assert_eq!(
+            holds.answer_why(&id, CHAT, false, Some("the phone that raised this was unpaired")).await,
+            Answer::Spent(Outcome::Unrenderable("the phone that raised this was unpaired".to_owned()))
+        );
+        assert!(!_answered.dispatched(), "nothing was sent");
+        assert_eq!(
+            holds.take_outcomes(CHAT).await,
+            vec![Outcome::Unrenderable("the phone that raised this was unpaired".to_owned())],
+            "and the model is told why, in the same plain line every other refusal uses"
+        );
+
+        // And a person's own no is still a plain decline, with no reason attached.
+        let (sent, _answered) = Sent::default().answering();
+        let id = holds.hold(card(), CHAT, sent).await;
+        assert_eq!(holds.answer(&id, CHAT, false).await, Answer::Spent(Outcome::Declined));
     }
 
     /// Nothing waiting means nothing to say: a window with no held request must
@@ -971,7 +1175,7 @@ mod tests {
     async fn a_window_with_nothing_waiting_says_nothing() {
         let holds = holds_in(CHAT).await;
         holds.decline_all(Outcome::Gone).await;
-        assert_eq!(holds.take_outcomes().await, Vec::new());
+        assert_eq!(holds.take_outcomes(CHAT).await, Vec::new());
         assert_eq!(holds.cards().await, Vec::<Card>::new());
     }
 
@@ -983,8 +1187,8 @@ mod tests {
         holds.refuse("the request carries a file, and a card cannot show a file").await;
         assert_eq!(holds.waiting().await, 0);
         assert_eq!(
-            holds.take_outcomes().await,
-            vec![Outcome::Unrenderable("the request carries a file, and a card cannot show a file")]
+            holds.take_outcomes(CHAT).await,
+            vec![Outcome::Unrenderable("the request carries a file, and a card cannot show a file".to_owned())]
         );
     }
 
@@ -1001,7 +1205,7 @@ mod tests {
             Outcome::Declined,
             Outcome::Expired,
             Outcome::Gone,
-            Outcome::Unrenderable("the request carries a file, and a card cannot show a file"),
+            Outcome::Unrenderable("the request carries a file, and a card cannot show a file".to_owned()),
             Outcome::Ambiguous,
         ] {
             let sentence = outcome.sentence();
@@ -1136,6 +1340,12 @@ mod tests {
     /// that races the approved request with something else gets that something
     /// held like any other write, and the approved request still goes — which
     /// is the only ordering where both halves of that are true.
+    ///
+    /// **Over the four parts only, and on purpose.** What the route really does
+    /// is asked of a real request with a real frame, and a real frame is the
+    /// whole of the rule: a probe with a byte-identical body is not a navigation
+    /// and must not be able to claim the answer. This is the comparison without
+    /// that, kept for the case it is good at — telling two bodies apart.
     #[tokio::test]
     async fn a_request_that_is_not_the_one_approved_neither_goes_nor_spends_the_answer() {
         let holds = holds_in(CHAT).await;
@@ -1180,7 +1390,7 @@ mod tests {
                 Outcome::Declined,
                 Outcome::Expired,
                 Outcome::Gone,
-                Outcome::Unrenderable("the request carries a file, and a card cannot show a file"),
+                Outcome::Unrenderable("the request carries a file, and a card cannot show a file".to_owned()),
                 Outcome::Ambiguous,
             ]
             .map(|outcome| outcome.code()),
@@ -1210,6 +1420,32 @@ mod tests {
         // A value the person typed is dotted whatever the parameter is called.
         let flipped = address_of("https://shop.example/go?field1=hunter2", &["hunter2".to_owned()]);
         assert!(flipped.fields[0].secret, "a type-flipped name does not get to read it: {:?}", flipped.fields[0]);
+    }
+
+    /// **A secret in the path is named on the card, because nothing else would
+    /// show it.** The query is read pair by pair, so a query value the person
+    /// typed is marked where it is. A path segment carrying the same value is in
+    /// no pair: the card would show the address whole, with a value in it that
+    /// the fields beside it are careful never to print — to the person, and to
+    /// every log line that prints a card. So the card says what is in the path
+    /// that it should not, and from then on the value is something the drawing,
+    /// the masker and the log all know about.
+    #[test]
+    fn a_secret_in_the_path_is_named_on_the_card_and_printed_nowhere() {
+        let card = address_of("https://shop.example/acct/hunter2/orders", &["hunter2".to_owned()]);
+        let named = card.fields.iter().find(|one| one.secret && one.value.contains("hunter2"));
+        assert_eq!(named.map(|one| one.value.as_str()), Some("hunter2"), "the path segment is named as a secret: {:?}", card.fields);
+        assert_eq!(card.url, "https://shop.example/acct/hunter2/orders", "while the address still goes as it will be sent");
+        assert!(!format!("{card:?}").contains("hunter2"), "and nothing prints it: {card:?}");
+
+        // A path that carries nothing the person typed is left as it was.
+        let plain = address_of("https://shop.example/acct/4471/orders", &["hunter2".to_owned()]);
+        assert!(plain.fields.is_empty(), "an ordinary path is not dressed up: {:?}", plain.fields);
+        // And a value too short to be a secret is not looked for anywhere.
+        assert!(address_of("https://shop.example/acct/ab/orders", &["ab".to_owned()]).fields.is_empty(), "two characters is not a secret");
+        // A secret the query already accounts for is not named twice.
+        let both = address_of("https://shop.example/go?token=hunter2", &["hunter2".to_owned()]);
+        assert_eq!(both.fields.len(), 1, "the query pair already says so: {:?}", both.fields);
     }
 
     /// **An id is 128 bits of the operating system's own randomness, and two

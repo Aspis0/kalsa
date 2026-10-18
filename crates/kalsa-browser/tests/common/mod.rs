@@ -125,6 +125,22 @@ impl Arrived {
         self.requests().iter().any(|line| line.split_whitespace().nth(1) == Some(path))
     }
 
+    /// Every request but the browser's own icon fetches.
+    ///
+    /// **Chromium asks for a tab's `/favicon.ico` on a schedule of its own**, from
+    /// no navigation the test made and at no point the test chose, and it does so
+    /// whether or not the fixture serves one. A count taken over every arrival is
+    /// therefore a count of the browser's timing as much as of the test's, which
+    /// is how this file once lost a run to a tab that had not finished asking.
+    /// The request line's second word is the path, and this is every line whose
+    /// path is not that one.
+    pub fn except_icons(&self) -> Vec<String> {
+        self.requests()
+            .into_iter()
+            .filter(|line| line.split_whitespace().nth(1) != Some("/favicon.ico"))
+            .collect()
+    }
+
     pub fn handshakes(&self) -> usize {
         *self.handshakes.lock().expect("not poisoned")
     }
@@ -307,8 +323,11 @@ pub async fn confirming_window(name: &str, base: &str) -> (kalsa_browser::sessio
             // **The product's own decisions, all of them except the address one.**
             // A stand-in that reads is-read-and-therefore-fine would pass a proof
             // the product fails: a GET carrying a secret is held, and a paused
-            // window holds nothing at all.
-            if holding.takes_pass(&request).await || holding.paused() {
+            // window holds the page's own writes. The pause is asked with the
+            // product's own predicate, not a copy of it.
+            if holding.takes_pass(&request).await
+                || (holding.paused() && guard::is_the_person_navigating(&request))
+            {
                 return route.continue_(None).await;
             }
             let typed = holding.typed().await.values();
@@ -364,14 +383,27 @@ pub async fn browser_on(name: &str, base: &str) -> (Playwright, BrowserContext, 
 /// late to stop anything. The tests that prove the guard's own route is wired in
 /// are the ones with no test route on top of it at all.
 pub async fn browser_allowing(name: &str, base: &str, allowed: &str) -> (Playwright, BrowserContext, Page) {
+    let (playwright, context, page, _holds) = browser_allowing_holding(name, base, allowed).await;
+    (playwright, context, page)
+}
+
+/// The same, handing back the window's store as well. **For the proofs that arm
+/// an answer themselves** — a ticket with no person behind it — and so ask the
+/// route what it does with one.
+pub async fn browser_allowing_holding(
+    name: &str,
+    base: &str,
+    allowed: &str,
+) -> (Playwright, BrowserContext, Page, kalsa_browser::hold::Holds) {
     let (playwright, context, page, _landings, holds) =
         launch::start(&profile(name), std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false))).await
             .expect("the installed browser starts");
     let base = base.to_string();
     let allowed = allowed.to_string();
+    let held = holds.clone();
     context
         .route("**/*", move |route| {
-            let (base, allowed, holds) = (base.clone(), allowed.clone(), holds.clone());
+            let (base, allowed, holds) = (base.clone(), allowed.clone(), held.clone());
             async move {
                 let request = route.request();
                 let url = request.url();
@@ -400,7 +432,7 @@ pub async fn browser_allowing(name: &str, base: &str, allowed: &str) -> (Playwri
         })
         .await
         .expect("the test route is installed");
-    (playwright, context, page)
+    (playwright, context, page, holds)
 }
 
 /// Every file under a directory, by path. Used to see what a download left.

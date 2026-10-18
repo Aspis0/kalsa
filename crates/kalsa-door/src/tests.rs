@@ -33,6 +33,7 @@ mod props;
 mod paging_support;
 mod paging_sweep;
 mod phone_chat;
+mod phone_chat_browser;
 mod phone_chat_mail;
 mod phone_chat_support;
 mod revocation;

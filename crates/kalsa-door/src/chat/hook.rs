@@ -32,6 +32,18 @@ pub trait PhoneChat: Send + Sync {
     /// that answered for it would send every phone that can authenticate
     /// through to the owner's mailbox. A turn is never asked.
     fn mail_allowed(&self, device: DeviceId) -> bool;
+
+    /// Answers one of `device`'s own browser cards: `allow` is the person
+    /// pressing "send" or "no". The outcome the desktop keeps is what comes
+    /// back — a code and a host — and nothing else.
+    ///
+    /// **Asked on a lane of its own**, because a card is answered *while the
+    /// turn that raised it is still running*: the answer is what the turn is
+    /// waiting on. Refusing it as busy would make every write unanswerable.
+    ///
+    /// No default: a hook that does not answer has not said yes, and a card is
+    /// never silently declined by a door that could not reach the app.
+    fn answer_browser(&self, device: DeviceId, card_id: &str, allow: bool) -> Result<Value, String>;
 }
 
 /// A request the page took: its id, and the page's events for it, in order.

@@ -89,8 +89,28 @@ pub(crate) async fn refresh(app: &AppHandle, state: &State<'_, BrowserState>) {
     let cards = cards_of(&listed);
     let waiting = state.inner().pending();
     waiting.forget_stale(Instant::now());
-    waiting.replace_with(cards, Instant::now());
-    let _ = app.emit(CARDS, waiting.cards());
+    waiting.replace_with(cards.clone(), Instant::now());
+    // **A phone's write is drawn on that phone and on no desktop.** The window is
+    // told about the rest and only the rest: a card the owner cannot answer from
+    // this window is a card that must not sit here looking answerable. The phone's
+    // half — which phone owns it, when it expires, who may press it — is the
+    // phone bridge's, and it is told the whole list so nothing is left behind when
+    // a phone is not there to be shown it.
+    let (for_phones, for_window): (Vec<Card>, Vec<Card>) =
+        cards.into_iter().partition(|card| crate::phone_chat::is_phone_conversation(&card.conversation));
+    crate::phone_chat::route_cards(app, for_phones);
+    let _ = app.emit(CARDS, for_window);
+}
+
+/// **A card was spent and no answer came back.** Said to the window and to the
+/// model, and refreshed so the card comes off the board. The phone's own button
+/// goes through the same sentence by calling this rather than repeating it.
+pub(crate) async fn answer_failed(app: &AppHandle, state: &State<'_, BrowserState>, id: &str, conversation: &str) {
+    let _ = app.emit(
+        ANSWERED,
+        Answered { id: id.to_owned(), conversation: conversation.to_owned(), code: UNCLEAR.to_owned(), host: None },
+    );
+    refresh(app, state).await;
 }
 
 /// Actually the cards, rather than a count: the window has to draw them, and a
@@ -147,7 +167,7 @@ fn conversation_of(card: &Value) -> String {
 /// place before the model: a host is a run of letters, digits, dots and dashes
 /// (or a bracketed IPv6 address), and a path, a query, a fragment, a port or a
 /// user@ in one of those is not a host and is dropped.
-fn outcome_of(said: &str) -> (String, Option<String>) {
+pub(crate) fn outcome_of(said: &str) -> (String, Option<String>) {
     let Ok(Value::Object(said)) = serde_json::from_str::<Value>(said) else {
         return (UNCLEAR.to_owned(), None);
     };
@@ -177,6 +197,67 @@ fn host_only(host: &str) -> Option<&str> {
 /// The person's answer. The card comes off the window first, so a second press
 /// finds nothing to press about, and the sidecar spends the id before it
 /// dispatches — so even a press that got this far twice sends one request.
+/// **Lets one held request go, by its id, in the conversation that raised it.**
+///
+/// The path a person's own "no" takes, and for a phone the only one that
+/// matters: **the hold is the sidecar's, and only the sidecar can drop it.** A
+/// phone that unpairs, or a ninth write that is refused, has to reach the hold
+/// itself — a local note says nothing to the process still sitting on the
+/// request, and the model-facing outcome list is the sidecar's too, so this is
+/// what settles both. A card the sidecar no longer holds is not an error: it was
+/// answered, or it expired, and both were settled where they happened.
+pub(crate) async fn decline_one(
+    app: &AppHandle,
+    state: &State<'_, BrowserState>,
+    id: &str,
+    conversation: &str,
+    why: &'static str,
+) {
+    let Ok(app_data) = app.path().app_data_dir() else {
+        return;
+    };
+    state.inner().pending().spend_in(id, conversation);
+    let mut args = two(id, conversation);
+    args.insert("why".to_owned(), Value::from(why));
+    let _ = state.inner().browser().call(&app_data, "browser_decline", args).await;
+    refresh(app, state).await;
+}
+
+/// **How a dispatch ended, or that nobody ever said.**
+///
+/// `Unclear` is not an error code, because it is the one case where the app
+/// cannot tell the person what happened: the request was already at the sidecar
+/// and that sidecar has not said whether it went. It is never `declined` — a
+/// model that reads "declined" for a request that went will try again.
+#[derive(Debug)]
+pub(crate) enum Dispatch<T> {
+    /// The dispatch came back, one way or the other. What it said is the
+    /// caller's to read.
+    Answered(T),
+    /// The budget ran out with the request still at the sidecar.
+    Unclear,
+}
+
+/// **Waits for the sidecar's answer, and no longer than the card's own budget.**
+///
+/// The lane this sits on is the door's — a phone's answer is dispatched from a
+/// door thread with no runtime of ours — so a sidecar that stops answering would
+/// otherwise hold a door thread for ever, and the phone's turn with it. The
+/// budget is what the person was promised, so it is what the wait is worth: past
+/// it the wait ends and the card is reported as unclear, never retried.
+///
+/// **Only the deadline is this function's.** A refusal is an answer, and the
+/// caller's own words for it are better than anything invented here.
+pub(crate) async fn await_dispatch<F: std::future::Future<Output = T>, T>(
+    budget: std::time::Duration,
+    dispatch: F,
+) -> Dispatch<T> {
+    match tokio::time::timeout(budget, dispatch).await {
+        Ok(answered) => Dispatch::Answered(answered),
+        Err(_elapsed) => Dispatch::Unclear,
+    }
+}
+
 pub(crate) async fn answer(
     app: &AppHandle,
     state: &State<'_, BrowserState>,
@@ -197,11 +278,7 @@ pub(crate) async fn answer(
             // did: swallowed here, the model never hears, the person never hears,
             // and both go on believing nothing happened while a stranger's server
             // may already have it.
-            let _ = app.emit(
-                ANSWERED,
-                Answered { id, conversation, code: UNCLEAR.to_owned(), host: None },
-            );
-            refresh(app, state).await;
+            answer_failed(app, state, &id, &conversation).await;
             return Err(CommandFailure::from(refused));
         }
     };
@@ -223,7 +300,7 @@ pub(crate) async fn answer(
 /// was sent" and "we did not tell you what" are different, and only the second
 /// one is what happened.
 pub(crate) fn declined_by_the_window_going(app: &AppHandle, state: &State<'_, BrowserState>) {
-    let _ = app.emit(CARDS, Vec::<pending::Card>::new());
+    decline_all_and_tell_phones(app, state);
     for said in take_every_card(state) {
         let _ = app.emit(ANSWERED, said);
     }
@@ -253,6 +330,21 @@ pub(crate) fn take_every_card(state: &State<'_, BrowserState>) -> Vec<Answered> 
         .collect()
 }
 
+/// **The window says the cards it is answering go away; the phone's are the
+/// phone's.** A card raised by a phone's turn is not drawn here and is not
+/// answered here, so the empty list it is told must not claim it is still waiting
+/// for the owner to press something that was never on this screen.
+pub(crate) fn decline_all_and_tell_phones(app: &AppHandle, state: &State<'_, BrowserState>) {
+    let (phone_cards, window_cards): (Vec<Card>, Vec<Card>) = state
+        .inner()
+        .pending()
+        .cards()
+        .into_iter()
+        .partition(|card| crate::phone_chat::is_phone_conversation(&card.conversation));
+    let _ = app.emit(CARDS, window_cards);
+    crate::phone_chat::decline_phones(app, phone_cards);
+}
+
 fn two(id: &str, conversation: &str) -> Map<String, Value> {
     let mut args = Map::new();
     args.insert("id".to_owned(), Value::from(id));
@@ -263,6 +355,36 @@ fn two(id: &str, conversation: &str) -> Map<String, Value> {
 #[cfg(test)]
 mod tests {
     use super::{cards_of, host_only, outcome_of, pending, Answered, CODES, DECLINED, UNCLEAR};
+
+    /// **A phone's write is drawn on that phone and on no desktop.** The split is
+    /// the conversation the card was stamped with, and the rule is the prefix: a
+    /// desktop conversation is a UUID and can never begin with it, so the only
+    /// cards that leave for a phone are cards a phone asked for.
+    ///
+    /// Proven here on the split itself rather than on a running app, because the
+    /// app is what a person would see the mistake on: a phone's card drawn on the
+    /// desktop is a card that looks answerable and answers nothing.
+    #[test]
+    fn a_phones_card_leaves_the_window_and_a_desktops_card_stays() {
+        let listed = r#"[
+          {"id":"c1","method":"POST","url":"https://shop.example/order","fields":[]},
+          {"id":"c2","method":"POST","url":"https://shop.example/order","fields":[]},
+          {"id":"c3","method":"POST","url":"https://shop.example/order","fields":[]}
+        ]"#;
+        let cards = cards_of(listed);
+        // The sidecar names the conversation on each card; the two below are what
+        // it names for a desktop and for a phone.
+        assert_eq!(cards.len(), 3, "the sidecar is holding all three");
+        let desktop = "3f0a1c2e-9b7d-4f21-8a55-6c1e2b3d4f50";
+        let phone = crate::phone_chat::conversation_of(kalsa_door::DeviceId::new(2));
+        let split = |one: &str| crate::phone_chat::is_phone_conversation(one);
+        assert!(!split(desktop), "a desktop conversation was taken for a phone's");
+        assert!(split(&phone), "a phone's own conversation was not taken for a phone's");
+        // And the rule is a prefix and nothing else: nothing else can be one.
+        assert!(!split(""), "an empty conversation was taken for a phone's");
+        assert!(!split("phone"), "the bare prefix was taken for a phone's");
+        assert!(!split(&format!("x{desktop}")), "a prefixed uuid was taken for a phone's");
+    }
 
     /// The sidecar's list is drawn as it stands: every card, with its fields as
     /// sent. **A secret field arrives with its value** and a flag saying the
@@ -455,5 +577,39 @@ mod tests {
         assert!(nothing_to_name.get("host").is_none(), "a decline names no host, so it carries none");
 
         assert_eq!(CODES.len(), 6, "and these are the six codes there is");
+    }
+}
+#[cfg(test)]
+mod dispatch_tests {
+    use super::{await_dispatch, Dispatch};
+    use std::time::Duration;
+
+    /// **A sidecar that stops answering must not hold the lane for ever.**
+    ///
+    /// The lane is the door's: a phone's answer is dispatched from a door thread
+    /// with no runtime of ours, so an unbounded wait on a sidecar that has stopped
+    /// would take the door thread with it — and the phone's turn, and every other
+    /// phone behind it. The wait is bounded by the card's own budget, and what
+    /// comes back is **unclear** rather than declined, because the request was
+    /// already at the sidecar when the wait began and that server may already have
+    /// it: a model told "declined" tries again.
+    #[tokio::test]
+    async fn a_sidecar_that_never_answers_ends_the_lane_and_is_never_retried() {
+        let stalled = std::future::pending::<Result<String, super::CommandFailure>>();
+        let lane = tokio::time::Instant::now();
+        let outcome = await_dispatch(Duration::from_millis(40), stalled).await;
+        assert!(matches!(outcome, Dispatch::Unclear));
+        assert!(lane.elapsed() < Duration::from_secs(5), "the lane was held: {:?}", lane.elapsed());
+    }
+
+    /// **A sidecar that answers in time is its own answer, whatever it said** — a
+    /// refusal is an answer too, and the deadline is not this function's to
+    /// reinterpret.
+    #[tokio::test]
+    async fn an_answer_inside_the_budget_is_the_dispatch_s_own() {
+        let said = await_dispatch(Duration::from_secs(30), async { Ok::<_, ()>("answered".to_string()) }).await;
+        assert!(matches!(said, Dispatch::Answered(Ok(answer)) if answer == "answered"));
+        let refused = await_dispatch(Duration::from_secs(30), async { Err::<String, _>(7) }).await;
+        assert!(matches!(refused, Dispatch::Answered(Err(7))), "a refusal is an answer: {refused:?}");
     }
 }

@@ -87,12 +87,15 @@ async function compile(dir) {
         export { phoneSink } from "../src/lib/phone/phoneEvents.ts";
         export { runPhoneTurn } from "../src/lib/phone/phoneTurn.ts";
         export { runPhoneRead } from "../src/lib/phone/phoneRead.ts";
-        export { startPhoneChatRunner } from "../src/lib/phone/phoneRunner.ts";
+        export { startPhoneChatRunner, turnFor } from "../src/lib/phone/phoneRunner.ts";
         export { ChatRequestError } from "../src/lib/chat.ts";
         export { systemPrompt } from "../src/lib/attachments.ts";
         export { sentDatePhrase } from "../src/lib/sentDate.ts";
         export { streamChatCompletion } from "../src/lib/toolLoop.ts";
         export { offeredTools } from "../src/lib/tools/registry.ts";
+        export { phoneTools, phoneConversation } from "../src/lib/phone/phoneTurn.ts";
+        export { browserOutcomesNote, noteAnswered, currentCards } from "../src/lib/browser/confirm.ts";
+        export { noteBrowserStatus } from "../src/lib/browser/usable.ts";
         export { TABLES } from "../src/i18n/index.ts";
       `,
       resolveDir: SCRIPTS_DIR,
@@ -140,7 +143,36 @@ export const MAIL_ON = true;
 export const MAIL_OFF = false;
 export const NOW = new Date(2026, 9, 15, 12);
 export const USER = (content) => ({ role: "user", content });
-export const turnOf = (messages, extra = {}) => ({ messages, replyFor: null, language: "en", ...extra });
+// A turn **as the app holds it**, after parsing: the phone's own body carries no
+// device, and `extra.device` is the number the app put on it from the credential
+// the door resolved. That is what stamps the browser writes with this phone's
+// conversation. `device: null` is a payload with no paired device behind it, and
+// is the one case with no browser writes at all.
+export const turnOf = (messages, extra = {}) => ({ messages, replyFor: null, language: "en", device: null, ...extra });
+/** The device a paired phone authenticates as, in a script. */
+export const PHONE = "2";
+
+/** One browser card as the phone is handed it: the real value, and the flag
+ * saying to draw it as dots. The shape the desktop's own card has — the card no
+ * longer crosses this window, it goes down the phone's own stream. */
+export const BROWSER_CARD = {
+  request: "r1",
+  card_id: "0123456789abcdef0123456789abcdef",
+  method: "POST",
+  url: "https://shop.example/order?token=a-secret",
+  fields: [
+    { name: "size", value: "L", secret: false },
+    { name: "passphrase_2", value: "hunter2", secret: true },
+  ],
+  // The computer's own clock, for logs only — a phone must not compute a
+  // deadline from it. What the phone counts down is the budget that was left when
+  // the card crossed.
+  asked_at_ms: 1_767_225_600_000,
+  answer_in_ms: 300_000,
+};
+
+export const BROWSER_OUTCOME = { request: "r1", card_id: "0123456789abcdef0123456789abcdef", code: "sent", host: "shop.example" };
+
 const FACTS = { values: {}, status: "reported", chatTemplate: "", modalities: { vision: false, audio: false, video: false }, nctx: 8192 };
 export const facts = (over = {}) => async () => ({ ...FACTS, ...over });
 export const tick = () => new Promise((resolve) => setTimeout(resolve, 20));

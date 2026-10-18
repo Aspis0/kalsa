@@ -83,14 +83,28 @@ impl Typed {
         self.0.lock().expect("the typed values are not poisoned").iter().map(|(_, value)| value.clone()).collect()
     }
 
-    /// Records what is in one field now. An empty value is a field that was
-    /// cleared, which is not a secret with nothing in it.
+    /// Records what is in one field now.
+    ///
+    /// **Add-only, on this side of the wire.** The page can add; it cannot remove
+    /// and it cannot overwrite. That is the whole reason this list is here and
+    /// not asked of the page: a page that empties the list to cover its tracks,
+    /// or points one field's handle at a value nobody typed, is describing
+    /// itself, and a description is not evidence. Both values stay, so what a
+    /// person really typed is still what is checked — and a field edited twice
+    /// leaves both edits, because both were typed.
+    ///
+    /// An empty value is a field that was cleared, which is not a secret with
+    /// nothing in it: it adds nothing, and it takes nothing away.
     pub fn record(&self, field: u64, value: String) {
-        let mut typed = self.0.lock().expect("the typed values are not poisoned");
-        typed.retain(|(held, _)| *held != field);
-        if !value.is_empty() {
-            typed.push((field, value));
+        if value.is_empty() {
+            return;
         }
+        let mut typed = self.0.lock().expect("the typed values are not poisoned");
+        // The same value again is a keystroke, not a second secret.
+        if typed.iter().any(|(held, already)| *held == field && *already == value) {
+            return;
+        }
+        typed.push((field, value));
     }
 
     /// Forgets everything, for a window that has opened somewhere else.
@@ -115,19 +129,41 @@ pub fn holds(value: &str, typed: &[String]) -> bool {
 }
 
 pub fn carries(url: &str, typed: &[String]) -> bool {
-    if typed.is_empty() {
+    // **A secret too short to mean anything is not one.** A one- or two-character
+    // value appears inside almost every address on this computer, and a check
+    // that fires on all of them is a check nobody reads — so it is refused at the
+    // start rather than after it has held every request the page made.
+    let secrets: Vec<&String> = typed.iter().filter(|secret| secret.chars().count() >= MIN_SECRET).collect();
+    if secrets.is_empty() {
         return false;
     }
     let Ok(parsed) = url::Url::parse(url) else {
         return false;
     };
-    let mut parts: Vec<String> = parsed.path_segments().into_iter().flatten().map(percent_decode).collect();
+    // **Everywhere a server would look, and nowhere it would not.** The host, the
+    // path and the query are all sent; the fragment is not — it lives in the
+    // browser — so a secret that only appears after a `#` never left this
+    // computer and is not this function's business.
+    let mut parts: Vec<String> = Vec::new();
+    if let Some(host) = parsed.host_str() {
+        parts.push(host.to_owned());
+    }
+    parts.extend(parsed.path_segments().into_iter().flatten().map(percent_decode));
     for (name, value) in parsed.query_pairs() {
         parts.push(percent_decode(&name));
         parts.push(percent_decode(&value));
     }
-    parts.iter().any(|part| typed.iter().any(|secret| !secret.is_empty() && secret == part))
+    // **Containment, not equality.** A secret does not travel as one whole piece:
+    // it is a value inside a bigger one, a base64 blob with a prefix, a path
+    // segment with the value welded to an id. Equality with the whole part would
+    // pass all three, and all three are the same mail to a stranger's server.
+    parts.iter().any(|part| secrets.iter().any(|secret| part.contains(secret.as_str())))
 }
+
+/// How long a typed value has to be before it can be looked for in an address.
+/// Four is short enough for the shortest thing anybody keeps a secret for and
+/// long enough that a search for it means something.
+pub const MIN_SECRET: usize = 4;
 
 /// What a server sees of one `%`-escaped piece of an address.
 fn percent_decode(value: &str) -> String {
@@ -170,6 +206,77 @@ mod tests {
         assert!(!carries("https://shop.example/go?password=hunter2", &[]), "with nothing typed there is nothing to find");
     }
 
+    /// **A secret travels inside things, not as whole pieces.** Equality with a
+    /// query value or a path segment would pass every one of these, and every one
+    /// is the same mail to a stranger's server: a value welded to an id, a
+    /// tracking parameter that grew a suffix, a host label carrying it.
+    #[test]
+    fn a_typed_secret_is_found_inside_a_part_and_not_only_as_one() {
+        let typed = vec!["hunter2".to_owned()];
+        for carrying in [
+            "https://shop.example/go?token=hunter2-9f3a",
+            "https://shop.example/go?next=cart&t=hunter2",
+            "https://shop.example/api/v2/hunter2/session",
+            "https://hunter2.shop.example/",
+            "https://shop.example/reset?code=hunter2%21",
+        ] {
+            assert!(carries(carrying, &typed), "{carrying} carries it");
+        }
+    }
+
+    /// **What a server does not get is not a leak.** A fragment stays in the
+    /// browser: it is never sent, so a secret that only appears after a `#` left
+    /// nothing behind and must not hold every request the page makes.
+    #[test]
+    fn a_secret_in_the_fragment_is_not_a_secret_that_went_anywhere() {
+        let typed = vec!["hunter2".to_owned()];
+        assert!(!carries("https://shop.example/go#hunter2", &typed));
+        assert!(!carries("https://shop.example/go?a=1#hunter2", &typed));
+    }
+
+    /// **A secret too short to mean anything is not looked for.** A value of one
+    /// or two characters is inside nearly every address on this computer, and a
+    /// check that fires on all of them is a check nobody reads.
+    #[test]
+    fn a_secret_shorter_than_four_characters_is_not_looked_for() {
+        let short = vec!["ab".to_owned()];
+        assert!(!carries("https://shop.example/go?password=ab", &short));
+        assert!(!carries("https://ab.example/", &short));
+        // The same value at four is, because at four it means something.
+        assert!(carries("https://shop.example/go?password=abcd", &["abcd".to_owned()]));
+    }
+
+    /// **What the page may say about the typed values, and what it may not.**
+    ///
+    /// The list is this side's evidence, so it is add-only: the page can add and
+    /// it cannot take anything away, replace one value with another, or smuggle a
+    /// value in that nobody typed. Everything it told us is still on the list,
+    /// which is what makes it worth asking the route on every request.
+    #[test]
+    fn the_page_can_add_a_typed_value_and_neither_replace_nor_take_one_away() {
+        let typed = Typed::default();
+        typed.record(1, "first".to_owned());
+        typed.record(2, "second".to_owned());
+        assert_eq!(typed.values(), vec!["first".to_string(), "second".to_string()]);
+
+        // The same field again is a keystroke, not a second secret.
+        typed.record(1, "first".to_owned());
+        assert_eq!(typed.values(), vec!["first".to_string(), "second".to_string()]);
+
+        // A different value for a field somebody already typed is **added**, not
+        // swapped in: both were typed, and the old one is still a secret.
+        typed.record(1, "third".to_owned());
+        assert_eq!(typed.values(), vec!["first".to_string(), "second".to_string(), "third".to_string()]);
+
+        // An empty value is a cleared field: it adds nothing and takes nothing.
+        typed.record(1, String::new());
+        assert_eq!(typed.values(), vec!["first".to_string(), "second".to_string(), "third".to_string()]);
+
+        // And only this side forgets.
+        typed.forget();
+        assert!(typed.values().is_empty());
+    }
+
     /// The generated JavaScript is the two Rust lists, and no third place to
     /// forget: a type added to one list without the other cannot happen, because
     /// there is only one list.
@@ -192,18 +299,28 @@ mod tests {
     /// What the person typed is recorded once, an empty field records nothing,
     /// and forgetting it is what opening somewhere else does.
     #[test]
-    fn one_value_per_field_and_never_one_per_keystroke() {
+    fn what_a_field_is_held_now_survives_a_later_keystroke_and_a_cleared_field() {
         let typed = Typed::default();
         assert!(typed.values().is_empty(), "nothing has been typed yet");
+        // **Both halves stay.** This used to keep only the last value per field,
+        // which meant a page could empty the list simply by typing something else
+        // into the same field — and the list is this side's evidence, so a page
+        // gets no say in it. What the person really typed is still what is
+        // looked for; the only thing a keystroke does is arrive again unchanged.
+        typed.record(0, "hunter2".to_owned());
+        typed.record(0, "hunter2".to_owned());
         typed.record(0, "h".to_owned());
         typed.record(0, "hu".to_owned());
-        typed.record(0, "hunter2".to_owned());
-        assert_eq!(typed.values(), vec!["hunter2".to_owned()], "the value half-typed is gone");
+        assert_eq!(
+            typed.values(),
+            vec!["hunter2".to_owned(), "h".to_owned(), "hu".to_owned()],
+            "the finished value and both halves of it are all still here"
+        );
 
         typed.record(1, "123456".to_owned());
-        assert_eq!(typed.values(), vec!["hunter2".to_owned(), "123456".to_owned()], "two fields, two values");
+        assert_eq!(typed.values().len(), 4, "two fields, four values, none lost");
         typed.record(1, String::new());
-        assert_eq!(typed.values(), vec!["hunter2".to_owned()], "a cleared field is not a secret with nothing in it");
+        assert_eq!(typed.values().len(), 4, "a cleared field takes nothing away either");
 
         let shared = typed.clone();
         typed.record(2, "later".to_owned());
