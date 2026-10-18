@@ -101,8 +101,8 @@ export function browserClick(ref: string, conversation: ConversationId, signal?:
   return throughBrowser("brain_browser_click", { ref, conversation }, signal);
 }
 
-/** Fills one field. Enter follows it if it is a single-line field, and anything
- * that sends is held for the person first. */
+/** Fills one field. Enter follows a single-line field that is in no form, and a search
+ * field wherever it is; anything that sends is held for the person first. */
 export function browserType(ref: string, text: string, conversation: ConversationId, signal?: AbortSignal): Promise<string> {
   return throughBrowser("brain_browser_type", { ref, text, conversation }, signal);
 }

@@ -36,7 +36,9 @@ const INSTRUCTIONS: &str = "A real browser window, driven by what it can see. \
 `browser_open` opens an http or https address, `browser_read` returns the page as text \
 one element per line with the ref to act on, `browser_find` looks for text in a page too \
 long to read, `browser_click` clicks one ref and `browser_type` fills one field. Enter \
-is pressed after a fill when the field is a one-line field, and you cannot choose it. \
+is pressed after a fill on a one-line field that is not inside a form, and on a search \
+field wherever it is; you cannot choose it. Any other field inside a form is filled and \
+left alone: fill its fields and then click the form's own submit button. \
 Anything a click or a fill sends is held before it goes: the call answers \
 \"awaiting confirm\" with an id, the person is shown what the request carries and decides, \
 and your next call tells you what became of it. You have no way to answer it yourself and \

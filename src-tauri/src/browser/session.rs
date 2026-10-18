@@ -61,8 +61,8 @@ pub(crate) async fn brain_browser_click(
     Ok(said)
 }
 
-/// Fills one field. Enter follows a one-line field, so this is the call a write
-/// usually comes from, and it is held the same way.
+/// Fills one field. A form goes when its own submit button is clicked, so this
+/// and that are the calls a write comes from, and both are held the same way.
 #[tauri::command]
 pub(crate) async fn brain_browser_type(
     app: AppHandle,

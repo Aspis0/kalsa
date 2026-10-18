@@ -69,15 +69,26 @@ async fn held_card(holds: &hold::Holds) -> hold::Card {
     panic!("no write was held");
 }
 
-/// Fills the field named by `words` with `text`, which submits its form through the
-/// product's own catcher, and returns the card the submission was held as.
+/// The form's own submit button, pressed as a person presses it, and the card it
+/// was held as — a fill submits nothing, so this is what puts a card on the window.
+async fn submit_and_held(page: &Page, holds: &hold::Holds) -> hold::Card {
+    let send = ref_of(page, "send it").await;
+    let before = holds.ids().await;
+    let (clicked, held) = mcp::acting(page, holds, common::CHAT, &before, common::the_fixture, input::click(page, &send)).await;
+    clicked.expect("the submit button is clicked");
+    let id = held.expect("the submit is held");
+    holds.card(&id).await.expect("the card the person reads")
+}
+
+/// Fills the field named by `words` with `text` — a field of a form, so the page
+/// stays where it was — then submits through the product's own catcher.
 async fn fill_and_held(page: &Page, holds: &hold::Holds, words: &str, text: &str) -> hold::Card {
     let target = ref_of(page, words).await;
     let before = holds.ids().await;
     let (filled, held) = mcp::acting(page, holds, common::CHAT, &before, common::the_fixture, input::fill(page, &target, text)).await;
     assert!(filled.is_ok(), "the field is filled: {:?}", filled.as_ref().err().map(|refused| refused.reason()));
-    let id = held.expect("the submit is held");
-    holds.card(&id).await.expect("the card the person reads")
+    assert!(held.is_none(), "a field in a form raises no request of its own: {held:?}");
+    submit_and_held(page, holds).await
 }
 
 /// **A label that echoes what the person typed into a secret field is not drawn.** The
@@ -241,9 +252,9 @@ async fn a_submitted_form_carries_the_words_the_page_gives_each_field() {
     let before = holds.ids().await;
     let (filled, held) = mcp::acting(&page, &holds, common::CHAT, &before, common::the_fixture, input::fill(&page, &city, "Bologna")).await;
     assert!(filled.is_ok(), "the field is filled");
-    let id = held.expect("the submit is held");
+    assert!(held.is_none(), "a field in a form raises no request of its own: {held:?}");
 
-    let card = holds.card(&id).await.expect("the card the person reads");
+    let card = submit_and_held(&page, &holds).await;
     assert_eq!(label_of(&card, "city").as_deref(), Some("the city"), "a <label for>");
     assert_eq!(label_of(&card, "street").as_deref(), Some("the street"), "a wrapping <label>");
     // aria-label and aria-labelledby are not words a person can see on the page, so they

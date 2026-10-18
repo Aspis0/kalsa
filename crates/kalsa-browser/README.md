@@ -49,11 +49,21 @@ therefore override through Playwright's own routing when they need an origin.
 ## Enter
 
 A fill is followed by Enter when the field is a single-line text-like input —
-`text`, `search`, `email`, `url`, `tel`, `number` — **whether or not a `<form>`
-is around it**. The form is deliberately not part of the rule: TodoMVC's
-new-todo input, a chat box and most search boxes are one-line inputs with no
-form at all whose keydown handler commits what was typed, and a model that
-typed into one and pressed nothing was talking to a page that never heard it.
+`text`, `search`, `email`, `url`, `tel`, `number` — **and no `<form>` is around
+it**. A search field keeps Enter inside a form as well, because `type=search` is
+a page saying that field's Enter means something.
+
+The pages that commit on Enter — TodoMVC's new-todo input, a chat box, most
+search boxes — are one-line inputs with no form at all, and a model that typed
+into one and pressed nothing was talking to a page that never heard it.
+
+**Inside a form the rule is the other way round, and a form is the ordinary
+case.** Enter in a field of a `<form>` submits that form, so filling a contact
+form the way anyone fills one in — a field at a time — posted what it had after
+the first field, and the person was asked to allow a half-written message they
+had not written. One card per field, on a form nobody had finished. A form is
+submitted by its own submit button, which is what a person presses on that page,
+and that click is held like any other write.
 
 A `<textarea>`, a `contenteditable` and a `<select>` never take Enter — the
 first two hold several lines by design, so a multi-line answer cannot submit
@@ -61,12 +71,17 @@ itself halfway through being written, and the third is refused outright as
 `NotFillable`. A password field, and anything the page marks as a
 one-time code, is refused before anything is typed into it.
 
-Nothing here decides *whether* a write may happen. A `<form>` submits on Enter
-as a non-GET, and every non-GET goes through the hold (`src/hold.rs`) — refused
-in step 1, confirmed from step 4 — so the only thing this rule decides is whether
-Kalsa presses the key at all. What it cannot protect on its own is the window
-between the destination check and the keypress, which is re-read immediately
-before Enter (`RECHECK_BODY`) and written up under *Known limits*.
+Which form a field belongs to is asked of the page **after** the write, because
+filling fires `input` and `change` and a handler for either can move a field
+into a form or out of one — so it is the form as the page left it that decides
+the key.
+
+Nothing here decides *whether* a write may happen. Every write this rule can
+cause is a non-GET, and every non-GET goes through the hold (`src/hold.rs`) —
+refused in step 1, confirmed from step 4 — so the only thing this rule decides is
+whether Kalsa presses the key at all. What it cannot protect on its own is the
+window between the destination check and the keypress, which is re-read
+immediately before Enter (`RECHECK_BODY`) and written up under *Known limits*.
 
 ## Holding a write
 

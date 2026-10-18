@@ -25,6 +25,10 @@ const SHAPES: &str = r#"
   <form action="/posted">
     <label for="inside">one line inside a form</label>
     <input id="inside" type="text">
+    <label for="address">an email inside a form</label>
+    <input id="address" type="email">
+    <label for="telephone">a telephone inside a form</label>
+    <input id="telephone" type="tel">
     <label for="secret">the secret word</label>
     <input id="secret" type="password" autocomplete="off">
     <label for="long">a long answer</label>
@@ -32,6 +36,12 @@ const SHAPES: &str = r#"
   </form>
   <label for="outside">one line with no form</label>
   <input id="outside" type="text">
+  <!-- A search field in a form keeps Enter, and the form is what it submits —
+       so the page says it happened rather than navigating off the fixture. -->
+  <form id="searching" action="/posted" onsubmit="window.searchSubmitted = true; return false">
+    <label for="searcher">a search inside a form</label>
+    <input id="searcher" type="search">
+  </form>
   <div id="editable" contenteditable="true">an editable answer</div>
   <label for="choice">a choice of answers</label>
   <select id="choice"><option>the first</option><option>the second</option></select>
@@ -128,12 +138,11 @@ async fn settle(page: &Page, url: &str) {
 /// is not pressed leaves the page exactly where it was, so the ones after it can
 /// still be filled.
 ///
-/// **A one-line field with no form around it is pressed**, and that is the whole
-/// change: TodoMVC's new-todo input, a chat box and a search box are exactly
-/// that, and a model that types into one and presses nothing has asked a page a
-/// question it never hears the end of.
+/// **Enter follows a field that is in no form, and leaves a field that is in one
+/// alone.** TodoMVC, a chat box and a search box are the first; a form goes on
+/// its own submit button.
 #[tokio::test]
-async fn enter_follows_any_one_line_field_and_nothing_else() {
+async fn a_field_in_a_form_is_left_alone_and_one_in_no_form_is_pressed() {
     let (_playwright, page) = page_with_shapes("input-shapes").await;
 
     for (name, why) in [
@@ -153,14 +162,32 @@ async fn enter_follows_any_one_line_field_and_nothing_else() {
         Refused::NotFillable
     );
 
-    for (name, why) in [
-        ("one line inside a form", "a form submits on Enter"),
-        ("one line with no form", "a page whose keydown commits the text is finished by Enter, form or no form"),
-    ] {
+    for name in ["one line inside a form", "an email inside a form", "a telephone inside a form"] {
         let reference = ref_of(&page, name).await;
         let pressed = input::fill(&page, &reference, "an answer").await.expect("the field is filled");
-        assert!(pressed, "{why}");
+        assert!(!pressed, "{name} is in a form, and a form is submitted by its own button");
+        let written: String = page
+            .locator(format!("aria-ref={reference}"))
+            .evaluate::<String, ()>("el => el.value", None)
+            .await
+            .expect("the page answers");
+        assert_eq!(written, "an answer", "{name} is filled all the same, and left alone");
     }
+
+    let reference = ref_of(&page, "one line with no form").await;
+    let pressed = input::fill(&page, &reference, "an answer").await.expect("the field is filled");
+    assert!(pressed, "a page whose keydown commits the text is finished by Enter, form or no form");
+
+    // **A search field is the one that keeps Enter inside a form**, and this is
+    // what it costs: the key really does submit that form.
+    let reference = ref_of(&page, "a search inside a form").await;
+    let pressed = input::fill(&page, &reference, "a question").await.expect("the field is filled");
+    assert!(pressed, "type=search is a page asking for Enter to mean something");
+    let submitted: bool = page
+        .evaluate::<(), bool>("() => window.searchSubmitted === true", None)
+        .await
+        .expect("the page answers");
+    assert!(submitted, "and the form it belongs to was submitted, which is the whole of what it is for");
 }
 
 /// A password field is refused before it is filled, and the model is told to ask
@@ -425,8 +452,8 @@ async fn a_clicked_image_button_is_read_for_its_own_action() {
 /// key is never pressed and there is nothing to hand over.
 ///
 /// The safe half is here too: the same form with no `formaction` on the image is
-/// filled and pressed exactly as before, because the rule is about where Enter
-/// would go and not about pictures.
+/// filled and left alone, because the rule is about where Enter would go and not
+/// about pictures.
 #[tokio::test]
 async fn pressing_enter_in_a_form_whose_image_button_posts_to_another_program_is_refused() {
     let (_playwright, page) = page_with_shapes("input-image-enter").await;
@@ -445,15 +472,15 @@ async fn pressing_enter_in_a_form_whose_image_button_posts_to_another_program_is
 }
 
 /// The same form with nothing dangerous on the image is not caught by any of
-/// this: it is filled, Enter is pressed, and the field is filled. A rule that
-/// refused every form with a picture on it would be one nobody keeps.
+/// this: the field is filled and left alone, because a form is submitted by its
+/// own button. A rule refusing every form with a picture on it keeps nobody.
 ///
 /// **Served, not `set_content`.** A document written with `set_content` has
 /// `about:blank` as its address, a relative `action` cannot be resolved against
 /// it, and an action this code cannot name is one it refuses — which is right,
 /// and is why this proof is on a real page.
 #[tokio::test]
-async fn a_form_whose_image_button_posts_nowhere_in_particular_is_filled_and_pressed() {
+async fn a_form_whose_image_button_posts_nowhere_in_particular_is_filled_and_left_alone() {
     let (base, _arrived) =
         common::serve(&[common::page(
             r#"<form id="by-image" action="/posted">
@@ -468,7 +495,13 @@ async fn a_form_whose_image_button_posts_nowhere_in_particular_is_filled_and_pre
     let reference = ref_of_text(&read, "textbox");
 
     let pressed = input::fill(&page, &reference, "an answer").await.expect("an ordinary image is not a destination");
-    assert!(pressed, "and Enter still goes, or this tool would stop working on a page with a picture on it");
+    assert!(!pressed, "and this field is in a form, so nothing is pressed into it");
+    let written: String = page
+        .locator(format!("aria-ref={reference}"))
+        .evaluate::<String, ()>("el => el.value", None)
+        .await
+        .expect("the page answers");
+    assert_eq!(written, "an answer", "it is filled all the same, or this rule would break a page with a picture on it");
     drop(playwright);
 }
 

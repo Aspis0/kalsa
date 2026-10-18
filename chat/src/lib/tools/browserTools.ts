@@ -83,7 +83,7 @@ export const BROWSER_TOOLS: ToolDefinition[] = [
     function: {
       name: "browser_type",
       description:
-        "Types into one field on the open page, and presses Enter after it if it is a single-line field. If that sends anything, it is held for the person to allow first: the answer names the request and says it is waiting.",
+        "Types into one field on the open page. A single-line field that is in no form is finished with Enter, and a search field is finished with Enter even inside a form; any other field inside a form is left alone, so click that form's own submit button once it is filled. If that sends anything, it is held for the person to allow first: the answer names the request and says it is waiting.",
       parameters: {
         type: "object",
         properties: {

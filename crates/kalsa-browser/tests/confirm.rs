@@ -102,11 +102,23 @@ async fn click_holds(page: &Page, holds: &hold::Holds, id: &str) -> String {
     clicking(page, holds, id).await.expect("the click sent something the person has not agreed to")
 }
 
-/// Fills and lets Enter do what it does, the same way.
+/// Fills and lets Enter do what it does, the same way. The bool is whether Enter
+/// followed, and `None` means the fill raised nothing at all.
 async fn filling(page: &Page, holds: &hold::Holds, id: &str, text: &str) -> (bool, Option<String>) {
     let before = holds.ids().await;
     let (filled, held) = mcp::acting(page, holds, common::CHAT, &before, common::the_fixture, input::fill(page, id, text)).await;
     (filled.expect("the field is filled"), held)
+}
+
+/// **A proof that needs a card asks the page's own submit button for one.** A
+/// fill submits nothing, so the click is what puts a request on the window.
+async fn ordering(page: &Page, holds: &hold::Holds) -> String {
+    let city = ref_of(page, "the city").await;
+    let (pressed, held) = filling(page, holds, &city, "Bologna").await;
+    assert!(!pressed, "a field in a form is filled and left alone");
+    assert!(held.is_none(), "and a field raises no request of its own");
+    let buy = ref_of(page, "buy it").await;
+    clicking(page, holds, &buy).await.expect("the page's own submit button is held")
 }
 
 /// A sign-in page whose password box is named after nothing in particular: what
@@ -215,39 +227,48 @@ fn named<'a>(fields: &'a [hold::CardField], name: &str) -> Option<&'a str> {
     fields.iter().find(|field| field.name == name).map(|field| field.value.as_str())
 }
 
-/// **Enter is what a form submits on**, so this is the write a model most easily
-/// causes without meaning to. The request is held with the payload as it would
-/// have been sent, hidden field included, and the fixture has heard nothing.
+/// **A form is filled a field at a time, and nothing goes until the person
+/// presses its own submit button.** Enter in any field would submit it half-written.
 #[tokio::test]
-async fn a_form_submit_from_enter_is_held_with_the_payload_as_it_would_have_been_sent() {
+async fn a_form_is_filled_field_by_field_and_only_the_pages_own_submit_is_held() {
     let (base, arrived) = common::serve(&[common::page(SHOP)]).await;
-    let (_sessions, page, holds) = common::confirming_window("confirm-enter", &base).await;
+    let (_sessions, page, holds) = common::confirming_window("confirm-form-fill", &base).await;
 
     let seen = Arrivals::of(&arrived);
     let before = seen.so_far();
-    let city = ref_of(&page, "the city").await;
-    let (pressed, waiting) = filling(&page, &holds, &city, "Bologna").await;
-    assert!(pressed, "Enter is pressed");
+    for (name, text) in [("the city", "Bologna"), ("the item", "a lamp")] {
+        let reference = ref_of(&page, name).await;
+        let (pressed, held) = filling(&page, &holds, &reference, text).await;
+        assert!(!pressed, "{name} is in a form, so nothing is pressed after it");
+        assert!(held.is_none(), "{name} raised no request of its own: {held:?}");
+    }
 
-    let waiting = waiting.expect("the submit is held, and nothing was sent");
-    assert!(is_a_card_id(&waiting), "the submit is held, and it has an id: {waiting}");
     assert_eq!(seen.since(before), Vec::<String>::new(), "a held request reaches nobody");
+    assert_eq!(holds.waiting().await, 0, "and nothing is waiting to be allowed: a half-written form is not a request");
+
+    // **The submission is the page's own submit button**: the whole form at once,
+    // hidden field included — that is what the site would really receive.
+    let buy = ref_of(&page, "buy it").await;
+    let waiting = click_holds(&page, &holds, &buy).await;
+    assert!(is_a_card_id(&waiting), "the submit is held, and it has an id: {waiting}");
+    assert_eq!(holds.waiting().await, 1, "one card for the form, not one for each field filled");
 
     let card = holds.card(&waiting).await.expect("the card the person reads");
     assert_eq!(card.method, "POST");
     assert_eq!(card.url, format!("{base}/order"));
-    assert_eq!(named(&card.fields, "city"), Some("Bologna"), "the value as it was written");
+    for (name, text) in [("city", "Bologna"), ("item", "a lamp")] {
+        assert_eq!(named(&card.fields, name), Some(text), "the value as it was written");
+    }
     assert_eq!(
         named(&card.fields, "csrf"),
         Some("a-token-the-model-never-wrote"),
         "a hidden field is a field: the card is what the site would really receive"
     );
 
-    // And the person saying yes is what sends it — not the fill, and not the
-    // wait.
+    // And the person saying yes is what sends it — not the fill, and not the wait.
     holds.answer(&waiting, common::CHAT, true).await;
     let went = reached(&seen, before, 1).await;
-    assert_eq!(went.len(), 1, "the request went after the answer: {went:?}");
+    assert_eq!(went.len(), 1, "the request went once, after the answer: {went:?}");
     assert!(went[0].starts_with("POST /order"), "and it went as it was written");
 }
 
@@ -613,10 +634,7 @@ async fn a_page_that_changes_its_form_after_the_card_does_not_change_what_is_sen
     let (base, arrived) = common::serve(&[common::page(SHOP)]).await;
     let (_sessions, page, holds) = common::confirming_window("confirm-tampered", &base).await;
 
-    let city = ref_of(&page, "the city").await;
-    let (pressed, held) = filling(&page, &holds, &city, "Bologna").await;
-    assert!(pressed);
-    let id = held.expect("the submit is held");
+    let id = ordering(&page, &holds).await;
     let card = holds.card(&id).await.expect("a card");
     assert_eq!(named(&card.fields, "city"), Some("Bologna"), "the card says what was approved");
 
@@ -1188,10 +1206,7 @@ async fn while_paused_the_persons_own_submit_goes_and_resume_holds_ours_again() 
     let (sessions, page, holds) = common::confirming_window("confirm-paused", &base).await;
 
     // A card first, so "pausing is not declining" is on the window while we test.
-    let city = ref_of(&page, "the city").await;
-    let (pressed, held) = filling(&page, &holds, &city, "Bologna").await;
-    assert!(pressed);
-    let waiting = held.expect("a card before the pause");
+    let waiting = ordering(&page, &holds).await;
     assert_eq!(holds.waiting().await, 1, "and it is still answerable while paused");
 
     // **Through the window, not through the page's own store.** Pausa is the
@@ -1737,10 +1752,7 @@ async fn an_outcome_is_told_to_the_conversation_that_caused_it_and_to_no_other()
 
     // Chat A drives a write and answers it: no. That outcome is A's news.
     holds.in_conversation("chat-a").await;
-    let city = ref_of(&page, "the city").await;
-    let (pressed, held) = filling(&page, &holds, &city, "Bologna").await;
-    assert!(pressed);
-    let id = held.expect("chat A raised a card");
+    let id = ordering(&page, &holds).await;
     assert_eq!(holds.card(&id).await.map(|card| card.conversation), Some("chat-a".to_owned()));
     assert!(matches!(holds.answer(&id, "chat-a", false).await, hold::Answer::Spent(_)), "and it is answered in A");
 

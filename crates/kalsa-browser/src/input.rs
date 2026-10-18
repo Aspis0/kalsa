@@ -18,6 +18,10 @@ pub(crate) struct Answer {
     #[serde(rename = "isInput")]
     is_input: bool,
     kind: String,
+    /// Whether the browser associates this element with a `<form>`. Absent from
+    /// a click and from a refusal, both of which never ask.
+    #[serde(rename = "inForm", default)]
+    in_form: bool,
 }
 
 /// The types a person answers in one line and expects to be done with. A
@@ -26,22 +30,13 @@ pub(crate) struct Answer {
 /// types into at all.
 const ONE_LINE: &[&str] = &["text", "search", "email", "url", "tel", "number"];
 
-/// Enter follows a one-line field, **whether or not it sits in a form**.
-///
-/// The form was never the point, and holding out for it is what made this rule
-/// wrong for the web as it is. TodoMVC, every chat box and most search boxes are
-/// single-line inputs with no form at all, whose keydown handler commits what was
-/// typed: under a form-only rule a model could type an answer into one of those
-/// and the page would never hear the rest of the request, which is the model
-/// staring at a field that took the words and did nothing with them.
-///
-/// What this can cost is a request, and that is not this function's business:
-/// every write Enter can set off is a non-GET, and a non-GET goes through the
-/// hold like every other write (`src/hold.rs`) — refused in this step, confirmed
-/// from step 4. The destination is still re-read immediately before the key goes
-/// down (see `fill`).
+/// Enter follows a one-line field that is **not** in a form, and a search field
+/// wherever it is. Inside a form Enter submits it, so it goes on its own button.
 fn presses_enter(answer: &Answer) -> bool {
-    answer.is_input && ONE_LINE.contains(&answer.kind.as_str())
+    if !answer.is_input || !ONE_LINE.contains(&answer.kind.as_str()) {
+        return false;
+    }
+    answer.kind == "search" || !answer.in_form
 }
 
 /// Whether the page's own findings end the call.
@@ -80,14 +75,16 @@ const FILL_BODY: &str = r"
   // on the page for a page to replace before the person types.
   if (isSecretField(el)) return answer('secret');
 
-  const here = { isInput, kind };
-  if (badDestinationOf(el, pathOf(el))) return answer('destination', here);
+  // A function, not a value: `input` and `change` fire below and a handler can
+  // move the element into or out of a form, so ask the page again at each use.
+  const here = () => ({ isInput, kind, inForm: formOf(el) !== null });
+  if (badDestinationOf(el, pathOf(el))) return answer('destination', here());
 
   if (isInput || el instanceof HTMLTextAreaElement) el.value = text;
   else el.textContent = text;
   el.dispatchEvent(new Event('input', { bubbles: true }));
   el.dispatchEvent(new Event('change', { bubbles: true }));
-  return answer('ok', here);
+  return answer('ok', here());
 ";
 
 const CLICK_BODY: &str = r"
@@ -182,9 +179,8 @@ pub async fn click(page: &Page, id: &str) -> Result<(), Refused> {
 /// key is pressed**, because the write itself runs page code: `input` and
 /// `change` fire, and a handler for either can turn the form we judged into a
 /// form that would post somewhere else. A second check that finds it changed
-/// refuses and presses nothing. That check is now the whole of what stands
-/// between a fill and a page that acts on it, and it stands because Enter can
-/// now follow a field with no form around it — see `presses_enter`.
+/// refuses and presses nothing, which is what stands between the key and a page
+/// that acts on it — see [`presses_enter`].
 pub async fn fill(page: &Page, id: &str, text: &str) -> Result<bool, Refused> {
     let element = refs::at(page, id);
     let filled: Answer = element.evaluate::<Answer, &str>(&fill_expression(), Some(text)).await.map_err(|_| Refused::Gone)?;
@@ -208,20 +204,34 @@ mod tests {
 
     use super::{click_expression, fill_expression, presses_enter, recheck_expression, refused_by, Answer, Refused, ONE_LINE};
 
-    fn answered(verdict: &str, is_input: bool, kind: &str) -> Answer {
-        Answer { verdict: verdict.to_string(), is_input, kind: kind.to_string() }
+    fn answered(verdict: &str, is_input: bool, kind: &str, in_form: bool) -> Answer {
+        Answer { verdict: verdict.to_string(), is_input, kind: kind.to_string(), in_form }
     }
 
-    /// The rule, over every shape it has to answer for. **The form is not part
-    /// of it.** A one-line field is followed by Enter whether or not a `<form>`
-    /// is around it, because the pages that commit on Enter — TodoMVC, a chat
-    /// box, a search box — are mostly not in one, and a model typing into one of
-    /// those and pressing nothing is a model waiting for ever.
+    /// The rule over every shape it answers for: a one-line field with **no form
+    /// around it** — the shape of the pages that commit on Enter — takes it.
     #[test]
-    fn enter_follows_any_one_line_field() {
+    fn enter_follows_a_one_line_field_that_is_in_no_form() {
         for kind in ONE_LINE {
-            assert!(presses_enter(&answered("ok", true, kind)), "{kind} is finished with Enter");
+            assert!(presses_enter(&answered("ok", true, kind, false)), "{kind} outside a form is finished with Enter");
         }
+    }
+
+    /// A form goes on its own submit button, so filling one the ordinary way — a
+    /// field at a time — must not post it.
+    #[test]
+    fn an_ordinary_field_inside_a_form_is_filled_and_left_alone() {
+        for kind in ["text", "email", "url", "tel", "number"] {
+            assert!(!presses_enter(&answered("ok", true, kind, true)), "{kind} inside a form would submit the form");
+        }
+    }
+
+    /// The one exception, and it is the field that says so: `type=search` is a
+    /// page asking for Enter to mean something, and it keeps it in a form.
+    #[test]
+    fn a_search_field_keeps_enter_inside_a_form() {
+        assert!(presses_enter(&answered("ok", true, "search", true)));
+        assert!(presses_enter(&answered("ok", true, "search", false)));
     }
 
     /// A multi-line answer would submit itself halfway through being written,
@@ -230,18 +240,27 @@ mod tests {
     #[test]
     fn a_multi_line_or_unusual_field_is_filled_and_left_alone() {
         for kind in ["password", "checkbox", "radio", "file", "hidden", "date", "range", "submit", "button"] {
-            assert!(!presses_enter(&answered("ok", true, kind)), "{kind} must not submit");
+            assert!(!presses_enter(&answered("ok", true, kind, false)), "{kind} must not submit");
         }
-        assert!(!presses_enter(&answered("ok", false, "")), "a textarea does not submit");
-        assert!(!presses_enter(&answered("ok", false, "text")), "an editable block does not submit");
+        assert!(!presses_enter(&answered("ok", false, "", false)), "a textarea does not submit");
+        assert!(!presses_enter(&answered("ok", false, "text", false)), "an editable block does not submit");
     }
 
     #[test]
     fn what_the_page_found_becomes_what_the_model_is_told() {
-        assert_eq!(refused_by(&answered("secret", false, "")), Some(Refused::Password));
-        assert_eq!(refused_by(&answered("destination", false, "")), Some(Refused::Destination));
-        assert_eq!(refused_by(&answered("unfillable", false, "")), Some(Refused::NotFillable));
-        assert_eq!(refused_by(&answered("ok", true, "text")), None);
+        assert_eq!(refused_by(&answered("secret", false, "", false)), Some(Refused::Password));
+        assert_eq!(refused_by(&answered("destination", false, "", false)), Some(Refused::Destination));
+        assert_eq!(refused_by(&answered("unfillable", false, "", false)), Some(Refused::NotFillable));
+        assert_eq!(refused_by(&answered("ok", true, "text", true)), None);
+    }
+
+    /// A click and a refusal carry no form, so the default must land on the
+    /// form-less field that takes Enter, not on a refusal.
+    #[test]
+    fn an_answer_with_no_form_in_it_is_a_field_in_no_form() {
+        let answer: Answer = serde_json::from_str(r#"{"verdict": "ok", "isInput": true, "kind": "text"}"#).expect("parses");
+        assert!(!answer.in_form);
+        assert!(presses_enter(&answer));
     }
 
     /// **A click is judged on the whole chain above the element, not on the

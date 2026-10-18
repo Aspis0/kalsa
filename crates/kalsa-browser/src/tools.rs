@@ -113,13 +113,15 @@ pub(crate) fn type_into() -> Tool {
     Tool::new(
         "browser_type",
         "Fill a field on the page, by the ref a read printed. Enter is pressed \
-afterwards on any one-line field — whether or not it is inside a form, because \
-the pages that commit on Enter mostly are not — and it is not something you \
-choose. A textarea, an editable block, a checkbox, a radio, a date or a range \
-field is filled and left alone. A password field is never filled: ask the \
-person to type it in the window themselves. If the fill or the Enter would send \
-something to the site, the request is held and the person decides: the call \
-answers \"awaiting confirm\" with an id, and never waits.",
+afterwards only on a one-line field that is not inside a form — a search field \
+keeps Enter either way — and it is not something you choose. Any other field inside \
+a form is filled and left alone: the form goes when its own submit button is \
+clicked, so fill its fields first and then click that. A textarea, an editable \
+block, a checkbox, a radio, a date or a range field is filled and left alone \
+too. A password field is never filled: ask the person to type it in the window \
+themselves. If the fill or the Enter would send something to the site, the request \
+is held and the person decides: the call answers \"awaiting confirm\" with an id, \
+and never waits.",
         schema(json!({
             "type": "object",
             "properties": {
