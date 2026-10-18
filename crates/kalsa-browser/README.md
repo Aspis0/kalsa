@@ -76,6 +76,10 @@ filling fires `input` and `change` and a handler for either can move a field
 into a form or out of one — so it is the form as the page left it that decides
 the key.
 
+Filling a field does not activate the form's destination. Ordinary fields in a
+JavaScript contact form can be filled; the destination is checked on a click or
+immediately before Enter.
+
 Nothing here decides *whether* a write may happen. Every write this rule can
 cause is a non-GET, and every non-GET goes through the hold (`src/hold.rs`) —
 refused in step 1, confirmed from step 4 — so the only thing this rule decides is

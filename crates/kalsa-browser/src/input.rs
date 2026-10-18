@@ -49,20 +49,8 @@ fn refused_by(answer: &Answer) -> Option<Refused> {
     }
 }
 
-/// What a call reads out of the page before it decides anything.
-///
-/// Inside one JavaScript task, because the order and the closeness are the whole
-/// of the safety here:
-///
-/// 1. `focus`, because a page that turns a field into a password field when it is
-///    focused does exactly that — read the type before the focus and the field
-///    the model was shown is not the field that gets written to;
-/// 2. the field's own shape, and refuse a secret before anything is written;
-/// 3. everywhere this action could send the browser: the form it is actually
-///    associated with, its action and method, the submitter's `formaction` and
-///    `formmethod`, the element's own, and the link of every shape it may be
-///    inside;
-/// 4. **only then** write, or click.
+/// Filling does not activate a destination. Only a click or Enter needs that
+/// check; secrets are still refused before writing.
 const FILL_BODY: &str = r"
   const editable = el instanceof HTMLTextAreaElement || el.isContentEditable === true;
   if (!(el instanceof HTMLInputElement) && !editable) return answer('unfillable');
@@ -78,7 +66,6 @@ const FILL_BODY: &str = r"
   // A function, not a value: `input` and `change` fire below and a handler can
   // move the element into or out of a form, so ask the page again at each use.
   const here = () => ({ isInput, kind, inForm: formOf(el) !== null });
-  if (badDestinationOf(el, pathOf(el))) return answer('destination', here());
 
   if (isInput || el instanceof HTMLTextAreaElement) el.value = text;
   else el.textContent = text;
@@ -171,16 +158,8 @@ pub async fn click(page: &Page, id: &str) -> Result<(), Refused> {
     Ok(())
 }
 
-/// Fill a field, and press Enter after it when the field is a one-line answer.
-/// A password field is never typed into: the model has no business holding one,
-/// and a value it typed would sit in the transcript.
-///
-/// The value is written and judged in one task, and **judged again before the
-/// key is pressed**, because the write itself runs page code: `input` and
-/// `change` fire, and a handler for either can turn the form we judged into a
-/// form that would post somewhere else. A second check that finds it changed
-/// refuses and presses nothing, which is what stands between the key and a page
-/// that acts on it — see [`presses_enter`].
+/// Input handlers can change the form, so read its destination immediately
+/// before Enter. Ordinary form fields are filled without pressing a key.
 pub async fn fill(page: &Page, id: &str, text: &str) -> Result<bool, Refused> {
     let element = refs::at(page, id);
     let filled: Answer = element.evaluate::<Answer, &str>(&fill_expression(), Some(text)).await.map_err(|_| Refused::Gone)?;
@@ -263,18 +242,12 @@ mod tests {
         assert!(presses_enter(&answer));
     }
 
-    /// **A click is judged on the whole chain above the element, not on the
-    /// element.** Clicking a picture inside a link activates the link, and the
-    /// element the model is given is not always the link — measured on this
-    /// browser, the accessibility tree gives the anchor an empty name and the
-    /// `<img>` inside it the name and the ref. Handing `[el]` to the rule
-    /// therefore judged the picture, and the link around it was never read.
+    /// A picture can be inside a link, so activation must judge its ancestors.
     #[test]
-    fn a_click_is_judged_on_the_chain_above_the_element() {
+    fn an_activation_is_judged_on_the_chain_above_the_element() {
         const ELEMENT_ALONE: &str = "[el]";
         for (what, expression) in [
             ("a click", click_expression()),
-            ("a fill", fill_expression()),
             ("the recheck before Enter", recheck_expression()),
         ] {
             assert!(expression.contains("badDestinationOf(el, pathOf(el))"), "{what} is not judged on the chain above it");

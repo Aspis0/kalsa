@@ -19,8 +19,9 @@ use std::time::Duration;
 /// the person's mail client while it runs. That is not a risk worth taking for
 /// a proof, and it has already happened: an Enter key that reached the browser
 /// with a `mailto:` `formaction` opened a compose window on every run of this
-/// file. `mailto:` itself is still refused where no browser is involved, in
-/// `src/input.rs`'s own tests and in `tests/addresses.rs`.
+/// file. `mailto:` itself is still refused on every path that reads a destination
+/// — a click, the re-check before Enter, and the window's own listeners — and the
+/// scheme rule itself is over a table in `tests/addresses.rs`.
 const SHAPES: &str = r#"
   <form action="/posted">
     <label for="inside">one line inside a form</label>
@@ -65,6 +66,8 @@ const SHAPES: &str = r#"
   <form id="far" action="kalsaprobe://shop">
     <label for="traveller">a field attached to the far form</label>
     <input id="traveller" type="text" form="far">
+    <label for="far-searcher">a search attached to the far form</label>
+    <input id="far-searcher" type="search" form="far">
   </form>
   <map name="office"><area id="office-area" shape="rect" coords="0,0,9,9" href="kalsaprobe://shop" alt="the office map"></map>
   <img id="plan" usemap='#office' alt="a floor plan">
@@ -74,6 +77,8 @@ const SHAPES: &str = r#"
   <form id="by-image" action="/posted">
     <label for="with-image">a field in the image form</label>
     <input id="with-image" type="text">
+    <label for="image-searcher">a search in the image form</label>
+    <input id="image-searcher" type="search">
     <input id="picture" type="image" alt="the picture button" src="/x.png" formaction="kalsaprobe://shop">
   </form>
   <form id="icon-form" action="kalsaprobe://shop">
@@ -86,6 +91,8 @@ const SHAPES: &str = r#"
   <form id="odd-method" method="weird" action="/posted">
     <label for="odd">a field in a method form</label>
     <input id="odd" type="text">
+    <label for="odd-searcher">a search in a method form</label>
+    <input id="odd-searcher" type="search">
   </form>
 "#;
 
@@ -254,33 +261,91 @@ async fn a_link_to_another_program_is_refused_before_the_click() {
     }
 }
 
-/// A page that records every value it is given. If a fill is refused, this must
-/// never see one — the write happens after every check, not before.
+/// Password refusal must happen before either the value or an input event is
+/// visible to the page.
 #[tokio::test]
 async fn a_refused_fill_never_writes_a_value_the_page_can_see() {
     let (_playwright, page) = page_with_shapes("input-nothing-written").await;
-    // The form's own submitter posts to another program, so this fill is refused for
-    // where it would go — after the field is resolved and after the secret check,
-    // and before anything is written.
-    let reference = ref_of(&page, "a form that posts somewhere else").await;
+    page.evaluate::<(), Vec<String>>(
+        r#"() => { const log = []; document.addEventListener('input', e => log.push(e.target.id + '=' + e.target.value), true); window.log = log; return log; }"#,
+        None,
+    )
+    .await
+    .expect("the page records every value from here on");
 
-    let refused = input::fill(&page, &reference, "hunter2").await.expect_err("that form is refused");
-    assert_eq!(refused, input::Refused::Destination);
+    let reference = ref_of(&page, "the secret word").await;
+    let refused = input::fill(&page, &reference, "hunter2").await.expect_err("a password field is refused");
+    assert_eq!(refused, input::Refused::Password);
 
-    let seen: Vec<String> = page
-        .evaluate::<(), Vec<String>>(
-            r#"() => { const log = []; document.addEventListener('input', e => log.push(e.target.id + '=' + e.target.value), true); window.log = log; return log; }"#,
-            None,
-        )
-        .await
-        .expect("the page answers");
+    let seen: Vec<String> = page.evaluate::<(), Vec<String>>("() => window.log", None).await.expect("the page answers");
     assert!(seen.is_empty(), "the page saw {seen:?}");
 
     let typed: String = page
-        .evaluate::<(), String>("() => document.getElementById('sent-away').value", None)
+        .evaluate::<(), String>("() => document.getElementById('secret').value", None)
         .await
         .expect("the page answers");
     assert!(typed.is_empty(), "the value landed anyway: {typed:?}");
+}
+
+/// JavaScript contact forms must be fillable without submitting; the destination
+/// check belongs to the search field that actually takes Enter.
+#[tokio::test]
+async fn a_contact_form_that_posts_to_javascript_is_filled_the_way_a_person_fills_one_in() {
+    const CONTACT: &str = r#"<form action="javascript:void(0)">
+      <label for="first">First Name</label>
+      <input id="first" type="text" name="first_name">
+      <label for="last">Last Name</label>
+      <input id="last" type="text" name="last_name">
+      <label for="email">Email Address</label>
+      <input id="email" type="email" name="email">
+      <label for="comments">Comments</label>
+      <textarea id="comments" name="comment"></textarea>
+      <label for="subject">Subject</label>
+      <input id="subject" type="search" name="subject">
+      <button type="submit">Send</button>
+    </form>"#;
+    let (base, arrived) = common::serve(&[common::page(CONTACT)]).await;
+    let (playwright, _context, page) = common::browser_on("input-contact", &base).await;
+    settle(&page, &base).await;
+    page.evaluate::<(), i32>(
+        "() => { window.submitted = 0; document.addEventListener('submit', () => { window.submitted += 1; }); return 0; }",
+        None,
+    )
+    .await
+    .expect("the page counts its own submits from here on");
+
+    let here = page.url();
+    let loaded = arrived.requests().len();
+
+    for (name, what) in [
+        ("First Name", "Marco"),
+        ("Last Name", "Rossi"),
+        ("Email Address", "aspis.launcher@gmail.com"),
+        ("Comments", "a table for four on Friday, please"),
+    ] {
+        let reference = ref_of(&page, name).await;
+        let pressed = input::fill(&page, &reference, what).await.expect("an ordinary contact field is filled");
+        assert!(!pressed, "{name} is in a form, so nothing is pressed into it");
+        let written: String = page
+            .locator(format!("aria-ref={reference}"))
+            .evaluate::<String, ()>("el => el.value", None)
+            .await
+            .expect("the page answers");
+        assert_eq!(written, what, "{name} holds what was typed into it");
+    }
+
+    let submitted: i32 = page.evaluate::<(), i32>("() => window.submitted", None).await.expect("the page answers");
+    assert_eq!(submitted, 0, "a contact form is submitted by its own button");
+    assert_eq!(page.url(), here, "the page moved while it was being filled: {}", page.url());
+    assert_eq!(arrived.requests().len(), loaded, "nothing was sent: {:?}", arrived.requests());
+
+    // Search takes Enter, so its destination must still be checked.
+    let searching = ref_of(&page, "Subject").await;
+    let refused = input::fill(&page, &searching, "a booking").await.expect_err("the form's own action is refused");
+    assert_eq!(refused, input::Refused::Destination);
+    let submitted: i32 = page.evaluate::<(), i32>("() => window.submitted", None).await.expect("the page answers");
+    assert_eq!(submitted, 0, "and the key was not pressed, so the form was not submitted");
+    drop(playwright);
 }
 
 /// **A page that moves its own link between mousedown and click.** The shape that
@@ -352,14 +417,23 @@ async fn a_link_that_swaps_its_destination_before_the_click_does_not_go() {
     drop(playwright);
 }
 
-/// The submitter's own `formaction` is where Enter goes, so it is read with
-/// everything else and refused the same way.
+/// Filling a field must work even when its submit button cannot be activated.
 #[tokio::test]
-async fn a_form_whose_default_submitter_posts_to_another_program_is_refused() {
+async fn a_form_whose_default_submitter_posts_to_another_program_is_refused_on_the_click() {
     let (_playwright, page) = page_with_shapes("input-formaction").await;
-    let reference = ref_of(&page, "a form that posts somewhere else").await;
+    let field = ref_of(&page, "a form that posts somewhere else").await;
 
-    let refused = input::fill(&page, &reference, "an answer").await.expect_err("the formaction is refused");
+    let pressed = input::fill(&page, &field, "an answer").await.expect("a write is not a navigation");
+    assert!(!pressed, "the field is in a form, so nothing is pressed into it");
+    let written: String = page
+        .evaluate::<(), String>("() => document.getElementById('sent-away').value", None)
+        .await
+        .expect("the page answers");
+    assert_eq!(written, "an answer", "where the form would post does not stop a person filling a field in it");
+
+    // **And where the address is actually followed, it is refused.**
+    let button = ref_of(&page, "send it").await;
+    let refused = input::click(&page, &button).await.expect_err("the formaction is refused");
     assert_eq!(refused, input::Refused::Destination);
 }
 
@@ -371,18 +445,24 @@ async fn an_element_that_is_not_on_the_page_is_said_plainly() {
     let refused = input::click(&page, "e9999").await.expect_err("there is no such ref");
     assert_eq!(refused.reason(), "the element is not on the page any more: read the page again");
 }
-/// A field that belongs to a form somewhere else on the page, by the `form`
-/// attribute a browser honours and `closest('form')` cannot see. The form it
-/// is really in posts to another program, so the fill is refused — but a check
-/// that walked ancestry would call this field form-less, check nothing, and
-/// write into it.
+/// Enter follows the browser's form association, including the `form` attribute.
 #[tokio::test]
 async fn a_field_associated_with_a_form_elsewhere_is_judged_by_that_form() {
     let (_playwright, page) = page_with_shapes("input-elsewhere").await;
     let reference = ref_of(&page, "a field attached to the far form").await;
 
-    let refused = input::fill(&page, &reference, "an answer").await.expect_err("the far form is refused");
-    assert_eq!(refused, input::Refused::Destination);
+    let pressed = input::fill(&page, &reference, "an answer").await.expect("a write is not a navigation");
+    assert!(!pressed, "it is in the far form, so nothing is pressed into it");
+    let written: String = page
+        .locator(format!("aria-ref={reference}"))
+        .evaluate::<String, ()>("el => el.value", None)
+        .await
+        .expect("the page answers");
+    assert_eq!(written, "an answer", "the field is filled whatever form the key would have submitted");
+
+    let searching = ref_of(&page, "a search attached to the far form").await;
+    let refused = input::fill(&page, &searching, "an answer").await.expect_err("the far form is refused");
+    assert_eq!(refused, input::Refused::Destination, "Enter would have gone to the far form's action");
 }
 
 /// An image map area is a link whose address lives in `href` on an `<area>`
@@ -391,10 +471,10 @@ async fn a_field_associated_with_a_form_elsewhere_is_judged_by_that_form() {
 ///
 /// Chrome gives an area no node in the accessibility tree: the image keeps the
 /// ref and the area's own name is never printed. So the model cannot name an
-/// area and cannot click one, which is why the click check below finds nothing
-/// to act on. The rule still reads `area[href]`, and
-/// `every_shape_of_link_and_method_is_read` in `input.rs` is what keeps that
-/// clause from being dropped; this is the layer behind that layer.
+/// area and cannot click one. The rule still reads `area[href]`, and
+/// `the_destination_rule_is_read_from_the_one_definition` in `external.rs` is
+/// what keeps that clause from being dropped; this is the layer behind that
+/// layer.
 #[tokio::test]
 async fn a_read_never_names_an_image_map_area() {
     let (_playwright, page) = page_with_shapes("input-area").await;
@@ -437,38 +517,23 @@ async fn a_clicked_image_button_is_read_for_its_own_action() {
     assert_eq!(refused, input::Refused::Destination);
 }
 
-/// **Enter in a form whose only submit control is an image button goes with
-/// that image's `formaction`.** This is the one that opened the person's mail
-/// client from a plain text field, so it is worth saying what the browser does
-/// rather than what this file used to believe.
-///
-/// It used to believe an image is not a submit button, on the strength of
-/// `form.elements` not listing it — which is true, and is not the question. The
-/// browser finds the default button by association, and `type=image` is one of
-/// the three values that put a control in the submit-button state: Enter in
-/// `#with-image` submitted the form with `formaction="kalsaprobe://..."`, and
-/// with `mailto:` in that attribute it opened a compose window on the machine
-/// running the tests, every run. **A fill into that field is refused**, so the
-/// key is never pressed and there is nothing to hand over.
-///
-/// The safe half is here too: the same form with no `formaction` on the image is
-/// filled and left alone, because the rule is about where Enter would go and not
-/// about pictures.
+/// A search field takes Enter through the default image button's formaction.
 #[tokio::test]
 async fn pressing_enter_in_a_form_whose_image_button_posts_to_another_program_is_refused() {
     let (_playwright, page) = page_with_shapes("input-image-enter").await;
-    let reference = ref_of(&page, "a field in the image form").await;
+    let field = ref_of(&page, "a field in the image form").await;
 
-    let refused = input::fill(&page, &reference, "an answer").await.expect_err("the image's own action is refused");
-    assert_eq!(refused, input::Refused::Destination, "Enter would have gone to the image's formaction");
-
-    // **And nothing was typed**, which is the half that actually matters: the
-    // value would have gone out with the address.
-    let typed: String = page
+    let pressed = input::fill(&page, &field, "an answer").await.expect("a write is not a navigation");
+    assert!(!pressed, "an ordinary field in a form is filled and left alone");
+    let written: String = page
         .evaluate::<(), String>("() => document.getElementById('with-image').value", None)
         .await
         .expect("the page answers");
-    assert!(typed.is_empty(), "an answer was written into a field that would have posted it: {typed:?}");
+    assert_eq!(written, "an answer", "a picture on the form does not stop the field beside it being filled");
+
+    let searching = ref_of(&page, "a search in the image form").await;
+    let refused = input::fill(&page, &searching, "an answer").await.expect_err("the image's own action is refused");
+    assert_eq!(refused, input::Refused::Destination, "Enter would have gone to the image's formaction");
 }
 
 /// The same form with nothing dangerous on the image is not caught by any of
@@ -505,14 +570,23 @@ async fn a_form_whose_image_button_posts_nowhere_in_particular_is_filled_and_lef
     drop(playwright);
 }
 
-/// The form's own `method` is where a submit goes when nothing overrides it.
+/// Filling does not submit; a search field must still reject an invalid method.
 #[tokio::test]
 async fn a_form_with_a_method_the_browser_would_ignore_is_refused() {
     let (_playwright, page) = page_with_shapes("input-method").await;
-    let reference = ref_of(&page, "a field in a method form").await;
+    let field = ref_of(&page, "a field in a method form").await;
 
-    let refused = input::fill(&page, &reference, "an answer").await.expect_err("the method is refused");
-    assert_eq!(refused, input::Refused::Destination);
+    let pressed = input::fill(&page, &field, "an answer").await.expect("a write is not a navigation");
+    assert!(!pressed, "the field is in a form, so nothing is pressed into it");
+    let written: String = page
+        .evaluate::<(), String>("() => document.getElementById('odd').value", None)
+        .await
+        .expect("the page answers");
+    assert_eq!(written, "an answer", "a method the browser would ignore does not stop the field being filled");
+
+    let searching = ref_of(&page, "a search in a method form").await;
+    let refused = input::fill(&page, &searching, "an answer").await.expect_err("the method is refused");
+    assert_eq!(refused, input::Refused::Destination, "Enter would have gone with the method the browser ignores");
 }
 
 /// **An icon inside a submit button submits with the button.** The icon is not
