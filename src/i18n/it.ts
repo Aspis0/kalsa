@@ -781,8 +781,8 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     // (PHONE-CHAT-PROTOCOL §3.1). Parole semplici: questa scheda si legge nel
     // secondo prima di acconsentire a mandare qualcosa a un sito.
     browser: {
-      title: "Questo sito vuole inviare qualcosa",
-      request: "Richiesta",
+      wantsToSend: "{host} vuole inviare:",
+      insecure: "Connessione non protetta",
       show: "Mostra",
       hide: "Nascondi",
       send: "Invia",

@@ -18,6 +18,10 @@
  */
 export type BrowserCardField = {
   name: string;
+  /** The words the page puts beside the field, for the person to read next to its
+   *  value (§3.1). Display only, and `null` when the page gave none: the card then
+   *  draws the name. A phone that predates labels never reads this key. */
+  label: string | null;
   /** The real value while the card may still be answered, and **null once it
    *  may not**: answered, settled by an outcome, or past its deadline. §6 is
    *  about the value going, not about it being hidden — a value still sitting
@@ -66,6 +70,10 @@ const MAX_NAME = 256;
 const MAX_METHOD = 256;
 const MAX_URL = 8 * 1024;
 const MAX_VALUE = 8 * 1024;
+/** A label's bounds (§3.1): at most 240 bytes of UTF-8 on the wire, and at most sixty
+ *  characters once drawn, the same cap the computer applies. */
+const MAX_LABEL_BYTES = 240;
+const MAX_LABEL_CHARS = 60;
 
 /** This phone's own clock for a card's budget. Monotonic where the runtime
  *  offers one (Hermes does), so a clock that jumps mid-countdown — NTP, or a
@@ -112,7 +120,11 @@ function field(raw: unknown): BrowserCardField | null {
   // field this card cannot show as it would be sent.
   const value = text(one, "value", MAX_VALUE);
   if (name === null || value === null) return null;
-  return { name, value, secret: one.secret === true };
+  // A label is optional, and the words only when they are words within the bounds: a
+  // label that is not text is no label, not a reason to refuse the card.
+  const rawLabel = one.label;
+  const label = typeof rawLabel === "string" ? cleanLabel(rawLabel) : null;
+  return { name, label, value, secret: one.secret === true };
 }
 
 export function normalizeBrowserCard(raw: unknown, arrivedAtMs = monotonicNowMs()): BrowserCard | null {
@@ -214,49 +226,41 @@ export function readBrowserAnswer(payload: Record<string, unknown>): BrowserAnsw
   return outcome === null ? { ok: false, errorCode: "browser.unreadable" } : { ok: true, outcome };
 }
 
-/** The field names the card says are secret. The URL is masked on exactly
- *  these, which is why the masking takes the card and not a list. */
-export function secretFieldNames(card: BrowserCard): string[] {
-  return card.fields.filter((one) => one.secret).map((one) => one.name);
+/** Where a request goes, as the card names it (§3.1): the bare host, with a port only
+ *  when it is not the scheme's default, and whether the connection is plain `http`.
+ *  Nothing else of the address is shown: no user, no path, no query. An address the
+ *  phone cannot take apart names no host at all. */
+export function destinationOf(url: string): { host: string; insecure: boolean } {
+  const match = /^([a-z][a-z0-9+.-]*):\/\/(?:[^@/?#]*@)?(\[[^\]]*\]|[^:/?#]+)(?::(\d+))?/i.exec(url);
+  if (match === null || !isBareHost(match[2])) return { host: "", insecure: false };
+  const scheme = match[1].toLowerCase();
+  const defaultPort = scheme === "https" ? "443" : scheme === "http" ? "80" : "";
+  const port = match[3];
+  const host = port !== undefined && port !== defaultPort ? `${match[2]}:${port}` : match[2];
+  return { host, insecure: scheme === "http" };
 }
 
-function decode(text: string): string {
-  try {
-    return decodeURIComponent(text.replace(/\+/g, " "));
-  } catch {
-    return text;
+/** The UTF-8 length of a string, which is what the wire bound is in: eighty accented
+ *  letters are one hundred and sixty bytes, not eighty. */
+export function utf8Length(text: string): number {
+  let bytes = 0;
+  for (const character of text) {
+    const code = character.codePointAt(0) ?? 0;
+    bytes += code < 0x80 ? 1 : code < 0x800 ? 2 : code < 0x10000 ? 3 : 4;
   }
+  return bytes;
 }
 
-/** The address the card draws, with the value of every secret-named query
- *  parameter as dots (§3.1). A URL the phone cannot take apart is drawn whole:
- *  it is the computer's own address, not a parse failure worth hiding.
- *
- *  Only the value is replaced — the name stays, because the person is deciding
- *  on a request to `passphrase_2` and a card showing `secret=value` tells them
- *  nothing they did not already know from the fields list below it. */
-export function maskSecretQuery(url: string, secretNames: readonly string[]): string {
-  if (secretNames.length === 0) return url;
-  const cut = url.indexOf("?");
-  if (cut === -1) return url;
-  const secrets = new Set(secretNames);
-  const head = url.slice(0, cut);
-  const rest = url.slice(cut + 1);
-  const hashAt = rest.indexOf("#");
-  const query = hashAt === -1 ? rest : rest.slice(0, hashAt);
-  const fragment = hashAt === -1 ? "" : rest.slice(hashAt);
-  const masked = query
-    .split("&")
-    .map((pair) => {
-      const eq = pair.indexOf("=");
-      if (eq === -1) return pair;
-      const name = decode(pair.slice(0, eq));
-      if (!secrets.has(name)) return pair;
-      const value = pair.slice(eq + 1);
-      return `${pair.slice(0, eq)}=${value === "" ? "" : SECRET_DOTS}`;
-    })
-    .join("&");
-  return `${head}?${masked}${fragment}`;
+/** A label as the card may draw it, or nothing (§3.1). The same policy as the
+ *  computer's, applied again on this side of the wire: control characters and every
+ *  Unicode format character (general category Cf: bidirectional marks, zero-width
+ *  joiners, the Arabic letter mark) are removed, runs of space collapse, and the result
+ *  is capped at sixty characters. A label over the byte bound is no label at all. */
+export function cleanLabel(raw: string): string | null {
+  if (utf8Length(raw) > MAX_LABEL_BYTES) return null;
+  const words = raw.replace(/[\p{Cc}\p{Cf}]/gu, " ").split(/\s+/).filter((word) => word !== "").join(" ");
+  const capped = Array.from(words).slice(0, MAX_LABEL_CHARS).join("").trimEnd();
+  return capped === "" ? null : capped;
 }
 
 /** A card nobody may answer any more keeps its shape — its identity, its

@@ -1,11 +1,13 @@
 import {
+  cleanLabel,
+  destinationOf,
   isBrowserCardExpired,
-  maskSecretQuery,
   monotonicNowMs,
   normalizeBrowserCard,
   normalizeBrowserOutcome,
   readBrowserAnswer,
   SECRET_DOTS,
+  utf8Length,
 } from "./browserCardPayload";
 
 const CARD_ID = "3f9c1a77e2b04d5681aa90c3b7e4412d";
@@ -32,8 +34,8 @@ describe("a held request, kept only in the shape a card draws", () => {
     expect(card!.cardId).toBe(CARD_ID);
     expect(card!.method).toBe("POST");
     expect(card!.fields).toEqual([
-      { name: "size", value: "L", secret: false },
-      { name: "passphrase_2", value: "hunter2", secret: true },
+      { name: "size", label: null, value: "L", secret: false },
+      { name: "passphrase_2", label: null, value: "hunter2", secret: true },
     ]);
   });
 
@@ -160,24 +162,76 @@ describe("what became of a card", () => {
   });
 });
 
-describe("the address a card shows", () => {
-  test("a secret's query value is dots, and its name is not", () => {
-    expect(maskSecretQuery("https://x.it/c?size=L&passphrase_2=hunter2&a=1", ["passphrase_2"])).toBe(
-      `https://x.it/c?size=L&passphrase_2=${SECRET_DOTS}&a=1`,
-    );
+describe("the destination a card names", () => {
+  test("only the host, with a port only when it is not the scheme's default", () => {
+    expect(destinationOf("https://shop.example/checkout?size=L&passphrase_2=hunter2")).toEqual({
+      host: "shop.example",
+      insecure: false,
+    });
+    expect(destinationOf("https://shop.example:443/order").host).toBe("shop.example");
+    expect(destinationOf("http://shop.example:8080/x").host).toBe("shop.example:8080");
+    expect(destinationOf("https://user:secret@shop.example:8443/order#top").host).toBe("shop.example:8443");
+    expect(destinationOf("http://[::1]:8080/x").host).toBe("[::1]:8080");
   });
 
-  test("an encoded name, a fragment, and no query at all are all handled", () => {
-    expect(maskSecretQuery("https://x.it/c?passphrase%5F2=hunter2", ["passphrase_2"])).toBe(
-      `https://x.it/c?passphrase%5F2=${SECRET_DOTS}`,
-    );
-    expect(maskSecretQuery("https://x.it/c?a=1#top", ["passphrase_2"])).toBe("https://x.it/c?a=1#top");
-    expect(maskSecretQuery("https://x.it/c", ["passphrase_2"])).toBe("https://x.it/c");
-    expect(maskSecretQuery("https://x.it/c?a=1", [])).toBe("https://x.it/c?a=1");
-    // An empty value stays empty: dots over nothing would invent content.
-    expect(maskSecretQuery("https://x.it/c?passphrase_2=", ["passphrase_2"])).toBe(
-      "https://x.it/c?passphrase_2=",
-    );
+  test("plain http is said to be insecure, and https is not", () => {
+    expect(destinationOf("http://shop.example/order").insecure).toBe(true);
+    expect(destinationOf("https://shop.example/order").insecure).toBe(false);
+  });
+
+  test("an address it cannot take apart, or a host that is not bare, names no host", () => {
+    expect(destinationOf("not an address")).toEqual({ host: "", insecure: false });
+    expect(destinationOf("https://sh op.example/").host).toBe("");
+    expect(destinationOf("https://shop.example\u202e/").host).toBe("");
+  });
+});
+
+describe("the bounds a label is held to", () => {
+  test("the wire bound is UTF-8 bytes, not characters", () => {
+    expect(utf8Length("abc")).toBe(3);
+    expect(utf8Length("è")).toBe(2);
+    expect(utf8Length("€")).toBe(3);
+    expect(utf8Length("😀")).toBe(4);
+    // Eighty accented letters are 160 bytes: within the bound, and the card keeps them.
+    expect(cleanLabel("è".repeat(80))).toBe("è".repeat(60));
+    // 130 accented letters are 260 bytes: over the bound, so there is no label at all.
+    expect(cleanLabel("è".repeat(130))).toBeNull();
+  });
+
+  test("format and control characters are removed, as the computer removes them", () => {
+    expect(cleanLabel("Via\u061Cromana\u200B")).toBe("Via romana");
+    expect(cleanLabel("\u2066Via\u2069 Roma")).toBe("Via Roma");
+    expect(cleanLabel("Indirizzo\u0000\n\u202Eevil")).toBe("Indirizzo evil");
+    expect(cleanLabel("\u200B\u061C\uFEFF")).toBeNull();
+  });
+});
+
+describe("a field's label", () => {
+  test("a label reaches the field, capped and as text; no label is null", () => {
+    const card = normalizeBrowserCard({
+      card_id: CARD_ID,
+      method: "POST",
+      url: "https://shop.example/order",
+      fields: [
+        { name: "custname", value: "Giulia", secret: false, label: "Nome e cognome" },
+        { name: "csrf", value: "a-token", secret: false },
+        { name: "note", value: "x", secret: false, label: 7 },
+      ],
+      answer_in_ms: 1000,
+    });
+    expect(card?.fields.map((one) => one.label)).toEqual(["Nome e cognome", null, null]);
+  });
+
+  test("a label over the cap is no label, and never refuses the card", () => {
+    const card = normalizeBrowserCard({
+      card_id: CARD_ID,
+      method: "POST",
+      url: "https://shop.example/order",
+      fields: [{ name: "a", value: "b", secret: false, label: "x".repeat(241) }],
+      answer_in_ms: 1000,
+    });
+    expect(card).not.toBeNull();
+    expect(card?.fields[0].label).toBeNull();
   });
 });
 

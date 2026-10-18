@@ -789,8 +789,8 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     // (PHONE-CHAT-PROTOCOL §3.1). Plain words, no jargon: this card is read
     // in the second before somebody agrees to send something to a website.
     browser: {
-      title: "This website wants to send something",
-      request: "Request",
+      wantsToSend: "{host} wants to send:",
+      insecure: "Not a secure connection",
       show: "Show",
       hide: "Hide",
       send: "Send",

@@ -44,7 +44,7 @@ function harnessWithOlderCard() {
           cardId: ID_A,
           method: "POST",
           url: "https://shop.example/checkout",
-          fields: [{ name: "passphrase_2", value: "hunter2", secret: true }],
+          fields: [{ name: "passphrase_2", label: null, value: "hunter2", secret: true }],
           deadlineAtMs: 301_000,
         },
       },
@@ -81,7 +81,7 @@ const card = (cardId: string, over: Record<string, unknown> = {}) => ({
   card_id: cardId,
   method: "POST",
   url: "https://shop.example/checkout",
-  fields: [{ name: "passphrase_2", value: "hunter2", secret: true }],
+  fields: [{ name: "passphrase_2", label: null, value: "hunter2", secret: true }],
   asked_at_ms: 1767225600000,
   answer_in_ms: 300000,
   ...over,
@@ -103,7 +103,7 @@ describe("a held request on the assistant message", () => {
           cardId: ID_A,
           method: "POST",
           url: "https://shop.example/checkout",
-          fields: [{ name: "passphrase_2", value: "hunter2", secret: true }],
+          fields: [{ name: "passphrase_2", label: null, value: "hunter2", secret: true }],
           // Arrival (1 000) plus the budget (300 000) on THIS phone's clock.
           deadlineAtMs: 301_000,
         },
@@ -209,8 +209,8 @@ describe("a held request on the assistant message", () => {
     rich.callbacks.onBrowserCard?.(
       card(ID_A, {
         fields: [
-          { name: "size", value: "L", secret: false },
-          { name: "passphrase_2", value: "hunter2", secret: true },
+          { name: "size", label: null, value: "L", secret: false },
+          { name: "passphrase_2", label: null, value: "hunter2", secret: true },
         ],
       }),
     );
@@ -218,6 +218,7 @@ describe("a held request on the assistant message", () => {
 
     expect(message().browserCards?.[0].card.fields[0]).toEqual({
       name: "size",
+      label: null,
       value: null,
       secret: false,
     });

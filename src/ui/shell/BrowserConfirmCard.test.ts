@@ -61,8 +61,8 @@ function entry(over: Partial<BrowserCardEntry> = {}): BrowserCardEntry {
       method: "POST",
       url: "https://shop.example/checkout?size=L&passphrase_2=hunter2",
       fields: [
-        { name: "size", value: "L", secret: false },
-        { name: "passphrase_2", value: "hunter2", secret: true },
+        { name: "size", label: "Taglia", value: "L", secret: false },
+        { name: "passphrase_2", label: null, value: "hunter2", secret: true },
       ],
       deadlineAtMs: BY,
       ...(over.card ?? {}),
@@ -122,41 +122,49 @@ describe("a request held for the person", () => {
     jest.restoreAllMocks();
   });
 
-  it("draws the address, the method and every field as it would be sent", async () => {
+  it("draws the host, and each field with a value as the label the page gave it", async () => {
     const renderer = await render(entry());
-    expect(textOf(renderer, "transcript.browserCard.method")).toBe(
-      "chat.browser.request: POST",
+    expect(textOf(renderer, "transcript.browserCard.title")).toBe(
+      'chat.browser.wantsToSend:{"host":"shop.example"}',
     );
-    // The plain field is shown outright: only what the card marks secret is hidden.
+    // The label the page gives is drawn beside the value; a field with none is its name.
+    expect(textOf(renderer, "transcript.browserCard.label.0")).toBe("Taglia:");
+    expect(has(renderer, "transcript.browserCard.insecure")).toBe(false);
     expect(textOf(renderer, "transcript.browserCard.field.0")).toBe("L");
-    expect(texts(renderer)).toEqual(expect.arrayContaining(["size", "passphrase_2"]));
+    expect(textOf(renderer, "transcript.browserCard.label.1")).toBe("passphrase_2:");
     expect(textOf(renderer, "transcript.browserCard.deadline")).toBe(
       "chat.browser.answerWithin:{\"time\":\"5:00\"}",
     );
+    // No method, no path, no query: the host is all there is of the address.
+    expect(has(renderer, "transcript.browserCard.method")).toBe(false);
+    expect(has(renderer, "transcript.browserCard.url")).toBe(false);
+    expect(texts(renderer).join(" ")).not.toMatch(/POST|checkout|size=L/);
   });
 
-  it("a secret is dots until the person asks, and the address masks its own secret too", async () => {
+  it("a secret is dots until the person asks, and nothing else is masked", async () => {
     const renderer = await render(entry());
     expect(textOf(renderer, "transcript.browserCard.field.1")).toBe(SECRET_DOTS);
-    expect(textOf(renderer, "transcript.browserCard.url")).toBe(
-      `https://shop.example/checkout?size=L&passphrase_2=${SECRET_DOTS}`,
-    );
     // Not one character of it anywhere in what is drawn.
     expect(texts(renderer).join(" ")).not.toContain("hunter2");
 
     await press(renderer, "transcript.browserCard.toggle.1");
     expect(textOf(renderer, "transcript.browserCard.field.1")).toBe("hunter2");
+    // What is not a secret was never dotted.
+    expect(textOf(renderer, "transcript.browserCard.field.0")).toBe("L");
+  });
 
-    await press(renderer, "transcript.browserCard.urlToggle");
-    expect(textOf(renderer, "transcript.browserCard.url")).toContain("hunter2");
+  it("a field with no value is not asked about", async () => {
+    const withEmpty = entry();
+    withEmpty.card.fields = [{ name: "size", label: "Taglia", value: "L", secret: false }, { name: "note", label: null, value: "", secret: false }];
+    expect(has(await render(withEmpty), "transcript.browserCard.label.1")).toBe(false);
   });
 
   it("pressing Show on one field reveals that field only", async () => {
     const two = entry();
     two.card.fields = [
-      { name: "size", value: "L", secret: false },
-      { name: "a_secret", value: "one", secret: true },
-      { name: "b_secret", value: "two", secret: true },
+      { name: "size", label: null, value: "L", secret: false },
+      { name: "a_secret", label: null, value: "one", secret: true },
+      { name: "b_secret", label: null, value: "two", secret: true },
     ];
     const renderer = await render(two);
     await press(renderer, "transcript.browserCard.toggle.1");
@@ -266,7 +274,7 @@ describe("a request held for the person", () => {
     // Answered: §6 says the value goes, and it goes with the flags that drew it.
     await press(renderer, "transcript.browserCard.send");
     expect(texts(renderer).join(" ")).not.toContain("hunter2");
-    expect(textOf(renderer, "transcript.browserCard.field.1")).toBe(SECRET_DOTS);
+    expect(has(renderer, "transcript.browserCard.field.1")).toBe(false);
   });
 
   it("answering tells the message to give the value back", async () => {
@@ -291,25 +299,35 @@ describe("a request held for the person", () => {
     expect(mockSpent).not.toHaveBeenCalled();
   });
 
-  it("a value the message gave back is dots with no Show behind it", async () => {
-    const spent = entry();
-    spent.card.fields = [
-      { name: "size", value: null, secret: false },
-      { name: "passphrase_2", value: null, secret: true },
-    ];
-    const renderer = await render(spent);
-    expect(textOf(renderer, "transcript.browserCard.field.1")).toBe(SECRET_DOTS);
-    // No button that would reveal nothing.
+  it("a settled card is one line: no host, no fields, no dots", async () => {
+    const renderer = await render(entry());
+    await press(renderer, "transcript.browserCard.send");
+    expect(has(renderer, "transcript.browserCard.title")).toBe(false);
+    expect(has(renderer, "transcript.browserCard.label.0")).toBe(false);
     expect(has(renderer, "transcript.browserCard.toggle.1")).toBe(false);
+    expect(texts(renderer).join(" ")).not.toContain(SECRET_DOTS);
+    // The one line names the host it went to, and never the path or the query.
+    expect(texts(renderer).join(" ")).not.toContain("checkout");
   });
 
-  it("an address the message gave back is dots too, with no Show behind it", async () => {
-    const spent = entry();
-    spent.card.url = null;
+  it("a card the message gave back draws no values and no Show behind them", async () => {
+    const spent = entry({ outcome: { code: "gone", host: "" } });
+    spent.card.fields = [
+      { name: "size", label: null, value: null, secret: false },
+      { name: "passphrase_2", label: null, value: null, secret: true },
+    ];
     const renderer = await render(spent);
-    expect(textOf(renderer, "transcript.browserCard.url")).toBe(SECRET_DOTS);
-    expect(has(renderer, "transcript.browserCard.urlToggle")).toBe(false);
-    expect(texts(renderer).join(" ")).not.toContain("shop.example");
+    expect(has(renderer, "transcript.browserCard.field.1")).toBe(false);
+    expect(has(renderer, "transcript.browserCard.toggle.1")).toBe(false);
+    expect(textOf(renderer, "transcript.browserCard.outcome")).toBe("chat.browser.gone");
+  });
+
+  it("a plain-http destination says so under the host, with its port", async () => {
+    const plain = entry();
+    plain.card.url = "http://shop.example:8080/order";
+    const renderer = await render(plain);
+    expect(textOf(renderer, "transcript.browserCard.title")).toBe('chat.browser.wantsToSend:{"host":"shop.example:8080"}');
+    expect(textOf(renderer, "transcript.browserCard.insecure")).toBe("chat.browser.insecure");
   });
 
   it("an outcome the phone did not ask for is drawn on the card it belongs to", async () => {

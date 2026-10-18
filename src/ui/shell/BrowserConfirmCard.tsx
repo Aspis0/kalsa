@@ -2,13 +2,17 @@
  * A request the computer held for the person, and the two buttons that answer
  * it (PHONE-CHAT-PROTOCOL §3.1).
  *
- * The person is deciding on a real request to a real site, so the card shows
- * the address, the method and every field **as it would be sent** — a secret
- * as dots with a Show beside it, never as a value nobody chose to see. The
- * value is here because the person is being asked; it goes the moment they are
- * no longer being asked, which is the whole of §6's rule for the phone: the
- * card lives in memory while it can be answered, and a revealed value dies with
- * the draw that revealed it.
+ * The person is deciding on a real request to a real site, so the card names the
+ * **host** it goes to and lists each field that has a value, as `label: value`:
+ * the words the page puts beside the field, or its name where the page gave none.
+ * A secret is dots with a Show beside it, never a value nobody chose to see. The
+ * value is here because the person is being asked; it goes the moment they are no
+ * longer being asked, which is the whole of §6's rule for the phone: the card lives
+ * in memory while it can be answered, and a revealed value dies with the draw that
+ * revealed it.
+ *
+ * **Settled, it is one line.** Once answered, or past its deadline, the card is
+ * what became of it and nothing else: no fields, no dots.
  *
  * **One press, ever.** The card is spent before the computer dispatches
  * anything, so a second press could only be a second message to a stranger's
@@ -19,10 +23,9 @@ import { Pressable, Text, View } from "react-native";
 
 import { useLocale } from "../../i18n";
 import {
+  destinationOf,
   isBrowserCardExpired,
-  maskSecretQuery,
   monotonicNowMs,
-  secretFieldNames,
   SECRET_DOTS,
   type BrowserAnswer,
   type BrowserCard,
@@ -55,8 +58,8 @@ export function BrowserConfirmCard({
   const [now, setNow] = useState(monotonicNowMs);
   const [pressed, setPressed] = useState(false);
   const [answer, setAnswer] = useState<BrowserAnswer | null>(null);
-  /** One flag per secret field, and one for the address: what the person has
-   *  chosen to look at, held here and nowhere else. */
+  /** One flag per secret field: what the person has chosen to look at, held here
+   *  and nowhere else. */
   const [shown, setShown] = useState<ReadonlySet<string>>(() => new Set());
 
   const expired = isBrowserCardExpired(card, now);
@@ -122,10 +125,37 @@ export function BrowserConfirmCard({
     [browser, card, pressed, spend],
   );
 
-  const secrets = secretFieldNames(card);
-  // A card the message gave back has no address to show: there is nothing left
-  // to decide, and the site was a stranger's all along.
-  const maskedUrl = card.url === null ? null : maskSecretQuery(card.url, secrets);
+  // Settled or past its budget, the card is what became of it, and nothing else.
+  if (expired || settled) {
+    return (
+      <View
+        testID="transcript.browserCard"
+        style={[styles.card, { borderColor: colors.border, backgroundColor: colors.surface }]}
+      >
+        {expired ? (
+          <Text style={[type.caption, { color: colors.silence }]} testID="transcript.browserCard.expired">
+            {t("chat.browser.expired")}
+          </Text>
+        ) : (
+          <Text style={[type.caption, { color: colors.accent }]} testID="transcript.browserCard.outcome">
+            {outcomeLine()}
+          </Text>
+        )}
+        {answer !== null && !answer.ok && outcome === undefined ? (
+          <Text style={[type.caption, { color: colors.danger }]} testID="transcript.browserCard.failed">
+            {humanBrowserAnswerFailure(answer.errorCode, t)}
+          </Text>
+        ) : null}
+      </View>
+    );
+  }
+
+  // Only the fields that have a value are asked about, and a secret one is dots until
+  // the person asks to read it.
+  const filled = card.fields.flatMap((field, index) =>
+    field.value === null || field.value === "" ? [] : [{ field, index }],
+  );
+  const destination = destinationOf(card.url ?? "");
 
   return (
     <View
@@ -133,36 +163,25 @@ export function BrowserConfirmCard({
       style={[styles.card, { borderColor: colors.border, backgroundColor: colors.surface }]}
     >
       <Text style={[type.bodyStrong, { color: colors.ink }]} testID="transcript.browserCard.title">
-        {t("chat.browser.title")}
+        {t("chat.browser.wantsToSend", { host: destination.host })}
       </Text>
-      <Text style={[type.caption, { color: colors.silence }]} testID="transcript.browserCard.method">
-        {`${t("chat.browser.request")}: ${card.method}`}
-      </Text>
-      <Text style={[type.caption, { color: colors.ink }]} testID="transcript.browserCard.url">
-        {maskedUrl === null ? SECRET_DOTS : shown.has(URL_KEY) ? card.url : maskedUrl}
-      </Text>
-      {maskedUrl !== null && maskedUrl !== card.url ? (
-        <ShowToggle
-          colors={colors}
-          label={shown.has(URL_KEY) ? t("chat.browser.hide") : t("chat.browser.show")}
-          onPress={() => toggle(URL_KEY)}
-          testID="transcript.browserCard.urlToggle"
-        />
+      {destination.insecure ? (
+        <Text style={[type.caption, { color: colors.danger }]} testID="transcript.browserCard.insecure">
+          {t("chat.browser.insecure")}
+        </Text>
       ) : null}
-      {card.fields.map((field, index) => {
-        // A value that was given back has no Show: there is nothing behind it,
-        // and a button that reveals dots is a lie in a control.
-        const kept = field.value !== null;
-        const secret = field.secret;
+      {filled.map(({ field, index }) => {
         const key = fieldKey(index, field.name);
-        const isShown = kept && (!secret || shown.has(key));
+        const isShown = !field.secret || shown.has(key);
         return (
           <View key={key} style={styles.field}>
-            <Text style={[type.caption, { color: colors.silence }]}>{field.name}</Text>
+            <Text style={[type.caption, { color: colors.silence }]} testID={`transcript.browserCard.label.${index}`}>
+              {`${field.label ?? field.name}:`}
+            </Text>
             <Text style={[type.body, { color: colors.ink }]} testID={`transcript.browserCard.field.${index}`}>
               {isShown ? field.value : SECRET_DOTS}
             </Text>
-            {secret && kept ? (
+            {field.secret ? (
               <ShowToggle
                 colors={colors}
                 label={shown.has(key) ? t("chat.browser.hide") : t("chat.browser.show")}
@@ -173,19 +192,9 @@ export function BrowserConfirmCard({
           </View>
         );
       })}
-      {expired ? (
-        <Text style={[type.caption, { color: colors.silence }]} testID="transcript.browserCard.expired">
-          {t("chat.browser.expired")}
-        </Text>
-      ) : settled ? (
-        <Text style={[type.caption, { color: colors.accent }]} testID="transcript.browserCard.outcome">
-          {outcomeLine()}
-        </Text>
-      ) : (
-        <Text style={[type.caption, { color: colors.silence }]} testID="transcript.browserCard.deadline">
-          {t("chat.browser.answerWithin", { time: remaining(card, now) })}
-        </Text>
-      )}
+      <Text style={[type.caption, { color: colors.silence }]} testID="transcript.browserCard.deadline">
+        {t("chat.browser.answerWithin", { time: remaining(card, now) })}
+      </Text>
       {live && browser !== null ? (
         <View style={styles.buttons}>
           <Pressable
@@ -222,11 +231,6 @@ export function BrowserConfirmCard({
           </Pressable>
         </View>
       ) : null}
-      {answer !== null && !answer.ok && outcome === undefined ? (
-        <Text style={[type.caption, { color: colors.danger }]} testID="transcript.browserCard.failed">
-          {humanBrowserAnswerFailure(answer.errorCode, t)}
-        </Text>
-      ) : null}
     </View>
   );
 
@@ -251,8 +255,6 @@ export function BrowserConfirmCard({
       : t("chat.browser.failUncertain");
   }
 }
-
-const URL_KEY = "url";
 
 /** A field's own flag, by position and name: two fields with one name are two
  *  fields, and a Show that revealed both would be a Show nobody asked for. */
