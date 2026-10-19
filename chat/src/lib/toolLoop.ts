@@ -12,7 +12,7 @@ import { recoverToolCall } from "./recoverToolCall";
 import { runToolCall } from "./runToolCall";
 import { logUiEvent } from "./uiLog";
 import { MAIL_NAMES, MAIL_TOOLS, WEB_TOOLS } from "./tools/definitions";
-import { BROWSER_TOOLS } from "./tools/browserTools";
+import { BROWSER_NAMES, BROWSER_TOOLS } from "./tools/browserTools";
 import type { ToolDefinition } from "./tools/definitions";
 
 /**
@@ -30,6 +30,14 @@ import type { ToolDefinition } from "./tools/definitions";
     needs a page read afterwards, and one more round is always kept in reserve
     for the answer itself. */
 const MAX_TOOL_ROUNDS = 4;
+
+/** Opening, reading, filling four fields and clicking Submit takes seven calls,
+    so browser turns need room beyond the search budget. */
+const MAX_BROWSER_ROUNDS = 8;
+
+function maxToolRounds(offered: string[]): number {
+  return offered.some((name) => BROWSER_NAMES.has(name)) ? MAX_BROWSER_ROUNDS : MAX_TOOL_ROUNDS;
+}
 
 /** The phrases every caller without a table hears. */
 const ENGLISH_PHRASES: ToolPhrases = {
@@ -49,10 +57,10 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
   const say: ToolPhrases = options.toolPhrases ?? ENGLISH_PHRASES;
   const url = completionsUrl(options.endpoint);
   const conversation = [...options.messages];
-  const toolRounds = tools.length > 0 && runTool ? MAX_TOOL_ROUNDS : 0;
   // The names this request offered, for the case-insensitive match a mangled
   // name needs (repairToolCall.ts) and the recovery's name gate.
   const offeredNames = tools.map((tool) => tool.function.name);
+  const toolRounds = tools.length > 0 && runTool ? maxToolRounds(offeredNames) : 0;
   const definitions = new Map(tools.map((tool) => [tool.function.name, tool] as const));
 
   // The token room the wire may spend, when the caller knows the window: the

@@ -313,6 +313,7 @@ function scriptedBrain(rounds) {
       await new Promise((ready) => server.listen(0, "127.0.0.1", ready));
       return `http://127.0.0.1:${server.address().port}`;
     },
+    rounds: () => round,
     close: () => {
       for (const res of open) res.end();
       server.close();
@@ -322,6 +323,9 @@ function scriptedBrain(rounds) {
 
 const think = (text) => ({ reasoning_content: text });
 const say = (text, finish = "stop") => ({ content: text, finish_reason: finish });
+const call = (name, args) => ({
+  tool_calls: [{ index: 0, id: "c1", type: "function", function: { name, arguments: JSON.stringify(args) } }],
+});
 
 async function refusedReasoning(app) {
   console.log("\n# the reasoning of a refused round");
@@ -729,6 +733,48 @@ async function phoneBrowser(app) {
   );
 }
 
+/** A contact form must finish within one turn without changing the search cap. */
+async function roundCap(app) {
+  console.log("\n# the rounds a turn's own tools may spend");
+  {
+    // No driver installed, so this turn is offered no browser at all.
+    app.noteBrowserStatus({ supported: false, installed: false });
+    const from = bridge.calls.length;
+    const brain = scriptedBrain([
+      ...Array.from({ length: 5 }, () => [call("web_search", { query: "kalsa" })]),
+      [say("Ecco cosa ho trovato.")],
+    ]);
+    const { sink } = recorder(app);
+    await app.runPhoneTurn(turnOf([USER("look online")]), { ...SETTINGS, endpoint: await brain.listen() }, sink, new AbortController().signal, MAIL_ON, { loop: app.streamChatCompletion, facts: facts() });
+    const searched = bridge.calls.slice(from).filter((c) => c.command === "brain_web_search");
+    equal("a turn with no browser spends four rounds and is asked for words in the fifth", [searched.length, brain.rounds()], [4, 5]);
+    brain.close();
+  }
+  {
+    app.noteBrowserStatus({ supported: true, installed: true, kind: "chrome" });
+    // The chat this phone drives was left armed by the test above, and an armed
+    // chat refuses every write before the loop is even asked.
+    app.forgetArmedChat(app.phoneConversation(PHONE));
+    const from = bridge.calls.length;
+    const PAGE = "https://shop.example/order";
+    const FIELDS = ["e1", "e2", "e3", "e4"];
+    const brain = scriptedBrain([
+      [call("browser_open", { url: PAGE })],
+      [call("browser_read", {})],
+      ...FIELDS.map((ref, at) => [call("browser_type", { ref, text: `field ${at + 1}` })]),
+      [call("browser_click", { ref: "e5" })],
+      [say("Modulo compilato.")],
+    ]);
+    const { log, sink } = recorder(app);
+    await app.runPhoneTurn(turnOf([USER(`buy this: ${PAGE}`)], { device: PHONE }), { ...SETTINGS, endpoint: await brain.listen() }, sink, new AbortController().signal, MAIL_ON, { loop: app.streamChatCompletion, facts: facts() });
+    const ran = (command) => bridge.calls.slice(from).filter((c) => c.command === command);
+    equal("every field is filled and the click that sends the form is pressed", [ran("brain_browser_type").map((c) => c.args.ref), ran("brain_browser_click").length], [FIELDS, 1]);
+    check("and the engine was asked eight times: seven calls, then the answer", brain.rounds() === 8, String(brain.rounds()));
+    equal("the turn's own line goes out once, before the frame that ends it", [log.filter(([event]) => event === "recap").length, log.slice(-2).map(([event]) => event)], [1, ["recap", "done"]]);
+    brain.close();
+  }
+}
+
 await withPhone(async (app) => {
   requests(app);
   wire(app);
@@ -736,5 +782,6 @@ await withPhone(async (app) => {
   await refusedReasoning(app);
   await phoneMailWeb(app);
   await phoneBrowser(app);
+  await roundCap(app);
 });
 summary();
