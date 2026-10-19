@@ -24,10 +24,8 @@ const PING: Duration = Duration::from_secs(10);
 /// The events a turn passes on as they come. `accepted` is consumed for the
 /// `turn` frame, and `error` or `done` ends the stream.
 ///
-/// **`browser_card` and `browser_outcome` ride it too**, because a card is raised
-/// inside the turn that caused it and the phone has to be holding the socket to
-/// be shown it. Neither ends the turn: a card is an answer the person will give
-/// later, not the turn finishing.
+/// A card and its outcome ride it too, and so does the turn's own `recap` line:
+/// all three are said inside the turn and read after it.
 const STREAMED: &[&str] = &[
     "reasoning",
     "delta",
@@ -36,6 +34,7 @@ const STREAMED: &[&str] = &[
     "draft",
     "browser_card",
     "browser_outcome",
+    "recap",
 ];
 
 pub(super) fn start(

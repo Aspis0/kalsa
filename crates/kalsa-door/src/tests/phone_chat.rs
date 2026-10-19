@@ -78,6 +78,7 @@ fn a_turn_streams_the_pages_events_in_order_and_ends_with_one_terminal_frame() {
         sender.send(event("reasoning", json!({"text": "pensiero"}))).unwrap();
         sender.send(event("delta", json!({"text": "Ciao"}))).unwrap();
         sender.send(event("tool_run", json!({"id": "t1", "name": "mail_list", "state": "ok"}))).unwrap();
+        sender.send(event("recap", json!({"text": "scritto in 4 campi"}))).unwrap();
         sender.send(event("done", json!({}))).unwrap();
         sender.send(event("delta", json!({"text": "dopo la fine"}))).unwrap();
         let response = text(&read_all(&mut stream));
@@ -98,11 +99,13 @@ fn a_turn_streams_the_pages_events_in_order_and_ends_with_one_terminal_frame() {
                 "event: reasoning",
                 "event: delta",
                 "event: tool_run",
+                "event: recap",
                 "event: done"
             ],
             "{response}"
         );
         assert!(frames[0].ends_with(r#"data: {"turn":"req-1"}"#), "{response}");
+        assert!(frames[4].ends_with(r#"data: {"text":"scritto in 4 campi"}"#), "{response}");
         assert!(!response.contains("dopo la fine"), "an event after the terminal frame was written");
         assert_eq!(
             page.opened(),
