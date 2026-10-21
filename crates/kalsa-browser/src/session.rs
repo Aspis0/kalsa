@@ -94,6 +94,26 @@ pub struct Busy<'a>(#[allow(dead_code)] MutexGuard<'a, ()>);
 /// What a second call is told while one is running.
 pub const BUSY: &str = "the browser is busy with another step: wait for it to finish";
 
+#[cfg(test)]
+impl Sessions {
+    /// Headless fixtures need the same session state as the headed product window.
+    pub(crate) fn with_window(
+        playwright: Playwright,
+        context: BrowserContext,
+        page: Page,
+        landings: Landings,
+        holds: Holds,
+    ) -> Sessions {
+        Sessions {
+            profile: String::new(),
+            started: Mutex::new(Some(Started { _playwright: playwright, _context: context, page, landings, holds })),
+            printed: Mutex::new(refs::Refs::default()),
+            busy: Mutex::new(()),
+            paused: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+        }
+    }
+}
+
 impl Sessions {
     pub fn new(profile: String) -> Sessions {
         Sessions {
@@ -151,6 +171,19 @@ impl Sessions {
         Ok((started.page.clone(), started.landings.clone(), started.holds.clone()))
     }
 
+    /// The page, where it has landed, and what is waiting for a person — **only
+    /// if the browser has already been started**.
+    ///
+    /// **Nothing here starts anything.** A call that must not open a window on
+    /// the person's desk asks for the page this way: there is one or there is
+    /// not, and the answer is the difference between a refusal and a browser
+    /// that appeared for a preview nobody asked to be opened.
+    pub async fn page_if_started(&self) -> Option<(Page, Landings, Holds)> {
+        let guard = self.started.lock().await;
+        let started = guard.as_ref()?;
+        Some((started.page.clone(), started.landings.clone(), started.holds.clone()))
+    }
+
     /// Forget a window that has gone, so the next call opens a fresh one instead
     /// of asking a dead page.
     ///
@@ -166,40 +199,49 @@ impl Sessions {
         *self.printed.lock().await = refs::Refs::default();
     }
 
-    /// Forget the session when this failure means there is nothing left to ask:
-    /// a window that closed, or a driver that stopped.
-    ///
-    /// A load that was cancelled and a window that went in the middle of one look
-    /// the same from here, and guessing would cost a working browser: an abort is
-    /// usually a person pressing stop, and throwing the window away over that
-    /// would be worse than useless. So an unclassified failure is not believed
-    /// either way — the page is asked, once, and only a page that cannot answer
-    /// is written off. That costs one round trip, and only when a call has
-    /// already failed.
-    ///
-    /// The rule lives here rather than at the call site so that every caller
-    /// forgets a dead session for the same reason, and so that this is testable
-    /// without standing up an MCP server.
-    pub async fn forget_if_gone(&self, error: &playwright_rs::Error, page: &Page) {
-        if reason_of(error).is_some() {
-            self.reset().await;
-            return;
-        }
-        if page.title().await.is_err() {
+    /// Probe unclassified failures before discarding a usable window.
+    pub async fn forget_if_gone(&self, error: &playwright_rs::Error, page: &Page) -> bool {
+        let ended = if reason_of(error).is_some() { true } else { page.title().await.is_err() };
+        if ended {
             self.reset().await;
         }
+        ended
     }
 
-    /// What the last read printed, which is the only thing a call may act on.
-    pub async fn remember(&self, text: &str) {
-        self.printed.lock().await.remember(text);
+    /// What the reads printed, which is the only thing a call may act on.
+    pub async fn remember(&self, text: &str, document: u64) {
+        self.printed.lock().await.remember(text, document);
     }
 
-    /// The element to act on, or the line that says this page never printed it.
-    /// The line is returned rather than the reason so that the ref rules stay
-    /// inside this crate.
+    /// The same, with the page's own document named by the tree the read was
+    /// made of: the ref's own shape cannot say which document a ref is in.
+    pub(crate) async fn remember_classified(        &self,
+        text: &str,
+        document: u64,
+        main: &std::collections::HashSet<String>,
+    ) {
+        self.printed.lock().await.remember_classified(text, document, main);
+    }
+
+    /// Preserve the public sentence contract while MCP keeps the typed refusal.
     pub async fn ref_of(&self, reference: &str) -> Result<String, &'static str> {
-        self.printed.lock().await.check(reference).map_err(|refused| refused.reason())
+        self.ref_kind_of(reference).await.map_err(|refused| refused.reason())
+    }
+
+    /// MCP needs the refusal kind without recovering it from prose.
+    pub(crate) async fn ref_kind_of(&self, reference: &str) -> Result<String, refs::Refused> {
+        let document = self.document().await;
+        self.printed.lock().await.check(reference, document)
+    }
+
+    /// The document the window is on, as the number of main-frame navigations it
+    /// has made, or `None` when there is no window to ask.
+    ///
+    /// **The driver numbers a document once**, so this says whether a ref still
+    /// names the element it named.
+    async fn document(&self) -> Option<u64> {
+        let landings = self.started.lock().await.as_ref()?.landings.clone();
+        Some(landings.navigations().await)
     }
 }
 
@@ -219,6 +261,7 @@ pub fn explain(error: &playwright_rs::Error) -> String {
 #[cfg(test)]
 mod tests {
     use super::{classify, Reason, Sessions, BUSY};
+    use crate::refs;
 
     #[test]
     fn a_closed_window_is_not_a_dead_driver() {
@@ -285,5 +328,27 @@ mod tests {
         assert_eq!(super::explain(&error), "the page did not answer that call; try again");
         let closed = playwright_rs::Error::ProtocolError("Target page, context or browser has been closed".to_string());
         assert_eq!(super::explain(&closed), Reason::Closed.reason());
+    }
+
+    /// **The three ways a ref can be refused are three different refusals, and
+    /// the kind is what travels.**
+    #[tokio::test]
+    async fn a_ref_is_refused_by_the_kind_it_was_refused_for() {
+        let sessions = Sessions::new("/tmp/a-profile-nobody-uses".to_string());
+        assert_eq!(sessions.ref_kind_of("").await.err(), Some(refs::Refused::Nothing));
+        assert_eq!(sessions.ref_kind_of("   ").await.err(), Some(refs::Refused::Nothing));
+        assert_eq!(sessions.ref_kind_of("E12").await.err(), Some(refs::Refused::NotARef));
+        assert_eq!(sessions.ref_kind_of("e12 >> nth=0").await.err(), Some(refs::Refused::NotARef));
+        assert_eq!(sessions.ref_kind_of("e12").await.err(), Some(refs::Refused::NotOnPage));
+    }
+
+    /// **The public wrapper still says the words the model reads**, and says the
+    /// right one for each kind of refusal.
+    #[tokio::test]
+    async fn the_public_refusal_still_says_the_line_the_model_reads() {
+        let sessions = Sessions::new("/tmp/a-profile-nobody-uses".to_string());
+        assert_eq!(sessions.ref_of("").await.err(), Some(refs::Refused::Nothing.reason()));
+        assert_eq!(sessions.ref_of("E12").await.err(), Some(refs::Refused::NotARef.reason()));
+        assert_eq!(sessions.ref_of("e12").await.err(), Some(refs::Refused::NotOnPage.reason()));
     }
 }

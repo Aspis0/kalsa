@@ -223,6 +223,13 @@ fn host_only(host: &str) -> Option<&str> {
 /// request, and the model-facing outcome list is the sidecar's too, so this is
 /// what settles both. A card the sidecar no longer holds is not an error: it was
 /// answered, or it expired, and both were settled where they happened.
+///
+/// **The decline is spent inside the slot, like every other press.** A decline
+/// that finds the browser busy was never dispatched: the request is still held
+/// at the sidecar, and the sidecar will let it go when its five minutes are up
+/// — which is the fail-closed end of a request nobody could answer in time.
+/// Spending it here anyway would leave two verdicts about one request: this
+/// app's "the person said no" and the sidecar's "nobody answered it".
 pub(crate) async fn decline_one(
     app: &AppHandle,
     state: &State<'_, BrowserState>,
@@ -233,10 +240,21 @@ pub(crate) async fn decline_one(
     let Ok(app_data) = app.path().app_data_dir() else {
         return;
     };
-    state.inner().pending().spend_in(id, conversation);
     let mut args = two(id, conversation);
     args.insert("why".to_owned(), Value::from(why));
-    let _ = state.inner().browser().call_host(&app_data, "browser_decline", args).await;
+    let pending = state.inner().pending().clone();
+    let spending = id.to_owned();
+    let talking = conversation.to_owned();
+    let _ = state
+        .inner()
+        .browser()
+        .call_host_spending(&app_data, "browser_decline", args, move || {
+            // **The spend is the arbiter here too.** A card another press spent
+            // first is not declined again: the request has had its verdict, and
+            // a second one would be a second opinion about a settled request.
+            pending.spend_in(&spending, &talking).is_some()
+        })
+        .await;
     // **No refresh here, on purpose.** The card is already spent in this app's
     // store, so the window and the phone stop showing it whatever the sidecar
     // says. A refresh would re-read the whole list and call back into
@@ -280,6 +298,31 @@ pub(crate) async fn await_dispatch<F: std::future::Future<Output = T>, T>(
     }
 }
 
+/// **Whether a refusal leaves an outcome behind.**
+///
+/// **A press that never went leaves nothing.** A busy browser means nothing was
+/// dispatched, so there is nothing to be unclear about: the card is still
+/// waiting where it was raised and still the person's to press.
+///
+/// **And a card that was already answered leaves nothing either.** The request
+/// has had its verdict — from the decline that took it, or from the expiry
+/// that removed it — and this press adds nothing but a second opinion about a
+/// request that is already settled. An outcome here would be the app saying
+/// "unclear" about a request that was declined: **two verdicts about one
+/// request**, and a model told "unclear" about a request it already has the
+/// answer to goes on not knowing what it said.
+///
+/// **Everything else leaves an outcome.** The card was spent and no answer came
+/// back, and the person pressed a button: somebody has to be told.
+///
+/// **The family is one list.** `BrowserError::a_press_that_never_went` names the
+/// codes that are a press that never went, and this is that list read the other
+/// way round — so the window and the phone cannot drift apart on what is one
+/// refusal and what is another.
+pub(crate) fn leaves_an_outcome(refused: &BrowserError) -> bool {
+    !BrowserError::a_press_that_never_went(refused.code())
+}
+
 pub(crate) async fn answer(
     app: &AppHandle,
     state: &State<'_, BrowserState>,
@@ -287,19 +330,63 @@ pub(crate) async fn answer(
     conversation: String,
     allow: bool,
 ) -> Result<String, CommandFailure> {
-    // Only where it was raised: a card from another conversation is not this
-    // one's to press, and it stays on the window for whoever did cause it.
-    state.inner().pending().spend_in(&id, &conversation).ok_or(BrowserError::NoCard)?;
     let tool = if allow { "browser_confirm" } else { "browser_decline" };
-    let said = match state.inner().call_host(app, tool, two(&id, &conversation)).await {
+    // **The card has to be on the window, and this conversation's to press.**
+    // A card from another conversation is not this one's to press, and it stays
+    // on the window for whoever did cause it; a card that is not there at all
+    // is a press about nothing, and the browser is not asked about it.
+    if !state.inner().pending().holds(&id, &conversation) {
+        return Err(CommandFailure::from(BrowserError::NoCard));
+    }
+    // **The card is spent inside the slot, not before it.** The slot is the
+    // arbiter of which press is the one that counts: the press that takes it
+    // spends the card, and the press that does not get it — because a preview
+    // is being taken, or because another press got there first — spends
+    // nothing and dispatches nothing. The window's own list of cards is
+    // shared, so the spend can happen there and nowhere else.
+    //
+    // **And the spend is the only arbiter of whether the request goes.** It
+    // says whether the card was really there; a card that another press spent
+    // between the check above and this take stops the call here, with nothing
+    // dispatched and nothing sent.
+    let pending = state.inner().pending().clone();
+    let spending = id.clone();
+    let talking = conversation.clone();
+    let said = match state
+        .inner()
+        .call_host_spending(app, tool, two(&id, &conversation), move || {
+            // **The spend is the arbiter, and it is the only arbiter.** It says
+            // whether the card was really there; a card that another press
+            // spent between the check above and this take stops the call here,
+            // with nothing dispatched and nothing sent.
+            pending.spend_in(&spending, &talking).is_some()
+        })
+        .await
+    {
         Ok(said) => said,
         Err(refused) => {
-            // **The card is spent and no answer came back.** The person pressed a
-            // button and this is the last moment anybody can tell them what it
-            // did: swallowed here, the model never hears, the person never hears,
-            // and both go on believing nothing happened while a stranger's server
-            // may already have it.
-            answer_failed(app, state, &id, &conversation).await;
+            // **A busy browser is a press that never went**, and it is not a
+            // dispatch that failed. Nothing was sent, so there is nothing to be
+            // unclear about: the card is still on the window, still waiting,
+            // and still pressable. Saying "unclear" here would put a second
+            // verdict on a request that never left — and the sidecar, which
+            // still holds it, would put a third on it when it expires.
+            //
+            // **A card that was already answered is the same thing.** The
+            // request has had its verdict — from the decline that took it, or
+            // from the expiry that removed it — and this press adds nothing but
+            // a second opinion about a request that is already settled. So it
+            // is refused in the fixed words of "not waiting for an answer any
+            // more", and **nothing is put in the queue**: the outcome belongs
+            // to whoever settled it, and there is no second one.
+            if leaves_an_outcome(&refused) {
+                // **The card is spent and no answer came back.** The person
+                // pressed a button and this is the last moment anybody can
+                // tell them what it did: swallowed here, the model never hears,
+                // the person never hears, and both go on believing nothing
+                // happened while a stranger's server may already have it.
+                answer_failed(app, state, &id, &conversation).await;
+            }
             return Err(CommandFailure::from(refused));
         }
     };
@@ -375,8 +462,32 @@ fn two(id: &str, conversation: &str) -> Map<String, Value> {
 
 #[cfg(test)]
 mod tests {
-    use super::{cards_of, host_only, outcome_of, pending, split_by_window, Answered, Card, CODES, DECLINED, UNCLEAR};
+    use super::{cards_of, host_only, leaves_an_outcome, outcome_of, pending, split_by_window, Answered, Card, CODES, DECLINED, UNCLEAR};
+    use crate::browser::error::BrowserError;
     use std::time::Instant;
+
+    /// **A refusal that leaves an outcome behind, and one that does not.**
+    ///
+    /// **A press that never went leaves nothing.** A busy browser means nothing
+    /// was dispatched, so there is nothing to be unclear about.
+    ///
+    /// **And a card that was already answered leaves nothing either.** The
+    /// request has had its verdict — from the decline that took it, or from the
+    /// expiry that removed it — and an outcome here would be a **second verdict
+    /// about one request**: the app saying "unclear" about a request that was
+    /// declined, and the model going on not knowing what it said.
+    ///
+    /// **Everything else leaves an outcome.** The card was spent and no answer
+    /// came back, and the person pressed a button: somebody has to be told.
+    #[test]
+    fn only_a_refusal_that_spent_the_card_leaves_an_outcome_behind() {
+        assert!(!leaves_an_outcome(&BrowserError::Busy), "a press that never went leaves nothing behind");
+        assert!(!leaves_an_outcome(&BrowserError::NoCard), "a card that was already answered leaves nothing behind");
+        assert!(
+            leaves_an_outcome(&BrowserError::Stopped),
+            "a card that was spent and never answered leaves an outcome, or nobody hears"
+        );
+    }
 
     /// One card, so a test can read a single one without a length check on every
     /// field of it.

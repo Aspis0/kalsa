@@ -9,11 +9,11 @@ use serde::Deserialize;
 
 use crate::refs;
 
-/// The two things that end a call without anything happening, and the one that
-/// decides Enter. Read out of the page, never out of the model.
+/// The page's verdict ends a refused fill before Enter; its other findings
+/// determine whether an accepted fill presses the key.
 #[derive(Deserialize)]
 pub(crate) struct Answer {
-    /// `ok`, `secret`, `destination` or `unfillable`.
+    /// `ok`, `secret`, `destination`, `unfillable` or `notAccepted`.
     verdict: String,
     #[serde(rename = "isInput")]
     is_input: bool,
@@ -45,6 +45,10 @@ fn refused_by(answer: &Answer) -> Option<Refused> {
         "secret" => Some(Refused::Password),
         "destination" => Some(Refused::Destination),
         "unfillable" => Some(Refused::NotFillable),
+        "notAccepted" => Some(match answer.kind.as_str() {
+            "date" => Refused::DateFormat,
+            _ => Refused::NotAccepted,
+        }),
         _ => None,
     }
 }
@@ -71,6 +75,9 @@ const FILL_BODY: &str = r"
   else el.textContent = text;
   el.dispatchEvent(new Event('input', { bubbles: true }));
   el.dispatchEvent(new Event('change', { bubbles: true }));
+  // The browser can clear an unsupported native value without throwing.
+  const kept = isInput || el instanceof HTMLTextAreaElement ? el.value : el.textContent;
+  if (text !== '' && kept === '') return answer('notAccepted', here());
   return answer('ok', here());
 ";
 
@@ -122,6 +129,10 @@ pub enum Refused {
     /// program — `mailto:`, `tel:`, `javascript:`.
     Destination,
     Gone,
+    /// The requested text left no value after the input/change handlers.
+    NotAccepted,
+    /// A date field, whose text is YYYY-MM-DD.
+    DateFormat,
 }
 
 impl Refused {
@@ -134,6 +145,8 @@ impl Refused {
             Refused::NotFillable => "that element cannot hold text: read the page and pick a field",
             Refused::Destination => "that would hand the address to another program, and Kalsa does not do that",
             Refused::Gone => "the element is not on the page any more: read the page again",
+            Refused::NotAccepted => "that field did not take the text: read the page and write what it takes",
+            Refused::DateFormat => "that date field did not take the text: a date field takes it as YYYY-MM-DD",
         }
     }
 }
@@ -233,6 +246,15 @@ mod tests {
         assert_eq!(refused_by(&answered("ok", true, "text", true)), None);
     }
 
+    /// **A field that took nothing is a refusal, and a date field is one that
+    /// says how it takes its text.**
+    #[test]
+    fn a_field_that_took_nothing_is_refused_and_a_date_field_says_its_format() {
+        assert_eq!(refused_by(&answered("notAccepted", true, "date", true)), Some(Refused::DateFormat));
+        assert_eq!(refused_by(&answered("notAccepted", true, "text", true)), Some(Refused::NotAccepted));
+        assert_eq!(refused_by(&answered("notAccepted", false, "", true)), Some(Refused::NotAccepted));
+    }
+
     /// A click and a refusal carry no form, so the default must land on the
     /// form-less field that takes Enter, not on a refusal.
     #[test]
@@ -276,7 +298,14 @@ mod tests {
 
     #[test]
     fn every_refusal_is_one_line_and_says_nothing_the_page_wrote() {
-        for refused in [Refused::Password, Refused::NotFillable, Refused::Destination, Refused::Gone] {
+        for refused in [
+            Refused::Password,
+            Refused::NotFillable,
+            Refused::Destination,
+            Refused::Gone,
+            Refused::NotAccepted,
+            Refused::DateFormat,
+        ] {
             let reason = refused.reason();
             assert!(reason.chars().count() < 160, "{reason}");
             assert!(!reason.contains('@') && !reason.contains("://"), "{reason}");

@@ -90,10 +90,12 @@ pub(crate) fn click() -> Tool {
     Tool::new(
         "browser_click",
         "Click one element of the page, by the ref a read printed. If the click \
-would send something to the site, the request is held and the person is shown \
-what it carries: the call answers \"awaiting confirm\" with an id, and whether \
-it goes is their decision, not yours. The page stays readable while they decide. \
-Never try to answer an id yourself, and never send the same request another way.",
+would submit a non-GET form, the request is held and the person is shown what it \
+carries: the call answers \"awaiting confirm\" with an id, and whether it goes \
+is their decision, not yours. The page stays readable while they decide. \
+Never try to answer an id yourself, and never send the same request another \
+way. Fetch/XHR requests follow normal browser behavior, subject to the \
+typed-secret checks.",
         schema(json!({
             "type": "object",
             "properties": {
@@ -119,9 +121,10 @@ a form is filled and left alone: the form goes when its own submit button is \
 clicked, so fill its fields first and then click that. A textarea, an editable \
 block, a checkbox, a radio, a date or a range field is filled and left alone \
 too. A password field is never filled: ask the person to type it in the window \
-themselves. If the fill or the Enter would send something to the site, the request \
-is held and the person decides: the call answers \"awaiting confirm\" with an id, \
-and never waits.",
+themselves. If the fill or the Enter submits a non-GET form, the request is held and \
+the person decides: the call answers \"awaiting confirm\" with an id, and never \
+waits. Fetch/XHR requests follow normal browser behavior, subject to the \
+typed-secret checks.",
         schema(json!({
             "type": "object",
             "properties": {
@@ -251,6 +254,36 @@ is. The id is spent. Host-only.",
     )
 }
 
+/// **The phone's preview of the page.** One JPEG of the page this browser is
+/// showing, for the conversation that owns it.
+///
+/// **Host-only, and never in `tools/list`.** The picture is the person's page:
+/// it goes to the phone that asked for it and to nothing else, and a model
+/// that could ask for one would be a model reading the person's screen.
+///
+/// The conversation is named by the host, not by the phone: the host knows
+/// which device authenticated and asks for that device's page.
+pub(crate) fn preview() -> Tool {
+    Tool::new(
+        "browser_preview",
+        "Take one picture of the page this browser is showing, for the conversation that owns it. \
+The answer is a JPEG, base64, with the host it was taken on and the moment it was taken; a page \
+that is not this conversation's is refused. Host-only.",
+        schema(json!({
+            "type": "object",
+            "properties": {
+                "conversation": {
+                    "type": "string",
+                    "description": "The conversation asking for the picture."
+                }
+            },
+            "required": ["conversation"],
+            "additionalProperties": false
+        })),
+    )
+    .with_annotations(read_only())
+}
+
 #[cfg(test)]
 mod tests {
     use rmcp::model::Tool;
@@ -301,5 +334,17 @@ mod tests {
             let additional = tool.input_schema.get("additionalProperties");
             assert_eq!(additional, Some(&Value::Bool(false)), "{}", tool.name);
         }
+    }
+
+    /// **A picture of the person's page is not a tool a model is offered.**
+    /// The preview is answered by this server and reached only by the host, so
+    /// a model cannot ask for one and cannot see one.
+    #[test]
+    fn the_preview_is_answered_here_and_never_offered_to_a_model() {
+        let definitions = super::tool_definitions();
+        let listed: Vec<&str> = definitions.iter().map(|tool| tool.name.as_ref()).collect();
+        assert!(!listed.contains(&"browser_preview"), "a model was offered the picture of a page");
+        assert_eq!(super::preview().name.as_ref(), "browser_preview");
+        assert_eq!(properties(&super::preview()), ["conversation"]);
     }
 }

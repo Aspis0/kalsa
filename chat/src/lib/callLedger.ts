@@ -2,21 +2,8 @@ import type { BrowserCode } from "./browser/codes";
 import { isBrowserCode, isDeterministic } from "./browser/codes";
 import { BROWSER_NAMES } from "./tools/browserTools";
 
-/**
- * What one turn already did, and what it already failed at.
- *
- * **A ledger, not a retry.** Nothing here runs anything: it decides whether the
- * loop should ask the browser at all. That is the whole point — a model that
- * clicks the same dead element six times is not thinking, and a second click on
- * the same failure is not an attempt but a loop. So the answer is refused with
- * the code, and the model is told the code is what decides it.
- *
- * **A round is a page, roughly.** An answer is reusable only inside the round
- * that produced it: a read is a fact about the page as it was, and one word
- * typed, one button pressed or one address opened makes it a fact about a page
- * that no longer exists. Every call that can move the page opens the next
- * round, and everything remembered so far goes with the one before it.
- */
+/** Bound browser work and suppress repeated actions; observations stay fresh
+ * because the page can change on its own. */
 export interface Ledger {
   /** The action that ran in **this** round, and the answer it got. */
   ran: Map<string, string>;
@@ -44,6 +31,10 @@ export const BROWSER_CALLS_PER_TURN = 24;
  * after it.
  */
 const MOVES = new Set(["browser_open", "browser_click", "browser_type"]);
+
+/** The calls that only look at the page. A read may be asked again, because the
+    page changes on its own and the last answer is not the answer now. */
+const LOOKS = new Set(["browser_read", "browser_find"]);
 
 /**
  * What a call is, as far as "have I already done this" is concerned.
@@ -82,23 +73,22 @@ export type LedgerVerdict =
   /** Refused, with the code the browser would have refused it with anyway. */
   | { run: false; code: BrowserCode; answer: null };
 
-/**
- * One call against the ledger.
- *
- * **No automatic retry, of any kind.** A key that failed with a deterministic
- * code is not run again for the rest of the turn: the same action on the same
- * page fails the same way, and the model is told so in as many words as it takes
- * to stop asking. A key that ran in **this** round is answered from what it
- * got, because asking twice is a loop in the making; one that ran in an earlier
- * round is run again, because the page moved in between and the old answer is
- * no longer true of it.
- */
+/** Explicit observations may run again; actions retain their duplicate guard. */
 export function decide(ledger: Ledger, name: string, args: Record<string, unknown>): LedgerVerdict {
+  if (LOOKS.has(name)) {
+    // A read spends a step and runs: the page it reads is the page now.
+    if (ledger.spent >= BROWSER_CALLS_PER_TURN) return { run: false, code: "browser.too_many_steps", answer: null };
+    return { run: true };
+  }
   const key = actionKey(name, args);
+  // A key that ran in this round is answered from what it got: asking twice is
+  // a loop in the making.
   const ran = ledger.ran.get(key);
   if (ran !== undefined) return { run: false, code: "browser.already_run", answer: ran };
   const failed = ledger.failed.get(key);
   if (failed !== undefined) {
+    // A deterministic action failure stays suppressed until another action
+    // opens a new round.
     return { run: false, code: "browser.deterministic", answer: null };
   }
   if (ledger.spent >= BROWSER_CALLS_PER_TURN) return { run: false, code: "browser.too_many_steps", answer: null };
@@ -122,22 +112,7 @@ function record(ledger: Ledger, name: string, args: Record<string, unknown>, ans
   }
 }
 
-/**
- * What one tool call left behind.
- *
- * **Not a browser tool is not filed at all**: the ledger is the browser's, and a
- * web search that failed has nothing to do with an element reference.
- *
- * **Only a call that reached the browser spends anything.** A refusal carrying
- * no browser code never got that far — the switch was off, the person paused,
- * the turn has spent its budget — so it is not a step towards the bound and it
- * does not stand in the way of the attempt once its reason is gone.
- *
- * **Only a code worth remembering is remembered.** The same element fails the
- * same way, so that one is dead for the turn; a browser that was busy for one
- * call will not be busy for the next, so that one only spends its step and is
- * allowed to happen again.
- */
+/** Charge browser work, including refusals, without caching observations. */
 export function filed(
   ledger: Ledger,
   name: string,

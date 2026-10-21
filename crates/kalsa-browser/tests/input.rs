@@ -30,6 +30,8 @@ const SHAPES: &str = r#"
     <input id="address" type="email">
     <label for="telephone">a telephone inside a form</label>
     <input id="telephone" type="tel">
+    <label for="the-day">the day of the event</label>
+    <input id="the-day" type="date">
     <label for="secret">the secret word</label>
     <input id="secret" type="password" autocomplete="off">
     <label for="long">a long answer</label>
@@ -129,6 +131,39 @@ async fn ref_of(page: &Page, name: &str) -> String {
     let open = line.find('[').expect("a ref in brackets");
     let close = line[open..].find(']').expect("a closed ref") + open;
     line[open + 1..close].to_string()
+}
+
+/// What the page now holds in a field.
+async fn value_of(page: &Page, reference: &str) -> String {
+    page.locator(format!("aria-ref={reference}"))
+        .evaluate::<String, ()>("el => el.value", None)
+        .await
+        .expect("the page answers")
+}
+
+/// Native date assignment can clear an unsupported value without throwing.
+/// The call must report that rejection and still permit a valid date or a clear.
+#[tokio::test]
+async fn a_date_field_that_did_not_take_the_text_is_refused() {
+    let (base, arrived) = common::serve(&[common::page(SHAPES)]).await;
+    let (_playwright, _context, page) = common::browser_on("input-date", &base).await;
+    page.goto(&base, None).await.expect("the page loads");
+
+    let reference = ref_of(&page, "the day of the event").await;
+    let refused =
+        input::fill(&page, &reference, "30/10/2026").await.expect_err("the field did not take that text");
+    assert_eq!(refused, Refused::DateFormat);
+    assert_eq!(value_of(&page, &reference).await, "", "and the field is still empty");
+
+    // The native format is the one it takes.
+    input::fill(&page, &reference, "2026-10-30").await.expect("a date field takes YYYY-MM-DD");
+    assert_eq!(value_of(&page, &reference).await, "2026-10-30");
+
+    // And clearing a field on purpose is not a refusal.
+    input::fill(&page, &reference, "").await.expect("clearing a field is allowed");
+    assert_eq!(value_of(&page, &reference).await, "");
+
+    assert!(!arrived.asked_for("/posted"), "and nothing was submitted");
 }
 
 /// Opens a page and waits until it has finished loading, so a read taken after

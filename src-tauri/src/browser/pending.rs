@@ -12,7 +12,7 @@
 //! answering calls the whole time they are looking at a card, and a held lock
 //! would stop it — and a window closing would find a lock nobody can take.
 
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 /// How long a card is offered for. The sidecar declines anything still waiting
@@ -230,8 +230,13 @@ struct Shown {
 }
 
 /// What the window is currently showing.
-#[derive(Default)]
-pub(crate) struct Pending(Mutex<Vec<Shown>>);
+///
+/// **Shared, so a press can spend a card from inside the browser's slot.** The
+/// spend happens where the slot is taken — a press that did not get the slot
+/// dispatched nothing and must spend nothing — and that is a place the window's
+/// own state has to be reachable from.
+#[derive(Clone, Default)]
+pub(crate) struct Pending(Arc<Mutex<Vec<Shown>>>);
 
 impl Pending {
     /// Replaces what is on the window with what the sidecar says is waiting,
@@ -272,6 +277,16 @@ impl Pending {
             }
         }
         stale
+    }
+
+    /// **Whether this card is on the window, and nobody else's to press.**
+    ///
+    /// **Asked, not taken.** A press that is answered "busy" must leave the
+    /// card where it was — it is still waiting, still pressable, and the
+    /// person will press it again — so the card is looked for here and spent
+    /// only once the browser's slot says this press is the one that counts.
+    pub(crate) fn holds(&self, id: &str, conversation: &str) -> bool {
+        self.lock().iter().any(|shown| shown.card.id == id && shown.card.conversation == conversation)
     }
 
     /// **Takes a card off the window only where it was raised.** An id from one
@@ -399,6 +414,26 @@ mod tests {
         assert_eq!(pending.spend_in("c1", CHAT).map(|gone| gone.id), Some("c1".to_owned()));
         assert_eq!(pending.spend_in("c1", CHAT), None, "a second press finds nothing");
         assert_eq!(pending.cards().len(), 0);
+    }
+
+    /// **A card that is asked about is still on the window.** Asking is not
+    /// taking: a press that finds the browser busy never dispatched anything,
+    /// so the card it was about is still waiting, and it is still the person's
+    /// to press. **Only the spend takes it**, and the spend happens where the
+    /// browser's slot was taken.
+    #[test]
+    fn a_card_that_is_asked_about_is_still_on_the_window() {
+        let pending = Pending::default();
+        show(&pending, vec![card("c1")]);
+        assert!(pending.holds("c1", CHAT), "the card is there to be pressed");
+        assert!(is_shown(&pending, "c1"), "and asking about it did not take it off the window");
+        assert_eq!(pending.cards().len(), 1, "and it is the one card that was there");
+
+        // **And the spend takes it**, so the window and the sidecar agree about
+        // what has been answered.
+        assert_eq!(pending.spend_in("c1", CHAT).map(|gone| gone.id), Some("c1".to_owned()));
+        assert!(!pending.holds("c1", CHAT), "and it is not there to be pressed twice");
+        assert!(!is_shown(&pending, "c1"), "and the window does not draw it any more");
     }
 
     /// The same id is one card, not two to draw on top of each other.

@@ -177,3 +177,10 @@
   font-size: 12.5px;
   margin: 4px 0 0;
 }
+
+/* A press that never went: the card is still waiting, and this says why. */
+.browser-confirm-notice {
+  color: var(--warn-ink);
+  font-size: 12.5px;
+  margin: 4px 0 0;
+}

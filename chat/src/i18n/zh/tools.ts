@@ -93,6 +93,7 @@ export const TOOLS = {
     "invalid": "表单没有让它通过。",
     "paused": "你让 Kalsa 在浏览器里停下了。",
     "busy": "Kalsa 正在忙于浏览器。",
+    "noPendingRequest": "那个请求已经不再等待回答。",
     "deterministic": "同样的操作已经失败过一次。",
     "tooManySteps": "这一轮里的浏览器操作太多了。",
     "alreadyRun": "已经做过了。",

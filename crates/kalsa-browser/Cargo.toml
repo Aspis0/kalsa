@@ -43,6 +43,10 @@ getrandom = "0.2"
 # to us. Comparing raw text is what would let a GET carry one in the clear.
 percent-encoding = "2"
 
+# Already in the lock as a transitive dependency, so this is not a new download:
+# the phone's preview is one JPEG, and the road it crosses carries it as base64.
+base64 = "0.22"
+
 # The proofs that need a window open their own context to show the difference a
 # setting makes, which is the only way to know the test can fail.
 [dev-dependencies]

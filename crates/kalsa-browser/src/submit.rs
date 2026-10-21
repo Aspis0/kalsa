@@ -26,8 +26,8 @@
 //!
 //! A write the page makes on its own — a `fetch`, an XHR, a `sendBeacon` — is
 //! not a navigation and cannot be prevented from the page. Those still go
-//! through the route, where `hold::hold_write` parks them, and a parked one does
-//! not freeze anything.
+//! through the route, where `hold::hold_write` blocks empty-body data requests
+//! and holds other readable writes without freezing the page.
 //!
 //! **The catcher is armed only around our own action.** A person using the
 //! window is never swallowed: a submission while the catcher is disarmed goes

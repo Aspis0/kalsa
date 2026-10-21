@@ -1,18 +1,5 @@
-//! The closed set of codes a browser call can come back with, and where each
-//! one comes from.
-//!
-//! **A code is what the screen and the ledger read; a sentence is what the model
-//! reads.** They are never the same thing, because a sentence is prose in five
-//! languages and a code is one word. The person-facing copy is looked up by this
-//! code and by nothing else, so a refusal that arrives with words nobody here
-//! wrote cannot become a line on the window.
-//!
-//! **Read from the sidecar's structured fields only, never from its prose.** The
-//! sidecar answers in its own words, and its words are not a stable interface:
-//! `structuredContent` is. One field is live today — `kalsa.gone`, which says the
-//! window the person closed — and `kalsa.code` is where the rest will arrive; an
-//! answer with neither is a refusal, which is a fact about it rather than a
-//! guess at which one it is.
+//! UI codes and diagnostic stages come from structured fields, never prose.
+//! Unknown stages are dropped so page text cannot become a log entry.
 
 use serde_json::Value;
 use kalsa_mcp::outcome::ToolResult;
@@ -96,9 +83,36 @@ impl BrowserCode {
     }
 }
 
+/// Whitelist both stage and log literal so unknown content cannot reach the log.
+pub(crate) fn failure_category(result: &ToolResult) -> Option<&'static str> {
+    let word = result.for_ui.as_ref()?.pointer("/kalsa/failure")?.as_str()?;
+    match word {
+        "ref_missing" => Some("browser_failure.ref_missing"),
+        "ref_malformed" => Some("browser_failure.ref_malformed"),
+        "ref_unprinted" => Some("browser_failure.ref_unprinted"),
+        "action_input_failed" => Some("browser_failure.action_input_failed"),
+        "action_unfillable" => Some("browser_failure.action_unfillable"),
+        "action_password" => Some("browser_failure.action_password"),
+        "action_destination" => Some("browser_failure.action_destination"),
+        "action_not_accepted" => Some("browser_failure.action_not_accepted"),
+        "action_date_format" => Some("browser_failure.action_date_format"),
+        "read_unseen" => Some("browser_failure.read_unseen"),
+        "read_address_refused" => Some("browser_failure.read_address_refused"),
+        "read_moved" => Some("browser_failure.read_moved"),
+        "read_driver" => Some("browser_failure.read_driver"),
+        "open_driver" => Some("browser_failure.open_driver"),
+        "open_address_refused" => Some("browser_failure.open_address_refused"),
+        "paused" => Some("browser_failure.paused"),
+        "unavailable" => Some("browser_failure.unavailable"),
+        "busy" => Some("browser_failure.busy"),
+        "panicked" => Some("browser_failure.panicked"),
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::BrowserCode;
+    use super::{failure_category, BrowserCode};
     use kalsa_mcp::outcome::ToolResult;
     use kalsa_mcp::server_id::ServerId;
     use serde_json::json;
@@ -166,5 +180,76 @@ mod tests {
         let answered = said(Some(json!({"kalsa": {"gone": true}})));
         assert_eq!(BrowserCode::of(&answered).as_str(), "browser.window_gone");
         assert_eq!(answered.for_model, vec!["the sidecar's sentence"], "the model reads the sidecar's words, not the code");
+    }
+
+    /// **A stage this build knows is a fixed log line of our own**: the word
+    /// the sidecar sent is matched, and what the log writes is our category.
+    #[test]
+    fn a_stage_this_build_knows_is_a_fixed_line_of_our_own() {
+        for (word, category) in [
+            ("ref_missing", "browser_failure.ref_missing"),
+            ("ref_malformed", "browser_failure.ref_malformed"),
+            ("ref_unprinted", "browser_failure.ref_unprinted"),
+            ("action_input_failed", "browser_failure.action_input_failed"),
+            ("action_unfillable", "browser_failure.action_unfillable"),
+            ("action_password", "browser_failure.action_password"),
+            ("action_destination", "browser_failure.action_destination"),
+            ("action_not_accepted", "browser_failure.action_not_accepted"),
+            ("action_date_format", "browser_failure.action_date_format"),
+            ("read_unseen", "browser_failure.read_unseen"),
+            ("read_address_refused", "browser_failure.read_address_refused"),
+            ("read_moved", "browser_failure.read_moved"),
+            ("read_driver", "browser_failure.read_driver"),
+            ("open_driver", "browser_failure.open_driver"),
+            ("open_address_refused", "browser_failure.open_address_refused"),
+            ("paused", "browser_failure.paused"),
+            ("unavailable", "browser_failure.unavailable"),
+            ("busy", "browser_failure.busy"),
+            ("panicked", "browser_failure.panicked"),
+        ] {
+            let answer = said(Some(json!({ "kalsa": { "failure": word } })));
+            assert_eq!(failure_category(&answer), Some(category), "{word}");
+        }
+    }
+
+    /// **A stage this build does not know is dropped.** The word on the wire is
+    /// not ours to trust, and none of them may put *their* word in the log.
+    #[test]
+    fn a_stage_this_build_does_not_know_is_dropped() {
+        let canary = "https://a-very-private-place.example/steal?token=SECRET";
+        for word in [
+            "browser.who_knows",
+            "ref_unprinted ",
+            "REF_UNPRINTED",
+            "read_driver\nui: chat.tool.opened",
+            canary,
+        ] {
+            let answer = said(Some(json!({ "kalsa": { "failure": word } })));
+            assert_eq!(failure_category(&answer), None, "{word} is not a stage this build knows");
+        }
+
+        // And the shapes that carry no stage at all are dropped the same way.
+        for for_ui in [
+            None,
+            Some(json!({})),
+            Some(json!({ "kalsa": {} })),
+            Some(json!({ "kalsa": { "failure": 7 } })),
+            Some(json!({ "kalsa": { "failure": null } })),
+            Some(json!({ "kalsa": { "failure": { "stage": "read_driver" } } })),
+        ] {
+            assert_eq!(failure_category(&said(for_ui.clone())), None, "{for_ui:?}");
+        }
+    }
+
+    /// **The line the log writes is the whole of it.** A category is one fixed
+    /// string, so a report line is a code and never a sentence from elsewhere.
+    #[test]
+    fn the_line_the_log_writes_is_a_code_and_nothing_else() {
+        let answer = said(Some(json!({ "kalsa": { "failure": "read_driver" } })));
+        let category = failure_category(&answer).expect("a stage this build knows");
+        assert_eq!(category, "browser_failure.read_driver");
+        assert!(category.starts_with("browser_failure."), "{category}");
+        assert!(!category.contains(' '), "{category}");
+        assert!(!category.contains("://"), "{category}");
     }
 }

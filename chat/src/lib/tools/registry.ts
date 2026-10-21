@@ -8,11 +8,12 @@ import { TOOL_DEFINITIONS, CREATE_MINIAPP_TOOL, MAIL_TOOLS, mailShowTool } from 
 import type { ToolDefinition } from "./definitions";
 import { runCreateMiniapp } from "./createMiniapp";
 import { through } from "./door";
-import { fetchProvenanceRefusal, searchQueryRefusal } from "./fetchProvenance";
+import { browserEntry, fetchProvenanceRefusal, searchQueryRefusal } from "./fetchProvenance";
 import { readSearchPages } from "./searchPages";
 import { runMailDraft, runMailList, runMailRead } from "./mailCall";
 import { runMailShow } from "./mailShow";
 import { BROWSER_NAMES, BROWSER_TOOLS } from "./browserTools";
+import { logBrowserFailure, logProvenanceFailure } from "../browser/diagnostics";
 import { isPaused } from "../browser/window";
 import { browserUsable } from "../browser/usable";
 import { browserClick, browserFind, browserOpen, browserRead, browserType, fence } from "./browserCall";
@@ -277,10 +278,18 @@ export async function executeToolCall(
       }
       if (name === "browser_open") {
         const url = typeof record.url === "string" ? record.url.trim() : "";
-        if (!url) return { text: "No page was opened: the address was empty.", ok: false };
+        if (!url) {
+          logBrowserFailure("open_empty");
+          return { text: "No page was opened: the address was empty.", ok: false };
+        }
         const bare = url.split("#")[0];
-        const refusal = fetchProvenanceRefusal(bare, conversation);
-        if (refusal !== null) return { text: refusal.text, ok: false, resultCode: refusal.code };
+        // The gate must inspect the address actually opened, including a
+        // homepage restored to the spelling the user named.
+        const entry = browserEntry(bare, conversation);
+        if (entry.refusal !== null) {
+          logProvenanceFailure(entry.refusal.code);
+          return { text: entry.refusal.text, ok: false, resultCode: entry.refusal.code };
+        }
         // **The gate `web_fetch` goes through, because opening an address is
         // exactly what web_fetch does.** Step 3 reasoned that the browser "reads
         // a page this computer fetched and checked, not a request the engine
@@ -289,8 +298,12 @@ export async function executeToolCall(
         // types it. A turn armed by a pinned document or by mail has to ask
         // about this one too, or the ask is a thing a model chooses by using
         // the other tool.
-        const allowed = await admitted(gate, "web_fetch", bare, armed(gate, conversation), conversation, signal);
-        if (!allowed) return heldBack(bare, signal, stoppedText);
+        const allowed = await admitted(gate, "web_fetch", entry.url, armed(gate, conversation), conversation, signal);
+        if (!allowed) {
+          // A Stop is not the owner saying no, so it is not the gate's category.
+          if (!signal?.aborted) logBrowserFailure("open_gate");
+          return heldBack(entry.url, signal, stoppedText);
+        }
         // A Stop that landed while the owner was being asked. **Nothing has run
         // and no session was started**, so this must not end one: the session is
         // shared, and closing it would tear a page out from under the calls
@@ -298,7 +311,7 @@ export async function executeToolCall(
         // function — asking first is what made this window exist, and it is why
         // the abort is read here rather than left to `throughBrowser`.
         if (signal?.aborted) return stopped(stoppedText);
-        return { text: await browserOpen(bare, conversationId, signal), ok: true };
+        return { text: await browserOpen(entry.url, conversationId, signal), ok: true };
       }
       if (name === "browser_read") {
         // No page number is the first page, which is what the model means by
@@ -353,6 +366,9 @@ export async function executeToolCall(
     // with only a code says that code, not "[object Object]".
     const detail =
       error instanceof Error ? error.message : typeof coded?.code === "string" ? coded.code : String(error);
+    // A failure with no code of its own: the log cannot tell it from any other,
+    // and the sentence below carries the reason in prose.
+    if (name === "browser_open") logBrowserFailure("open_uncoded");
     return { text: `${name} could not run: ${detail}`, ok: false };
   }
 }

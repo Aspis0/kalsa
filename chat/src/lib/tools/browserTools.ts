@@ -1,31 +1,14 @@
 import type { ToolDefinition } from "./definitions";
 
-/**
- * The five browser tools: three that read, and two that write.
- *
- * **A write is offered, and a write is held.** `browser_click` and
- * `browser_type` can send a request, and the answer they give when one is sent
- * is not the page — it is `awaiting confirm`, an id, and a person deciding. The
- * model has no way to answer that itself, and is told so in the sidecar's own
- * instructions, so the offer is honest rather than a promise it cannot keep.
- *
- * **A phone is offered the reads and not the writes**, and the filter that says
- * so is in `phone/phoneTurn.ts`: `BROWSER_WRITES` is the two tools that can put a
- * request in front of a person, and they are offered to a phone only when the
- * turn names the phone it authenticated as. A turn with no device has nobody who
- * could be shown the card, so a card raised there would be one nobody is ever
- * asked about — better no write than a write nobody answers.
- *
- * The descriptions are short and plain, and say what the answer is rather than
- * how to use the browser: the model reads them in every language this app
- * ships, and a long one is a page of English it has to carry.
- */
+/** Authenticated phone turns may drive the browser; the model cannot approve
+ * intercepted submissions. Page data requests follow the browser policy. */
 export const BROWSER_TOOLS: ToolDefinition[] = [
   {
     type: "function",
     function: {
       name: "browser_open",
-      description: "Opens a web page in the browser and shows what is on it.",
+      description:
+        "Opens a web page in the browser and shows what is on it. Use an address exactly as printed, including its path and query. To follow a link on the current page, you can click its ref instead.",
       parameters: {
         type: "object",
         properties: {
@@ -39,7 +22,8 @@ export const BROWSER_TOOLS: ToolDefinition[] = [
     type: "function",
     function: {
       name: "browser_read",
-      description: "Reads the open page as text, one element per line, with a ref for each thing you can act on.",
+      description:
+        "Reads the open page as text, one element per line, with a ref for each thing you can act on. A long page comes in parts, one at a time: use browser_find to jump to what you are after rather than reading every part.",
       parameters: {
         type: "object",
         properties: {
@@ -53,7 +37,8 @@ export const BROWSER_TOOLS: ToolDefinition[] = [
     type: "function",
     function: {
       name: "browser_find",
-      description: "Finds text on the open page and reads the part around it.",
+      description:
+        "Finds text across all parts of the available page snapshot, including parts you have not read, and reads the lines around each match with their refs.",
       parameters: {
         type: "object",
         properties: {
@@ -68,7 +53,7 @@ export const BROWSER_TOOLS: ToolDefinition[] = [
     function: {
       name: "browser_click",
       description:
-        "Clicks one element on the open page. If that sends anything, it is held for the person to allow first: the answer names the request and says it is waiting, and the page does not move until they decide.",
+        "Clicks one element on the open page. If that submits a non-GET form, the request is held for the person to allow first: the answer names the request and says it is waiting, and the page does not move until they decide. Fetch/XHR requests follow normal browser behavior, subject to the typed-secret checks.",
       parameters: {
         type: "object",
         properties: {
@@ -83,7 +68,7 @@ export const BROWSER_TOOLS: ToolDefinition[] = [
     function: {
       name: "browser_type",
       description:
-        "Types into one field on the open page. A single-line field that is in no form is finished with Enter, and a search field is finished with Enter even inside a form; any other field inside a form is left alone, so click that form's own submit button once it is filled. If that sends anything, it is held for the person to allow first: the answer names the request and says it is waiting.",
+        "Types into one field on the open page. A single-line field that is in no form is finished with Enter, and a search field is finished with Enter even inside a form; any other field inside a form is left alone, so click that form's own submit button once it is filled. If that submits a non-GET form, the request is held for the person to allow first: the answer names the request and says it is waiting. Fetch/XHR requests follow normal browser behavior, subject to the typed-secret checks.",
       parameters: {
         type: "object",
         properties: {

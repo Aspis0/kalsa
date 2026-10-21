@@ -1,10 +1,8 @@
 //! What a request that passed the guard may do next (one responsibility: the
 //! write that is held, the card that shows it, and the one answer that spends it).
 //!
-//! Slice 1 refused every non-GET. Step 4 holds it instead: the route catches the
-//! request, nothing is dispatched, and the card shows **that request** — URL,
-//! method, and the fields as sent — so the person's yes is given to the payload
-//! the site would really have received, never to a guess about it.
+//! Data channels follow normal browser behavior unless recorded-secret
+//! protection requires this hold. Intercepted submissions retain confirmation.
 //!
 //! **The call does not wait for the person.** The MCP deadline is 60 s and a
 //! person is slower than that, so a held request is answered with its id at once
@@ -37,6 +35,19 @@ pub use crate::body::Field as CardField;
 /// How long a held request waits for a person. Past this it is declined and told
 /// so: a request nobody answered is not one we may send later.
 pub(crate) const EXPIRY: Duration = Duration::from_secs(300);
+
+/// **How long the driving of a confirmed submission waits for the navigation
+/// that follows it.** A server that answers with a redirect sends it as soon as
+/// it has the answer, so this is generous rather than tight — and it is a bound
+/// all the same, because a window the person cannot take back is worse than a
+/// receipt that arrives a moment late.
+const REDIRECT_WINDOW: Duration = Duration::from_secs(2);
+
+/// **How long the driving of a confirmed submission waits for the answer to the
+/// request the person approved.** The request is in flight until the server
+/// answers, and a navigation in flight is ours. **Bounded**, because a server
+/// that never answers must not hold the window for ever.
+const ANSWER_WINDOW: Duration = Duration::from_secs(10);
 
 /// The future that dispatches or drops a held request. What the browser does
 /// with one is the caller's business; what this store does with it — once, and
@@ -275,6 +286,180 @@ struct Held {
 /// One outcome and the conversation that caused it.
 type Settled = (String, Outcome);
 
+/// **The driving of the window, and the name that tells two of them apart.**
+///
+/// **The name is what makes a release conditional.** Two submissions of one chat
+/// are two drivings, and the conversation alone cannot say which is which: a
+/// watch that ends late must let go of the driving that is still its own, and
+/// never of the one that has taken the window since.
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct Driver {
+    conversation: String,
+    token: u64,
+}
+
+/// **The window's own state, in one lock and one place.**
+///
+/// **Three things that have to be read and written without awaiting, and that
+/// have to agree with each other.** Who is driving the window, how many
+/// main-frame navigations the route has seen, and the one write already
+/// answered — the ticket a confirmed submission is let past on.
+///
+/// **One lock, and not two.** The count and the owner are read together: a
+/// navigation counted as ours and then found nobody's is a page that lost its
+/// owner between one look and the next, and a release that lands between the
+/// two is exactly how that happened. The ticket is here for the same reason the
+/// release is: **a `Drop` cannot await**, so the thing a guard has to take back
+/// has to be in a cell a guard can reach without waiting for anybody.
+#[derive(Default)]
+struct Window {
+    /// **Who is driving the window right now**, and nobody at all when no call
+    /// of ours is.
+    driver: Option<Driver>,
+    /// **How many main-frame navigations the route has seen.** It is what tells
+    /// a confirmed submission's own navigation from the one that follows it: a
+    /// server may answer the request the person approved with a redirect, and
+    /// that redirect is a second navigation the browser makes on its own.
+    ///
+    /// **Counted here rather than in the landings**, because the question this
+    /// count answers is about the *route* — it is the route that sees a
+    /// navigation, and the route is what has to say whether that navigation
+    /// was ours.
+    navigations: u64,
+    /// **The one write already answered**, which the route is to let past rather
+    /// than hold again. **Exactly one, matched on the whole request, and spent
+    /// on first use** — see [`Ticket`]. **And the duty of ending the driving it
+    /// belongs to**, so that the watch the route starts is the watch that holds
+    /// the right to let go of it.
+    pass: Option<Pass>,
+}
+
+/// **The duty of letting go of the driving, and the right to do it once.**
+///
+/// **Shared, because the duty passes.** The call that drives the window and the
+/// watch that ends it are two things, and the duty is one: the call arms it
+/// into the ticket, the route hands it to the watch it starts, and the watch is
+/// what lets go of the driving. Exactly one of them lets go — the other is
+/// told the duty is not its own any more — and **the watch's own guard is what
+/// lets go of it when the watch dies before it has**.
+///
+/// **And the duty knows the driving it is about.** A release is conditional on
+/// the name: the watch of a submission that has already been overtaken finds the
+/// window driving somebody else's submission, and leaves it alone.
+///
+/// **Shared by an `Arc`, and not copied.** The flag inside says whether the
+/// driving has been let go, and two copies of the flag would be two answers to
+/// the same question.
+#[derive(Debug)]
+pub struct Duty {
+    /// **The name of the driving this duty is about.** Two submissions of one
+    /// chat are two drivings, and the conversation alone cannot tell them apart.
+    token: u64,
+    /// **Whether the driving has been let go.** One duty, one release: two
+    /// guards share this duty and only the first to let go does anything.
+    released: std::sync::atomic::AtomicBool,
+}
+
+impl Duty {
+    /// **Lets go of the driving — if this duty is still the one driving.**
+    ///
+    /// **Once, and only for the driving it is about.** The flag says the duty
+    /// is spent, so the second guard to let go does nothing; and the name says
+    /// whose driving it was, so a watch that ends late does not take the window
+    /// away from the submission that has it.
+    fn let_go(&self, holds: &Holds) {
+        if self.released.swap(true, std::sync::atomic::Ordering::SeqCst) {
+            return;
+        }
+        holds.let_go_of(self.token);
+    }
+}
+
+/// **What a confirmed submission is waiting for: the duty that ends it, and the
+/// navigation it starts from.**
+///
+/// **One per submission.** Two submissions can overlap — the watch of the first
+/// is still waiting when the second is confirmed — and each has to wait for its
+/// own navigation: a watch that read a shared count would wait from the other's
+/// baseline, and the one that ended first would take the driving away from the
+/// one still waiting.
+#[derive(Clone, Debug)]
+pub struct Approved {
+    /// **The duty of ending the driving this submission owns.** The watch holds
+    /// it, so the watch is what lets go of the driving — and what lets go of it
+    /// when it dies before it has.
+    duty: Arc<Duty>,
+    /// **The navigation count this submission started from.** The watch waits
+    /// for the navigation that follows it, and for that one only.
+    baseline: u64,
+}
+
+/// The one write already answered, and the duty of ending the driving it
+/// belongs to.
+struct Pass {
+    ticket: Ticket,
+    duty: Arc<Duty>,
+    /// **Whether the route has taken this pass.**
+    ///
+    /// **Set under the lock that takes the pass out, and read under it too.**
+    /// From the moment the route spends the ticket the duty belongs to the
+    /// watch it starts, and a guard that let go of it here would take the window
+    /// away from the submission that has it. A flag read outside the lock could
+    /// miss a pass that was being spent at that very moment.
+    taken: Arc<std::sync::atomic::AtomicBool>,
+}
+
+/// **The armed pass, and the driving it is armed for.**
+///
+/// **The pass lives under this guard, and the guard is what takes it back.** The
+/// ticket is armed for one driving, and the route may spend it at any moment —
+/// so a call that is cut short between arming the ticket and spending it must
+/// not leave the ticket armed: a later request that matches it would go
+/// through without a new approval, and the person would never have been asked.
+///
+/// **So the guard's drop does two things, and the second one is a "not".**
+/// * **If the ticket was never spent**, the guard takes it back — the answer is
+///   thrown away — and lets go of the driving, because nobody else owns it.
+/// * **If the ticket was spent**, the duty belongs to the watch the route
+///   started, and the guard leaves it alone: the watch is what ends the
+///   driving, and the watch is what lets go of it.
+///
+/// **And both are decided under one lock.** Whether the ticket was spent and
+/// what is left of it are one fact, read together with the store's own answer —
+/// a guard that read the flag on its own could see a pass that was being spent
+/// right now, and let go of a driving the watch owns.
+pub struct Armed {
+    holds: Holds,
+    /// **The driving this pass is armed for.** It is the guard that lets go of
+    /// the window, and it is here so that the decision about whether to let go
+    /// of it is made in one place.
+    driving: Option<Driving>,
+    /// **Whether the route has taken the ticket.** The same flag the pass
+    /// carries, so that the two of them cannot disagree.
+    taken: Arc<std::sync::atomic::AtomicBool>,
+}
+
+impl Drop for Armed {
+    fn drop(&mut self) {
+        let Some(driving) = self.driving.take() else {
+            return;
+        };
+        if self.holds.take_the_pass_back(&driving.duty, &self.taken) {
+            // **The route spent the ticket**: the watch it started owns the
+            // driving now, and the watch is what lets go of it. A guard that
+            // let go of it here would take the window away from the submission
+            // that has it.
+            driving.hand_over();
+            return;
+        }
+        // **The ticket was never spent**: it is thrown away — so that a later
+        // request that matches it does not go through without a new approval —
+        // and the driving is still ours, because nobody else will let go of it.
+        // Dropping the guard is what lets go of it.
+        drop(driving);
+    }
+}
+
 #[derive(Default)]
 struct Inner {
     /// In the order they were held: the newest is last, which is the one a call
@@ -303,10 +488,6 @@ struct Inner {
     /// forgets it** and a secret typed on one site cannot mask — or hold — a
     /// request on another.
     typed: crate::secret::Typed,
-    /// The one write already answered, which the route is to let past rather
-    /// than hold again. **Exactly one, matched on the whole request, and spent
-    /// on first use** — see [`Ticket`].
-    pass: Option<Ticket>,
 }
 
 /// What the page was read to say about its fields, and the address it was read from.
@@ -330,11 +511,103 @@ pub struct Holds {
     /// `Holds` it ever hands out reads it, so there is one answer to "is this
     /// paused" rather than one per page that could disagree.
     paused: Arc<std::sync::atomic::AtomicBool>,
+    /// **Who is driving the window right now.** Its own cell, and not a field
+    /// of `Inner`, for one reason: **it has to be let go without awaiting.** A
+    /// call that panics unwinds, and the release has to happen on that way out
+    /// too — see [`Driving`], which is what lets go of it.
+    ///
+    /// A plain lock, and not the store's own: the store is behind an async
+    /// mutex, and a `Drop` cannot await one.
+    ///
+    /// **And it carries the name of the driving, not only the conversation.**
+    /// Two submissions of one chat are two drivings, and a release that is not
+    /// conditional on the name would take the window away from the submission
+    /// that has it — see [`Holds::let_go_of`].
+    ///
+    /// **The navigation count and the armed ticket are in it too**, because both
+    /// have to be read and written without awaiting as well, and because the
+    /// count and the owner have to be read together — see [`Window`].
+    window: Arc<std::sync::Mutex<Window>>,
+    /// **The names of the drivings of this window.** A counter, and it is what
+    /// tells two of them apart: the conversation alone cannot, because two
+    /// submissions of one chat are two drivings.
+    tokens: Arc<std::sync::atomic::AtomicU64>,
+    /// **A test's gate, between the count of a navigation and the judgment of
+    /// who owns the page.**
+    ///
+    /// It exists so a proof can put a release exactly where the two used to be
+    /// apart: the count on one side of it, the owner on the other. With the two
+    /// under one lock, a release that arrives at the gate cannot get between
+    /// them — and a proof that says so is a proof about the lock and not about
+    /// a lucky ordering.
+    #[cfg(test)]
+    gate: Arc<std::sync::Mutex<Option<Box<dyn Fn() + Send + Sync>>>>,
 }
 
 impl Default for Holds {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// **The promise that the call driving the window will let go of it.**
+///
+/// **The release is on every way out of the call** — the answer it gave, the
+/// error it hit, the panic it took, the wait that was cut short — because the
+/// person has the window back only when nobody is driving it. A release that
+/// ran only on the happy path left the window ours after a panic: the next
+/// navigation the person made was then read as ours, the page they had opened
+/// by hand stayed ours, and a phone was shown a picture of it.
+///
+/// The guard drops on a panic too — that is what a `Drop` is for — and it is
+/// the only thing that lets go of the driving, so a call cannot end by
+/// accident and leave the window driven.
+///
+/// **And the release is conditional, and it is once.** The duty it carries says
+/// which driving it is about, so a guard that is left over from a submission
+/// that has been overtaken does not take the window away from the one that has
+/// it; and two guards that share a duty let go of it once between them.
+pub struct Driving {
+    holds: Holds,
+    /// **The duty of letting go of the driving.** Shared with the watch that
+    /// ends it, so that exactly one of the two lets go of it.
+    duty: Arc<Duty>,
+    /// Whether this guard may still let go. A guard that has let go already, or
+    /// that has handed the duty over, does not.
+    may_let_go: bool,
+}
+
+impl Driving {
+    /// **Lets go of the driving now.** The call is done with the window and the
+    /// person has it back.
+    pub fn release(mut self) {
+        self.may_let_go = false;
+        self.duty.let_go(&self.holds);
+    }
+
+    /// **Hands the driving to the watch that ends it.**
+    ///
+    /// A confirmed submission is answered with a navigation that is ours too,
+    /// and that navigation is not this call's to release: the thing that waited
+    /// for it does that. So the guard gives up the right to release and keeps
+    /// the driving as it is.
+    ///
+    /// **The duty is already with the watch, and this is what says so.** The
+    /// ticket is armed with the duty — the route spends it and hands it to the
+    /// watch it starts — so the watch that ends the driving is the one that
+    /// holds the right to end it, and a watch that dies before it has lets go
+    /// of the driving on its way out. A guard that was only disarmed here would
+    /// leave the window driven for ever when that watch died.
+    pub fn hand_over(mut self) {
+        self.may_let_go = false;
+    }
+}
+
+impl Drop for Driving {
+    fn drop(&mut self) {
+        if self.may_let_go {
+            self.duty.let_go(&self.holds);
+        }
     }
 }
 
@@ -346,7 +619,15 @@ impl Holds {
     /// A store of holds bound to a window's own pause, so a pause pressed
     /// before the window started is the pause the first page finds.
     pub fn bound_to(paused: Arc<std::sync::atomic::AtomicBool>) -> Self {
-        Self { inner: Arc::new(Mutex::new(Inner::default())), now: Arc::new(Instant::now), paused }
+        Self {
+            inner: Arc::new(Mutex::new(Inner::default())),
+            now: Arc::new(Instant::now),
+            paused,
+            window: Arc::new(std::sync::Mutex::new(Window::default())),
+            tokens: Arc::new(std::sync::atomic::AtomicU64::new(0)),
+            #[cfg(test)]
+            gate: Arc::new(std::sync::Mutex::new(None)),
+        }
     }
 
     fn of_one_window() -> Self {
@@ -358,7 +639,15 @@ impl Holds {
     /// makes five minutes something a test can watch.
     #[cfg(test)]
     pub fn on_a_clock(now: impl Fn() -> Instant + Send + Sync + 'static) -> Self {
-        Self { inner: Arc::new(Mutex::new(Inner::default())), now: Arc::new(now), paused: Arc::new(std::sync::atomic::AtomicBool::new(false)) }
+        Self {
+            inner: Arc::new(Mutex::new(Inner::default())),
+            now: Arc::new(now),
+            paused: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            window: Arc::new(std::sync::Mutex::new(Window::default())),
+            tokens: Arc::new(std::sync::atomic::AtomicU64::new(0)),
+            #[cfg(test)]
+            gate: Arc::new(std::sync::Mutex::new(None)),
+        }
     }
 
     /// **Names the call that is running now.** Every request it causes carries
@@ -378,6 +667,91 @@ impl Holds {
         let mut inner = self.inner.lock().await;
         inner.navigated = conversation.to_owned();
         inner.calling = conversation.to_owned();
+    }
+
+    /// **Says that one of our calls is driving the window right now**, and hands
+    /// back the promise that it will let go.
+    ///
+    /// The call that opens a page, clicks on it or fills a field is the reason
+    /// the main frame moves, and a navigation it causes is ours: the page stays
+    /// the conversation's. The call says when it is done, and what happens to
+    /// the window after that is the person's.
+    ///
+    /// **The release is the guard's, and not the call's.** A call that ended
+    /// without releasing — because it returned early, because it failed, or
+    /// because it panicked — left the window ours for ever: the next
+    /// navigation the person made was then read as ours, the page they had
+    /// opened by hand stayed ours, and a phone was shown a picture of it.
+    ///
+    /// **And every driving has a name.** The name is what a later release is
+    /// conditional on, and two submissions of one chat are two drivings: the
+    /// watch of the first one must not take the window away from the second.
+    pub fn drive(&self, conversation: &str) -> Driving {
+        let token = self.tokens.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let driver = Driver { conversation: conversation.to_owned(), token };
+        self.window.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).driver = Some(driver);
+        Driving {
+            holds: self.clone(),
+            duty: Arc::new(Duty { token, released: std::sync::atomic::AtomicBool::new(false) }),
+            may_let_go: true,
+        }
+    }
+
+    /// **Lets go of the driving — if the window is still driven by that one.**
+    ///
+    /// **Conditional, and that is the whole of it.** Two submissions can
+    /// overlap: the watch of the first one ends while the second is still
+    /// waiting for its answer, and a release that was not conditional would
+    /// take the driving away from the one that has it. The navigation the
+    /// second submission is waiting for would then lose its owner, and the page
+    /// it lands on would belong to nobody.
+    ///
+    /// **Not awaited, because a `Drop` cannot await.** This is the release the
+    /// guard makes, and the guard is what makes it on every way out.
+    ///
+    /// **And it is the same lock the navigation count is counted under**, so a
+    /// release cannot land between a navigation being counted and the owner
+    /// being read — see [`Holds::a_main_frame_navigation`].
+    fn let_go_of(&self, token: u64) {
+        let mut window = self.window.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        if window.driver.as_ref().is_some_and(|driver| driver.token == token) {
+            window.driver = None;
+        }
+    }
+
+    /// **Who is driving the window right now**, and nobody at all when no call
+    /// of ours is.
+    pub fn driving_now(&self) -> Option<String> {
+        self.window
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .driver
+            .as_ref()
+            .map(|driver| driver.conversation.clone())
+    }
+
+    /// **The name of the driving, if there is one.** A test's tool: the name is
+    /// what tells two drivings apart, and nothing the person reads says so.
+    #[cfg(test)]
+    pub fn driving_owner(&self) -> Option<u64> {
+        self.window
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .driver
+            .as_ref()
+            .map(|driver| driver.token)
+    }
+
+    /// **Leaves the page belonging to nobody.** Both stamps go: the
+    /// conversation that opened the page, and the one acting on it.
+    ///
+    /// A page the person opened by hand is nobody's, and only an open of our
+    /// own makes a page ours again — a click on a page we do not own is not
+    /// owning it.
+    pub async fn forget_owner(&self) {
+        let mut inner = self.inner.lock().await;
+        inner.navigated.clear();
+        inner.calling.clear();
     }
 
     /// What a request **we** caused is stamped with: the call in flight.
@@ -419,10 +793,100 @@ impl Holds {
 
     /// Every request the window makes goes through here before anything else: a
     /// navigation is a new document, so what was read from the old one is forgotten.
+    ///
+    /// **And a navigation of the main frame that no call of ours caused leaves
+    /// the page belonging to nobody.** The person has the window, they press a
+    /// link or type an address, and the document on the screen is one they
+    /// opened: it belongs to no conversation, and a phone asking for a picture
+    /// of it is refused as `not_yours`. A navigation that arrives while one of
+    /// our calls is driving the window is ours, and the page stays ours.
+    ///
+    /// **Only the main frame counts.** An iframe that navigates is not the page
+    /// the person is looking at, and a page's own `fetch` never was.
     pub async fn see_request(&self, request: &Request) {
         if request.is_navigation_request() {
             self.forget_labels().await;
+            if is_main_frame_navigation(request) {
+                self.a_main_frame_navigation().await;
+            }
         }
+    }
+
+    /// **A navigation of the main frame, and what it means for the owner.**
+    ///
+    /// **Counted and judged together, under one lock.** The count is what
+    /// tells a confirmed submission's own navigation from the one that follows
+    /// it — the redirect a server may answer with — and the two must not be
+    /// read at two different moments: a navigation counted as ours and then
+    /// found nobody's is a page that lost its owner between one look and the
+    /// next.
+    ///
+    /// **And that is why the count and the owner are in the same cell.** The
+    /// count used to be taken under the store's own lock and the owner read
+    /// under the window's, and a release could land between the two: the
+    /// navigation was counted as ours, and the owner was found to be nobody's.
+    /// One lock, one look, one answer.
+    pub async fn a_main_frame_navigation(&self) {
+        // **One critical section.** The count and the judgment are one fact
+        // about one moment, and they are read together.
+        let ours = {
+            let mut window = self.window.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+            window.navigations += 1;
+            #[cfg(test)]
+            self.at_the_navigation_gate();
+            window.driver.is_some()
+        };
+        if !ours {
+            let mut inner = self.inner.lock().await;
+            inner.navigated.clear();
+            inner.calling.clear();
+        }
+    }
+
+    /// **Calls the test's gate, if there is one.**
+    ///
+    /// **It is called between the count and the judgment**, which is the one
+    /// place a release could get between them — and the place a proof puts one
+    /// to see whether it can.
+    #[cfg(test)]
+    fn at_the_navigation_gate(&self) {
+        let gate = self.gate.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        if let Some(gate) = gate.as_ref() {
+            gate();
+        }
+    }
+
+    /// **Puts a gate between the count of a navigation and the judgment of who
+    /// owns the page.** A test's tool, and nothing the product can reach.
+    #[cfg(test)]
+    pub fn gate_the_navigation(&self, gate: impl Fn() + Send + Sync + 'static) {
+        *self.gate.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(Box::new(gate));
+    }
+
+    /// **Lets go of the driving — if the window's cell can be touched.**
+    ///
+    /// **It says whether it got in**, and that is the whole of what a proof
+    /// about the count and the judgment needs to know: a release that cannot
+    /// get the cell did not happen, and a release that did happen took the
+    /// owner away.
+    #[cfg(test)]
+    pub fn try_let_go_of(&self, token: u64) -> bool {
+        let Ok(mut window) = self.window.try_lock() else {
+            return false;
+        };
+        if window.driver.as_ref().is_some_and(|driver| driver.token == token) {
+            window.driver = None;
+            return true;
+        }
+        false
+    }
+
+    /// **How many main-frame navigations the route has seen.** A test's tool:
+    /// the count is what tells a confirmed submission's own navigation from
+    /// the one that follows it.
+    #[cfg(test)]
+    pub fn navigations_so_far(&self) -> u64 {
+        self.window.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).navigations
     }
 
     pub async fn typed(&self) -> crate::secret::Typed {
@@ -624,21 +1088,74 @@ impl Holds {
     }
 
     /// Lets the write the person just answered go, instead of being held again.
-    pub async fn pass_next(&self, ticket: Ticket) {
-        self.inner.lock().await.pass = Some(ticket);
+    ///
+    /// **The ticket is armed for one driving, and the duty of ending it rides
+    /// along.** The route spends the ticket and hands the duty to the watch it
+    /// starts, and that watch is what lets go of the driving when the
+    /// navigation has passed — or when the watch dies before it has.
+    ///
+    /// **And the guard that comes back with it owns the ticket.** A call that is
+    /// cut short between arming the ticket and spending it must not leave the
+    /// ticket armed: a later request that matches it would go through without a
+    /// new approval. So the guard's drop takes the ticket back when nobody
+    /// spent it, and leaves the duty to the watch when somebody did.
+    ///
+    /// **The driving comes with it, and does not come back.** The guard holds
+    /// the right to let go of the window, so that the decision about whether to
+    /// let go of it is made in one place — and the route that spends the ticket
+    /// hands it to the watch it starts, which is what lets go of it then.
+    ///
+    /// **Not awaited, and that is the point.** Arming the ticket and handing
+    /// back the guard is one act, with no wait in the middle of it: a call
+    /// cancelled between the two would leave the ticket armed with nobody to
+    /// take it back.
+    pub fn pass_next(&self, ticket: Ticket, driving: Driving) -> Armed {
+        let taken = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let duty = driving.duty.clone();
+        self.window.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).pass =
+            Some(Pass { ticket, duty: duty.clone(), taken: taken.clone() });
+        Armed { holds: self.clone(), driving: Some(driving), taken }
+    }
+
+    /// **Takes the armed ticket back, and says whether the route had spent it.**
+    ///
+    /// **One lock for the question and the answer.** Whether the ticket was
+    /// spent and what is left of it are one fact, and the store's cell says
+    /// both together: a guard that read the flag on its own could see a ticket
+    /// that was being spent at that very moment, and let go of a driving the
+    /// watch owns.
+    ///
+    /// `true` means the watch owns the driving now — the route spent the
+    /// ticket — and the guard must leave it alone. `false` means the ticket was
+    /// still armed, and it has now been thrown away: the duty is still the
+    /// guard's own.
+    fn take_the_pass_back(&self, duty: &Arc<Duty>, taken: &std::sync::atomic::AtomicBool) -> bool {
+        let mut window = self.window.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        if window.pass.as_ref().is_some_and(|pass| Arc::ptr_eq(&pass.duty, duty)) {
+            // **The ticket is still armed**: it is thrown away, so that a later
+            // request that matches it does not go through without a new
+            // approval.
+            window.pass = None;
+            return false;
+        }
+        // **The ticket is gone.** Either the route spent it — and the watch it
+        // started owns the driving — or the dispatch threw it away, and the
+        // driving is still ours. The flag says which, and it is read under this
+        // lock, so a route that is spending it right now cannot be missed.
+        taken.load(std::sync::atomic::Ordering::SeqCst)
     }
 
     /// **Throws the answer away.** Used when the dispatch could not be carried
     /// out: the person said yes, and nothing went — so the answer must not be
     /// left where a later request of ours could pick it up and send.
     pub async fn revoke_pass(&self) {
-        self.inner.lock().await.pass = None;
+        self.window.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).pass = None;
     }
 
     /// Whether an answer is still waiting to be claimed, which is how a dispatch
     /// finds out that the request it started never arrived.
     pub async fn answer_pending(&self) -> bool {
-        self.inner.lock().await.pass.is_some()
+        self.window.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).pass.is_some()
     }
 
     /// Waits, briefly, for the route to claim the answer — **true when it did**.
@@ -668,13 +1185,174 @@ impl Holds {
     /// else's code, and spending the answer on it is how "yes" turns into
     /// "something else". It is held like any other write, and the ticket is left
     /// there for the navigation that really is ours.
-    pub async fn takes_pass(&self, request: &Request) -> bool {
-        let mut inner = self.inner.lock().await;
-        if !inner.pass.as_ref().is_some_and(|wanted| wanted.matches(request)) {
-            return false;
+    ///
+    /// **And what the submission is waiting for comes back with it.** The duty
+    /// of ending the driving, and the navigation count this submission starts
+    /// from: **both are this submission's own**, because two submissions can
+    /// overlap and each of them has to wait for its own navigation and let go
+    /// of its own driving.
+    ///
+    /// **One lock, and no wait inside it.** The ticket is spent and the baseline
+    /// is taken together, so the count cannot move between the two, and a route
+    /// that is cancelled cannot be cancelled between them either: the watch it
+    /// starts is what owns the driving from that moment on.
+    pub async fn takes_pass(&self, request: &Request) -> Option<Approved> {
+        let mut window = self.window.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let pass = window.pass.as_ref()?;
+        if !pass.ticket.matches(request) {
+            return None;
         }
-        inner.pass = None;
-        true
+        let duty = pass.duty.clone();
+        // **The route spends it here**, under the lock that took it out, so the
+        // guard that armed it sees the fact at the same moment the watch that
+        // owns the driving is given it.
+        pass.taken.store(true, std::sync::atomic::Ordering::SeqCst);
+        window.pass = None;
+        // **This navigation is the one the person approved**, and it is counted
+        // as it goes by: the navigation that follows it — the redirect a server
+        // may answer with — is ours too, and the watch below waits for it.
+        // **The count is this submission's own baseline**, taken here, where
+        // the ticket is spent: a watch that read a shared count would wait from
+        // another submission's baseline.
+        Some(Approved { duty, baseline: window.navigations })
+    }
+
+    /// **Watches the answer of the request the person has just approved.**
+    ///
+    /// **A server may answer with a redirect, and a redirect is a navigation the
+    /// browser makes on its own.** It is ours, exactly as the first one is: the
+    /// receipt of what the person agreed to is the page they are owed, and a
+    /// redirect is how a server sends it. So the driving does not end with the
+    /// request — it ends with the navigation that follows it, and waiting for
+    /// that navigation is what this is.
+    ///
+    /// **It runs on a task of its own**, so the person who pressed the button
+    /// is not kept waiting for a server that has already answered, and the
+    /// answer to the press goes out as soon as the request is on its way.
+    ///
+    /// **The wait is bounded.** A server that answers and does not redirect has
+    /// nothing more to send, and a window held by a watch that waits for ever
+    /// is a window the person cannot take back.
+    pub fn watch_the_landing(&self, request: Request, approved: Approved) {
+        self.spawn_the_watch(
+            approved,
+            async move {
+                // **The answer to the request the person approved.** The request
+                // is in flight until the server answers, and a navigation in
+                // flight is ours: the receipt of what the person agreed to is
+                // the page they are owed. It is waited for and not assumed, and
+                // it is waited for **bounded**: a server that never answers must
+                // not hold the window for ever.
+                let _answered = tokio::time::timeout(ANSWER_WINDOW, request.response())
+                    .await
+                    .ok()
+                    .and_then(Result::ok)
+                    .flatten();
+            },
+            REDIRECT_WINDOW,
+        );
+    }
+
+    /// **The watch, on a task of its own, and the guard it owns.**
+    ///
+    /// **The guard is made here and moved into the task.** A watch that is
+    /// cancelled before it has ever run still drops it, and the drop is what
+    /// lets go of the driving — so the cleanup of an abnormal end does not
+    /// depend on the task having started. A guard that was only disarmed by the
+    /// call that handed the driving over would leave the window driven for ever
+    /// when the watch died.
+    fn spawn_the_watch<F>(
+        &self,
+        approved: Approved,
+        answer: F,
+        window: Duration,
+    ) -> tokio::task::JoinHandle<()>
+    where
+        F: std::future::Future<Output = ()> + Send + 'static,
+    {
+        let holds = self.clone();
+        let guard = self.guard_of(approved.duty.clone());
+        tokio::spawn(async move {
+            holds.watch_for_the_landing(approved, guard, answer, window).await;
+        })
+    }
+
+    /// **Waits for the navigation that follows the one the person approved, and
+    /// then lets go of the driving.**
+    ///
+    /// **The guard is the watch's own**, and it is held for the whole watch: it
+    /// is what lets go of the driving when the navigation has passed, and what
+    /// lets go of it when the watch dies before it has.
+    async fn watch_for_the_landing<F>(
+        &self,
+        approved: Approved,
+        guard: Driving,
+        answer: F,
+        window: Duration,
+    ) where
+        F: std::future::Future<Output = ()> + Send + 'static,
+    {
+        answer.await;
+        // **And the navigation that follows the submission's own.** A server may
+        // answer with a redirect, and a redirect is a navigation the browser
+        // makes on its own — ours, exactly as the first one is. **A redirect
+        // the browser makes as a request of its own** — a page that sends the
+        // browser on, which is what most receipts do — is a navigation the
+        // route sees, and it is judged like any other: with nobody driving it,
+        // it would be the person's own, and it would take the page away from
+        // the conversation that earned it.
+        self.wait_for_the_navigation(approved.baseline, window).await;
+        // **And the window is the person's again — if this submission still has
+        // it.** A watch that ends late finds the window driving somebody else's
+        // submission, and leaves it to them.
+        guard.release();
+    }
+
+    /// **The guard for a driving this duty is about, without taking it again.**
+    ///
+    /// **The watch's own copy of the duty.** It is what lets go of the driving
+    /// when the navigation has passed, and what lets go of it when the watch
+    /// dies before it has.
+    fn guard_of(&self, duty: Arc<Duty>) -> Driving {
+        Driving { holds: self.clone(), duty, may_let_go: true }
+    }
+
+    /// **Waits for the navigation that follows the confirmed submission's own.**
+    ///
+    /// **From this submission's own baseline, and not from a shared count.**
+    /// Two submissions can overlap, and the watch of the first one is still
+    /// waiting when the second is confirmed: each of them waits for the
+    /// navigation that follows its own submission, and neither waits for the
+    /// other's.
+    ///
+    /// Bounded, and it says why: the browser makes the redirect as soon as it
+    /// has the answer, and a window the person cannot take back is worse than
+    /// a receipt that arrives a moment later.
+    ///
+    /// **And it says whether the navigation came**, because that is the whole
+    /// of what the wait is for.
+    async fn wait_for_the_navigation(&self, baseline: u64, window: std::time::Duration) -> bool {
+        let deadline = std::time::Instant::now() + window;
+        loop {
+            if self.navigation_has_moved(baseline).await {
+                return true;
+            }
+            if std::time::Instant::now() >= deadline {
+                return false;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        }
+    }
+
+    /// **Whether a main-frame navigation has passed since the one this confirmed
+    /// submission caused.**
+    ///
+    /// **From this submission's own baseline.** A count that was shared between
+    /// two submissions would answer the question for the wrong one, and the watch
+    /// of the submission that came first would wait for a navigation that is
+    /// not its own.
+    async fn navigation_has_moved(&self, baseline: u64) -> bool {
+        self.window.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).navigations > baseline
     }
 
     /// The four-part comparison on its own, with no request and no frame.
@@ -686,14 +1364,21 @@ impl Holds {
     /// is deliberately *not* what a probe is stopped by: a probe with a
     /// byte-identical body passes this and is still held, because it is not a
     /// navigation.
+    ///
+    /// **And it answers what the route answers, and no less.** The submission's
+    /// own duty and its own baseline come back with it, so a proof about two
+    /// overlapping submissions is a proof about the same thing the route does.
     #[cfg(test)]
-    pub async fn takes_parts(&self, method: &str, url: &str, content_type: &str, body: &[u8]) -> bool {
-        let mut inner = self.inner.lock().await;
-        if !inner.pass.as_ref().is_some_and(|wanted| wanted.matches_parts(method, url, content_type, body)) {
-            return false;
+    pub async fn takes_parts(&self, method: &str, url: &str, content_type: &str, body: &[u8]) -> Option<Approved> {
+        let mut window = self.window.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let pass = window.pass.as_ref()?;
+        if !pass.ticket.matches_parts(method, url, content_type, body) {
+            return None;
         }
-        inner.pass = None;
-        true
+        let duty = pass.duty.clone();
+        pass.taken.store(true, std::sync::atomic::Ordering::SeqCst);
+        window.pass = None;
+        Some(Approved { duty, baseline: window.navigations })
     }
 
     /// Declines everything nobody answered. Called when the window goes: a held
@@ -770,9 +1455,9 @@ fn new_id() -> String {
 /// ignore is not stopped by ignoring the header; it is stopped by **not being
 /// able to claim the ticket at all**: a `fetch`, an XHR or a beacon is never a
 /// navigation request, so a page racing the approved write with
-/// `X-HTTP-Method-Override` and the same URL and body gets held like any other
-/// write. A frame's own navigation cannot claim it either, so only the
-/// navigation FIRE starts — in the main document — is let through.
+/// `X-HTTP-Method-Override` and the same URL and body is not let through. A
+/// frame's own navigation cannot claim it either, so only the navigation FIRE
+/// starts — in the main document — is let through.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Ticket {
     method: String,
@@ -813,7 +1498,7 @@ impl Ticket {
     /// same URL and body and a header that changes what the server does with it
     /// — is not the request the person was shown, and is held.
     pub fn matches(&self, request: &Request) -> bool {
-        if !request.is_navigation_request() || request.frame().and_then(|frame| frame.parent_frame()).is_some() {
+        if !is_main_frame_navigation(request) {
             return false;
         }
         self.matches_parts(
@@ -835,6 +1520,16 @@ impl Ticket {
             && kind(&self.content_type) == kind(content_type)
             && self.body == body
     }
+}
+
+/// Whether this request is the main document's and nothing else: a
+/// navigation, in the frame with no parent.
+///
+/// **An iframe that navigates is not the page the person is looking at**, and
+/// a page's own `fetch` never was: both are the page talking, and the window
+/// the person has is the one at the top.
+fn is_main_frame_navigation(request: &Request) -> bool {
+    request.is_navigation_request() && request.frame().is_some_and(|frame| frame.parent_frame().is_none())
 }
 
 /// Whether this method is a read. A GET is the only one: a HEAD asks the site to
@@ -882,6 +1577,9 @@ pub const TOO_LONG: &str = "its address is longer than 8 KiB, which is more than
 ///
 /// A body the person cannot be shown is not held — there would be no card to ask
 /// about — so it is refused here and the model is told why on its next call.
+///
+/// Data-channel requests reach this hold through the typed-secret checks.
+/// Intercepted navigation submissions retain their confirmation path.
 /// Public because the browser tests stand in for the **address** decision and
 /// not for this one: they route a fixture through here so a real form post can be
 /// held for real, the same way `guard::install` holds it.
@@ -905,14 +1603,14 @@ pub async fn hold_write(
         route.abort(Some("blockedbyclient")).await?;
         return Ok(());
     }
+    // What the person typed into a secret field, on this side of the wire.
+    let typed = holds.typed().await.values();
     // A read that is not one has nothing in a body to show: what it carries is
     // in its address, and the address is shown whole.
     if is_read(request.method()) {
-        let typed = holds.typed().await.values();
         let shown = address_of(request.url(), &typed);
         return park(holds, shown, route).await;
     }
-    let typed = holds.typed().await.values();
     let mut fields: Vec<Field> = match body::show(&content_type, &body) {
         // **The real values, flagged where a name reads as a secret or where the
         // value is one the person typed.** A request that got this far has no
@@ -1095,7 +1793,10 @@ pub fn awaiting(id: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{address_of, destination_of, query_fields, Answer, Card, Holds, Outcome, Ticket, EXPIRY, FULL, MAX_HELD, NOWHERE};
+    use super::{
+        address_of, destination_of, query_fields, Answer, Approved, Card, Driving, Holds, Outcome, Ticket, EXPIRY, FULL,
+        MAX_HELD, NOWHERE,
+    };
     use crate::body::Field;
     use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
     use std::sync::Arc;
@@ -1686,18 +2387,20 @@ mod tests {
     #[tokio::test]
     async fn a_request_that_is_not_the_one_approved_neither_goes_nor_spends_the_answer() {
         let holds = holds_in(CHAT).await;
-        holds.pass_next(Ticket::of_parts("POST", "https://shop.example/order", "text/plain", b"a=1".to_vec())).await;
+        let driving = holds.drive(CHAT);
+        let _armed =
+            holds.pass_next(Ticket::of_parts("POST", "https://shop.example/order", "text/plain", b"a=1".to_vec()), driving);
 
         assert!(
-            !holds.takes_parts("POST", "https://shop.example/order", "text/plain", b"a=2").await,
+            holds.takes_parts("POST", "https://shop.example/order", "text/plain", b"a=2").await.is_none(),
             "the same address with a different body is held, not let through"
         );
         assert!(
-            holds.takes_parts("POST", "https://shop.example/order", "text/plain", b"a=1").await,
+            holds.takes_parts("POST", "https://shop.example/order", "text/plain", b"a=1").await.is_some(),
             "and the approved request still has its ticket"
         );
         assert!(
-            !holds.takes_parts("POST", "https://shop.example/order", "text/plain", b"a=1").await,
+            holds.takes_parts("POST", "https://shop.example/order", "text/plain", b"a=1").await.is_none(),
             "which is spent on use, so a second one is held too"
         );
     }
@@ -1876,5 +2579,367 @@ mod tests {
         // that could have made that request.
         holds.navigated_by("chat-b").await;
         assert_eq!(holds.stamp_for_the_page().await, "chat-b");
+    }
+
+    /// **A call that panics lets go of the window.**
+    ///
+    /// The release is on **every** way out of a call — the answer it gave, the
+    /// error it hit, the panic it took, the wait that was cut short — because
+    /// the person has the window back only when nobody is driving it. A
+    /// release that ran only on the happy path left the window ours after a
+    /// panic, and a window that is ours when nobody is driving it is a window
+    /// the person cannot take back.
+    ///
+    /// **The unwind is the real one.** The guard is dropped by the panic, exactly
+    /// as a call that panicked in the middle of driving the window would drop
+    /// it — and a `Drop` is what runs on that way out.
+    #[tokio::test]
+    async fn a_call_that_panics_lets_go_of_the_window() {
+        let holds = holds_in(CHAT).await;
+
+        let panicked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _driving = holds.drive(CHAT);
+            assert_eq!(holds.driving_now().as_deref(), Some(CHAT), "the call is driving the window");
+            panic!("the call went down in the middle of driving the window");
+        }));
+
+        assert!(panicked.is_err(), "the call panicked, as this proof says it does");
+        assert_eq!(holds.driving_now(), None, "and the panic let go of the window");
+    }
+
+    /// **And the page the person opens by hand after that is nobody's.**
+    ///
+    /// This is what the panic costs when it is not paid: the person's next
+    /// navigation is read as ours — the window was still driving — so the page
+    /// they opened by hand stays ours, and a phone is shown a picture of a page
+    /// they opened themselves. The navigation is the person's own, and with
+    /// nobody driving the window it takes the page back.
+    #[tokio::test]
+    async fn the_page_the_person_opens_after_a_panic_is_nobody_s() {
+        let holds = holds_in(CHAT).await;
+        holds.navigated_by(CHAT).await;
+        assert_eq!(holds.stamp_for_the_page().await, CHAT, "the page is ours to begin with");
+
+        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _driving = holds.drive(CHAT);
+            panic!("the call went down in the middle of driving the window");
+        }));
+
+        // **The person's own navigation**, with nobody driving the window.
+        holds.a_main_frame_navigation().await;
+
+        assert_eq!(holds.stamp_for_the_page().await, "", "the page belongs to nobody");
+        assert_eq!(holds.stamp_for_our_call().await, "", "not even to the last actor");
+    }
+
+    /// **A call that hands the driving over does not let go of it.** A confirmed
+    /// submission is answered with a navigation that is ours too, and that
+    /// navigation is not the call's to release: the watch that waited for it
+    /// does that. So the guard gives up the right to release and keeps the
+    /// driving as it is.
+    #[tokio::test]
+    async fn a_guard_that_hands_the_driving_over_does_not_let_go_of_it() {
+        let holds = holds_in(CHAT).await;
+
+        holds.drive(CHAT).hand_over();
+
+        assert_eq!(holds.driving_now().as_deref(), Some(CHAT), "the driving is still ours");
+    }
+
+    /// **A call that ends lets go of the window**, and it says so on the way
+    /// out rather than on the way in: the person has the window back as soon as
+    /// the call is done with it.
+    #[tokio::test]
+    async fn a_call_that_ends_lets_go_of_the_window() {
+        let holds = holds_in(CHAT).await;
+
+        let driving = holds.drive(CHAT);
+        assert_eq!(holds.driving_now().as_deref(), Some(CHAT));
+        driving.release();
+
+        assert_eq!(holds.driving_now(), None, "the window is the person's again");
+    }
+
+    /// A confirmed submission, and what the route is given for it: **the duty
+    /// of ending the driving it owns, and the navigation it starts from.**
+    ///
+    /// The same two things the product's route is given, asked of the store
+    /// without a request: a proof about two overlapping submissions is a proof
+    /// about the same thing the route does.
+    async fn approve(holds: &Holds, driving: Driving, url: &str) -> Approved {
+        let ticket = Ticket::of_parts("POST", url, "text/plain", url.as_bytes().to_vec());
+        let _armed = holds.pass_next(ticket, driving);
+        holds.takes_parts("POST", url, "text/plain", url.as_bytes()).await.expect("the submission is approved")
+    }
+
+    /// **The request these proofs are about**: one write, one order.
+    const ORDER: &str = "https://shop.example/order";
+    /// The body of that request, byte for byte.
+    const BODY: &[u8] = b"a=1";
+
+    /// **The ticket for that request**, armed for one driving.
+    fn ticket_of_the_order() -> Ticket {
+        Ticket::of_parts("POST", ORDER, "text/plain", BODY.to_vec())
+    }
+
+    /// **Two confirmed submissions that overlap, and each of them ends its own
+    /// driving.**
+    ///
+    /// The watch of the first submission is still waiting when the second one
+    /// is confirmed, and the first watch ends while the second is still waiting
+    /// for its answer. **A release that was not conditional would take the
+    /// driving away from the second submission**: the navigation it is waiting
+    /// for would lose its owner, the receipt would belong to nobody, and the
+    /// page the person is looking at would fall out of the conversation that
+    /// earned it.
+    ///
+    /// **The two watches run at once, and the interleaving is arranged rather
+    /// than waited for.** The first watch is let go through a channel and ends
+    /// on the navigation that is its own receipt; the second watch is never let
+    /// go and is still waiting when the first one ends. **And both handles are
+    /// collected**, so a watch that panicked would fail the proof instead of
+    /// being forgotten.
+    #[tokio::test]
+    async fn two_submissions_that_overlap_each_release_their_own_driving() {
+        let holds = holds_in(CHAT).await;
+
+        // **The first submission**, and the driving that belongs to it.
+        let first = holds.drive(CHAT);
+        let first_owner = holds.driving_owner().expect("the first submission drives the window");
+        let first_approved = approve(&holds, first, "https://shop.example/one").await;
+        // **And the driving is still ours.** The guard that armed the ticket
+        // hands it over to the watch the route started rather than letting go
+        // of it — the watch is what ends it — and this is what says that it did.
+        assert_eq!(holds.driving_owner(), Some(first_owner), "the first submission still drives the window");
+
+        // **And the second, while the first watch is still waiting.**
+        let second = holds.drive(CHAT);
+        let second_owner = holds.driving_owner().expect("the second submission drives the window");
+        let second_approved = approve(&holds, second, "https://shop.example/two").await;
+        assert_ne!(first_owner, second_owner, "two drivings, and two names for them");
+
+        // **Both watches, running at once.** Each is let go through a channel;
+        // the first is let go first, and the second is still waiting when the
+        // first one ends.
+        let (go, wait) = tokio::sync::oneshot::channel::<()>();
+        let (go_second, wait_second) = tokio::sync::oneshot::channel::<()>();
+        let first_task =
+            holds.spawn_the_watch(first_approved, async move { let _ = wait.await; }, Duration::from_secs(30));
+        let second_task =
+            holds.spawn_the_watch(second_approved, async move { let _ = wait_second.await; }, Duration::from_secs(30));
+
+        // **The first watch is let go**, and waits for the navigation that is
+        // its own receipt.
+        go.send(()).expect("the first watch is waiting for it");
+        holds.a_main_frame_navigation().await;
+
+        // **The first watch ends**, and it ends its own driving and no other.
+        first_task.await.expect("the first watch is not a panic");
+        assert_eq!(
+            holds.driving_owner(),
+            Some(second_owner),
+            "the driving is still the second submission's: the first watch did not take it away"
+        );
+        assert_eq!(holds.driving_now().as_deref(), Some(CHAT), "and the window is still being driven");
+
+        // **And the second watch is still waiting**: it was never let go, and
+        // the first watch ending is not what ends it.
+        assert!(!second_task.is_finished(), "the second watch is still waiting for its own answer");
+
+        // **And the receipt of the second submission is still its own.** A
+        // navigation while the second submission is driving is ours, and the
+        // page stays the conversation's.
+        holds.navigated_by(CHAT).await;
+        holds.a_main_frame_navigation().await;
+        assert_eq!(holds.stamp_for_the_page().await, CHAT, "the receipt belongs to the conversation");
+
+        // **And the second watch ends the second driving, and only that one.**
+        go_second.send(()).expect("the second watch is waiting for it");
+        second_task.await.expect("the second watch is not a panic");
+        assert_eq!(holds.driving_now(), None, "and now the window is the person's again");
+    }
+
+    /// **A ticket that was armed and then abandoned is taken back.**
+    ///
+    /// The call that arms the ticket can be cut short — the window closes, the
+    /// person walks away, the app is shut down — and **the ticket it armed must
+    /// not stay armed**: a later request that matches it would go through
+    /// without a new approval, and the person would never have been asked.
+    ///
+    /// **And the window comes back.** The call that armed the ticket was
+    /// driving the window, and nobody else owns it.
+    #[tokio::test]
+    async fn a_ticket_that_was_armed_and_then_abandoned_is_taken_back() {
+        // **The control**: an armed ticket lets the request it was armed for
+        // through — so what the proof below shows is the difference the abort
+        // makes, and not a ticket that never worked.
+        let control = holds_in(CHAT).await;
+        let control_driving = control.drive(CHAT);
+        let _control_armed = control.pass_next(ticket_of_the_order(), control_driving);
+        assert!(
+            control.takes_parts("POST", ORDER, "text/plain", BODY).await.is_some(),
+            "an armed ticket lets its own request through"
+        );
+
+        // **And the abort**: the call that armed the ticket is cut short, and
+        // nobody has spent it.
+        let holds = holds_in(CHAT).await;
+        let driving = holds.drive(CHAT);
+        let armed = holds.pass_next(ticket_of_the_order(), driving);
+        drop(armed);
+
+        // **So a later request that matches the ticket does not go through**:
+        // it is held like any other write, and the person is asked again.
+        assert!(
+            holds.takes_parts("POST", ORDER, "text/plain", BODY).await.is_none(),
+            "the ticket was taken back, so the request is held like any other"
+        );
+        // **And the window is the person's again**: nobody else owns it.
+        assert_eq!(holds.driving_now(), None, "the driving was let go of");
+    }
+
+    /// **A ticket that was spent is left to the watch.**
+    ///
+    /// The route spends the ticket and hands the duty to the watch it starts,
+    /// and the watch is what ends the driving. **So a call that is cut short
+    /// after the ticket was spent must not let go of the driving**: the watch
+    /// owns it, and a guard that let go of it here would take the window away
+    /// from the submission that has it — before the watch that is waiting for
+    /// the receipt has finished.
+    #[tokio::test]
+    async fn a_ticket_that_was_spent_is_left_to_the_watch() {
+        let holds = holds_in(CHAT).await;
+        let driving = holds.drive(CHAT);
+        let armed = holds.pass_next(ticket_of_the_order(), driving);
+
+        // **The route spends the ticket**, and hands it to the watch it starts.
+        let approved = holds
+            .takes_parts("POST", ORDER, "text/plain", BODY)
+            .await
+            .expect("the request is the one the person approved");
+
+        // **And now the call is cut short.**
+        drop(armed);
+
+        // **The driving is still ours**: the watch owns it, and the guard did
+        // not take the window away from the submission that has it.
+        assert_eq!(holds.driving_now().as_deref(), Some(CHAT), "the watch still has the driving");
+
+        // **And the watch ends it**, when its own wait is over.
+        let task = holds.spawn_the_watch(approved, std::future::ready(()), Duration::from_millis(50));
+        task.await.expect("the watch is not a panic");
+        assert_eq!(holds.driving_now(), None, "and now the window is the person's again");
+    }
+
+    /// **A release cannot get between the count of a navigation and the
+    /// judgment of who owns the page.**
+    ///
+    /// The count is what tells a confirmed submission's own navigation from the
+    /// one that follows it, and the judgment is what says whether the page is
+    /// ours. **They have to be read at the same moment**: a navigation counted
+    /// as ours and then found nobody's is a page that lost its owner between
+    /// one look and the next, and the receipt of what the person approved
+    /// belongs to nobody.
+    ///
+    /// **So the release is put exactly where the two used to be apart** — at the
+    /// gate between them — and it cannot get in: the count and the owner are
+    /// under one lock, and the release needs that lock.
+    #[tokio::test]
+    async fn a_release_cannot_get_between_the_count_and_the_judgment() {
+        let holds = holds_in(CHAT).await;
+        let _driving = holds.drive(CHAT);
+        holds.navigated_by(CHAT).await;
+        let token = holds.driving_owner().expect("the window is being driven");
+
+        // **The release, at the gate between the count and the judgment.**
+        let releaser = holds.clone();
+        let got_in = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let said = got_in.clone();
+        holds.gate_the_navigation(move || {
+            said.store(releaser.try_let_go_of(token), std::sync::atomic::Ordering::SeqCst);
+        });
+
+        holds.a_main_frame_navigation().await;
+
+        // **The release could not get in**, because the count is taken under the
+        // lock that holds the owner.
+        assert!(!got_in.load(std::sync::atomic::Ordering::SeqCst), "the release cannot get between the count and the judgment");
+        // **And the navigation was counted**: it is the receipt of a submission.
+        assert_eq!(holds.navigations_so_far(), 1, "the navigation was counted");
+        // **And the page is still the conversation's** — the owner was read at
+        // the same moment the count was taken, and nobody had let go of the
+        // driving then.
+        assert_eq!(holds.stamp_for_the_page().await, CHAT, "the page keeps its owner");
+    }
+
+    /// **Each submission waits for its own navigation.**
+    ///
+    /// A confirmed submission is answered with a navigation that is ours, and
+    /// the watch waits for the navigation that follows it. **Two submissions
+    /// that overlap each have their own baseline**: the navigation that is the
+    /// first one's receipt came before the second one was confirmed, so it is
+    /// not the second one's — and a watch that read a shared count would wait
+    /// for the wrong one, and let go at the wrong time.
+    #[tokio::test]
+    async fn each_submission_waits_for_its_own_navigation() {
+        let holds = holds_in(CHAT).await;
+
+        // The first submission, and the navigation that is its receipt.
+        let first = holds.drive(CHAT);
+        let first_approved = approve(&holds, first, "https://shop.example/one").await;
+        holds.a_main_frame_navigation().await;
+        // The second submission, confirmed after that navigation: its own
+        // baseline is one further on.
+        let second = holds.drive(CHAT);
+        let second_approved = approve(&holds, second, "https://shop.example/two").await;
+
+        // **The first watch sees its own receipt** — the navigation that came
+        // after its own baseline.
+        assert!(
+            holds.wait_for_the_navigation(first_approved.baseline, Duration::from_millis(50)).await,
+            "the first submission sees the navigation that is its own receipt"
+        );
+        // **And the second watch does not**: that navigation came before its
+        // baseline, so it is not its receipt, and the second watch is still
+        // waiting for its own.
+        assert!(
+            !holds.wait_for_the_navigation(second_approved.baseline, Duration::from_millis(50)).await,
+            "and the second submission does not: that navigation is not its own"
+        );
+    }
+
+    /// **A watch that dies lets go of the driving.**
+    ///
+    /// The watch is a task of its own, and a task can end in ways nobody
+    /// planned: cancelled, or ended by a panic. **The duty it holds is what
+    /// cleans up** — the guard is dropped on the way out, and the drop is what
+    /// lets go of the driving. A guard that was only disarmed by the call that
+    /// handed the driving over would leave the window driven for ever when the
+    /// watch died, and the person's own navigation would be read as ours.
+    #[tokio::test]
+    async fn a_watch_that_dies_lets_go_of_the_driving() {
+        let holds = holds_in(CHAT).await;
+
+        let driving = holds.drive(CHAT);
+        let owner = holds.driving_owner().expect("the submission drives the window");
+        let approved = approve(&holds, driving, "https://shop.example/one").await;
+        // **The call hands the driving over**, as the call that fires a
+        // confirmed submission does: the watch is what ends it. **The guard
+        // that armed the ticket is what hands it over**, and it does it by
+        // itself once it finds the ticket spent.
+        assert_eq!(holds.driving_owner(), Some(owner), "the driving is still ours");
+
+        // **The watch, on a task of its own.** The answer never comes, so the
+        // watch is still waiting when it is killed — and the guard it owns is
+        // dropped on the way out, whether the task is killed before it has run
+        // or while it waits.
+        let task = holds.spawn_the_watch(approved, std::future::pending::<()>(), Duration::from_secs(30));
+        // Long enough for the task to have started and taken the guard.
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        task.abort();
+        let _ = task.await;
+
+        assert_eq!(holds.driving_owner(), None, "the dead watch let go of the driving");
+        assert_eq!(holds.driving_now(), None, "and the window is the person's again");
     }
 }

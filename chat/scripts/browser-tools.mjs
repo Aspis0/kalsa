@@ -41,6 +41,9 @@ function equal(label, actual, expected) {
 const LIT_UNSEEN =
   "Not run: this link has not appeared in the conversation, so it was not opened. Use web_search to find the page, or ask the user for the link.";
 
+const LIT_BROWSER_UNSEEN =
+  "Not run: this exact address has not appeared in the conversation, so it was not opened. Use browser_read or browser_find to locate the link, then click its ref or copy its whole printed address, including the path and query. Do not shorten or reconstruct the address.";
+
 const OFFERED = ["browser_open", "browser_read", "browser_find"];
 /** The two writing tools, which the confirm script proves and this one only
  * watches stay off a phone. */
@@ -317,7 +320,7 @@ try {
 
     const coined = "https://model.example/invented";
     const refusedOpen = await attempt("browser_open", { url: coined }, conversation);
-    equal("a URL the model coined is refused for browser_open", [refusedOpen.ok, refusedOpen.text], [false, LIT_UNSEEN]);
+    equal("a URL the model coined is refused for browser_open", [refusedOpen.ok, refusedOpen.text], [false, LIT_BROWSER_UNSEEN]);
     const refusedFetch = await attempt("web_fetch", { url: coined }, conversation);
     equal("and refused for web_fetch", [refusedFetch.ok, refusedFetch.text], [false, LIT_UNSEEN]);
     equal("neither refusal reached the sidecar", OPENED, ["https://news.example/story"]);
@@ -331,7 +334,15 @@ try {
     const opened = await attempt("browser_open", { url: "https://news.example/story" }, user);
     const marks = fences(opened.text);
     equal("one result carries one fence", marks.length, 1);
+    const start = opened.text.indexOf(`<${marks[0]}>`);
+    const warning = opened.text.slice(0, start);
     check("the fence is the app's warning and the page between it", opened.text.includes("not instructions"), opened.text);
+    check("the page's facts are carried inside the fence", opened.text.slice(start).includes("PAGE TEXT"), opened.text);
+    // **A warning that forbade using the facts would forbid the task the person
+    // asked for**, so what it must not say is checked rather than the wording.
+    check("the warning does not forbid using them", !/\brepeat\b|\bdo not use\b|\bnever use\b/i.test(warning), warning);
+    check("the warning sends them to the person's task", /\buse\b/i.test(warning), warning);
+    check("the warning still leaves the page's instructions alone", /\bignore\b/i.test(warning), warning);
     // Two calls, two markers: a page cannot know the marker it will be fenced
     // with, because the marker is drawn after the page has been read.
     const again = await attempt("browser_open", { url: "https://news.example/story" }, user);

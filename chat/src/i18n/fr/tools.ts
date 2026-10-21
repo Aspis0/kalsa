@@ -93,6 +93,7 @@ export const TOOLS = {
     "invalid": "Le formulaire ne l'a pas laissé passer.",
     "paused": "Tu as demandé à Kalsa de s'arrêter dans le navigateur.",
     "busy": "Kalsa s'occupe du navigateur.",
+    "noPendingRequest": "Cette requête n'attend plus de réponse.",
     "deterministic": "Cela a déjà échoué comme ça une fois.",
     "tooManySteps": "C'est trop d'étapes dans le navigateur pour un tour.",
     "alreadyRun": "C'était déjà fait.",

@@ -5,6 +5,7 @@ import type { Round } from "./streamRound";
 import { isToolRefusal } from "./refusal";
 import { createAnswerHold, createReasoningHold } from "./answerHold";
 import type { ReasoningHold } from "./answerHold";
+import { BROWSER_CALLS_PER_TURN } from "./callLedger";
 import { accumulate } from "./toolCalls";
 import type { ToolCall } from "./toolCalls";
 import { canonicalToolName } from "./repairToolCall";
@@ -31,9 +32,14 @@ import type { ToolDefinition } from "./tools/definitions";
     for the answer itself. */
 const MAX_TOOL_ROUNDS = 4;
 
-/** Opening, reading, filling four fields and clicking Submit takes seven calls,
-    so browser turns need room beyond the search budget. */
-const MAX_BROWSER_ROUNDS = 8;
+/** A browser turn may spend the whole call budget, one call at a time: the two
+    limits are the same number, so the calls stop a turn, not the round count. */
+const MAX_BROWSER_ROUNDS = BROWSER_CALLS_PER_TURN;
+
+/** What the last request says about the turn's own state: the calls are done,
+    so the answer comes now, from what arrived, and promises nothing more. */
+const FINAL_STATUS =
+  "[Kalsa execution status] No tool calls remain in this turn. Give the final answer now using the results already received. State what is unverified or incomplete, and do not promise another action.";
 
 function maxToolRounds(offered: string[]): number {
   return offered.some((name) => BROWSER_NAMES.has(name)) ? MAX_BROWSER_ROUNDS : MAX_TOOL_ROUNDS;
@@ -77,6 +83,7 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
   // left to shed, leaves as it came, and the caller shows the oversize
   // sentence for that one.
   async function askRound(
+    messages: WireMessage[],
     offer: ToolDefinition[],
     toolChoice: "auto" | "none",
     hideInventedCalls: boolean,
@@ -89,10 +96,10 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
         : { ...options, onToken: hold?.push ?? options.onToken, onReasoning: reason?.push ?? options.onReasoning };
     for (;;) {
       try {
-        return await runRound(sinks, conversation, offer, toolChoice, hideInventedCalls);
+        return await runRound(sinks, messages, offer, toolChoice, hideInventedCalls);
       } catch (error) {
         if (!(error instanceof ChatRequestError) || error.kind !== "oversize") throw error;
-        if (!shedOlderHalf(conversation)) throw error;
+        if (!shedOlderHalf(messages)) throw error;
       }
     }
   }
@@ -110,6 +117,10 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
   }
 
   let forceWords = false;
+  // Whether this turn called a tool, and whether the final status has gone out
+  // already: both are facts of this turn alone.
+  let calledTool = false;
+  let statusSent = false;
   // Whether the app has already drawn what this turn asked for. A mail list the
   // person can see is not a half-finished check, so a model that then rambles,
   // re-lists the mails or asks for tools again cannot end the turn as a failure.
@@ -146,9 +157,19 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
               },
         )
       : null;
+    // The final request needs execution state as well as tool_choice. Copy
+    // the tool message so the status stays off the stored result.
+    let messages = conversation;
+    if (last && !statusSent && calledTool) {
+      const marked = withFinalStatus(conversation);
+      if (marked !== null) {
+        messages = marked;
+        statusSent = true;
+      }
+    }
     let answered: Round;
     try {
-      answered = await askRound(tools, last ? "none" : "auto", hideInventedCalls, hold, reason);
+      answered = await askRound(messages, tools, last ? "none" : "auto", hideInventedCalls, hold, reason);
     } catch (error) {
       // The round died on the way out, so it never stands: nothing it held is
       // sent. The answer text still settles as it always has.
@@ -173,7 +194,7 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
       options.onWithdraw?.(answered.reasoning);
       logUiEvent("chat.retry_without_tools");
       fitHistory();
-      await askRound([], "none", false, null);
+      await askRound(conversation, [], "none", false, null);
       return;
     }
     // A round that said nothing in words leaves the reader with an empty turn,
@@ -204,6 +225,12 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
         if (askForWords) {
           forceWords = true;
           continue;
+        }
+        // The capped round is the last one: a round that showed nothing would
+        // end the turn blank.
+        if (last && answered.text.trim() === "") {
+          options.onToken(say.noRoundLeft);
+          logUiEvent("chat.cap_no_answer");
         }
         return;
       }
@@ -281,6 +308,7 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
       results.push(answer.result);
       wireTexts.push(answer.wire);
     }
+    calledTool = true;
 
     // What the model asked for, then what it got. Both go back on the wire as
     // an ordinary turn, matched by id, before it is asked again. `named` is
@@ -299,6 +327,15 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
       conversation.push({ role: "tool", content: results[index], tool_call_id: call.id });
     });
   }
+}
+
+// Copy only the final tool message so the status stays off the stored result
+// and every earlier message keeps its cached prefix.
+function withFinalStatus(conversation: WireMessage[]): WireMessage[] | null {
+  const at = conversation.length - 1;
+  const last = conversation[at];
+  if (last === undefined || last.role !== "tool" || typeof last.content !== "string") return null;
+  return [...conversation.slice(0, at), { ...last, content: `${last.content}\n\n${FINAL_STATUS}` }];
 }
 
 /**

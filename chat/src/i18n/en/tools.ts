@@ -110,6 +110,7 @@ export const TOOLS = {
     invalid: "The form would not let it go.",
     paused: "You asked Kalsa to stop in the browser.",
     busy: "Kalsa is busy with the browser.",
+    noPendingRequest: "That request is not waiting for an answer any more.",
     deterministic: "That failed the same way once already.",
     tooManySteps: "That is more browser steps than a turn may take.",
     alreadyRun: "That was already done.",

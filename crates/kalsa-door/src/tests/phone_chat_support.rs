@@ -4,7 +4,7 @@
 use std::io::Write;
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::sync::mpsc::{self, Sender};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -43,6 +43,13 @@ pub(super) struct Page {
     /// card it was needs to see which phone pressed it.
     pub(super) answers: Mutex<Vec<(u32, String, bool)>>,
     pub(super) answer_browser: Option<Result<Value, String>>,
+    /// Every preview, with the device that asked for it: a proof about whose
+    /// page it was needs to see which phone asked.
+    pub(super) previews: Mutex<Vec<u32>>,
+    pub(super) preview_answer: Option<Result<Value, String>>,
+    /// A gate the preview waits at, so a proof about the lane can hold one
+    /// preview open while the next one arrives.
+    pub(super) preview_release: Option<Arc<Mutex<mpsc::Receiver<()>>>>,
     pub(super) refuse_opens: bool,
     /// The devices the app holds switched off this computer's mail, by id.
     pub(super) mail_off: Vec<u32>,
@@ -94,6 +101,26 @@ impl PhoneChat for Page {
         }
         self.answer_browser.clone().unwrap_or_else(|| Ok(json!({"code": "sent", "host": "shop.example"})))
     }
+
+    /// The app's own rule: **the picture is the app's**, and the door carries
+    /// what it says. Modelled here rather than configured, because a harness
+    /// that always says yes would prove the door forwards and nothing about
+    /// the codes the phone is refused with.
+    fn preview(&self, device: DeviceId) -> Result<Value, String> {
+        self.previews.lock().unwrap().push(device.value());
+        if let Some(release) = &self.preview_release {
+            // The gate: the preview waits here, and the proof lets it go.
+            let _ = release.lock().unwrap().recv();
+        }
+        self.preview_answer.clone().unwrap_or_else(|| {
+            Ok(json!({
+                "image": "QUJD",
+                "media_type": "image/jpeg",
+                "host": "shop.example",
+                "taken_at": 1_700_000_000_000_u64,
+            }))
+        })
+    }
 }
 
 impl Page {
@@ -116,6 +143,11 @@ impl Page {
     /// The device every open so far carried, in order.
     pub(super) fn opened_devices(&self) -> Vec<u32> {
         self.open_devices.lock().unwrap().clone()
+    }
+
+    /// The device every preview so far carried, in order.
+    pub(super) fn previewed(&self) -> Vec<u32> {
+        self.previews.lock().unwrap().clone()
     }
 
     /// Waits until the door has stopped request `request`, or gives up.

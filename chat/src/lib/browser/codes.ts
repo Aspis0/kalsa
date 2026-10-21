@@ -35,6 +35,9 @@ export const BROWSER_CODES = [
   "browser.paused",
   /** Kalsa is busy with the browser. */
   "browser.busy",
+  /** The request is not waiting for an answer any more: the card was already
+      spent, so nothing was sent and there is nothing to be unclear about. */
+  "browser.no_pending_request",
   /** The person pressed Stop while it was running. Nothing it was doing is retried. */
   "browser.stopped",
   /** The same action already failed with this code: running it again would fail the same way. */
@@ -74,7 +77,7 @@ export function isBrowserCode(code: unknown): code is BrowserCode {
  */
 export function browserCodeWords(
   code: BrowserCode,
-  t: { windowGone: string; refused: string; failed: string; noPage: string; elementGone: string; fieldGone: string; held: string; invalid: string; paused: string; busy: string; stopped: string; deterministic: string; tooManySteps: string; alreadyRun: string },
+  t: { windowGone: string; refused: string; failed: string; noPage: string; elementGone: string; fieldGone: string; held: string; invalid: string; paused: string; busy: string; noPendingRequest: string; stopped: string; deterministic: string; tooManySteps: string; alreadyRun: string },
 ): string {
   const words: Record<BrowserCode, string> = {
     "browser.window_gone": t.windowGone,
@@ -87,12 +90,57 @@ export function browserCodeWords(
     "browser.invalid": t.invalid,
     "browser.paused": t.paused,
     "browser.busy": t.busy,
+    "browser.no_pending_request": t.noPendingRequest,
     "browser.stopped": t.stopped,
     "browser.deterministic": t.deterministic,
     "browser.too_many_steps": t.tooManySteps,
     "browser.already_run": t.alreadyRun,
   };
   return words[code];
+}
+
+/**
+ * Whether a press that came back with this code never went anywhere.
+ *
+ * **The family of the press that never left.** The browser was busy, so nothing
+ * was sent; or the request was not waiting for an answer any more, so nothing
+ * was sent either. Both are the same thing to the person and to the model: the
+ * card comes back as it was, no outcome is queued, and the model is told
+ * nothing about a request that never left.
+ *
+ * **The card that was already answered is here, and not in the refusals.** The
+ * sidecar spends the id before it dispatches, so a press for a card that is
+ * gone finds nothing to press about — and a refusal that leaves an outcome
+ * behind would tell the model that a request it cannot account for went
+ * somewhere, when nothing went anywhere at all.
+ *
+ * **These are the two codes the sidecar's own rule names.** `leaves_an_outcome`
+ * in `src-tauri/src/browser/confirm.rs` is false for the busy browser and for
+ * the card that was already answered: a code that leaves no outcome there must
+ * leave none here, or the model is told about a request that never went.
+ */
+export function isPressThatNeverLeft(code: BrowserCode): boolean {
+  return code === "browser.busy" || code === "browser.no_pending_request";
+}
+
+/**
+ * Whether this press found a card that was already resolved somewhere else.
+ *
+ * **The other half of the family of the press that never left.** The browser was
+ * busy, so nothing was sent; or the request was not waiting for an answer any
+ * more, so nothing was sent either. Both leave the request unsent, and neither
+ * queues an outcome — but **they are not the same thing to the window**: a busy
+ * browser gives the card back, because the card is still the person's to press,
+ * and a card that was resolved elsewhere is closed for good, because there is
+ * nothing left to press about it.
+ *
+ * **The same list the sidecar's own rule names.** `leaves_an_outcome` in
+ * `src-tauri/src/browser/confirm.rs` is false for the busy browser and for the
+ * card that was already answered, and the card that is gone is the one the
+ * sidecar has already taken off its own table.
+ */
+export function isCardAlreadyResolved(code: BrowserCode): boolean {
+  return code === "browser.no_pending_request";
 }
 
 /** Whether the same action with this code is worth running again. **A code the

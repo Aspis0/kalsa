@@ -90,8 +90,9 @@ The frontend type-checks and keeps its Tauri command vocabulary honest:
 
 ```sh
 cd chat
-npx tsc --noEmit                   # the frontend type-checks
-node scripts/command-contract.mjs  # every command either side names, the other names too
+npx tsc --noEmit                          # the frontend type-checks
+node scripts/command-contract.mjs         # every command either side names, the other names too
+node scripts/press-family-contract.mjs   # the codes a press that never left is, in Rust and in the page
 ```
 
 Running the app needs a server binary and a model, because model selection and

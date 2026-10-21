@@ -122,6 +122,25 @@ impl BrowserState {
         self.published(app, said)
     }
 
+    /// **The same, and what the press spends is spent only once the slot is
+    /// ours** — and the spend says whether there was anything to spend. A press
+    /// that found the browser busy was never dispatched, so it must not spend
+    /// the card either: the card stays on the window and the person can press
+    /// it again. **And a card that is not there any more stops the press
+    /// before it dispatches**: the request has already been answered, and
+    /// asking the sidecar about it again would be asking for a second verdict.
+    pub(crate) async fn call_host_spending(
+        &self,
+        app: &AppHandle,
+        tool: &str,
+        args: serde_json::Map<String, serde_json::Value>,
+        spend: impl FnOnce() -> bool + Send + 'static,
+    ) -> Result<String, BrowserError> {
+        let app_data = app.path().app_data_dir().map_err(|_| BrowserError::Storage)?;
+        let said = self.browser.call_host_spending(&app_data, tool, args, spend).await;
+        self.published(app, said)
+    }
+
     /// What both calls say once the slot has settled: the cards go with a browser
     /// that is gone, and the page is told the state it is now in.
     fn published(&self, app: &AppHandle, said: Result<String, BrowserError>) -> Result<String, BrowserError> {

@@ -170,13 +170,14 @@ async fn the_host_reaches_the_sidecars_own_tools_and_its_guard_answers() {
     person(&browser, &app_data, "browser_pause", json!({})).await.expect("the pause is answered");
     // No page has been opened yet, so the sidecar has nothing to read back after a resume.
     let resumed = person(&browser, &app_data, "browser_resume", json!({})).await;
-    assert_eq!(resumed.err(), Some(BrowserError::Refused(super::codes::BrowserCode::Refused)), "the resume reached the sidecar, which has no page to read");
+    assert_eq!(resumed.err().map(|refused| refused.code()), Some("browser.refused"), "the resume reached the sidecar, which has no page to read");
 
     let opened = call(&browser, &app_data, "browser_open", json!({"url": format!("{base}/"), "conversation": CHAT})).await;
-    assert_eq!(
-        opened.err(),
-        Some(BrowserError::Refused(super::codes::BrowserCode::Refused)),
-        "the sidecar's guard refuses this computer's own network, and says so to the host"
+    let refused = opened.err().expect("the sidecar's guard refuses this computer's own network");
+    assert_eq!(refused.code(), "browser.refused");
+    assert!(
+        matches!(&refused, BrowserError::Refused { why: Some(words), .. } if !words.is_empty()),
+        "and it says so to the host, which is what the model reads: {refused:?}"
     );
     assert!(seen.lock().expect("the log is not poisoned").is_empty(), "and nothing was asked of the fixture");
 

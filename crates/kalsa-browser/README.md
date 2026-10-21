@@ -76,16 +76,22 @@ filling fires `input` and `change` and a handler for either can move a field
 into a form or out of one — so it is the form as the page left it that decides
 the key.
 
+After the input/change handlers, a nonempty value that became empty is reported
+as rejected. Native date inputs receive a YYYY-MM-DD hint regardless of their
+display locale. This detects a missing value, not every invalid or rewritten value.
+
 Filling a field does not activate the form's destination. Ordinary fields in a
 JavaScript contact form can be filled; the destination is checked on a click or
 immediately before Enter.
 
 Nothing here decides *whether* a write may happen. Every write this rule can
-cause is a non-GET, and every non-GET goes through the hold (`src/hold.rs`) —
-refused in step 1, confirmed from step 4 — so the only thing this rule decides is
-whether Kalsa presses the key at all. What it cannot protect on its own is the
-window between the destination check and the keypress, which is re-read
-immediately before Enter (`RECHECK_BODY`) and written up under *Known limits*.
+cause is a non-GET, and a non-GET is either a submission — which goes through the
+hold (`src/hold.rs`), refused in step 1 and decided from step 4 — or a request
+the page makes by itself, which goes out like a normal browser's — so the only
+thing this rule decides is whether Kalsa presses the key at all. What it cannot
+protect on its own is the window between the destination check and the keypress,
+which is re-read immediately before Enter (`RECHECK_BODY`) and written up under
+*Known limits*.
 
 ## Holding a write
 
@@ -104,10 +110,32 @@ the request exists. The submit event is prevented, the fields are read out of th
 included — and the form is kept. Nothing is on the wire, so nothing can be
 recalled: a decline is a request that never happened, and the page is as it was.
 
-**A write the page makes by itself** — a `fetch`, an XHR, a `sendBeacon`, a
-scripted `requestSubmit()` that got as far as the network — never navigates and
-cannot be prevented from the page, so it is caught by the route and parked there
-(`hold::hold_write`), with the route that would have dispatched it.
+**Data-channel requests** — fetch, XHR, beacon and report — pass as in a normal
+browser, without a card or a model outcome. This class includes automatic page
+traffic and JavaScript form sends; the route cannot distinguish their intent.
+
+**That is the trade, and it is the trade this rule makes.** A page can send
+ordinary form data with a `fetch` or an XHR without the person being asked about
+it, and the bytes leave with the request the page wrote. **Not every form is
+confirmed**: non-GET DOM submissions intercepted around Kalsa's actions require
+confirmation; a form sent through fetch/XHR does not. A scripted `requestSubmit()`
+is a DOM submission, not a data-channel request.
+
+**What is matched is a secret, and nothing else.** A write carrying what the
+person typed into a secret field is held wherever it goes — and so is one whose
+body cannot be read, because a body nobody has looked at cannot be called
+harmless while there is a secret of theirs on the line. Ordinary contact or
+comment data is not a secret and is not matched as one.
+
+Caught DOM submissions, including empty forms, keep their confirmation path:
+those are the person's own business, and the person decides.
+
+**What a read is, for that rule.** A read waits briefly for a page that has
+nothing on it yet, because a site that answers a stranger with a challenge
+serves the page a moment later, and a read that gave up at once would hand the
+model the challenge instead of the page. A read that ends with a page that
+still has nothing on it says so plainly and gives no ref: the model is told
+there is nothing to read, rather than shown a page that is not there.
 
 Parking a *navigation* at the route was the first shape and it does not work,
 for two reasons that were both measured on this machine's browser:
@@ -419,8 +447,8 @@ code and believes otherwise.
   in the gap between our evaluate returning and the key press arriving. That gap is
   the width of one round trip to the browser, and no ordering inside the page can
   close it. What covers it instead: the route refuses the non-GET request before it
-  is sent, and from step 4 every non-GET request is *held* and confirmed, so a form
-  rewritten in that window submits into a card a person saw.
+  is sent, and from step 4 a non-GET request with a body is *held* and confirmed, so
+  a form rewritten in that window submits into a card a person saw.
 - **Secrets in plain-text fields.** A password field is refused by type and by
   `autocomplete`, and a field that turns into one when focused is caught by
   reading the type after the focus. A secret typed into a plain text field is a
@@ -449,20 +477,32 @@ answer carries the fact beside the text:
 {
   "isError": true,
   "content": [{ "type": "text", "text": "the browser was closed…" }],
-  "structuredContent": { "kalsa": { "gone": true } }
+  "structuredContent": { "kalsa": { "gone": true, "failure": "read_driver" } }
 }
 ```
 
 - **Read it at `structuredContent.kalsa.gone === true`.** It is present on exactly
-  one answer — `view::gone`, reached only from `mcp.rs`'s `gone()`, which is
-  called only when the window could not be reached — and **absent on every other
-  result**, so its absence is the normal case and nothing has to be guessed from
+  one answer — `view::gone`, reached only from `mcp.rs`'s `failed()`, and **only
+  when the session says the window has ended**: a window that closed, a driver
+  that stopped, or a page that cannot answer. An ordinary failure on a page that
+  still answers is **not** a gone window — the browser stays, and the mark is
+  absent, so its absence is the normal case and nothing has to be guessed from
   the text. A mark on any other answer would close a window that is still there,
   which is the worse failure, and a test asserts it is on only that one.
-- **The text is unchanged and still there for the model.** The mark is added
-  beside it, never in place of it.
-- **In this crate** the same fact is on `mcp::Said::gone`, so a proof here reads it
-  without parsing JSON.
+- **Read the stage at `structuredContent.kalsa.failure`.** It is one word out of a
+  closed set — `ref_missing`, `ref_malformed`, `ref_unprinted`,
+  `action_input_failed`, `action_unfillable`, `action_password`,
+  `action_destination`, `action_not_accepted`, `action_date_format`,
+  `read_unseen`, `read_address_refused`, `read_moved`, `read_driver`,
+  `open_driver`, `open_address_refused`, `paused`, `unavailable`, `busy`,
+  `panicked` — and says **where the call stopped**, not why. It carries no
+  address, no ref, no title, no page text and nothing the driver said, so a host
+  can log it without reading a stranger's words. A word outside the set is not
+  ours: match it against the set and drop what is not in it.
+- **The text is unchanged and still there for the model.** The mark and the stage
+  are added beside it, never in place of it.
+- **In this crate** the same facts are on `mcp::Said::gone` and
+  `mcp::Said::failure`, so a proof here reads them without parsing JSON.
 - **`tool_pins.json` is unaffected.** `kalsa_mcp::digest::tool_digest` hashes a
   tool's **definition** — name, description and input schema — through
   `serde_json::to_value(&Tool)`; it never sees a result. A change to a result is

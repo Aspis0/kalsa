@@ -5,6 +5,9 @@ import { exceedsCodePoints, firstCodePoints } from "./text";
 import type { ToolCall } from "./toolCalls";
 import { repairToolCall } from "./repairToolCall";
 import { guideCut, guideNotValidJson, guideProblem } from "./guideRetry";
+import { BROWSER_NAMES } from "./tools/browserTools";
+import { logBrowserFailure } from "./browser/diagnostics";
+import type { BrowserFailure } from "./browser/diagnostics";
 import type { ToolDefinition } from "./tools/definitions";
 import { TOOL_STOPPED } from "./types";
 import type { ToolRun } from "./types";
@@ -83,11 +86,17 @@ export async function runToolCall(
   // unparsable arguments come from readArguments, every surviving field
   // problem from the repairs.
   let guide: string | null = null;
+  let failure: BrowserFailure | null = null;
   if (problem !== null) {
     guide = call.cut ? guideCut(definition) : guideNotValidJson(definition);
+    failure = call.cut ? "arguments_cut" : "arguments_json";
   } else if (repaired!.problems.length > 0) {
     guide = guideProblem(definition, repaired!.problems);
+    failure = "arguments_schema";
   }
+  // A guide is the one browser failure that arrives with no code of its own,
+  // so without this the cut, the broken JSON and the bad field are one line.
+  if (failure !== null && BROWSER_NAMES.has(name)) logBrowserFailure(failure);
   // The arguments that actually ran: the repaired object when the repairs
   // fired, the model's own text when they did not, and what was sent when
   // nothing ran. One text for the record, the wire and every replay.

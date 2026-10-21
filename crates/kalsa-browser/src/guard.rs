@@ -318,33 +318,26 @@ pub async fn install(
                 if let Verdict::Refused(_) = decide(request.url()).await {
                     return route.abort(Some("blockedbyclient")).await;
                 }
-                if holding.takes_pass(&request).await {
+                if let Some(approved) = holding.takes_pass(&request).await {
+                    // **The request the person approved is going out, and the
+                    // answer to it is watched.** A server may answer with a
+                    // redirect, and that redirect is a second navigation the
+                    // browser makes on its own — ours, exactly as the first one
+                    // is, because the receipt of what the person agreed to is
+                    // the page they are owed. So the driving of this call does
+                    // not end with the request: the watch ends it, when the
+                    // navigation that follows has passed.
+                    //
+                    // **And the watch is this submission's own.** What it is
+                    // given here is the duty of ending the driving and the
+                    // navigation it starts from: two submissions can overlap,
+                    // and each of them waits for its own navigation and lets go
+                    // of its own driving.
+                    holding.watch_the_landing(request.clone(), approved);
                     return route.continue_(None).await;
                 }
-                // **While the person has the window, they are acting, not us.**
-                // Their own submissions are not ours to hold: a held navigation
-                // freezes the page it is holding, which is the one thing a
-                // person cannot be asked to sit through.
-                //
-                // **A navigation of the main frame and nothing else.** "The
-                // person is using the browser" is a claim about clicks and
-                // submissions, and a `fetch`, an `XHR` or a beacon is not one: it
-                // is the page talking to a server while the person sits there,
-                // and holding it is the whole reason this rule is not a blanket
-                // one. Those fall through to the rules below and are held like any
-                // other write, **and so is a GET carrying a secret** — pausing is
-                // about what the person is doing, not a permission for the page
-                // to send whatever it likes.
                 let typed = typed.values();
-                if the_persons_paused_navigation(holding.paused(), &request, &typed) {
-                    return route.continue_(None).await;
-                }
-                // A GET is a read, **unless it is carrying a secret**: the same
-                // message to that server as the POST it came from, in a place
-                // nobody looks. Every other GET is a documented residual.
-                if crate::hold::is_read(request.method())
-                    && !crate::secret::carries(request.url(), &typed)
-                {
+                if goes_out(&request, &typed, holding.paused()) {
                     return route.continue_(None).await;
                 }
                 crate::hold::hold_write(&holding, &request, route).await
@@ -356,16 +349,12 @@ pub async fn install(
 /// Whether this request is the person moving the window: a navigation, of the
 /// frame they are looking at. A sub-resource, a data request or a page's own
 /// fetch is never one, however the page made it.
-///
-/// **Public so the test fixtures ask the same question the product does.** A
-/// stand-in that answered "yes while paused" would let every browser proof pass
-/// against a route that no longer exists.
-pub fn is_the_person_navigating(request: &Request) -> bool {
+fn is_the_person_navigating(request: &Request) -> bool {
     request.is_navigation_request() && request.frame().and_then(|frame| frame.parent_frame()).is_none()
 }
 
 /// Whether a paused window lets this request go as the person's own doing.
-pub fn the_persons_paused_navigation(paused: bool, request: &Request, typed: &[String]) -> bool {
+fn the_persons_paused_navigation(paused: bool, request: &Request, typed: &[String]) -> bool {
     if !paused || !is_the_person_navigating(request) {
         return false;
     }
@@ -379,6 +368,31 @@ pub fn the_persons_paused_navigation(paused: bool, request: &Request, typed: &[S
     // things a pause exists to let happen. Anything else is held like any other
     // write.
     !carries_a_typed_secret(request, typed) || stays_where_the_person_is(request)
+}
+
+/// Data channels follow normal browser behavior, including JavaScript form sends.
+/// Public so fixtures exercise the same admission rule as the product.
+pub fn goes_out(request: &Request, typed: &[String], paused: bool) -> bool {
+    if the_persons_paused_navigation(paused, request, typed) {
+        return true;
+    }
+    if crate::hold::is_read(request.method()) && !crate::secret::carries(request.url(), typed) {
+        return true;
+    }
+    is_page_data(request) && !carries_a_known_typed_secret(request, typed)
+}
+
+fn is_page_data(request: &Request) -> bool {
+    matches!(request.resource_type(), "fetch" | "xhr" | "ping" | "cspreport")
+}
+
+/// Opaque bodies remain conservative when a secret field has been recorded.
+/// Without recorded secrets, opacity alone does not block ordinary page traffic.
+fn carries_a_known_typed_secret(request: &Request, typed: &[String]) -> bool {
+    if typed.is_empty() {
+        return false;
+    }
+    carries_a_typed_secret(request, typed)
 }
 
 /// **A typed secret in either half of the request.** The address is where a GET

@@ -301,20 +301,28 @@ const { app } = await loadApp();
     JSON.stringify(sameRound),
   );
 
-  // **A read is an answer about the page as it was.** One word typed makes the
-  // page a different page, and the old read is not a shorter version of the new
-  // one — it is an answer to a question nobody is asking any more.
+  // **A read is a question about the page as it is now.** The page changes on
+  // its own — a banner arrives, a page refreshes itself — so a read is asked
+  // again, and each one spends a step of the turn's budget.
   filed(led, "browser_read", { page: 1 }, { text: "the form", ok: true });
-  check("a read is reused inside its round", decide(led, "browser_read", { page: 1 }).run === false);
+  check("a read is asked again rather than reused", decide(led, "browser_read", { page: 1 }).run === true);
+  check("and it spent a step of the budget", led.spent === 2, String(led.spent));
   filed(led, "browser_type", { ref: "e1", text: "a" }, { text: "typed", ok: true });
   check(
-    "and is not reused once anything has moved the page",
+    "and is asked again once anything has moved the page",
     decide(led, "browser_read", { page: 1 }).run === true,
   );
   filed(led, "browser_read", { page: 1 }, { text: "the same form", ok: true });
-  check("and reused again until the page moves once more", decide(led, "browser_read", { page: 1 }).run === false);
+  check("and asked again in the round after that", decide(led, "browser_read", { page: 1 }).run === true);
   filed(led, "browser_click", { ref: "e9" }, { text: "clicked", ok: true });
   check("a click opens the next round too", decide(led, "browser_read", { page: 1 }).run === true);
+
+  // **A read that failed may be asked again.** The failure was about the page as
+  // it was, and a read of the page as it is now may well answer.
+  const failedRead = newLedger();
+  filed(failedRead, "browser_read", { page: 1 }, { text: "no", ok: false, resultCode: "browser.element_gone" });
+  check("a read that failed is asked again", decide(failedRead, "browser_read", { page: 1 }).run === true);
+  check("it did spend its step, so the bound still bites", failedRead.spent === 1, String(failedRead.spent));
 
   // **A duplicate within the round it happened in is still a duplicate.**
   const dup = newLedger();

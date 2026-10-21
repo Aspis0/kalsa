@@ -28,7 +28,16 @@ const GROUPS = new Set(["app", "browser", "choice", "files", "invite", "pairing"
 // they are named here rather than left to fail every run.
 const TOOL_PINS = ["browser_click", "browser_find", "browser_open", "browser_read", "browser_type"];
 
-const NOT_CODES = new Set(["pairing.json", "web.search", "web.fetch", ...TOOL_PINS.map((tool) => `browser.${tool}`)]);
+// `browser.browser_preview` is a host-only tool name — one the host reaches and no model is offered (`crates/kalsa-mcp/src/host.rs` HOST_ONLY) — and never a sentence the page reads.
+const HOST_ONLY = ["browser.browser_preview"];
+
+const NOT_CODES = new Set([
+  "pairing.json",
+  "web.search",
+  "web.fetch",
+  ...TOOL_PINS.map((tool) => `browser.${tool}`),
+  ...HOST_ONLY,
+]);
 
 /** The codes the Rust source carries, derived — not transcribed. Every dotted
     lowercase string literal under src-tauri/src and crates/, kept when its

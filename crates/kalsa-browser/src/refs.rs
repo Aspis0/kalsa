@@ -1,11 +1,11 @@
 //! The elements a read printed, and the one a call may act on (one
-//! responsibility: remember what the last read showed, and refuse anything that
-//! was not in it).
+//! responsibility: remember what was printed for the document now open, and
+//! refuse anything that was not).
 //!
 //! A ref goes into the page as a selector. A ref that is really a selector would
 //! be one a page could talk a model into writing — `>>` chains, and anything
 //! else Playwright would resolve — so a ref is only ever a lowercase run of
-//! letters and figures, and only ever one the last read printed.
+//! letters and figures, and only ever one a read printed.
 //!
 //! Only the ref **position** of a line counts. A page is free to put the text
 //! `[e999]` anywhere it likes — in a link name, in a title, in the address at
@@ -23,7 +23,8 @@ pub enum Refused {
     /// What was named is not a ref at all: it carries something a selector
     /// could be made of.
     NotARef,
-    /// A ref, but not one this page's last read printed.
+    /// A ref this window may not act on: the document it was printed in is
+    /// gone, or a later read has replaced it.
     NotOnPage,
 }
 
@@ -41,11 +42,19 @@ impl Refused {
     }
 }
 
-/// The refs of the most recent read, and nothing else: a second read replaces
-/// them, because the driver numbers the page afresh every time.
+/// The refs printed for the document now open.
+///
+/// **The document, not the read**: the driver numbers a document once, so a ref
+/// printed in one part of a page names the same element in the next.
 #[derive(Default)]
 pub struct Refs {
-    printed: HashSet<String>,
+    /// The refs of the main document, kept for as long as it is the one.
+    main: HashSet<String>,
+    /// The refs of the child frames, from the last read only. **A frame numbers
+    /// its own document, and we cannot see that document change.**
+    frames: HashSet<String>,
+    /// The document the main refs belong to.
+    document: Option<u64>,
 }
 
 /// The ref a line prints, if it prints one.
@@ -66,14 +75,54 @@ fn refs_in(text: &str) -> impl Iterator<Item = String> + '_ {
     text.lines().filter_map(ref_of_line)
 }
 
+/// Unclassified prefixed refs expire after each read: the prefix cannot
+/// distinguish main from child frames.
+fn has_frame_prefix(id: &str) -> bool {
+    let Some(rest) = id.strip_prefix('f') else { return false };
+    let Some((frame, element)) = rest.split_once('e') else { return false };
+    let digits = |part: &str| !part.is_empty() && part.chars().all(|c| c.is_ascii_digit());
+    digits(frame) && digits(element)
+}
+
 impl Refs {
-    /// What this page printed, replacing whatever it printed last time.
-    pub fn remember(&mut self, text: &str) {
-        self.printed = refs_in(text).collect();
+    /// Callers without frame classification retain only unprefixed refs across reads.
+    pub fn remember(&mut self, text: &str, document: u64) {
+        if self.document != Some(document) {
+            self.main.clear();
+            self.document = Some(document);
+        }
+        self.frames.clear();
+        for id in refs_in(text) {
+            if has_frame_prefix(&id) {
+                self.frames.insert(id);
+            } else {
+                self.main.insert(id);
+            }
+        }
+    }
+
+    /// What a read printed, added to what this document printed before. The tree
+    /// the read was made of says which document a ref is in; its shape does not.
+    pub(crate) fn remember_classified(&mut self, text: &str, document: u64, main: &HashSet<String>) {
+        if self.document != Some(document) {
+            self.main.clear();
+            self.document = Some(document);
+        }
+        self.frames.clear();
+        for id in refs_in(text) {
+            if main.contains(&id) {
+                self.main.insert(id);
+            } else {
+                self.frames.insert(id);
+            }
+        }
     }
 
     /// The element to act on, or the line that says no.
-    pub fn check(&self, reference: &str) -> Result<String, Refused> {
+    ///
+    /// `document` is the document the call is made on, so a ref of a document
+    /// that has gone is refused rather than acted on.
+    pub fn check(&self, reference: &str, document: Option<u64>) -> Result<String, Refused> {
         let id = reference.trim().trim_start_matches('[').trim_end_matches(']').trim();
         if id.is_empty() {
             return Err(Refused::Nothing);
@@ -81,7 +130,7 @@ impl Refs {
         if !id.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit()) {
             return Err(Refused::NotARef);
         }
-        if !self.printed.contains(id) {
+        if self.document != document || !(self.main.contains(id) || self.frames.contains(id)) {
             return Err(Refused::NotOnPage);
         }
         Ok(id.to_string())
@@ -99,7 +148,7 @@ mod tests {
 
     fn remembered(text: &str) -> Refs {
         let mut refs = Refs::default();
-        refs.remember(text);
+        refs.remember(text, 1);
         refs
     }
 
@@ -115,17 +164,17 @@ mod tests {
     fn brackets_in_a_name_a_title_or_an_address_are_not_a_ref() {
         let read = "url: https://example.com/?to=[e999]\ntitle: [e888] the shop\n\n                    - link [ref=e4] \"buy the [e777] lamp\"\n- text \"code [e666] today\"\n                    - [e12] link \"Home\"";
         let refs = remembered(read);
-        assert_eq!(refs.check("e12").expect("printed"), "e12");
+        assert_eq!(refs.check("e12", Some(1)).expect("printed"), "e12");
         for smuggled in ["e999", "e888", "e777", "e666"] {
-            assert_eq!(refs.check(smuggled).err(), Some(Refused::NotOnPage), "{smuggled}");
+            assert_eq!(refs.check(smuggled, Some(1)).err(), Some(Refused::NotOnPage), "{smuggled}");
         }
     }
 
     #[test]
-    fn a_ref_the_last_read_printed_is_accepted_in_every_spelling() {
+    fn a_ref_that_was_printed_is_accepted_in_every_spelling() {
         let refs = remembered("- [e12] link \"Home\"");
         for reference in ["e12", "[e12]", " e12 "] {
-            assert_eq!(refs.check(reference).expect("a ref"), "e12", "{reference:?}");
+            assert_eq!(refs.check(reference, Some(1)).expect("a ref"), "e12", "{reference:?}");
         }
     }
 
@@ -144,26 +193,60 @@ mod tests {
             "e-12",
             "e12 body",
         ] {
-            assert_eq!(refs.check(reference).err(), Some(Refused::NotARef), "{reference:?}");
+            assert_eq!(refs.check(reference, Some(1)).err(), Some(Refused::NotARef), "{reference:?}");
         }
-        assert_eq!(refs.check("").err(), Some(Refused::Nothing));
-        assert_eq!(refs.check("  [ ] ").err(), Some(Refused::Nothing));
+        assert_eq!(refs.check("", Some(1)).err(), Some(Refused::Nothing));
+        assert_eq!(refs.check("  [ ] ", Some(1)).err(), Some(Refused::Nothing));
     }
 
-    /// Refs are numbered afresh by every read, so one from two reads ago is a
-    /// different element now, or nothing at all.
+    /// **A page read in parts is one document, and the driver numbers it once.**
+    /// A ref printed in one part is the same element in the next, so reading
+    /// another part does not make the first part's refs unusable.
     #[test]
-    fn a_ref_from_an_earlier_read_is_refused_after_a_later_one() {
+    fn a_ref_printed_in_another_part_of_the_same_document_is_still_printed() {
         let mut refs = remembered("- [e4] textbox \"What needs to be done?\"");
-        assert_eq!(refs.check("e4").expect("printed"), "e4");
-        refs.remember("- [f1] link \"Home\"");
-        assert_eq!(refs.check("e4").err(), Some(Refused::NotOnPage));
-        assert_eq!(refs.check("f1").expect("printed"), "f1");
+        assert_eq!(refs.check("e4", Some(1)).expect("printed"), "e4");
+        refs.remember("- [f1] link \"Home\"", 1);
+        assert_eq!(refs.check("e4", Some(1)).expect("still printed"), "e4");
+        assert_eq!(refs.check("f1", Some(1)).expect("printed"), "f1");
+    }
+
+    /// **A new document numbers itself again**, so a ref of the old one names
+    /// something else now, or nothing at all.
+    #[test]
+    fn a_new_document_forgets_the_refs_of_the_old_one() {
+        let mut refs = remembered("- [e4] textbox \"What needs to be done?\"");
+        refs.remember("- [e4] textbox \"What needs to be done?\"", 2);
+        assert_eq!(refs.check("e4", Some(2)).expect("printed"), "e4");
+        assert_eq!(refs.check("e4", Some(1)).err(), Some(Refused::NotOnPage), "the document it was printed in is gone");
+    }
+
+    /// **A frame numbers its own document, and we cannot see that document
+    /// change**, so a frame's ref is from the last read only.
+    #[test]
+    fn a_frames_ref_is_from_the_last_read_only() {
+        let mut refs = remembered("- [e4] textbox \"What needs to be done?\"\n  - [f1e2] textbox \"Inside the frame\"");
+        assert_eq!(refs.check("f1e2", Some(1)).expect("printed"), "f1e2");
+        refs.remember("- [e9] textbox \"What needs to be done?\"", 1);
+        assert_eq!(
+            refs.check("f1e2", Some(1)).err(),
+            Some(Refused::NotOnPage),
+            "a frame's ref does not survive a read that omits it"
+        );
+        assert_eq!(refs.check("e4", Some(1)).expect("still printed"), "e4", "the main document's refs do");
+    }
+
+    /// A ref of another document is refused, whatever it was printed in.
+    #[test]
+    fn a_ref_of_another_document_is_refused() {
+        let refs = remembered("- [e4] textbox \"What needs to be done?\"");
+        assert_eq!(refs.check("e4", Some(2)).err(), Some(Refused::NotOnPage));
+        assert_eq!(refs.check("e4", None).err(), Some(Refused::NotOnPage));
     }
 
     #[test]
     fn a_read_with_nothing_in_it_prints_nothing_to_act_on() {
         let refs = remembered("url: https://example.com/\ntitle: nothing here\n\n- text \"hi\"");
-        assert_eq!(refs.check("e1").err(), Some(Refused::NotOnPage));
+        assert_eq!(refs.check("e1", Some(1)).err(), Some(Refused::NotOnPage));
     }
 }

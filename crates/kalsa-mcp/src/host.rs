@@ -24,6 +24,7 @@ const HOST_ONLY: &[&str] = &[
     "browser.browser_resume",
     "browser.browser_confirm",
     "browser.browser_decline",
+    "browser.browser_preview",
 ];
 
 /// Routes `<server>.<tool>` calls and applies the host's permissions. Nothing a

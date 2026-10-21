@@ -90,8 +90,11 @@ impl Holder {
 async fn holder_process() {
     let (Ok(base), Ok(profile)) = (std::env::var(BASE_VAR), std::env::var(PROFILE_VAR)) else { return };
     let (_sessions, page, holds) = common::confirming_window(&profile, &base).await;
+    // **The write carries what the person typed, and that is what holds it**: a
+    // write the page makes by itself goes out like a normal browser's.
+    holds.typed_in(1, "hunter2-the-passphrase").await;
     page.evaluate::<(), ()>(
-        &format!("() => {{ fetch('{base}/order', {{method: 'POST', headers: {{'Content-Type': 'application/x-www-form-urlencoded'}}, body: 'city=Bologna'}}); }}"),
+        &format!("() => {{ fetch('{base}/order', {{method: 'POST', headers: {{'Content-Type': 'application/x-www-form-urlencoded'}}, body: 'city=Bologna&note=hunter2-the-passphrase'}}); }}"),
         None,
     )
     .await
@@ -129,7 +132,11 @@ async fn a_write_the_person_confirms_reaches_the_fixture() {
     holder.until(HELD).await;
     holder.say("confirm").await;
     holder.until(SENT).await;
-    assert_eq!(arrived.body_of("/order").as_deref(), Some("city=Bologna"), "the confirmed write was sent");
+    assert_eq!(
+        arrived.body_of("/order").as_deref(),
+        Some("city=Bologna&note=hunter2-the-passphrase"),
+        "the confirmed write was sent"
+    );
 }
 
 /// **What the host does when it abandons a call: the holder is killed outright.**

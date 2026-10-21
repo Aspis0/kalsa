@@ -935,6 +935,114 @@ fn a_press_from_a_phone_that_is_not_paired_finds_nothing_and_spends_nothing() {
     );
 }
 
+/// **A press that found the browser busy gives the card back.**
+///
+/// The browser was busy: **nothing was sent**, the request is still held at
+/// the sidecar, and the card is still the person's to press. So the card goes
+/// back on the table — with the budget it had, because the five minutes the
+/// person was given are the five minutes they had.
+///
+/// Without this the card was gone from the phone's table for a press that
+/// never reached anything: the next press was a press about nothing
+/// (`card_unknown`), and the person was told their answer had gone to a card
+/// that had never been there. The desktop's own reducer puts the card back on
+/// a busy browser for exactly this reason; the phone's table has to do the
+/// same, or the phone is the one place where a busy browser loses the card.
+///
+/// **And nothing is told to anybody.** An outcome about a request that never
+/// left would be this app saying the request was settled when it was not, and
+/// the model would go on believing it has an answer it does not have.
+#[test]
+fn a_press_that_found_the_browser_busy_gives_the_card_back() {
+    let bridge = bridge_with_two_phones();
+    lock(&bridge.cards).note(held(1, "cred-a", "req-a", ID), Instant::now());
+
+    // **The press takes the card**, the way a phone's answer does.
+    let taken = lock(&bridge.cards)
+        .take((DeviceId::new(1), digest("cred-a")), ID, Instant::now())
+        .expect("the card is there to be pressed");
+    assert!(lock(&bridge.cards).ids().is_empty(), "the card is off the table while it is answered");
+
+    // **And the browser was busy**: nothing was sent.
+    assert!(
+        bridge.a_press_that_never_went(&taken, crate::browser::error::BrowserError::Busy.code()),
+        "a busy browser is a press that never went"
+    );
+
+    // **The card is on the table again**, and the person may press it again.
+    assert_eq!(lock(&bridge.cards).ids(), vec![ID.to_string()], "the card is on the table again");
+    assert!(
+        lock(&bridge.cards)
+            .take((DeviceId::new(1), digest("cred-a")), ID, Instant::now())
+            .is_ok(),
+        "and the next press finds the card"
+    );
+    // **And nothing was told to anybody**: a request that never left has no
+    // outcome, so there is no second verdict about it.
+    assert!(lock(&bridge.waiting).is_empty(), "a press that never went told somebody something");
+}
+
+/// **A press that found the card already resolved leaves it gone, and tells
+/// nobody.**
+///
+/// The request had its verdict somewhere else — from the decline that took it,
+/// or from the expiry that removed it — and **nothing was sent**. So it is a
+/// press that never went, and it leaves no outcome behind: an outcome about it
+/// would be this app saying the request was settled when it was not, and a model
+/// told "unclear" about a request it already has the answer to goes on not
+/// knowing what it said.
+///
+/// **And the card does not come back.** A card that came back would be a card
+/// the person could press again only to be refused again: there is nothing left
+/// to press about it. The busy browser is the other half of the same family, and
+/// it is the one that gives the card back.
+#[test]
+fn a_press_that_found_the_card_already_resolved_leaves_it_gone_and_tells_nobody() {
+    let (bridge, events) = bridge_with_request("turn", None);
+    lock(&bridge.cards).note(held(1, "cred-a", "req", ID), Instant::now());
+
+    // **The press takes the card**, the way a phone's answer does.
+    let taken = lock(&bridge.cards)
+        .take((DeviceId::new(1), digest("cred-a")), ID, Instant::now())
+        .expect("the card is there to be pressed");
+    assert!(lock(&bridge.cards).ids().is_empty(), "the card is off the table while it is answered");
+
+    // **And the card was already resolved somewhere else**: nothing was sent.
+    let code = crate::browser::error::BrowserError::NoCard.code();
+    assert!(
+        bridge.a_press_that_never_went(&taken, code),
+        "a card that was already resolved is a press that never went"
+    );
+    assert!(lock(&bridge.cards).ids().is_empty(), "and the card does not come back");
+
+    // **And nothing was told to anybody**: no outcome on the stream, and
+    // nothing queued for the phone to be told later.
+    assert!(
+        !bridge.report_a_refusal(&taken, code),
+        "a press that never went is not reported as one"
+    );
+    assert!(events.try_recv().is_err(), "an outcome went down the stream");
+    assert!(lock(&bridge.waiting).is_empty(), "and something was queued for a phone to be told later");
+}
+
+/// **A press that was refused for any other reason does not give the card
+/// back.** A busy browser is a press that never went; anything else is a
+/// verdict, and a card that has had one is not the person's to press again.
+#[test]
+fn a_press_that_was_refused_for_another_reason_does_not_give_the_card_back() {
+    let bridge = bridge_with_two_phones();
+    lock(&bridge.cards).note(held(1, "cred-a", "req-a", ID), Instant::now());
+    let taken = lock(&bridge.cards)
+        .take((DeviceId::new(1), digest("cred-a")), ID, Instant::now())
+        .expect("the card is there to be pressed");
+
+    assert!(
+        !bridge.a_press_that_never_went(&taken, crate::browser::confirm::UNCLEAR),
+        "a refusal that is a verdict is not a press that never went"
+    );
+    assert!(lock(&bridge.cards).ids().is_empty(), "and the card is gone, because it was answered");
+}
+
 /// **A card at its budget is owed nothing, and the press is told so rather than
 /// raced.** The five minutes is what the person was promised; a card past it is
 /// the sidecar's to give up on, and an answer that arrives afterwards is
@@ -1066,4 +1174,81 @@ async fn refusing_a_write_from_inside_a_runtime_does_not_block() {
     // `self.send_declines(…)` — and the answer path's own re-check, which does
     // read the table, is held by the proof above.
     assert_eq!(lock(&bridge.paired).as_slice(), &[(DeviceId::new(2), digest("cred-b"))], "the pairing is whole when this returns");
+}
+
+/// **A phone that is unpaired while its picture is being taken gets no
+/// picture.**
+///
+/// The owner removes a phone in the middle of the capture, and the pairing
+/// change lands in the mark the preview is registered under. The picture is
+/// taken and thrown away: nothing of the person's page goes to a phone the
+/// owner has taken away. What has already gone on the wire is not recalled —
+/// there is no way to recall it — but nothing leaves here either.
+#[test]
+fn a_phone_unpaired_while_its_picture_is_taken_gets_no_picture() {
+    let bridge = Arc::new(Bridge::default());
+    bridge.pair(&[(DeviceId::new(1), "cred-a".to_string())]);
+
+    // **Armed before the preview starts**, then the preview is run on its own
+    // thread: this is a race the door and the owner's reconcile thread are
+    // really in, and the proof stands in the middle of it.
+    bridge.arm_gate();
+    let previewing = {
+        let bridge = Arc::clone(&bridge);
+        std::thread::spawn(move || {
+            bridge.preview_guarded(DeviceId::new(1), || {
+                // The picture, taken while the owner removes the phone.
+                Ok(json!({
+                    "image": "QUJD",
+                    "media_type": "image/jpeg",
+                    "host": "shop.example",
+                    "taken_at": 1_u64,
+                }))
+            })
+        })
+    };
+    bridge.wait_at_the_gate();
+
+    // **The owner removes the phone while the picture is being taken.**
+    bridge.pair(&[]);
+    assert!(
+        !lock(&bridge.answering).is_empty(),
+        "a preview in flight is known, which is what lets the pairing stop it"
+    );
+    bridge.release();
+
+    let said = previewing.join().expect("the preview is not a panic");
+    assert_eq!(said, Err("cancelled".to_string()), "a forgotten phone is told no");
+    // **The mark is taken down however the preview ended**, so a phone that
+    // did finish is not left looking as though it were still asking.
+    assert!(lock(&bridge.answering).is_empty(), "a preview that has ended is still marked in flight");
+}
+
+/// **A picture is only given to a phone that is still paired.** The pairing is
+/// asked before the picture is taken, and a phone this computer does not know
+/// is refused without one being taken at all.
+#[test]
+fn a_phone_that_is_not_paired_gets_no_picture() {
+    let bridge = Bridge::default();
+    bridge.pair(&[(DeviceId::new(1), "cred-a".to_string())]);
+    let said = bridge.preview_guarded(DeviceId::new(2), || panic!("a picture was taken for a phone this computer does not know"));
+    assert_eq!(said, Err("unavailable".to_string()));
+    assert!(lock(&bridge.answering).is_empty());
+}
+
+/// **A phone that is still paired gets its picture.** The pairing is asked
+/// twice and both answers are the same phone, so the picture goes.
+#[test]
+fn a_paired_phone_gets_its_picture() {
+    let bridge = Bridge::default();
+    bridge.pair(&[(DeviceId::new(1), "cred-a".to_string())]);
+    let picture = json!({
+        "image": "QUJD",
+        "media_type": "image/jpeg",
+        "host": "shop.example",
+        "taken_at": 1_u64,
+    });
+    let said = bridge.preview_guarded(DeviceId::new(1), || Ok(picture.clone()));
+    assert_eq!(said, Ok(picture));
+    assert!(lock(&bridge.answering).is_empty(), "the mark is taken down when the preview ends");
 }

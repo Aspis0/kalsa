@@ -44,6 +44,18 @@ pub trait PhoneChat: Send + Sync {
     /// No default: a hook that does not answer has not said yes, and a card is
     /// never silently declined by a door that could not reach the app.
     fn answer_browser(&self, device: DeviceId, card_id: &str, allow: bool) -> Result<Value, String>;
+
+    /// A phone's preview of the page this computer is showing: the picture and
+    /// the two facts beside it, or the code the phone reads.
+    ///
+    /// **The app owns the page and the picture.** The door carries no image and
+    /// decides nothing about one: it asks the app, and what the app says is
+    /// what the phone is told. The device is the one that authenticated, so the
+    /// app knows whose page this is without the phone having said a word.
+    ///
+    /// No default: a hook that does not answer has not said yes, and a door
+    /// that answered for it would show a phone a picture it was never given.
+    fn preview(&self, device: DeviceId) -> Result<Value, String>;
 }
 
 /// A request the page took: its id, and the page's events for it, in order.

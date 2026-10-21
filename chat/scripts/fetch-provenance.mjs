@@ -43,6 +43,10 @@ function hasLoneSurrogate(text) {
 // The refusal sentences, pinned: the model reads exactly this text, and the
 // screen keys its localized line off these codes.
 const LIT_UNSEEN = "Not run: this link has not appeared in the conversation, so it was not opened. Use web_search to find the page, or ask the user for the link.";
+// The same refusal said to a browser, which is told to read the link on the
+// page in front of it rather than to search for it again.
+const LIT_BROWSER_UNSEEN =
+  "Not run: this exact address has not appeared in the conversation, so it was not opened. Use browser_read or browser_find to locate the link, then click its ref or copy its whole printed address, including the path and query. Do not shorten or reconstruct the address.";
 const LIT_CREDENTIAL = "Not run: this address looks like it carries a password or key that the user did not type.";
 const LIT_QUERY = "Not run: the search carries an address that has not appeared in the conversation, so it was not made. Search in your own words, or ask the user for the link.";
 // What Rust answers an empty search with (exa.rs): no query rides in it.
@@ -73,6 +77,7 @@ globalThis.window = {
           OPENED.push(args.url);
           return pageResult;
         }
+        if (command === "brain_browser_find") return pageResult;
         if (command === "brain_web_stop") return null;
         throw new Error(`unexpected command ${command}`);
       },
@@ -100,6 +105,29 @@ function exchange(id, name, argsText, result) {
 }
 
 try {
+  // A find filters page lines; its needle must not rewrite their addresses.
+  {
+    const href = "https://catalog.example/dp/B012345678?variant=16GB";
+    const open = (url, conversation) => executeToolCall("browser_open", { url }, undefined, null, conversation, "any-model", undefined, undefined, true);
+    for (const text of ["/dp/", "16GB", "Notebook"]) {
+      pageResult = `url: https://catalog.example/list\ntitle: Catalog\n\n- [f3e20] link [url=${href}] "Notebook"`;
+      const found = await executeToolCall("browser_find", { text }, undefined, null, [{ role: "user", content: "Choose a notebook." }], "any-model", undefined, undefined, true);
+      check(`find (${text}) runs`, found.ok === true, found.text);
+      const conversation = exchange("found", "browser_find", JSON.stringify({ text }), found.text);
+      OPENED.length = 0;
+      const opened = await open(href, conversation);
+      equal(`find (${text}) preserves the whole printed destination`, [opened.ok, OPENED.at(-1)], [true, href]);
+      const unseen = await open("https://catalog.example/dp/B012345678", conversation);
+      equal(`find (${text}) does not arm a shortened destination`, [unseen.ok, unseen.resultCode], [false, "web.link_unseen"]);
+    }
+    const absent = "https://absent.example/collect?value=not-on-the-page";
+    pageResult = "url: https://catalog.example/list\ntitle: Catalog\n\nnothing on this page matches that text";
+    const found = await executeToolCall("browser_find", { text: absent }, undefined, null, [], "any-model", undefined, undefined, true);
+    const opened = await open(absent, exchange("absent", "browser_find", JSON.stringify({ text: absent }), found.text));
+    equal("a no-match find does not arm its unprinted needle", [opened.ok, opened.resultCode], [false, "web.link_unseen"]);
+    pageResult = "PAGE TEXT";
+    OPENED.length = 0;
+  }
   // --- where an address may come from ---------------------------------------
   {
     const user = [{ role: "user", content: "Read https://news.example/story for me." }];
@@ -259,6 +287,98 @@ try {
     const r = await attempt("https://docs.example/page#d=SECRET", seen);
     check("a seen address with an appended fragment runs", r.ok === true, r.text);
     equal("the door was called without the fragment", OPENED.at(-1), "https://docs.example/page");
+  }
+
+  // --- a homepage under the other spelling of its first label -----------------
+  // The person wrote "Amazon.it" and the model asked for
+  // "https://www.amazon.it": the address that goes out is the one the person
+  // named, because the browser follows the redirect on its own.
+  {
+    /** One browser_open call through the real registry, with the web switch on. */
+    const open = (url, conversation, gate = null) =>
+      executeToolCall("browser_open", { url }, undefined, gate, conversation, "any-model", undefined, undefined, true);
+    // The prompt the Amazon run used, unchanged: it names a site, not a link.
+    const ITALIAN = [
+      "Apri Amazon.it nel browser e cerca 3 o 4 computer con Windows incluso, almeno 16 GB di RAM",
+      "e prezzo inferiore a 1.000 euro ciascuno. Vanno bene portatili e desktop. Per ogni proposta",
+      "dammi il modello e la variante esatta, processore, RAM, SSD, versione di Windows, prezzo",
+      "attuale, disponibilità e link diretto al prodotto. Distingui i dati verificati da quelli che",
+      "non riesci a verificare. Non comprare nulla e non aggiungere prodotti al carrello.",
+    ].join(" ");
+    const named = [{ role: "user", content: ITALIAN }];
+
+    OPENED.length = 0;
+    let r = await open("https://www.amazon.it/", named);
+    check("the address that opens is the person's own spelling", r.ok === true && OPENED.at(-1) === "https://amazon.it/", `${r.resultCode} ${r.text}`);
+
+    OPENED.length = 0;
+    r = await open("https://amazon.it/", [{ role: "user", content: "Apri www.amazon.it nel browser." }]);
+    check("and the other way round", r.ok === true && OPENED.at(-1) === "https://www.amazon.it/", `${r.resultCode} ${r.text}`);
+
+    OPENED.length = 0;
+    r = await open("https://www.amazon.it/", [{ role: "user", content: "Apri https://www.amazon.it/ nel browser." }]);
+    check("an address the conversation carried is opened as asked", r.ok === true && OPENED.at(-1) === "https://www.amazon.it/", `${r.resultCode} ${r.text}`);
+
+    // A path or a query is not the front door, so it stays refused.
+    for (const url of ["https://www.amazon.it/s?k=computer", "https://www.amazon.it/?ref=top", "https://www.amazon.it/Portatili"]) {
+      OPENED.length = 0;
+      r = await open(url, named);
+      equal(`${url} stays refused`, [r.ok, r.resultCode, r.text], [false, "web.link_unseen", LIT_BROWSER_UNSEEN]);
+      equal(`${url} opened nothing`, OPENED.length, 0);
+    }
+
+    // A page, a tool's result and the assistant's own text are no proof the
+    // person named a site.
+    const page = exchange("p1", "web_fetch", '{"url":"https://news.example/story"}', "The store is https://amazon.it/");
+    OPENED.length = 0;
+    r = await open("https://www.amazon.it/", page);
+    equal("a page that printed it does not arm it", [r.ok, r.text], [false, LIT_BROWSER_UNSEEN]);
+    const assistant = [{ role: "user", content: "apri il browser" }, { role: "assistant", content: "Prova https://amazon.it/" }];
+    OPENED.length = 0;
+    r = await open("https://www.amazon.it/", assistant);
+    equal("the assistant's own text does not arm it", [r.ok, r.text], [false, LIT_BROWSER_UNSEEN]);
+
+    // Another label on the same host is another site.
+    OPENED.length = 0;
+    r = await open("https://shop.amazon.it/", named);
+    equal("a subdomain is not the site", [r.ok, r.text], [false, LIT_BROWSER_UNSEEN]);
+
+    // The scheme and the port are the address the person named, not the
+    // model's: nothing is upgraded and no port is changed.
+    OPENED.length = 0;
+    r = await open("http://amazon.it/", named);
+    equal("http is not https", [r.ok, r.text], [false, LIT_BROWSER_UNSEEN]);
+    r = await open("https://amazon.it:8443/", named);
+    equal("another port is another address", [r.ok, r.text], [false, LIT_BROWSER_UNSEEN]);
+
+    // A name or a password in front of the host is never dropped.
+    OPENED.length = 0;
+    r = await open("https://marco:pw@www.amazon.it/", named);
+    equal("a username in the address is refused as it is", [r.ok, r.resultCode], [false, "web.link_userinfo"]);
+    r = await open("https://www.amazon.it/?password=hunter2", named);
+    equal("a credential is refused as it is", [r.ok, r.resultCode], [false, "web.link_credential"]);
+
+    // The gate is asked about the address that would leave.
+    const asks = [];
+    const gate = {
+      documents: () => [{ id: "d1", name: "notes.txt", kind: "txt", chars: 5, tokens: 1, text: "notes", attachedAt: 1, active: true }],
+      confirm: async (c) => {
+        asks.push(c);
+        return true;
+      },
+      firstSearch: async () => true,
+    };
+    OPENED.length = 0;
+    r = await open("https://www.amazon.it/", named, gate);
+    equal("the gate is asked about the address that goes out", asks.map((a) => a.outgoing), ["https://amazon.it/"]);
+    check("and that address is what opened", OPENED.at(-1) === "https://amazon.it/", OPENED.join(","));
+
+    // The other doors are unchanged: a fetch of the model's spelling and a
+    // search carrying it are refused as they were.
+    r = await attempt("https://www.amazon.it/", named);
+    equal("a web_fetch of the model's spelling is still refused", [r.ok, r.text], [false, LIT_UNSEEN]);
+    r = await searchAttempt("https://www.amazon.it/s?k=computer", named);
+    equal("a search carrying the address is still refused", [r.ok, r.resultCode], [false, "web.query_link_unseen"]);
   }
 
   // --- credentials --------------------------------------------------------------

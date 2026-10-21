@@ -63,6 +63,15 @@ pub(super) fn answer_request(body: &[u8]) -> Option<(String, bool)> {
     Some((card_id.to_string(), allow))
 }
 
+/// A preview's body: **an object and nothing else**. **The fields in it are
+/// ignored**, because the phone names nobody: the door resolved the device
+/// from the credential, so an identity in a body is a field this route does
+/// not read.
+pub(super) fn preview_request(body: &[u8]) -> Option<()> {
+    let value: Value = serde_json::from_slice(body).ok()?;
+    value.as_object().map(|_| ())
+}
+
 /// One message as the page takes it. Any other key the phone sent is not
 /// passed on.
 fn message(value: &Value) -> Option<Value> {

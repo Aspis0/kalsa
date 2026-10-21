@@ -584,3 +584,13 @@ Report: 0 P0, 2 P1, 8 P2. The engine-key P1 (llama-server answered any Origin, n
 - Phone `web_fetch` redirects: a cross-host redirect is refused only after the native client has already contacted the new host (`redirect: "follow"`, webFetchTool.ts); the notice says "the site" (deepseek F6, pre-existing).
 - Report Worker: an automated commit review flagged redaction bypasses with no detail; not reproduced.
 - Learning governor M7: the wall-minute columns deflate the background heat estimate.
+
+## Beta browser flow, leftovers (2026-10-21)
+- `chat/scripts/rust-codes.mjs:122` — 5 checks red at HEAD (dotted phrases with no row in the i18n tables): pre-existing, not from this flow.
+- The answered card can be drawn again from a late snapshot after `takeOutcomes` (`chat/src/lib/browser/confirm.ts:254`): the id is spent, so no second send goes out, but the affordance still offers one — needs a dedicated proof and a copy decision.
+- No proof that a navigation with no frame is left unheld by the Ticket (`crates/kalsa-browser/src/hold.rs:1531` `is_main_frame_navigation`).
+- No end-to-end count of the events a post-dispatch error leaves in the phone path (`src-tauri/src/phone_chat.rs:789`).
+- The overlapping submits are proved on the store alone (deterministic, 30/30 — `crates/kalsa-browser/src/hold.rs:2703`): no browser end-to-end proof of two submits at once.
+- A read or a find on a page with no text holds the slot for 8 s (`crates/kalsa-browser/src/snapshot.rs:218`), and a turn may spend 24 browser calls (`chat/src/lib/callLedger.ts:25`): up to 24×8 s.
+- One line of a page can be worth ~1 MB (`crates/kalsa-browser/src/snapshot.rs:40` `TREE_CHARS`, `parts` at `:236`) and a find prints up to 40 of them (`crates/kalsa-browser/src/mcp.rs:706`).
+- Prompt cache: arming the browser mode changes the tools array (`chat/src/lib/tools/registry.ts:107`), so every toggle costs one re-prefill — to measure in the chip slice.

@@ -11,7 +11,7 @@ Owner decisions, 2026-10-17 (fixed; this plan does not reopen them):
 - **Every non-http(s) navigation is refused outright in slice 1** — `mailto:`, `tel:`, `javascript:`, `file:`, `data:`, everything else. **No OS handoff, no confirm.**
 - **Downloads are refused outright in slice 1.** The context is created with downloads not accepted (`protocol/browser_context/options.rs:290`), so there is nothing to ask about and nowhere for a file to land. No download confirm exists in this plan.
 - **Service workers are blocked on the context and WebSockets are refused**, so route interception sees every request the page makes.
-- **A confirm covers every non-GET request** the page issues — form posts, `fetch`, XHR, `sendBeacon`, scripted submits — not only form posts. GET navigations (a `method=get` form, a link click) are reads, and that is stated in Risks.
+- **Non-GET requests are intercepted before sending — except a write the page makes by itself.** A `fetch`, an XHR, a beacon or a report the page sends on its own goes out like a normal browser's lets it go: no card, nothing said to the model, no place in the person's queue. A write carrying what the person typed into a secret field is still held, and so is one whose body cannot be read while such a secret is on the line. Caught DOM submissions, including empty forms, retain confirmation. GET navigations are reads; their residual risk is stated below. *(Owner decision, 2026-10-20: automatic requests pass rather than being blocked.)*
 - **Confirms are decided in code, never by the model.** The model is told a request is `awaiting confirm <id>` and is told the outcome — it is never shown the card, never sees the payload outside the fenced tool result, and **has no tool that can answer one**.
 - **Minimum browser: Chrome / Edge / Brave 142 or newer.** Older builds get the local-network protection only from our own route refusal, so on anything older the tool is not offered, with one plain line saying why.
 - **Page text is untrusted**, arms addresses like `web_fetch`, and closes the text-to-tool-call channel like any other outside content.
@@ -36,18 +36,18 @@ Fill, then press Enter **iff** the node is an `HTMLInputElement` of type `text, 
 
 **The form is not part of the rule, and holding out for it is what made the rule wrong.** TodoMVC's new-todo input, a chat box and most search boxes are single-line inputs with no form at all, whose keydown handler commits what was typed: under a form-only rule a model typed its answer into one and pressed nothing, and the page never heard the rest of the request. That is the model watching a field take its words and do nothing with them. E4B's todomvc failure was this, and it was a code fix after all.
 
-What pressing Enter can cost is a request, and that is the hold's business, not this rule's: every write Enter can set off is a non-GET, and a non-GET is held like every other write — refused in slice 1, confirmed from step 4. A JS app that commits on Enter issues no request at all, so there is nothing there to hold. The destination re-read immediately before the key goes down (`RECHECK_BODY`) is unchanged.
+What pressing Enter can cost is a request, and that is the hold's business, not this rule's: every write Enter can set off is a non-GET, and a non-GET is either a submission — held like every other write, refused in slice 1 and confirmed from step 4 — or a request the page makes by itself, which goes out like a normal browser's. A JS app that commits on Enter issues no request at all, so there is nothing there to hold. The destination re-read immediately before the key goes down (`RECHECK_BODY`) is unchanged.
 
 Proved by unit tests over these shapes **and** over a real browser in `tests/input.rs`, where a one-line field inside a form and one with no form both take Enter, a textarea and an editable block do not, and a `<select>` is refused before anything is written.
 
 ## Submission is a held request, not a cancelled event
 
-A `preventDefault` on the submit event is not enough, for two separate reasons. It loses the payload — the card would be guessing what the site was about to receive. And it only ever sees *form* submits, including a scripted `requestSubmit()`, which does fire the submit event; `fetch()`, XHR and `sendBeacon()` never go through that event at all. So **every non-GET request the page makes is intercepted** — POST, PUT, PATCH, DELETE, form posts, `fetch`/XHR, `sendBeacon`, all of them.
+A `preventDefault` on the submit event is not enough, for two separate reasons. It loses the payload — the card would be guessing what the site was about to receive. And it only ever sees *form* submits, including a scripted `requestSubmit()`, which does fire the submit event; `fetch()`, XHR and `sendBeacon()` never go through that event at all. So **a write that would navigate is caught in the page**, and a write that would not is left alone: a request the page makes by itself is not held, and goes out like a normal browser's lets it go.
 
 **Where it is intercepted is not one place, and step 4 found that out by measurement.** Both routes were built; the first one was thrown away.
 
 - **A write that would navigate is caught in the page**, before the request exists: the submit event is prevented, the fields are read out of the `FormData` the browser itself built — the site's own encoding, hidden fields included — and the form is kept. Nothing is on the wire, so nothing can be recalled, and a decline is a request that never happened.
-- **A write the page makes by itself** never navigates and cannot be prevented from the page, so it is caught **at the route** and parked there with the route that would have dispatched it.
+- **A write the page makes by itself** never navigates and cannot be prevented from the page, so it goes out like a normal browser's lets it go. The only one the route holds is one carrying what the person typed into a secret field.
 
 Parking a *navigation* at the route was the first design and it does not work. Both failures were measured on this machine's browser, not reasoned about:
 
@@ -139,7 +139,7 @@ Moves the spike into `crates/kalsa-browser` and nothing else.
 - `src/launch.rs` — launch the installed browser with the Kalsa profile
 - `src/find_browser.rs` — macOS `.app` paths, Windows `App Paths` (no Chromium)
 - `src/guard.rs` — scheme and address refusal at the route
-- `src/hold.rs` — hold every non-GET request
+- `src/hold.rs` — hold the writes that are a person's to answer
 - `src/context.rs` — the context options that make the route authoritative: downloads not accepted, service workers blocked, WebSockets refused
 
 **One parser, not two.** The lab stops carrying its own copy: `dev/lab-browser-rs` becomes a thin wrapper depending on `kalsa-browser`, so a snapshot fix lands in the lab and the product together. It is deleted when the product ships.

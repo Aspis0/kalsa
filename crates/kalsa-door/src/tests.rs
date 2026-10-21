@@ -35,6 +35,7 @@ mod paging_sweep;
 mod phone_chat;
 mod phone_chat_browser;
 mod phone_chat_mail;
+mod phone_chat_preview;
 mod phone_chat_support;
 mod revocation;
 mod room_engine;

@@ -93,6 +93,7 @@ export const TOOLS = {
     "invalid": "Il modulo non ha lasciato passare l'invio.",
     "paused": "Hai chiesto a Kalsa di fermarsi nel browser.",
     "busy": "Kalsa è occupata col browser.",
+    "noPendingRequest": "Quella richiesta non sta piu aspettando una risposta.",
     "deterministic": "È già fallito una volta così.",
     "tooManySteps": "Sono troppi passi nel browser per un turno.",
     "alreadyRun": "L'aveva già fatto.",

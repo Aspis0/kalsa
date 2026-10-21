@@ -31,6 +31,9 @@ async fn the_model_path_refuses_a_host_only_tool_and_the_sidecar_never_hears_it(
 
     assert!(matches!(host.call("conv", "browser.browser_waiting", args(json!({}))).await, Err(Error::UnknownTool(_))));
     assert!(matches!(host.call("conv", "browser.browser_confirm", args(json!({"id": "c1"}))).await, Err(Error::UnknownTool(_))));
+    // **The picture of the person's page is one of these.** A model that could
+    // ask for it would be a model reading the person's screen.
+    assert!(matches!(host.call("conv", "browser.browser_preview", args(json!({"conversation": "phone:1"}))).await, Err(Error::UnknownTool(_))));
     assert!(calls(&sidecar).is_empty(), "the sidecar was never asked for a host-only tool");
 }
 
@@ -61,9 +64,9 @@ async fn the_host_reaches_its_own_tools_through_call_host_only() {
     assert_eq!(arguments(&sidecar)[1], json!({"id": "c1"}));
 }
 
-/// **`call_host_only` takes the five names and no others.** A tool the model is
-/// offered is not the host's to call this way, and a name with no server is
-/// refused before anything is started.
+/// **`call_host_only` takes the names in its table and no others.** A tool the
+/// model is offered is not the host's to call this way, and a name with no
+/// server is refused before anything is started.
 #[tokio::test]
 async fn call_host_only_takes_only_the_names_in_its_table() {
     let binary = TempBinary::new("host-only-table", b"browser v1");

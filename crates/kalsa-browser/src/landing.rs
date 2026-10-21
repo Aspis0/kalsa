@@ -42,6 +42,9 @@
 //! the fragment the page happens to carry would be answering about an address no
 //! response was ever filed under.
 //!
+//! A same-document URL change keeps the verified response that served it.
+//! The browser's frame event moves that record within the document's origin.
+//!
 //! **The latest answer stands.** A redirect makes a response per hop and each hop
 //! has its own URL, so the answer for the address now showing is the last one for
 //! *that* address — not the first, which is what the previous version took, and
@@ -59,6 +62,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use playwright_rs::protocol::{page, BrowserContext, Request};
+use playwright_rs::server::channel_owner::ChannelOwner;
 use tokio::sync::Mutex;
 
 use crate::guard::{decide, is_our_own, Refusal, Verdict};
@@ -81,6 +85,20 @@ const POLL: Duration = Duration::from_millis(20);
 /// address it answered from — `None` where the response named no peer.
 type Answers = Vec<(String, Option<IpAddr>)>;
 
+/// What one frame is showing: the address its answer is filed under, and the
+/// navigation that brought it here.
+#[derive(Clone, Default)]
+struct Frame {
+    /// The address the document's answer is filed under — the document's own
+    /// address, which the page may rename for itself.
+    filed: Option<String>,
+    /// The navigation that brought the document on screen here.
+    mark: u64,
+    /// The newest navigation begun in this frame. A newer one means the
+    /// document on screen is not the one the answer is for.
+    latest: u64,
+}
+
 /// The answers, the navigations still waiting for theirs, and the one address a
 /// read is asking about.
 #[derive(Clone)]
@@ -101,12 +119,22 @@ struct Store {
     /// Set by a read before it waits, so a navigation arriving mid-wait cannot
     /// push out the record that read depends on.
     shown: Option<String>,
+    /// What each frame is showing, so a page that renames its own document
+    /// moves the answer with it.
+    frames: BTreeMap<String, Frame>,
     settle: Duration,
 }
 
 impl Default for Store {
     fn default() -> Self {
-        Self { answers: Answers::new(), pending: BTreeMap::new(), navigations: 0, shown: None, settle: SETTLE }
+        Self {
+            answers: Answers::new(),
+            pending: BTreeMap::new(),
+            navigations: 0,
+            shown: None,
+            frames: BTreeMap::new(),
+            settle: SETTLE,
+        }
     }
 }
 
@@ -186,13 +214,15 @@ impl Landings {
     /// read that arrives before the new response is filed finds nothing and is
     /// refused — which is the right way round. Keeping the old answer would be
     /// the fail-open, and it would look like a working guard.
-    async fn mark(&self, request: &Request) -> Option<u64> {
+    async fn mark(&self, request: &Request) -> Option<(u64, String)> {
         if !is_main_frame_navigation(request) {
             return None;
         }
+        let frame = request.frame()?.guid().to_string();
         let mut store = self.0.lock().await;
         store.navigations += 1;
         let mark = store.navigations;
+        store.frames.entry(frame.clone()).or_default().latest = mark;
         if let Some(key) = key_of(request.url()) {
             forget(&mut store, &key);
             // A navigation that never answers leaves a mark behind, so the map
@@ -206,7 +236,7 @@ impl Landings {
             }
             store.pending.insert(key, mark);
         }
-        Some(mark)
+        Some((mark, frame))
     }
 
     /// Files the answer to one navigation, under the mark that asked for it.
@@ -215,7 +245,7 @@ impl Landings {
     /// not this one, and its answer is dropped rather than filed: it belongs to
     /// a document that is no longer the one on screen, and the address is not
     /// what says so.
-    async fn file(&self, mark: u64, response: &page::Response) {
+    async fn file(&self, mark: u64, frame: &str, response: &page::Response) {
         let Some(key) = key_of(response.url()) else {
             return;
         };
@@ -223,20 +253,60 @@ impl Landings {
             return;
         };
         let peer = address.and_then(|remote| peer_of(&remote.ip_address));
-        self.file_under(mark, key, peer).await;
+        self.file_under(mark, frame, key, peer).await;
     }
 
     /// The one place an answer is filed: under the mark that asked for it, or
     /// not at all. The check is here rather than in `file` so it lands **after**
     /// the round trip for the peer address — a navigation that began while we
     /// were reading it has to be able to say no.
-    async fn file_under(&self, mark: u64, key: String, peer: Option<IpAddr>) {
+    async fn file_under(&self, mark: u64, frame: &str, key: String, peer: Option<IpAddr>) {
         let mut store = self.0.lock().await;
         if store.pending.get(&key) != Some(&mark) {
             return;
         }
         store.pending.remove(&key);
         note(&mut store, &key, peer);
+        let state = store.frames.entry(frame.to_owned()).or_default();
+        // Only the current document's answer may follow a same-document URL change.
+        if state.latest == mark {
+            state.filed = Some(key);
+            state.mark = mark;
+        }
+    }
+
+    /// A same-document URL change must keep its verified response rather than
+    /// require a network response for a URL the page assigned to itself.
+    async fn renamed(&self, frame: &str, url: &str) {
+        let Some(key) = key_of(url) else {
+            return;
+        };
+        let mut store = self.0.lock().await;
+        let Some(state) = store.frames.get(frame) else {
+            return;
+        };
+        // A newer navigation began in this frame: the document on screen is
+        // not the one we have an answer for.
+        if state.mark != state.latest {
+            return;
+        }
+        let Some(filed) = state.filed.clone() else {
+            return;
+        };
+        if filed == key {
+            return;
+        }
+        if origin_of(&filed) != origin_of(&key) {
+            return;
+        }
+        let Some(index) = store.answers.iter().position(|(seen, _)| *seen == filed) else {
+            return;
+        };
+        let (_, peer) = store.answers.remove(index);
+        note(&mut store, &key, peer);
+        if let Some(state) = store.frames.get_mut(frame) {
+            state.filed = Some(key);
+        }
     }
 
     /// A record already holding these answers, so the check that reads it can be
@@ -264,22 +334,23 @@ impl Landings {
     /// built in a test, so what is testable is entered here: the answer a
     /// navigation drops, and the answer a later one supersedes.
     #[cfg(test)]
-    pub async fn navigating(&self, url: &str) -> u64 {
+    pub async fn navigating(&self, frame: &str, url: &str) -> u64 {
         let mut store = self.0.lock().await;
         store.navigations += 1;
         let mark = store.navigations;
         let key = key_of(url).expect("a navigation is to a web address");
         forget(&mut store, &key);
         store.pending.insert(key, mark);
+        store.frames.entry(frame.to_owned()).or_default().latest = mark;
         mark
     }
 
     /// Answers one navigation, as `file` does for a real response, and refuses
     /// the answer of anything else.
     #[cfg(test)]
-    pub async fn answering(&self, mark: u64, url: &str, address: &str) {
+    pub async fn answering(&self, mark: u64, frame: &str, url: &str, address: &str) {
         let key = key_of(url).expect("an answer is to a web address");
-        self.file_under(mark, key, address.parse().ok()).await;
+        self.file_under(mark, frame, key, address.parse().ok()).await;
     }
 }
 
@@ -357,6 +428,17 @@ pub fn key_of(url: &str) -> Option<String> {
     Some(format!("{scheme}{without_fragment}"))
 }
 
+/// A document may rename its URL within its origin; its verified response
+/// cannot authorize a URL on another origin.
+fn origin_of(url: &str) -> Option<String> {
+    let (scheme, rest) = url.split_once("://")?;
+    let authority = rest.split(['/', '?']).next().unwrap_or_default();
+    if authority.is_empty() {
+        return None;
+    }
+    Some(format!("{scheme}://{authority}"))
+}
+
 /// Files the main document's own responses, so a read can ask where the page it
 /// is about to show was actually served from. Installed beside the route and
 /// before it: a response for a request that is then refused never arrives, which
@@ -373,7 +455,7 @@ pub async fn watch(context: &BrowserContext, landings: &Landings) -> Result<(), 
         .on_request(move |request| {
             let marked = marked.clone();
             async move {
-                let Some(mark) = marked.mark(&request).await else {
+                let Some((mark, frame)) = marked.mark(&request).await else {
                     return Ok(());
                 };
                 let filed = marked.clone();
@@ -382,9 +464,25 @@ pub async fn watch(context: &BrowserContext, landings: &Landings) -> Result<(), 
                     // The driver answers for this request alone, or says the
                     // request failed and there is nothing to file.
                     if let Ok(Some(response)) = waiting.response().await {
-                        filed.file(mark, &response).await;
+                        filed.file(mark, &frame, &response).await;
                     }
                 });
+                Ok(())
+            }
+        })
+        .await?;
+
+    let renamed = landings.clone();
+    context
+        .on_frame_navigated(move |frame| {
+            let renamed = renamed.clone();
+            async move {
+                // Only the main document: an iframe that renames itself is not
+                // the page a read is about.
+                if frame.parent_frame().is_some() {
+                    return Ok(());
+                }
+                renamed.renamed(&frame.guid().to_string(), &frame.url()).await;
                 Ok(())
             }
         })
@@ -401,6 +499,14 @@ mod tests {
     /// A literal public address, so the lexical rules pass with no resolver and
     /// no network: whatever `refused` answers here came from the record.
     const PUBLIC: &str = "http://93.184.216.34/page";
+
+    /// The frame the tests speak for. The browser names frames by their own
+    /// guid.
+    const FRAME: &str = "frame";
+
+    /// Different request and displayed URLs exercise same-document navigation.
+    const SERVED: &str = "https://example.com/s/ref=nb_sb_noss?field-keywords=computer";
+    const SHOWN: &str = "https://example.com/s?k=computer";
 
     fn private() -> Option<IpAddr> {
         "192.168.1.20".parse().ok()
@@ -501,7 +607,7 @@ mod tests {
 
         // The name now answers from this computer's own network, and the
         // navigation starts before the response is filed.
-        let second = landings.navigating(PUBLIC).await;
+        let second = landings.navigating(FRAME, PUBLIC).await;
         assert_eq!(
             landings.refused(PUBLIC).await,
             Some(Refusal::Unseen),
@@ -509,7 +615,7 @@ mod tests {
         );
 
         // And the new answer is what counts once it arrives.
-        landings.answering(second, PUBLIC, "192.168.1.20").await;
+        landings.answering(second, FRAME, PUBLIC, "192.168.1.20").await;
         assert_eq!(landings.refused(PUBLIC).await, Some(Refusal::Address));
     }
 
@@ -525,15 +631,15 @@ mod tests {
     async fn a_late_answer_to_an_earlier_visit_cannot_answer_for_the_visit_on_screen() {
         let landings = Landings::new();
         quick(&landings).await;
-        let first = landings.navigating(PUBLIC).await;
-        let second = landings.navigating(PUBLIC).await;
-        landings.answering(first, PUBLIC, "93.184.216.34").await;
+        let first = landings.navigating(FRAME, PUBLIC).await;
+        let second = landings.navigating(FRAME, PUBLIC).await;
+        landings.answering(first, FRAME, PUBLIC, "93.184.216.34").await;
         assert_eq!(
             landings.refused(PUBLIC).await,
             Some(Refusal::Unseen),
             "the first visit's answer was filed for the second"
         );
-        landings.answering(second, PUBLIC, "93.184.216.34").await;
+        landings.answering(second, FRAME, PUBLIC, "93.184.216.34").await;
         assert_eq!(landings.refused(PUBLIC).await, None, "the second visit's own answer is the one that counts");
     }
 
@@ -544,8 +650,89 @@ mod tests {
     async fn an_answer_to_something_we_never_asked_for_is_not_filed() {
         let landings = Landings::new();
         quick(&landings).await;
-        landings.answering(1, PUBLIC, "93.184.216.34").await;
+        landings.answering(1, FRAME, PUBLIC, "93.184.216.34").await;
         assert_eq!(landings.refused(PUBLIC).await, Some(Refusal::Unseen));
+    }
+
+    /// A verified response remains valid when its document changes the shown URL.
+    #[tokio::test]
+    async fn a_page_that_renamed_itself_is_answered_by_the_answer_that_served_it() {
+        let landings = Landings::new();
+        let mark = landings.navigating(FRAME, SERVED).await;
+        landings.answering(mark, FRAME, SERVED, "93.184.216.34").await;
+        landings.renamed(FRAME, SHOWN).await;
+        quick(&landings).await;
+        assert_eq!(landings.refused(SHOWN).await, None);
+    }
+
+    /// A different URL needs the browser's same-document report to inherit a response.
+    #[tokio::test]
+    async fn a_page_that_renamed_itself_without_the_browser_saying_so_is_still_refused() {
+        let landings = Landings::new();
+        let mark = landings.navigating(FRAME, SERVED).await;
+        landings.answering(mark, FRAME, SERVED, "93.184.216.34").await;
+        quick(&landings).await;
+        assert_eq!(landings.refused(SHOWN).await, Some(Refusal::Unseen));
+    }
+
+    /// An origin change cannot inherit the document's verified response.
+    #[tokio::test]
+    async fn a_rename_to_another_origin_does_not_move_the_answer() {
+        let landings = Landings::new();
+        let mark = landings.navigating(FRAME, SERVED).await;
+        landings.answering(mark, FRAME, SERVED, "93.184.216.34").await;
+        landings.renamed(FRAME, "https://198.51.100.7/s?k=computer").await;
+        quick(&landings).await;
+        assert_eq!(landings.refused("https://198.51.100.7/s?k=computer").await, Some(Refusal::Unseen));
+    }
+
+    /// A frame event cannot rename another frame's document.
+    #[tokio::test]
+    async fn a_rename_in_another_frame_does_not_move_this_frames_answer() {
+        let landings = Landings::new();
+        let mark = landings.navigating(FRAME, SERVED).await;
+        landings.answering(mark, FRAME, SERVED, "93.184.216.34").await;
+        landings.renamed("another frame", SHOWN).await;
+        quick(&landings).await;
+        assert_eq!(landings.refused(SHOWN).await, Some(Refusal::Unseen));
+    }
+
+    /// Changing the displayed URL does not make a private or unknown peer readable.
+    #[tokio::test]
+    async fn a_document_served_from_our_own_network_is_refused_after_it_renamed_itself() {
+        for address in ["192.168.1.20", ""] {
+            let landings = Landings::new();
+            let mark = landings.navigating(FRAME, SERVED).await;
+            landings.answering(mark, FRAME, SERVED, address).await;
+            landings.renamed(FRAME, SHOWN).await;
+            quick(&landings).await;
+            let expected = if address.is_empty() { Refusal::Unseen } else { Refusal::Address };
+            assert_eq!(landings.refused(SHOWN).await, Some(expected), "{address:?}");
+        }
+    }
+
+    /// A new document needs its own response even when its URL was seen before.
+    #[tokio::test]
+    async fn a_second_visit_to_the_renamed_address_does_not_borrow_the_answer() {
+        let landings = Landings::new();
+        let mark = landings.navigating(FRAME, SERVED).await;
+        landings.answering(mark, FRAME, SERVED, "93.184.216.34").await;
+        landings.renamed(FRAME, SHOWN).await;
+        landings.navigating(FRAME, SHOWN).await;
+        quick(&landings).await;
+        assert_eq!(landings.refused(SHOWN).await, Some(Refusal::Unseen));
+    }
+
+    /// A pending new navigation cannot inherit the previous document's response.
+    #[tokio::test]
+    async fn a_rename_after_a_newer_navigation_does_not_move_the_answer() {
+        let landings = Landings::new();
+        let mark = landings.navigating(FRAME, SERVED).await;
+        landings.answering(mark, FRAME, SERVED, "93.184.216.34").await;
+        landings.navigating(FRAME, SHOWN).await;
+        landings.renamed(FRAME, SHOWN).await;
+        quick(&landings).await;
+        assert_eq!(landings.refused(SHOWN).await, Some(Refusal::Unseen));
     }
 
     /// **A peer in brackets is the address inside them.** Chromium writes an
@@ -571,7 +758,7 @@ mod tests {
     #[tokio::test]
     async fn a_new_navigation_drops_its_own_address_only() {
         let landings = Landings::holding(vec![(PUBLIC, "93.184.216.34"), ("http://198.51.100.7/other", "198.51.100.7")]).await;
-        landings.navigating(PUBLIC).await;
+        landings.navigating(FRAME, PUBLIC).await;
         quick(&landings).await;
         assert_eq!(landings.refused(PUBLIC).await, Some(Refusal::Unseen));
         assert_eq!(landings.refused("http://198.51.100.7/other").await, None);
@@ -584,9 +771,9 @@ mod tests {
     async fn every_navigation_is_given_its_own_number() {
         let landings = Landings::new();
         assert_eq!(landings.navigations().await, 0);
-        landings.navigating(PUBLIC).await;
-        landings.navigating(PUBLIC).await;
-        landings.navigating("http://198.51.100.7/other").await;
+        landings.navigating(FRAME, PUBLIC).await;
+        landings.navigating(FRAME, PUBLIC).await;
+        landings.navigating(FRAME, "http://198.51.100.7/other").await;
         assert_eq!(landings.navigations().await, 3, "a page that reloads itself must move the count");
     }
 

@@ -10,6 +10,9 @@ use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 
+/// The helpers a proof about a write needs.
+pub mod write;
+
 /// One thing the site serves.
 pub struct File {
     path: &'static str,
@@ -320,7 +323,7 @@ pub fn the_fixture(
 pub const CHAT: &str = "chat-a";
 
 pub async fn confirming_window(name: &str, base: &str) -> (kalsa_browser::session::Sessions, Page, kalsa_browser::hold::Holds) {
-    confirming_window_for(name, base, None).await
+    window_for(name, base, None).await
 }
 
 /// **The same window, answering for a second site.** Two origins, one route, and
@@ -542,7 +545,8 @@ fn first_handed_over(flat: &str, shape: &str) -> Option<String> {
     None
 }
 
-pub async fn confirming_window_for(
+/// The window itself: the page is opened, and the model drives it.
+pub async fn window_for(
     name: &str,
     base: &str,
     second: Option<&str>,
@@ -553,6 +557,18 @@ pub async fn confirming_window_for(
     // A window is bound to the chat driving it, and every card it raises carries
     // that: these tests answer in the same conversation they drove from.
     holds.navigated_by(CHAT).await;
+    // **The call that opens the page is driving it**, exactly as the product's
+    // own open does: the navigation it causes is ours, and the page it lands on
+    // is the conversation's. **The fixture is that call, for as long as the test
+    // lasts** — the window here is the model's to drive, so every navigation it
+    // makes is ours. A proof about a page the person opened by hand needs the
+    // other half of the rule, and it says so itself. The guard that lets go of
+    // the driving is handed over rather than dropped: there is no call here for
+    // it to be released by, and the test is the call. **A confirmed submission
+    // still ends it**, because that is the product's own rule — the watch that
+    // waits for the navigation after a submission lets go of the driving when
+    // it has passed.
+    holds.drive(CHAT).hand_over();
     let served = base.to_string();
     let also = second.unwrap_or_default().to_string();
     let holding = holds.clone();
@@ -573,20 +589,22 @@ pub async fn confirming_window_for(
             }
             // **The product's own decisions, all of them except the address one.**
             // A stand-in that reads is-read-and-therefore-fine would pass a proof
-            // the product fails: a GET carrying a secret is held, and a paused
-            // window holds the page's own writes. The pause is asked with the
-            // product's own predicate, not a copy of it.
+            // the product fails: a GET carrying a secret is held, and a page's
+            // own write is held with it. The question is asked with the product's
+            // own predicate, not a copy of it.
             let typed = holding.typed().await.values();
-            // **The pause is asked with the product's own predicate**, not a copy
-            // of it: a fixture that answered "yes while paused" would let every
-            // paused proof pass against a rule the route no longer keeps.
-            if holding.takes_pass(&request).await || guard::the_persons_paused_navigation(holding.paused(), &request, &typed)
-            {
+            if let Some(approved) = holding.takes_pass(&request).await {
+                // **The same watch the product's own route starts.** The answer
+                // to the request the person approved is watched, because a
+                // server may answer it with a redirect, and that redirect is a
+                // second navigation the browser makes on its own — ours, exactly
+                // as the first one is. A stand-in route that did not start it
+                // would prove the wrong thing: the redirect would arrive with
+                // nobody driving, and the receipt would belong to nobody.
+                holding.watch_the_landing(request.clone(), approved);
                 return route.continue_(None).await;
             }
-            if kalsa_browser::hold::is_read(request.method())
-                && !kalsa_browser::secret::carries(request.url(), &typed)
-            {
+            if guard::goes_out(&request, &typed, holding.paused()) {
                 return route.continue_(None).await;
             }
             kalsa_browser::hold::hold_write(&holding, &request, route).await
@@ -595,6 +613,7 @@ pub async fn confirming_window_for(
     .await
     .expect("the test route is installed");
     page.goto(base, None).await.expect("the fixture loads");
+    tokio::time::sleep(std::time::Duration::from_millis(150)).await;
     (sessions, page, holds)
 }
 
@@ -801,9 +820,15 @@ pub async fn browser_allowing_holding(
                 // address decision, which is the only thing it may stand in for.
                 // The fixture is on this computer's own network, so the guard's
                 // own route would refuse it before ever reaching a hold.
-                if opened_by_the_test && !kalsa_browser::hold::is_read(request.method()) {
+                if opened_by_the_test {
                     let holding = holds.clone();
-                    if !holding.takes_pass(&request).await {
+                    let typed = holding.typed().await.values();
+                    if let Some(approved) = holding.takes_pass(&request).await {
+                        // **The same watch the product's own route starts**: the
+                        // answer to the request the person approved, watched for
+                        // the redirect that may follow it.
+                        holding.watch_the_landing(request.clone(), approved);
+                    } else if !guard::goes_out(&request, &typed, holding.paused()) {
                         return kalsa_browser::hold::hold_write(&holding, &request, route).await;
                     }
                 }

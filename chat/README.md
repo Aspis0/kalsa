@@ -40,6 +40,18 @@ include which AI, processor, graphics card and memory use, never chats or text.
 - `node scripts/command-contract.mjs` — literal `brain_...` command names in
   frontend source must have a matching Tauri handler; registered-only handlers
   are reported, and event-shaped literals are called out separately.
+- `node scripts/press-family-contract.mjs` — the codes a press that never went
+  is, read from the Rust source and from the page's own function: the two lists
+  must be the same list, or a refusal tells the model that a request it never
+  sent was settled.
+- `node scripts/browser-failure-log.mjs` — the fixed codes a failed browser call
+  writes to the `ui:` log line, and that no address, argument or error text
+  reaches it
+- `node scripts/browser-fresh-read.mjs` — explicit reads and finds refresh the
+  page while action deduplication and the browser step bound stay enforced.
+- `node scripts/mail-notice.mjs` — the mail page's notice: which sentence it
+  shows for an AI that may not read mail, decided from the AI options this
+  computer offers
 - `node scripts/palette.mjs` — oklch derivation of the accent scale (not verification)
 
 ## Palette

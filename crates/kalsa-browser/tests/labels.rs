@@ -28,7 +28,7 @@ const FORM: &str = r#"
     <input id="hostile" name="hostile" type="text">
     <button type="submit">send it</button>
   </form>
-  <button type="button" onclick="fetch('/order', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'city=Bologna&phone=0123&custname=Giulia'})">send by script</button>
+  <button type="button" onclick="fetch('/order', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'city=Bologna&phone=0123&custname=Giulia&note=hunter2'})">send by script</button>
 "#;
 
 /// A label a page wrote to be hostile: hidden and reordering characters, and far
@@ -176,9 +176,10 @@ async fn hidden_text_is_not_a_label() {
 #[tokio::test]
 async fn a_write_from_another_document_is_labelled_by_nothing() {
     const A: &str = r#"<h1>a</h1><label for="city">the city</label><input id="city" name="city" type="text"><a href="/b">next page</a>"#;
-    const B: &str = r#"<h1>b</h1><script>fetch('/order', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'city=Bologna'});</script>"#;
+    const B: &str = r#"<h1>b</h1><script>fetch('/order', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'city=Bologna&note=hunter2'});</script>"#;
     let (base, _arrived) = common::serve(&[common::page(A), common::page_at("/b", B)]).await;
     let (_sessions, page, holds) = common::confirming_window("labels-stale", &base).await;
+    holds.typed_in(1, "hunter2").await;
     // Page A is read by the call that acts on it, and that call navigates to page B.
     let next = ref_of(&page, "next page").await;
     let before = holds.ids().await;
@@ -218,10 +219,15 @@ async fn a_name_with_a_secret_control_is_secret_in_every_entry() {
 
 /// **A body whose text is not UTF-8 is refused, not shown with replacement characters.**
 /// The page sends the bytes `city=\xFF`; no card is made and nothing reaches the server.
+///
+/// **The person's secret is what puts it on this road**: a write the page makes by
+/// itself goes out like a normal browser's, and a body it cannot read is only held
+/// when there is something of theirs in it.
 #[tokio::test]
 async fn a_body_that_is_not_text_is_refused_and_never_sent() {
     let (base, arrived) = common::serve(&[common::page("<h1>the shop</h1>")]).await;
     let (_sessions, page, holds) = common::confirming_window("labels-bytes", &base).await;
+    holds.typed_in(1, "hunter2-the-passphrase").await;
     page.evaluate::<(), ()>(
         &format!("() => {{ fetch('{base}/order', {{method: 'POST', headers: {{'Content-Type': 'application/x-www-form-urlencoded'}}, body: new Uint8Array([99, 105, 116, 121, 61, 255])}}); }}"),
         None,
@@ -275,10 +281,15 @@ async fn a_submitted_form_carries_the_words_the_page_gives_each_field() {
 
 /// **A write the page makes itself is labelled from the page it came from**, by name:
 /// a field the page labels gets its words, and a field it does not gets none.
+///
+/// **The write carries what the person typed, and that is what holds it**: a write
+/// of the page's own goes out like a normal browser's, so the only one the route
+/// sees at all is one carrying their secret.
 #[tokio::test]
 async fn a_scripted_write_is_labelled_from_the_page_it_came_from() {
     let (base, _arrived) = common::serve(&[common::page(FORM)]).await;
     let (_sessions, page, holds) = common::confirming_window("labels-route", &base).await;
+    holds.typed_in(1, "hunter2").await;
 
     // The write is made by the page's own script, caused by a click the person (or
     // the model) makes, so the labels are read for that click.
@@ -305,11 +316,12 @@ async fn a_write_after_the_address_changed_without_a_navigation_is_labelled_by_n
       <form id="order" action="/order" method="post">
         <label for="city">the city</label>
         <input id="city" name="city" type="text">
-        <button type="button" onclick="history.pushState({}, '', '/elsewhere'); fetch('/order', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'city=Bologna'})">go on</button>
+        <button type="button" onclick="history.pushState({}, '', '/elsewhere'); fetch('/order', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'city=Bologna&note=hunter2'})">go on</button>
       </form>
     "#;
     let (base, _arrived) = common::serve(&[common::page(PUSH)]).await;
     let (_sessions, page, holds) = common::confirming_window("labels-push", &base).await;
+    holds.typed_in(1, "hunter2").await;
     let go = ref_of(&page, "go on").await;
     let before = holds.ids().await;
     let (clicked, _) = mcp::acting(&page, &holds, common::CHAT, &before, common::the_fixture, input::click(&page, &go)).await;

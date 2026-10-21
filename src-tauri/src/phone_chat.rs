@@ -795,11 +795,12 @@ impl Bridge {
                 crate::browser::confirm::Dispatch::Answered(Ok(said)) => {
                     Ok(crate::browser::confirm::outcome_of(&said))
                 }
-                // **The card is spent and no answer came back**, which is the
-                // window's own case: unclear to the person and to the model, and
-                // never retried.
+                // **The window's own case has already been said, once.** `answer`
+                // says it itself — and it says nothing at all about a press that
+                // never went, because there is nothing to be unclear about: the
+                // browser was busy, the request was never sent, and the card is
+                // still waiting where it was raised.
                 crate::browser::confirm::Dispatch::Answered(Err(refused)) => {
-                    crate::browser::confirm::answer_failed(app, &state, &id, &conversation).await;
                     Err(refused.code().to_string())
                 }
                 crate::browser::confirm::Dispatch::Unclear => {
@@ -815,7 +816,13 @@ impl Bridge {
         let (code, host) = match outcome {
             Ok(outcome) => outcome,
             Err(code) => {
-                self.report(&held, crate::browser::confirm::UNCLEAR, None);
+                // **A press that never went is not a verdict about the request.**
+                // Nothing was sent, so the phone is told nothing: an outcome
+                // about it would be the phone saying it was settled when it was
+                // not. The busy browser gives the card back; the card that was
+                // already resolved elsewhere stays gone — and both are the same
+                // family, read from the one list.
+                self.report_a_refusal(&held, &code);
                 return Err(code);
             }
         };
@@ -823,11 +830,134 @@ impl Bridge {
         Ok(outcome_wire(&held.id, &code, host.as_deref()))
     }
 
+    /// **The phone's preview of the page this computer is showing.**
+    ///
+    /// **The pairing is checked twice, and the second answer counts.** The
+    /// second is asked after the picture has been taken and before a byte of it
+    /// leaves, so a phone the owner removed under the capture gets no picture.
+    ///
+    /// **The conversation is this phone's own**, named from the device the
+    /// door authenticated: a phone cannot ask for somebody else's page.
+    pub(crate) fn preview(&self, device: DeviceId) -> Result<Value, String> {
+        self.preview_guarded(device, || self.take_preview(device))
+    }
+
+    /// The preview, with the picture behind a seam, so the pairing rule can be
+    /// proved without a browser.
+    fn preview_guarded<F>(&self, device: DeviceId, capture: F) -> Result<Value, String>
+    where
+        F: FnOnce() -> Result<Value, String>,
+    {
+        let Some(owner) = self.paired_owner(device) else {
+            // This computer does not know this phone, so it will not answer for
+            // it. The door has already refused a credential it does not hold.
+            return Err(crate::browser::preview::Code::Unavailable.as_str().to_string());
+        };
+        let Some(key) = preview_key() else {
+            return Err(crate::browser::preview::Code::Unavailable.as_str().to_string());
+        };
+        // **From here to the hand-over, a pairing change can stop this.** The
+        // mark is set before the picture is taken and taken down however the
+        // picture ends.
+        let mark = Arc::new(AtomicBool::new(false));
+        lock(&self.answering).insert((owner, key.clone()), Arc::clone(&mark));
+        let _guard = PreviewMark { bridge: self, owner, key };
+        #[cfg(test)]
+        self.arrived();
+        let captured = capture();
+        // **The last look, as close to the hand-over as this code can get.** A
+        // phone unpaired since the check above gets no picture, and one
+        // unpaired under the capture is stopped by the mark. What has already
+        // gone out is not recalled — there is no way to recall it — but nothing
+        // leaves here either.
+        if self.paired_owner(device) != Some(owner) || mark.load(Ordering::SeqCst) {
+            return Err(crate::browser::preview::Code::Cancelled.as_str().to_string());
+        }
+        captured
+    }
+
+    /// The picture, through the browser this computer already has open.
+    ///
+    /// **Nothing is started for it.** A preview of a page that is not open is
+    /// an answer, not a reason to open a window on the person's desk.
+    fn take_preview(&self, device: DeviceId) -> Result<Value, String> {
+        let Some(app) = self.app.get() else {
+            return Err(crate::browser::preview::Code::Unavailable.as_str().to_string());
+        };
+        let state = app.state::<BrowserState>();
+        let conversation = conversation_of(device);
+        // Blocked on, not awaited: the door calls a hook from a thread of its
+        // own with no runtime of ours, exactly as a card's answer is dispatched.
+        tauri::async_runtime::block_on(state.browser().preview(&conversation))
+            .map_err(|code| code.as_str().to_string())
+    }
+
     /// Tells the phone what became of its card.
     fn report(&self, card: &Held, code: &str, host: Option<&str>) {
         self.tell_phone(card, code, host);
     }
 
+    /// **Reports a refusal as an outcome — unless the press never went.**
+    ///
+    /// **A press that never went is not a verdict**, so there is nothing to
+    /// report: nothing was sent, and an outcome would be this app saying the
+    /// request was settled when it was not. The busy browser and the card that
+    /// was already resolved elsewhere are both that, and they are read from the
+    /// one list.
+    ///
+    /// Returns whether it reported.
+    fn report_a_refusal(&self, card: &Held, code: &str) -> bool {
+        if self.a_press_that_never_went(card, code) {
+            return false;
+        }
+        self.report(card, crate::browser::confirm::UNCLEAR, None);
+        true
+    }
+
+    /// **A press that never went leaves nothing behind, and is not reported.**
+    ///
+    /// **The family is one list**, and it is the list the window's own rule
+    /// reads (`BrowserError::a_press_that_never_went`, which is what
+    /// `leaves_an_outcome` is read the other way round): the browser was busy,
+    /// or the request was not waiting for an answer any more. Both leave the
+    /// request unsent, so neither of them leaves an outcome behind — an outcome
+    /// about a request that never left would be this app saying the request was
+    /// settled when it was not, and the model would go on believing it had an
+    /// answer it does not have.
+    ///
+    /// **And the two are not the same thing to the card.** The busy browser means
+    /// the request is still held at the sidecar and the card is still the
+    /// person's to press, so **the card goes back on the table**, with the budget
+    /// it had — the five minutes the person was given are the five minutes they
+    /// had, and a card that came back with a fresh budget would be a card that
+    /// could be sat on for ever.
+    ///
+    /// Without this the card was gone from the phone's table for a press that
+    /// never reached anything: the next press was a press about nothing —
+    /// `card_unknown` — and the person was told their answer had gone to a card
+    /// that had never been there. The desktop's own reducer puts the card back
+    /// on a busy browser for exactly this reason; the phone's table has to do
+    /// the same, or the phone is the one place where a busy browser loses the
+    /// card.
+    ///
+    /// **A card that was already resolved elsewhere stays gone.** The request
+    /// had its verdict — from the decline that took it, or from the expiry that
+    /// removed it — and there is nothing left to press about it, so it does not
+    /// come back: a card that came back would be a card the person could press
+    /// again only to be refused again. It is left off the table, and the phone
+    /// is told the fixed code for it, which is the app's own sentence for a
+    /// request that is not waiting for an answer any more.
+    ///
+    /// Returns whether this was such a press.
+    fn a_press_that_never_went(&self, card: &Held, code: &str) -> bool {
+        if !crate::browser::error::BrowserError::a_press_that_never_went(code) {
+            return false;
+        }
+        if code == crate::browser::error::BrowserError::Busy.code() {
+            lock(&self.cards).note(card.clone(), Instant::now());
+        }
+        true
+    }
     /// **Tells the model, through the same per-conversation note the desktop's own
     /// outcomes ride.** Used only where no answer path already said it — a card
     /// that expired, a phone that unpairs — because an outcome nobody hears is an
@@ -918,6 +1048,26 @@ impl Drop for SendOutcome<'_> {
     }
 }
 
+/// **Takes the mark down however the preview ends.** A mark left behind would
+/// let a later pairing change stop a picture that has already ended.
+struct PreviewMark<'a> {
+    bridge: &'a Bridge,
+    owner: Owner,
+    key: String,
+}
+
+impl Drop for PreviewMark<'_> {
+    fn drop(&mut self) {
+        lock(&self.bridge.answering).remove(&(self.owner, self.key.clone()));
+    }
+}
+
+/// The key one preview is marked under. **Unique, because two previews of the
+/// same phone must not share a mark.**
+fn preview_key() -> Option<String> {
+    random_hex().map(|hex| format!("preview-{hex}"))
+}
+
 impl PhoneChat for Bridge {
     fn open(&self, device: DeviceId, kind: &'static str, body: Value) -> Option<Opened> {
         let app = self.app.get()?;
@@ -976,6 +1126,12 @@ impl PhoneChat for Bridge {
     /// spend-before-dispatch, same outcome to the model.
     fn answer_browser(&self, device: DeviceId, card_id: &str, allow: bool) -> Result<Value, String> {
         self.answer_card(device, card_id, allow)
+    }
+
+    /// **A phone's preview of the page this computer is showing.** The picture
+    /// and the two facts beside it, or the code the phone reads.
+    fn preview(&self, device: DeviceId) -> Result<Value, String> {
+        Bridge::preview(self, device)
     }
 }
 

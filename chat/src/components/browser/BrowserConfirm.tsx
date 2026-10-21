@@ -1,7 +1,9 @@
 import { useState } from "react";
 
 import { useLanguage } from "../../i18n/useLanguage";
+import { rustSentence } from "../../lib/rustText";
 import { answer, destinationLabel, DOTS, type Card, type CardField, type Outcome, type Settled } from "../../lib/browser/confirm";
+import { isCardAlreadyResolved, isPressThatNeverLeft } from "../../lib/browser/codes";
 import { useConfirm } from "../../lib/browser/useConfirm";
 import "./BrowserConfirm.css";
 
@@ -48,7 +50,14 @@ export function BrowserConfirm({ conversation }: { conversation: string }) {
  * sidecar has said which, the line says the request is on its way.
  */
 function Answered({ settled, t }: { settled: Settled; t: ConfirmTable }) {
-  const words = settled.outcome === null ? t.asking : outcomeWords(t)(settled.outcome);
+  const { table, tag } = useLanguage();
+  // **A card closed without an outcome says so in the app's own words.** The press
+  // found the request already resolved somewhere else, so there is no outcome to
+  // draw — and the line is the fixed sentence for that code, never the prose the
+  // refusal carried.
+  const words = settled.outcome !== null
+    ? outcomeWords(t)(settled.outcome)
+    : settled.closed !== null ? rustSentence(table.rust, { code: settled.closed }, tag) : t.asking;
   return <p className="browser-confirm-outcome" data-card={settled.id}>{words}</p>;
 }
 
@@ -107,9 +116,14 @@ function Field({ field, label }: { field: CardField; label: ConfirmWords }) {
 type ConfirmWords = { show: string; hide: string };
 
 function Card({ card, conversation }: { card: Card; conversation: string }) {
-  const { table } = useLanguage();
+  const { table, tag } = useLanguage();
   const t = table.confirm;
   const [asking, setAsking] = useState(false);
+  // **What the person is told when a press never went.** The browser was busy, or
+  // the request was not waiting for an answer any more: nothing was sent either
+  // way, so the card is still waiting — and a press that leaves no word behind
+  // is a press the person cannot tell from one that worked.
+  const [notice, setNotice] = useState<string | null>(null);
   // A field with no value is not something the person is asked to read.
   const filled = card.fields.filter((field) => field.value !== "");
   // **The host is what the sidecar's parser said, never what this window works
@@ -124,7 +138,19 @@ function Card({ card, conversation }: { card: Card; conversation: string }) {
   async function press(allow: boolean): Promise<void> {
     if (asking) return;
     setAsking(true);
-    await answer(allow, card.id, conversation);
+    setNotice(null);
+    const pressed = await answer(allow, card.id, conversation);
+    // **A press that never went leaves the card as it was.** The buttons come
+    // back with it, and the person is told why in their own words: the card is
+    // still waiting, and nothing was sent.
+    //
+    // **A card that was already resolved elsewhere is closed**, and its buttons
+    // do not come back: there is nothing left to press about it, and a button
+    // that could only be refused again is not a decision.
+    if (pressed.code !== null && isPressThatNeverLeft(pressed.code) && !isCardAlreadyResolved(pressed.code)) {
+      setAsking(false);
+      setNotice(rustSentence(table.rust, { code: pressed.code }, tag));
+    }
   }
 
   return <div className="browser-confirm" data-card={card.id}>
@@ -134,6 +160,7 @@ function Card({ card, conversation }: { card: Card; conversation: string }) {
       </span>
       <span className="browser-confirm-waiting">{t.waiting}</span>
     </div>
+    {notice !== null ? <p className="browser-confirm-notice">{notice}</p> : null}
     {destination !== null && !destination.secure ? <p className="browser-confirm-insecure">{t.insecure}</p> : null}
     {destination === null ? <p className="browser-confirm-nowhere">{t.nowhereWhy}</p> : null}
     {filled.length === 0

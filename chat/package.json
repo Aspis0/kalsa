@@ -13,6 +13,7 @@
     "sampling-roundtrip": "node scripts/sampling-roundtrip.mjs",
     "csp": "node scripts/csp-consistency.mjs",
     "command-contract": "node scripts/command-contract.mjs",
+    "press-family-contract": "node scripts/press-family-contract.mjs",
     "verify": "node scripts/verify-run.mjs"
   },
   "dependencies": {

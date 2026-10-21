@@ -30,10 +30,11 @@ use kalsa_mcp::outcome::{CallOutcome, ToolResult};
 use kalsa_mcp::record::{ServerRecord, Trust};
 use kalsa_mcp::registry::Registry;
 use kalsa_mcp::server_id::ServerId;
-use serde_json::{Map, Value};
+use serde_json::{json, Map, Value};
 
-use super::codes::BrowserCode;
+use super::codes::{failure_category, BrowserCode};
 use super::error::BrowserError;
+use super::preview;
 use super::program;
 use super::window::WindowState;
 use super::{server_env, tool_pins, SERVER};
@@ -57,6 +58,7 @@ const HOST_ONLY: &[&str] = &[
     "browser_resume",
     "browser_confirm",
     "browser_decline",
+    "browser_preview",
 ];
 
 /// What is true of the browser right now.
@@ -113,6 +115,18 @@ struct Lease<H> {
     gen: u64,
 }
 
+/// What a call that starts nothing found in the slot.
+#[derive(Debug)]
+enum Taken<H> {
+    /// A session is open and idle: the host is this call's for as long as it
+    /// runs.
+    Host(Lease<H>),
+    /// Nothing is open: there is no page, and nothing was started to find out.
+    Nothing,
+    /// A call owns the browser, or one is on its way out.
+    Busy,
+}
+
 impl<H> Slot<H> {
     fn idle() -> Self {
         Self { state: State::Idle, taken: 0, host: None, paused: false, seq: 0, clearing: false }
@@ -157,6 +171,64 @@ impl<H> Slot<H> {
             },
         };
         Ok(Lease { host, gen })
+    }
+
+    /// **The slot taken, and what the press spends spent with it.**
+    ///
+    /// The spend runs inside the take, and only when the take happened: a call
+    /// that did not get the slot was never dispatched, so it must not spend
+    /// anything either. **The slot is the arbiter of which press is the one
+    /// that counts** — one press takes it and spends, and the other is refused
+    /// without spending.
+    ///
+    /// **And the spend is the arbiter of whether anything goes at all.** It
+    /// says whether the card was really there to spend, and a spend that found
+    /// nothing stops the call **there**: the browser goes back exactly as it
+    /// was and nothing is dispatched. A call that went on to ask the sidecar
+    /// about a card nobody was holding any more would be asking about a request
+    /// that has already been answered, and the sidecar's "I do not know that
+    /// one" would come back as a second verdict about it.
+    fn take_spending(
+        &mut self,
+        open: impl FnOnce() -> Result<H, BrowserError>,
+        spend: impl FnOnce() -> bool,
+    ) -> Result<Lease<H>, BrowserError> {
+        let lease = self.take(open)?;
+        if spend() {
+            return Ok(lease);
+        }
+        // **Nothing was dispatched, so the browser is put back as it was.** The
+        // slot is not left busy over a call that did nothing, and the host is
+        // not killed over one.
+        self.give_back(lease);
+        Err(BrowserError::NoCard)
+    }
+
+    /// **The slot taken without starting anything.**
+    ///
+    /// A call that must not open a browser — the phone's preview — takes the
+    /// slot this way: `Idle` has no host to give, and a host that is there is
+    /// taken as it is. **A check of the slot followed by a start would be a
+    /// race**: two callers could both read `Idle` and both start a browser,
+    /// and only one of them would be the browser the person sees.
+    fn take_existing(&mut self) -> Taken<H> {
+        if !matches!(self.state, State::Open) {
+            // An idle slot is an answer, not a refusal: there is no page here.
+            return if self.state == State::Idle { Taken::Nothing } else { Taken::Busy };
+        }
+        if self.clearing {
+            // The profile is being emptied underneath: the browser is on its
+            // way elsewhere.
+            return Taken::Busy;
+        }
+        let Some(host) = self.host.take() else {
+            return Taken::Nothing;
+        };
+        self.taken += 1;
+        let gen = self.taken;
+        self.state = State::Busy;
+        self.seq += 1;
+        Taken::Host(Lease { host, gen })
     }
 
     /// The call is finished with its host. It goes back only if it is still the
@@ -311,7 +383,7 @@ impl Browser {
         tool: &str,
         args: Map<String, Value>,
     ) -> Result<String, BrowserError> {
-        self.reach(app_data, tool, args, false).await
+        self.reach(app_data, tool, args, false, None).await
     }
 
     /// Calls one of the person's own answers, or the list of what waits for them,
@@ -323,21 +395,84 @@ impl Browser {
         tool: &str,
         args: Map<String, Value>,
     ) -> Result<String, BrowserError> {
-        self.reach(app_data, tool, args, true).await
+        self.reach(app_data, tool, args, true, None).await
+    }
+
+    /// Calls one of the person's own answers, **and spends what the press was
+    /// for only once the slot is ours** — and asks the spend whether there was
+    /// anything to spend.
+    ///
+    /// **The slot is the arbiter, and the spend happens inside it.** A press
+    /// that finds the browser busy was never dispatched: the sidecar has not
+    /// heard of the id, the card is still waiting there, and the person can
+    /// press it again. Spending it before the slot was taken would leave the
+    /// card spent on this side and waiting on the other — two verdicts about
+    /// one request, and a request that never went.
+    ///
+    /// **The spend answers whether the card was still there.** A spend that
+    /// found nothing stops the call before it dispatches anything, and the
+    /// person is told the request is not waiting for an answer any more.
+    pub(crate) async fn call_host_spending(
+        &self,
+        app_data: &Path,
+        tool: &str,
+        args: Map<String, Value>,
+        spend: impl FnOnce() -> bool + Send + 'static,
+    ) -> Result<String, BrowserError> {
+        self.reach(app_data, tool, args, true, Some(Box::new(spend))).await
+    }
+
+    /// **The phone's preview of the page this browser is showing.**
+    ///
+    /// **Nothing is started here.** The slot is taken without a host to start,
+    /// and an idle slot is answered as "there is no page" rather than becoming
+    /// one.
+    ///
+    /// **The picture is the person's page.** It is read once, here, and handed
+    /// to the phone that asked for it — never into the model's context, never
+    /// written down.
+    pub(crate) async fn preview(&self, conversation: &str) -> Result<Value, preview::Code> {
+        let mut lease = match self.locked().take_existing() {
+            Taken::Host(lease) => lease,
+            Taken::Nothing => return Err(preview::Code::NoPage),
+            Taken::Busy => return Err(preview::Code::Busy),
+        };
+        let name = qualified("browser_preview");
+        let args = json!({"conversation": conversation}).as_object().cloned().unwrap_or_default();
+        let ran = lease.host.call_host_only(CONVERSATION, &name, args).await;
+        // **The host goes back whether the answer was read or not**, and it is
+        // dropped if the session was ended while this call was running.
+        let kept = self.locked().give_back(lease);
+        if !kept {
+            log::info!("browser sidecar: dropped, the session was ended or its window is gone");
+        }
+        preview::handed_over(kept)?;
+        let result = ran.map_err(|error| {
+            log::warn!("browser sidecar: {error:?}");
+            preview::Code::Unavailable
+        })?;
+        preview::read(&result.for_model.join("\n"))
     }
 
     /// The one path both entries share. **Which of the two calls the host is decided
     /// by the entry that was called, and the name must agree with it** — checked
     /// before the slot is taken, so a refused name starts nothing.
+    ///
+    /// **`spent` is what the press spends, and it runs once the slot is ours**:
+    /// a call that never got the slot never dispatched anything, so it must not
+    /// spend anything either. **And it says whether there was anything to
+    /// spend**: a spend that found nothing stops the call before it dispatches,
+    /// so nothing goes out about a request that has already been answered.
     async fn reach(
         &self,
         app_data: &Path,
         tool: &str,
         args: Map<String, Value>,
         person: bool,
+        spent: Option<Box<dyn FnOnce() -> bool + Send>>,
     ) -> Result<String, BrowserError> {
         if HOST_ONLY.contains(&tool) != person {
-            return Err(BrowserError::Refused(BrowserCode::Refused));
+            return Err(BrowserError::Refused { code: BrowserCode::Refused, why: None });
         }
         // **The generation is read before the lease is taken.** Taking the lease
         // first leaves a window in which a Stop lands and this call has already
@@ -347,7 +482,20 @@ impl Browser {
         // is simply a generation this call has already seen.
         let mut stopped = self.stop.subscribe();
         let seen = *stopped.borrow_and_update();
-        let mut lease = self.locked().take(|| start(app_data))?;
+        // **The slot is taken with the spend inside it.** The slot is the
+        // arbiter of which press is the one that counts: the press that takes
+        // it spends the card, and the press that does not get it — because a
+        // preview is being taken, or because another press got there first —
+        // spends nothing and dispatches nothing. **And the spend is the
+        // arbiter of whether the request goes at all**: a card that was not
+        // there to spend stops the call here, with the browser put back.
+        let mut lease = self.locked().take_spending(
+            || start(app_data),
+            || match spent {
+                Some(spend) => spend(),
+                None => true,
+            },
+        )?;
         let name = qualified(tool);
         let ran = tokio::select! {
             biased;
@@ -385,7 +533,11 @@ impl Browser {
                 // goes to the page**, so a refusal that says why can be acted on
                 // and the window never has to read prose to know what happened.
                 if result.is_error {
-                    return Err(BrowserError::Refused(BrowserCode::of(&result)));
+                    // Only a whitelisted stage can produce a fixed log entry.
+                    if let Some(category) = failure_category(&result) {
+                        log::warn!("{category}");
+                    }
+                    return Err(refusal(&result));
                 }
                 Ok(result.for_model.join("\n"))
             }
@@ -500,6 +652,14 @@ fn the_window_went(result: &ToolResult) -> bool {
     result.for_ui.as_ref().and_then(|said| said.pointer("/kalsa/gone")).and_then(Value::as_bool) == Some(true)
 }
 
+/// The refusal a sidecar answer becomes: **its own code for the page, its own
+/// words for the model**. The code is the closed set the page turns into its
+/// own words; the sidecar's text is what the model reads.
+fn refusal(result: &ToolResult) -> BrowserError {
+    let said = result.for_model.join("\n");
+    BrowserError::Refused { code: BrowserCode::of(result), why: (!said.is_empty()).then_some(said) }
+}
+
 /// Whether the Stop that raised the generation is this call's to answer.
 ///
 /// The notification is created before the generation is read, so a Stop landing
@@ -535,7 +695,7 @@ fn start(app_data: &Path) -> Result<Host<SealedStdioLauncher>, BrowserError> {
 
 #[cfg(test)]
 mod tests {
-    use super::{keep_the_host, qualified, the_window_went, wait_for_stop, Browser, BrowserCode, BrowserError, Host, Registry, SealedStdioLauncher, ServerRecord, Slot, State, Trust, CONVERSATION};
+    use super::{failure_category, keep_the_host, qualified, refusal, the_window_went, wait_for_stop, Browser, BrowserCode, BrowserError, Host, Registry, SealedStdioLauncher, ServerRecord, Slot, State, Taken, Trust, CONVERSATION};
     use kalsa_mcp::error::Error;
     use kalsa_mcp::outcome::{CallOutcome, ToolResult};
     use kalsa_mcp::pins::Pins;
@@ -555,6 +715,29 @@ mod tests {
         Slot::idle()
     }
 
+    /// **The conversation these tests' cards belong to.**
+    const CHAT: &str = "chat-a";
+
+    /// **The card, as the app is holding it** — the sidecar's own card, put on
+    /// the window the way the sidecar's list puts it there.
+    fn card(id: &str) -> crate::browser::pending::Card {
+        crate::browser::pending::card_of(
+            id,
+            "POST",
+            "https://shop.example/order",
+            CHAT,
+            vec![crate::browser::pending::Field { name: "city".to_owned(), value: "Bologna".to_owned(), secret: false, label: None }],
+            Some(crate::browser::pending::Destination { host: "shop.example".to_owned(), port: None, secure: true }),
+        )
+    }
+
+    /// **The app's own list of cards**, the one a press spends out of.
+    fn pending_with(cards: Vec<crate::browser::pending::Card>) -> crate::browser::pending::Pending {
+        let pending = crate::browser::pending::Pending::default();
+        pending.replace_with(cards, Instant::now());
+        pending
+    }
+
     /// The states are the contract, so the tests read them rather than only the
     /// error a refusal happens to carry.
     fn state<T>(slot: &Slot<T>) -> State {
@@ -572,6 +755,209 @@ mod tests {
         assert_eq!(state(&slot), State::Busy, "and it is still the first call's slot");
     }
 
+    /// **A press that finds the browser busy spends nothing.** The request was
+    /// never dispatched, so the card is still waiting where it was raised, and
+    /// it is still the person's to press. A press that spent it anyway would
+    /// leave two verdicts about one request — one of them about a request that
+    /// never went.
+    #[test]
+    fn a_press_that_finds_the_browser_busy_spends_nothing() {
+        let mut slot = idle();
+        let _running = slot.take(|| Ok("running".to_owned())).expect("the call took the browser");
+        let mut spent = false;
+        let refused = slot.take_spending(|| panic!("a second host was started"), || {
+            spent = true;
+            true
+        });
+        assert!(matches!(refused, Err(BrowserError::Busy)), "the press is refused as busy");
+        assert!(!spent, "and the card was not spent by a press that never went");
+        assert_eq!(state(&slot), State::Busy, "and the running call still holds the browser");
+    }
+
+    /// **The press that takes the slot is the one that spends.** Two presses at
+    /// once: one of them is the press, and the other is refused without
+    /// spending — so there is one request and one answer about it, not two.
+    ///
+    /// **One after the other**, which is the half of it the concurrent proof
+    /// below cannot say: the second press finds the slot busy and is turned
+    /// away before it spends anything.
+    #[test]
+    fn two_presses_at_once_spend_once_and_dispatch_once() {
+        let mut slot = idle();
+        let mut spends = 0;
+        assert!(slot.take_spending(|| Ok("host".to_owned()), || {
+            spends += 1;
+            true
+        })
+        .is_ok(), "the first press took the browser");
+        let mut second = false;
+        assert!(matches!(
+            slot.take_spending(|| panic!("a second host was started"), || {
+                second = true;
+                true
+            }),
+            Err(BrowserError::Busy)
+        ));
+        assert_eq!(spends, 1, "one press spent the card");
+        assert!(!second, "and the other press spent nothing");
+    }
+
+    /// **Two presses at once: one of them is the press.**
+    ///
+    /// **The two reach the slot together, not one after the other.** The old
+    /// proof of this was sequential — one press, then the other — and a
+    /// sequential proof cannot say what two presses *at once* do: it can only
+    /// say what the second press found after the first had finished. Here two
+    /// threads arrive at the same moment, and the slot itself is the arbiter:
+    /// the press that takes it spends the card and asks the sidecar, and the
+    /// press that does not get it spends nothing and asks nothing.
+    #[test]
+    fn two_presses_at_the_same_moment_spend_once_and_ask_once() {
+        let slot = std::sync::Arc::new(std::sync::Mutex::new(idle()));
+        let spends = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let asks = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let start = std::sync::Arc::new(std::sync::Barrier::new(2));
+        let mut presses = Vec::new();
+        for _ in 0..2 {
+            let slot = std::sync::Arc::clone(&slot);
+            let spends = std::sync::Arc::clone(&spends);
+            let asks = std::sync::Arc::clone(&asks);
+            let start = std::sync::Arc::clone(&start);
+            presses.push(std::thread::spawn(move || {
+                start.wait();
+                let mut slot = slot.lock().expect("the slot's own lock");
+                let taken = slot.take_spending(
+                    || Ok("host".to_owned()),
+                    || {
+                        spends.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                        true
+                    },
+                );
+                if taken.is_ok() {
+                    asks.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                }
+            }));
+        }
+        for press in presses {
+            press.join().expect("both presses finished");
+        }
+        assert_eq!(spends.load(std::sync::atomic::Ordering::SeqCst), 1, "one press spent the card");
+        assert_eq!(asks.load(std::sync::atomic::Ordering::SeqCst), 1, "and the sidecar was asked once");
+    }
+
+    /// **A press on a card another press already spent asks the sidecar
+    /// nothing.**
+    ///
+    /// The spend is the arbiter, and the only one: it says whether the card was
+    /// really there, and a spend that found nothing stops the call **there** —
+    /// the browser goes back as it was, and nothing is asked of the sidecar. A
+    /// call that went on to ask would be asking about a request that has
+    /// already been answered, and the sidecar's "I do not know that one" would
+    /// come back as a **second verdict** about a request that already had one.
+    #[test]
+    fn a_press_on_a_card_another_press_spent_asks_the_sidecar_nothing() {
+        // **The card, as the app is holding it**, and the decline that took it.
+        let pending = pending_with(vec![card("c1")]);
+        assert_eq!(pending.spend_in("c1", CHAT).map(|gone| gone.id), Some("c1".to_owned()), "the decline took the card");
+
+        // **And now the press.** The slot is free, so the press gets it — and
+        // the spend finds nothing, because the card is gone.
+        let mut slot = idle();
+        let mut asked = false;
+        let taken = slot.take_spending(
+            || Ok("host".to_owned()),
+            || pending.spend_in("c1", CHAT).is_some(),
+        );
+        if taken.is_ok() {
+            asked = true;
+        }
+        assert!(!asked, "the sidecar was never asked about a request that was already answered");
+        assert_eq!(state(&slot), State::Open, "and the browser is back, not left busy over a call that did nothing");
+    }
+
+    /// **A decline that finds the browser busy leaves the request where it is.**
+    ///
+    /// The decline is spent inside the slot, like every other press: a decline
+    /// that did not get the slot was never dispatched, so the card is still
+    /// waiting where it was raised — and the sidecar, which still holds it,
+    /// will let it go when its five minutes are up. **That is the fail-closed
+    /// end of a request nobody could answer in time**, and it is one verdict.
+    /// Spending the card here as well would leave two: this app's "the person
+    /// said no", and the sidecar's "nobody answered it".
+    #[test]
+    fn a_decline_that_finds_the_browser_busy_leaves_the_request_where_it_is() {
+        let pending = pending_with(vec![card("c1")]);
+
+        // **The browser is busy** — a preview is being taken.
+        let mut slot = Slot { state: State::Busy, taken: 0, host: Some("session".to_owned()), paused: false, seq: 0, clearing: false };
+        let refused = slot.take_spending(
+            || panic!("a second host was started"),
+            || pending.spend_in("c1", CHAT).is_some(),
+        );
+
+        assert!(matches!(refused, Err(BrowserError::Busy)), "the decline is refused as busy");
+        assert!(pending.holds("c1", CHAT), "and the request is still waiting where it was raised");
+        assert_eq!(state(&slot), State::Busy, "and the call that holds the browser still holds it");
+    }
+
+    /// **A press that finds the card spends it once, asks once, and leaves
+    /// nothing to press again.**
+    #[test]
+    fn a_press_that_finds_the_card_spends_it_once_and_asks_once() {
+        let pending = pending_with(vec![card("c1")]);
+
+        let mut slot = idle();
+        let mut spends = 0;
+        let mut asked = false;
+        let taken = slot.take_spending(
+            || Ok("host".to_owned()),
+            || {
+                spends += 1;
+                pending.spend_in("c1", CHAT).is_some()
+            },
+        );
+        if taken.is_ok() {
+            asked = true;
+        }
+
+        assert_eq!(spends, 1, "the card was spent once");
+        assert!(asked, "and the sidecar was asked once");
+        assert!(!pending.holds("c1", CHAT), "and the card is gone, so a second press finds nothing");
+        // **And the browser comes back for the next call.**
+        slot.give_back(taken.expect("the press took the browser"));
+        assert_eq!(state(&slot), State::Open);
+    }
+
+    /// **A press while a preview is being taken is refused, and spends nothing.**
+    ///
+    /// The preview holds the browser while it takes the picture, and the press
+    /// finds it busy. **Nothing was dispatched**, so the card is still waiting
+    /// where it was raised and is still the person's to press — and a press that
+    /// spent it anyway would leave the sidecar holding a card nobody answered
+    /// and the model holding an answer nobody asked for.
+    #[tokio::test]
+    async fn a_press_while_a_preview_is_taken_is_refused_and_spends_nothing() {
+        let browser = Browser::default();
+        // **The preview holds the browser** while the picture is taken: the slot
+        // is busy and nobody may take it.
+        browser.locked().state = State::Busy;
+        let spent = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let flagged = spent.clone();
+        let refused = browser
+            .call_host_spending(
+                std::path::Path::new("/nowhere"),
+                "browser_confirm",
+                Map::new(),
+                move || {
+                    flagged.store(true, std::sync::atomic::Ordering::SeqCst);
+                    true
+                },
+            )
+            .await;
+        assert!(matches!(refused, Err(BrowserError::Busy)), "the press is refused as busy");
+        assert!(!spent.load(std::sync::atomic::Ordering::SeqCst), "and the card was not spent by a press that never went");
+    }
+
     /// An open session is reused, not replaced, and comes back open.
     #[test]
     fn a_finished_call_hands_its_host_back_to_the_session() {
@@ -582,6 +968,52 @@ mod tests {
         assert!(slot.give_back(lease), "nothing ended it meanwhile");
         assert_eq!(state(&slot), State::Open);
         assert_eq!(slot.take(|| Ok("new".to_owned())).expect("reused").host, "session");
+    }
+
+    /// **The slot taken without starting anything takes the host that is
+    /// there.** A preview of a page that is open is a picture of that page, so
+    /// the session is used as it is and never replaced by a new one.
+    #[test]
+    fn a_preview_takes_the_open_session_and_does_not_replace_it() {
+        let mut slot = open();
+        let Taken::Host(lease) = slot.take_existing() else {
+            panic!("an open session has a host to take");
+        };
+        assert_eq!(lease.host, "session", "the session that was there is the one used");
+        assert_eq!(state(&slot), State::Busy, "the call holds it while it runs");
+        assert!(slot.give_back(lease), "and it comes back open");
+        assert_eq!(state(&slot), State::Open);
+    }
+
+    /// **An idle slot is an answer, not a browser to start.** There is no page
+    /// to show, and the slot stays idle: a preview must never open a window on
+    /// the person's desk.
+    #[test]
+    fn a_preview_of_an_idle_browser_starts_nothing() {
+        let mut slot = idle();
+        assert!(matches!(slot.take_existing(), Taken::Nothing));
+        assert_eq!(state(&slot), State::Idle, "and the slot is still idle");
+        assert!(!slot.is_open(), "no browser was started");
+    }
+
+    /// **A browser another call is driving is refused, not taken.** A preview
+    /// never waits behind a call and never takes the browser from one.
+    #[test]
+    fn a_preview_of_a_busy_browser_is_refused() {
+        let mut slot = idle();
+        let _running = slot.take(|| Ok("running".to_owned())).expect("the call took the browser");
+        assert!(matches!(slot.take_existing(), Taken::Busy));
+        assert_eq!(state(&slot), State::Busy, "and the running call still holds it");
+    }
+
+    /// **A preview of a computer with no browser open starts nothing.** The
+    /// answer is that there is no page, and no window appears on the desk.
+    #[tokio::test]
+    async fn a_preview_with_no_browser_open_answers_no_page_and_starts_nothing() {
+        let browser = Browser::default();
+        let refused = browser.preview("phone:1").await.err().expect("there is no page to show");
+        assert_eq!(refused, crate::browser::preview::Code::NoPage);
+        assert!(!browser.is_open(), "and no browser was started");
     }
 
     /// **`end` on an open session leaves the browser `Idle`, not `Closing`.** The
@@ -703,6 +1135,24 @@ mod tests {
         }
     }
 
+    /// **A refusal keeps the sidecar's own words and the page's own code.** The
+    /// model reads the sentence; the page reads the code.
+    #[test]
+    fn a_refusal_keeps_the_sidecars_words_and_the_code_for_the_page() {
+        assert_eq!(
+            refusal(&result(true, None)),
+            BrowserError::Refused { code: BrowserCode::Refused, why: Some("the sidecar's sentence".to_owned()) }
+        );
+
+        let mut silent = result(true, None);
+        silent.for_model.clear();
+        assert_eq!(
+            refusal(&silent),
+            BrowserError::Refused { code: BrowserCode::Refused, why: None },
+            "a refusal with nothing said falls back to the app's own sentence"
+        );
+    }
+
     /// **A window the person closed ends the session, exactly as a host that
     /// could not answer does.** The sidecar forgets that window of its own accord
     /// and marks the answer; keeping a session the sidecar has already dropped
@@ -747,6 +1197,25 @@ mod tests {
     #[test]
     fn a_stop_keeps_the_session() {
         assert!(keep_the_host::<()>(&None), "a call that was cut short changed nothing");
+    }
+
+    #[test]
+    fn a_refusal_that_names_a_stage_keeps_the_session_it_was_driving() {
+        let answered = CallOutcome::Ran(result(true, Some(json!({"kalsa": {"failure": "read_driver"}}))));
+        assert!(keep_the_host::<()>(&Some(Ok(answered))), "a stage is not a dead window");
+    }
+
+    #[test]
+    fn a_failed_call_is_logged_as_a_fixed_category_and_never_as_the_answer() {
+        let canary = "https://a-very-private-place.example/steal?token=SECRET";
+        let stranger = result(true, Some(json!({"kalsa": {"failure": canary}})));
+        assert_eq!(failure_category(&stranger), None, "a word this build does not know is dropped");
+
+        let known = result(true, Some(json!({"kalsa": {"failure": "read_driver"}})));
+        let category = failure_category(&known).expect("a stage this build knows");
+        assert_eq!(category, "browser_failure.read_driver");
+        assert!(!category.contains(canary), "the answer's own words never reach the log");
+        assert!(!category.contains("the sidecar's sentence"), "nor the sentence the model reads");
     }
 
     /// **Ending twice is one ending, and it is what makes the old lease safe.**
@@ -1038,9 +1507,9 @@ mod tests {
         let browser = Browser::default();
         let app_data = PathBuf::from("/nonexistent/kalsa-browser-app-data");
 
-        assert_eq!(browser.call(&app_data, "browser_confirm", Map::new()).await.err(), Some(BrowserError::Refused(BrowserCode::Refused)));
-        assert_eq!(browser.call(&app_data, "browser_waiting", Map::new()).await.err(), Some(BrowserError::Refused(BrowserCode::Refused)));
-        assert_eq!(browser.call_host(&app_data, "browser_open", Map::new()).await.err(), Some(BrowserError::Refused(BrowserCode::Refused)));
+        assert_eq!(browser.call(&app_data, "browser_confirm", Map::new()).await.err(), Some(BrowserError::Refused { code: BrowserCode::Refused, why: None }));
+        assert_eq!(browser.call(&app_data, "browser_waiting", Map::new()).await.err(), Some(BrowserError::Refused { code: BrowserCode::Refused, why: None }));
+        assert_eq!(browser.call_host(&app_data, "browser_open", Map::new()).await.err(), Some(BrowserError::Refused { code: BrowserCode::Refused, why: None }));
         assert!(!browser.is_open(), "and no browser was started");
     }
 }

@@ -9,6 +9,7 @@ mod body;
 mod browser;
 mod hook;
 mod mail;
+mod preview;
 mod turn;
 
 pub use hook::{ChatEvent, Opened, PhoneChat};
@@ -43,14 +44,17 @@ const MAX_PENDING: usize = 8;
 const SLICE: Duration = Duration::from_secs(1);
 
 /// What one device may have running at once in each lane: a turn, a mail read or
-/// send, and a browser answer. The lanes are apart, so a read never refuses a
-/// turn — and neither does an answer, which is the one thing a running turn is
-/// waiting for.
+/// send, a browser answer, and a preview. The lanes are apart, so a read never
+/// refuses a turn — and neither does an answer, which is the one thing a running
+/// turn is waiting for.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub(super) enum Lane {
     Turn,
     Mail,
     Browser,
+    /// A picture of the screen: nothing else is waiting on it, and it waits on
+    /// nothing.
+    Preview,
 }
 
 /// The app's hook, the door's one-request-per-lane rule and the admission cap.
@@ -151,6 +155,7 @@ pub(crate) fn route_name(target: &[u8]) -> Option<&'static str> {
         b"/kalsa/chat/mail/read" => Some("/kalsa/chat/mail/read"),
         b"/kalsa/chat/mail/send" => Some("/kalsa/chat/mail/send"),
         b"/kalsa/chat/browser/answer" => Some("/kalsa/chat/browser/answer"),
+        b"/kalsa/chat/browser/preview" => Some("/kalsa/chat/browser/preview"),
         _ => None,
     }
 }
@@ -242,12 +247,18 @@ fn run(mut client: TcpStream, job: Job, deadline: Instant) {
             ),
             None => answer(&mut client, bad_request, origin, deadline, &json!({"error": "bad_request"})),
         },
-        _ => match body.as_deref().and_then(body::answer_request) {
+        Some("/kalsa/chat/browser/answer") => match body.as_deref().and_then(body::answer_request) {
             Some((card_id, allow)) => {
                 browser::start(client, &chat, shared, device, browser::Press { card_id, allow }, origin, deadline)
             }
             None => answer(&mut client, bad_request, origin, deadline, &json!({"error": "bad_request"})),
         },
+        Some("/kalsa/chat/browser/preview") => match body.as_deref().and_then(body::preview_request) {
+            Some(()) => preview::start(client, &chat, shared, device, origin, deadline),
+            None => answer(&mut client, bad_request, origin, deadline, &json!({"error": "bad_request"})),
+        },
+        // A route that is not one of these was refused above.
+        _ => answer(&mut client, "404 Not Found", origin, deadline, &json!({"error": "not_found"})),
     }
 }
 

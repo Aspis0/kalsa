@@ -18,6 +18,21 @@
 //
 // Pure: no server, no browser, no network.
 //
+// **What this file covers, and what it cannot.** It is the *desktop's* reducer:
+// the window's own table of cards, and what the window does with a press. The
+// phone has a table of its own — the app's, in Rust (`phone_chat::cards`), and
+// that one is where a busy browser used to lose the card: the press took the
+// card off the table before it called the browser, and a busy browser put
+// nothing back. **That half is proved in the app**, in
+// `src-tauri/src/phone_chat/tests.rs` (`a_press_that_found_the_browser_busy_
+// gives_the_card_back`), because it is the app's table and the app's rule: a
+// script cannot prove a table it does not own. What this file proves is that
+// the desktop's half of the same rule holds — the card comes back on a busy
+// browser, the press works again, and two presses at once are one request — and
+// that the other half of the family is closed: a card that was already resolved
+// somewhere else leaves the window, one fixed line says so, and it cannot be
+// pressed again.
+//
 // Run: node scripts/browser-confirm.mjs   (from chat/)
 
 import { rm } from "node:fs/promises";
@@ -80,6 +95,12 @@ const REACHED = [];
 let outcome = JSON.stringify({ code: "sent", host: "shop.example" });
 /** A press that never reaches Rust: the card is spent and nothing came back. */
 let answeringFails = false;
+/** The browser is busy with something else: the press is refused with a code,
+ *  and nothing was sent — so the card is still waiting. */
+let browserIsBusy = false;
+/** The card is not waiting for an answer any more: it was already answered, so
+ *  the press is refused with a code and nothing was sent. */
+let cardIsSpent = false;
 /** The window the backend is holding open, and whether it is paused. This is
     **the backend's answer to its own question**: a page that mounts asks for it,
     and the page never works it out for itself. */
@@ -171,6 +192,15 @@ globalThis.window = {
         }
         if (command === "brain_browser_state") return { ...backendWindow, seq: backendSeq };
         if (command === "brain_browser_confirm" || command === "brain_browser_decline") {
+          // **The browser is busy with something else.** A refusal with a code,
+          // the way the app refuses every one of them: the page reads the code
+          // and the person reads the words that go with it. **Nothing is
+          // dispatched**, which is the whole of it: the request never went.
+          if (browserIsBusy) throw { code: "browser.busy", text: "Kalsa is already using the browser. Try again in a moment." };
+          // **The card is not waiting for an answer any more.** The sidecar spent
+          // it before, so the press finds nothing to press about. Nothing was
+          // sent, and the request has had its verdict already.
+          if (cardIsSpent) throw { code: "browser.no_pending_request", text: "That request is not waiting for an answer any more." };
           ANSWERS.push([command.endsWith("confirm") ? "allow" : "decline", args.id, args.conversation]);
           if (answeringFails) throw new Error("the sidecar went away");
           return outcome;
@@ -332,7 +362,7 @@ try {
       ["shop.example", "shop.example:8080"],
     );
     equal("and a card with no destination has no host to name", browserDestinationLabel(null), "");
-    check("and what comes back is a code and a host, not a sentence", said === outcome, said);
+    check("and what comes back is a code and a host, not a sentence", said.said === outcome, said.said);
 
     // **A card with no destination has no Send, and says so in one line.** The
     // sidecar refuses the press as well — the button is gone so the decision is
@@ -364,7 +394,7 @@ try {
     // there is nothing to press about and nothing is sent.
     const again = await browserAnswerNow(true, "c1", CHAT);
     equal("a second press sends nothing more: one answer, one request", ANSWERS.length, 1);
-    check("and the window says nothing rather than sending", again === null, String(again));
+    check("and the window says nothing rather than sending", again.said === null, String(again.said));
 
     // The line says what became of the card once the sidecar has said, and it goes
     // with the outcome, when the model has been told.
@@ -461,7 +491,7 @@ try {
     answeringFails = true;
     const said = await browserAnswerNow(true, "c1", CHAT);
     answeringFails = false;
-    check("a press that could not be delivered returns nothing", said === null, String(said));
+    check("a press that could not be delivered returns nothing", said.said === null, String(said.said));
     equal("and the card is off the window anyway: there is no button that does nothing", currentBrowserCards().length, 0);
     const note = takeNote(CHAT, RECAP_WORDS);
     check(
@@ -470,6 +500,217 @@ try {
       note,
     );
     check("and nothing of the request is in it", !/Bologna|shop\.example/.test(note), note);
+  }
+
+  // --- a press that never went leaves the card where it was ------------------
+  {
+    noteBrowserCards([CARD]);
+    const before = ANSWERS.length;
+    browserIsBusy = true;
+    const pressed = await browserAnswerNow(true, "c1", CHAT);
+    browserIsBusy = false;
+    check("a busy browser is refused with the code the page reads", pressed.code === "browser.busy", String(pressed.code));
+    equal("and the card is still on the window: nothing was sent, so it is still the person's to press", currentBrowserCards().length, 1);
+    equal("and no outcome is queued about a request that never went", takeBrowserOutcomes(CHAT).length, 0);
+    equal("and the request was never dispatched", ANSWERS.length, before);
+
+    // **The press again, now that the browser is free.** The card was never
+    // spent, so the press goes out and the model hears one answer, not two.
+    const again = await browserAnswerNow(true, "c1", CHAT);
+    check("and the press goes out the moment the browser is free", again.said === outcome, String(again.said));
+    equal("and it is one request, and one answer about it", ANSWERS.length, before + 1);
+    equal("and the card is off the window now, as it is after every answer", currentBrowserCards().length, 0);
+    // **The app tells the window what the sidecar said**, the way it does after
+    // every answer: one outcome, and it is this one.
+    noteBrowserAnswered({ id: "c1", conversation: CHAT, code: "sent", host: "shop.example" });
+    const outcomes = takeBrowserOutcomes(CHAT);
+    equal("and the model is told about that one answer, once", outcomes.length, 1);
+    equal("and it is the answer the sidecar gave", outcomes[0].code, "sent");
+  }
+
+  // --- a press for a card that was already answered ---------------------------
+  //
+  // **The card is not waiting for an answer any more.** The sidecar spends the id
+  // before it dispatches, so a press for a card that was already taken finds
+  // nothing to press about, and it says so with a code of its own. The rule on
+  // that side is that this refusal leaves **no outcome behind**: the request has
+  // had its verdict already, and a second one would be the app saying "unclear"
+  // about a request the model already has the answer to.
+  //
+  // **So the window's half of the same rule: no outcome, no unclear, and the card
+  // is closed.** A card that was resolved somewhere else is not the person's to
+  // press any more, and a button that could only be refused again is not a
+  // decision — so the card leaves the window, and the person reads one fixed
+  // line about it instead.
+  //
+  // **This card is a card of its own.** A closure is permanent, and the proofs
+  // below share one id for the rest of this file: a tombstone that outlived the
+  // closure would take that card with it. So the closed card is named here, and
+  // the card the other proofs use is untouched by this one.
+  {
+    const CLOSED = { ...CARD, id: "c-closed" };
+    noteBrowserCards([CLOSED]);
+    const before = ANSWERS.length;
+    cardIsSpent = true;
+    const pressed = await browserAnswerNow(true, "c-closed", CHAT);
+    cardIsSpent = false;
+    check(
+      "a press for a card that is gone is refused with the code the page reads",
+      pressed.code === "browser.no_pending_request",
+      String(pressed.code),
+    );
+    equal("and the card is closed: it is not drawn as a card any more", currentBrowserCards().length, 0);
+    // **The line is read before the outcomes are taken.** Taking them takes the
+    // lines with them, and this one is the line the person reads.
+    const lines = settledBrowserCards(CHAT).filter((one) => one.id === "c-closed");
+    equal("and the card leaves one line on the window", lines.length, 1);
+    equal("and the line is the closed card's own", lines[0].closed, "browser.no_pending_request");
+    equal("and no outcome was ever given for it", lines[0].outcome, null);
+    // **Taking the outcomes takes the line with them.** This is the moment the
+    // closed card would come back, if the closure were only the line.
+    equal("and no outcome is queued about a request that never went", takeBrowserOutcomes(CHAT).length, 0);
+    equal("and the request was never dispatched", ANSWERS.length, before);
+
+    // **And the person is told a fixed line, in their own words.** The copy is
+    // the app's own table, never the sentence the refusal carried: that one is
+    // prose from the other side, and the window is not where it goes.
+    const said = app.rustSentence(app.TABLES.en.rust, { code: lines[0].closed }, "en");
+    equal("and the line the person reads is the app's own", said, "That request is not waiting for an answer any more.");
+    const everyLanguage = ["en", "it", "es", "fr", "zh"].every(
+      (tag) => app.rustSentence(app.TABLES[tag].rust, { code: "browser.no_pending_request" }, tag) !== "",
+    );
+    check("and every language has a line of its own for it", everyLanguage);
+
+    // **And the closed card is not pressable.** A press for it finds nothing to
+    // press about: it does not go out, and it does not bring the card back.
+    const again = await browserAnswerNow(true, "c-closed", CHAT);
+    check(
+      "and a press for the closed card finds nothing to press about",
+      again.said === null && again.code === null,
+      `${String(again.said)} / ${String(again.code)}`,
+    );
+    equal("and it never reaches the sidecar", ANSWERS.length, before);
+    equal("and the card is still closed", currentBrowserCards().length, 0);
+
+    const note = takeNote(CHAT, RECAP_WORDS);
+    check(
+      "and the model is told nothing unclear about a request that never left",
+      !note.includes("cannot be accounted for"),
+      note,
+    );
+    // **And the card does not come back.** The line is taken away with the
+    // outcomes, and a card that was closed must not come back with it.
+    equal("and the closed card does not come back when the line is taken away", currentBrowserCards().length, 0);
+
+    // **And a late snapshot does not bring it back either.** The sidecar's list
+    // is a reading of the world taken at one moment, and a reading taken before
+    // the closure can arrive after it: the card is still in that list, because
+    // the sidecar had not yet told the window that the request was resolved
+    // elsewhere. **The line is gone now — the tombstone is what is left of the
+    // closure — and it filters every snapshot that arrives, late or not.**
+    noteBrowserCards([CLOSED]);
+    equal("and a late snapshot that still carries it does not bring the card back", currentBrowserCards().length, 0);
+    equal("and it leaves no line either: it was one line, and that line is gone", settledBrowserCards(CHAT).filter((one) => one.id === "c-closed").length, 0);
+    // **And it is not pressable any more.** The card is not on the window, so a
+    // press for it finds nothing to press about — and it does not go out.
+    const late = await browserAnswerNow(true, "c-closed", CHAT);
+    check(
+      "and a press for it still finds nothing to press about, after the late snapshot",
+      late.said === null && late.code === null,
+      `${String(late.said)} / ${String(late.code)}`,
+    );
+    equal("and it never reaches the sidecar", ANSWERS.length, before);
+  }
+
+  // --- the late outcome of the winning press ---------------------------------
+  //
+  // **Two presses at once, and the outcome arrives after both.** One press wins
+  // the race to the sidecar and the other finds nothing to press about; the
+  // outcome comes later, because the sidecar says what became of the request
+  // after the window has moved on. **It updates the line, and it does not bring
+  // the card back**: the person has already answered this card, and a card that
+  // is answered is not on the window.
+  {
+    const WON = { ...CARD, id: "c-won" };
+    noteBrowserCards([WON]);
+    const before = ANSWERS.length;
+    const [one, two] = await Promise.all([
+      browserAnswerNow(true, "c-won", CHAT),
+      browserAnswerNow(true, "c-won", CHAT),
+    ]);
+    equal("two presses at once ask the app once", ANSWERS.length, before + 1);
+    equal("and only one of them is answered", [one.said, two.said].filter((said) => said !== null).length, 1);
+    equal("and the card is off the window, as it is after every answer", currentBrowserCards().length, 0);
+
+    // **The outcome arrives late.**
+    noteBrowserAnswered({ id: "c-won", conversation: CHAT, code: "sent", host: "shop.example" });
+    const lines = settledBrowserCards(CHAT).filter((one) => one.id === "c-won");
+    equal("and the late outcome updates the line", lines[0].outcome, { code: "sent", host: "shop.example" });
+    equal("and the card does not come back with it", currentBrowserCards().length, 0);
+
+    // **And a snapshot that still carries the card does not bring it back.**
+    noteBrowserCards([WON]);
+    equal("and a snapshot that still carries it does not bring it back", currentBrowserCards().length, 0);
+    equal("and the line is still the line the person reads", settledBrowserCards(CHAT).filter((one) => one.id === "c-won").length, 1);
+    equal("and the model is told about that one answer, once", takeBrowserOutcomes(CHAT).length, 1);
+  }
+
+  // --- two presses at once ------------------------------------------------------
+  //
+  // **At once, not one after the other.** A finger pressed twice is the case, and
+  // a sequential proof cannot say what two presses *at the same moment* do: it can
+  // only say what the second one found after the first had finished. The window's
+  // own table is the arbiter — the first press takes the card off it, and the
+  // second finds nothing to press about, so it never reaches the app at all.
+  {
+    noteBrowserCards([CARD]);
+    const before = ANSWERS.length;
+    const [one, two] = await Promise.all([
+      browserAnswerNow(true, "c1", CHAT),
+      browserAnswerNow(true, "c1", CHAT),
+    ]);
+    equal("two presses at once ask the app once", ANSWERS.length, before + 1);
+    equal(
+      "and only one of them is answered",
+      [one.said, two.said].filter((said) => said !== null).length,
+      1,
+    );
+    equal("and the card is off the window, as it is after every answer", currentBrowserCards().length, 0);
+    equal("and nothing is told about the request before the sidecar speaks", takeBrowserOutcomes(CHAT).length, 0);
+  }
+
+  // --- a busy press and a second press at the same time ------------------------
+  //
+  // **The two interleavings of the same card, at once.** The first press finds the
+  // browser busy and the card comes back; the second finds nothing to press about,
+  // because the card was off the table while the first was in flight. Neither
+  // reaches the sidecar — and the card is still the person's when they press again.
+  {
+    noteBrowserCards([CARD]);
+    const before = ANSWERS.length;
+    browserIsBusy = true;
+    const [one, two] = await Promise.all([
+      browserAnswerNow(true, "c1", CHAT),
+      browserAnswerNow(true, "c1", CHAT),
+    ]);
+    browserIsBusy = false;
+    check(
+      "the press that found the browser busy is refused with the code the page reads",
+      one.code === "browser.busy" || two.code === "browser.busy",
+      `${one.code} / ${two.code}`,
+    );
+    equal("and neither press reached the sidecar", ANSWERS.length, before);
+    equal("and the card is on the window again", currentBrowserCards().length, 1);
+    equal("and nothing is told about a request that never went", takeBrowserOutcomes(CHAT).length, 0);
+
+    // **And the press works now that the browser is free.** One request, one
+    // answer about it: the busy press was never a verdict.
+    const again = await browserAnswerNow(true, "c1", CHAT);
+    check("and the press goes out the moment the browser is free", again.said === outcome, String(again.said));
+    equal("and it is one request, and one answer about it", ANSWERS.length, before + 1);
+    equal("and the card is off the window now, as it is after every answer", currentBrowserCards().length, 0);
+    noteBrowserAnswered({ id: "c1", conversation: CHAT, code: "sent", host: "shop.example" });
+    equal("and the model is told about that one answer, once", takeBrowserOutcomes(CHAT).length, 1);
   }
 
   // --- a card belongs to one chat ---------------------------------------------

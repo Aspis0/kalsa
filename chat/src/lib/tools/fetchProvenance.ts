@@ -44,6 +44,13 @@ const UNSEEN: FetchRefusal = {
   text: "Not run: this link has not appeared in the conversation, so it was not opened. Use web_search to find the page, or ask the user for the link.",
 };
 
+// Browser recovery can use the open page; the shared fetch refusal still
+// offers a search.
+const BROWSER_UNSEEN: FetchRefusal = {
+  code: UNSEEN.code,
+  text: "Not run: this exact address has not appeared in the conversation, so it was not opened. Use browser_read or browser_find to locate the link, then click its ref or copy its whole printed address, including the path and query. Do not shorten or reconstruct the address.",
+};
+
 const CREDENTIAL: FetchRefusal = {
   code: "web.link_credential",
   text: "Not run: this address looks like it carries a password or key that the user did not type.",
@@ -102,6 +109,44 @@ export function fetchProvenanceRefusal(url: string, conversation: WireMessage[])
   return null;
 }
 
+type BrowserEntry = { url: string; refusal: null } | { url: null; refusal: FetchRefusal };
+
+// Open the user's homepage spelling and let the site redirect it; www and
+// the bare host are not interchangeable provenance for paths or queries.
+export function browserEntry(url: string, conversation: WireMessage[]): BrowserEntry {
+  const refusal = fetchProvenanceRefusal(url, conversation);
+  if (refusal === null) return { url, refusal: null };
+  if (refusal.code !== UNSEEN.code) return { url: null, refusal };
+  const named = userNamedHomepage(url, conversation);
+  return named === null ? { url: null, refusal: BROWSER_UNSEEN } : { url: named, refusal: null };
+}
+
+function userNamedHomepage(url: string, conversation: WireMessage[]): string | null {
+  if (carriesUserinfo(url)) return null;
+  const asked = canonical(url);
+  if (asked === null || !isHomepage(asked)) return null;
+  const wanted = new URL(asked);
+  const { userSeen, userTexts } = seenCorpus(conversation);
+  for (const named of userSeen) {
+    if (!isHomepage(named)) continue;
+    const other = new URL(named);
+    if (other.protocol !== wanted.protocol) continue;
+    if (withoutWww(other.host) !== withoutWww(wanted.host)) continue;
+    if (!credentialExcused(named, userTexts)) continue;
+    return named;
+  }
+  return null;
+}
+
+function isHomepage(key: string): boolean {
+  const parsed = new URL(key);
+  return parsed.pathname === "/" && parsed.search === "";
+}
+
+function withoutWww(host: string): string {
+  return host.startsWith("www.") ? host.slice(4) : host;
+}
+
 /**
  * The credential layer on its own, for an address the app reads itself rather
  * than one the model asked for. Such an address comes from the provider's own
@@ -140,15 +185,21 @@ export function searchQueryRefusal(query: string, conversation: WireMessage[]): 
 
 /** The addresses this conversation has already carried, and the user's own
     words — the corpus both rules read. */
-function seenCorpus(conversation: WireMessage[]): { seen: Set<string>; userTexts: string[] } {
+function seenCorpus(conversation: WireMessage[]): { seen: Set<string>; userTexts: string[]; userSeen: Set<string> } {
   const seen = new Set<string>();
   const userTexts: string[] = [];
+  // The person's own words, and only theirs: what a page, a tool's result or
+  // the assistant wrote is no proof the person named a site.
+  const userSeen = new Set<string>();
   for (const message of conversation) {
     if (message.role === "user") {
       const text = userWords(message.content);
       if (text !== "") {
         userTexts.push(text);
-        rememberAddresses(text, seen);
+        for (const key of addressesIn(text)) {
+          seen.add(key);
+          userSeen.add(key);
+        }
       }
     } else if (message.role === "system" && typeof message.content === "string") {
       // The pinned documents ride the system message; the fixed prompt above
@@ -157,9 +208,8 @@ function seenCorpus(conversation: WireMessage[]): { seen: Set<string>; userTexts
       if (at >= 0) rememberAddresses(message.content.slice(at), seen);
     }
   }
-  // Tool results, the web tools' only: any other tool's result is text the
-  // model authored the shape of, and a web result is scanned only after the
-  // call's own argument values are taken out of it.
+  // Only web and browser results can supply page addresses. Other tools can
+  // echo strings the model supplied and cannot establish provenance.
   const calls = new Map<string, { name: string; own: string[] | null }>();
   for (const message of conversation) {
     if (message.role !== "assistant" || !Array.isArray(message.tool_calls)) continue;
@@ -182,7 +232,9 @@ function seenCorpus(conversation: WireMessage[]): { seen: Set<string>; userTexts
     if (call.own === null) continue;
     if (neverRan(call.name, text)) continue;
     let scrubbed = text;
-    for (const value of call.own) {
+    // Find returns page lines and never echoes its needle, even on no match.
+    // Scrubbing that needle would change addresses the page actually printed.
+    for (const value of call.name === "browser_find" ? [] : call.own) {
       for (const form of echoForms(value)) scrubbed = scrubbed.split(form).join(" ");
     }
     if (call.name === "web_search") {
@@ -203,7 +255,7 @@ function seenCorpus(conversation: WireMessage[]): { seen: Set<string>; userTexts
       rememberAddresses(pageBody(scrubbed), seen);
     }
   }
-  return { seen, userTexts };
+  return { seen, userTexts, userSeen };
 }
 
 /** The page's own lines: the fenced block without the app's warning and markers,

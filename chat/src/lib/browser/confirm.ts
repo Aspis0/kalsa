@@ -1,5 +1,6 @@
 import { listen } from "../tauri";
 import { browserAnswer, browserPause, browserResume, type ConversationId } from "../tools/browserCall";
+import { browserCode, isCardAlreadyResolved, isPressThatNeverLeft, type BrowserCode } from "./codes";
 
 /** One field of a card: the value as it will be sent, and whether the window
  * should draw it as dots.
@@ -96,8 +97,31 @@ export interface Settled {
   id: string;
   conversation: ConversationId;
   outcome: Outcome | null;
+  /** **The code that closed the card without an outcome.** A press that found the
+   * request already resolved somewhere else closes the card: there is no outcome
+   * to report, and the line it leaves is the app's own sentence for that code —
+   * never the prose the refusal carried. `null` for every card that had an
+   * answer of its own, and for every card that is still waiting. */
+  closed: BrowserCode | null;
 }
 const settled = new Map<string, Settled>();
+/**
+ * **The ids of the cards that were closed.** A card the sidecar had already
+ * resolved somewhere else: the request has had its verdict, so there is nothing
+ * left to press about it.
+ *
+ * **The tombstone outlives the line.** The line above is the window's account of
+ * what became of a card, and it goes with the outcomes once the model has been
+ * told; this is the window's account of the closure itself, and it stays as long
+ * as the card is really closed — which is for good, because the sidecar spends
+ * the id before it dispatches and never reissues it. **So a closed card is not
+ * drawn again, for any snapshot, late or otherwise.**
+ *
+ * **A card that was answered is not in here.** Its own line is what hides it
+ * while the line lasts, and the sidecar's spent id refuses any press that
+ * reaches it afterwards; this list is the closure's, and only the closure's.
+ */
+const closedIds = new Set<string>();
 /** What became of a request, per conversation, waiting for that chat's next turn.
  * Never drained by anybody but the conversation it belongs to. */
 const outcomes = new Map<ConversationId, Outcome[]>();
@@ -107,9 +131,11 @@ function tell(): void {
   for (const listener of listeners) listener();
 }
 
-/** The cards still waiting for the person: an answered card is no longer one. */
+/** The cards still waiting for the person: an answered card is no longer one, and
+ * a closed one is not one any more either — the tombstone says so even after
+ * its line has gone with the outcomes. */
 export function currentCards(): Card[] {
-  return cards.filter((card) => !settled.has(card.id));
+  return cards.filter((card) => !settled.has(card.id) && !closedIds.has(card.id));
 }
 
 /** The answered cards of one conversation, as lines, in the order they were answered. */
@@ -229,7 +255,10 @@ export function takeOutcomes(conversation: ConversationId): Outcome[] {
   const said = outcomes.get(conversation) ?? [];
   outcomes.delete(conversation);
   // The lines were the window's account of these answers, and the model has now been
-  // told them: the window lets them go with the outcomes.
+  // told them: the window lets them go with the outcomes. **A closed card's
+  // tombstone stays**: the line is what the person read, and the tombstone is
+  // what the closure was — a card that was resolved elsewhere does not come back
+  // when its line is taken away.
   for (const one of settledFor(conversation)) settled.delete(one.id);
   tell();
   return said;
@@ -241,9 +270,16 @@ function queue(conversation: ConversationId, outcome: Outcome): void {
 
 /** What a `browser_cards` event said, parsed and set. Named for the check that
  * drives it: there is no window here, and a proof about what is drawn needs a
- * way to draw it. */
+ * way to draw it.
+ *
+ * **Every snapshot comes through here, and every one of them is filtered by the
+ * tombstones.** A closed card is not in the window any more, and the only thing
+ * that says so is this list: the sidecar's list is a reading of the world at the
+ * moment it was taken, and one taken before the closure can arrive after it. So
+ * a card that was closed is dropped from every snapshot, late or not, and the
+ * window never draws it again. */
 export function noteCards(payload: unknown): void {
-  cards = readCards(payload);
+  cards = readCards(payload).filter((one) => !closedIds.has(one.id));
   tell();
 }
 
@@ -269,10 +305,9 @@ export function noteAnswered(payload: unknown): void {
  * card belongs to the window, not to whichever surface happens to be on screen.
  */
 export function startConfirmBus(): Promise<() => void> {
-  return Promise.all([listen("browser_cards", (payload) => {
-    cards = readCards(payload);
-    tell();
-  }), listen("browser_answered", noteAnswered)]).then((stops) => () => stops.forEach((stop) => stop()));
+  return Promise.all([listen("browser_cards", noteCards), listen("browser_answered", noteAnswered)]).then(
+    (stops) => () => stops.forEach((stop) => stop()),
+  );
 }
 
 /**
@@ -288,25 +323,102 @@ export function startConfirmBus(): Promise<() => void> {
  * nobody can say — and both the person and the model are told so. Saying nothing
  * would leave the model to carry on believing nothing happened, while a stranger's
  * server may already have it.
+ *
+ * **A press that never went is not one of those.** The browser was busy: the
+ * request was never sent, the card is still waiting, and the person can press it
+ * again. So the card comes back, no outcome is queued, and the model is told
+ * nothing about a request that never left.
+ *
+ * **A card that was already resolved somewhere else is closed.** The request had
+ * its verdict elsewhere — the sidecar had already taken it off its own table —
+ * so there is nothing left to press about it: the card leaves the window, one
+ * fixed line says so, and its buttons do not come back. **Not with the next
+ * snapshot either**: the tombstone keeps the closure for as long as the window
+ * is open, so a reading of the sidecar's list that arrives late cannot put a
+ * closed card back on the window.
  */
-export async function answer(allow: boolean, id: string, conversation: ConversationId): Promise<string | null> {
+export async function answer(allow: boolean, id: string, conversation: ConversationId): Promise<Pressed> {
   // A press for a card that is not on the window is refused here, before the
   // app is asked: the sidecar spends the id before it dispatches, so this is not
   // what makes an answer single-use — it is what keeps a second press from being
   // a second request's worth of work for no answer at all.
-  if (settled.has(id) || !cards.some((one) => one.id === id)) return null;
+  //
+  // **And a closed card is refused here, whatever the window is holding.** The
+  // tombstone is the closure's own record, so a card that was closed is refused
+  // even if a late snapshot had put it back on the list: the request had its
+  // verdict elsewhere, and a press for it could only be refused again.
+  if (closedIds.has(id) || settled.has(id) || !cards.some((one) => one.id === id)) return { said: null, code: null };
   // The card collapses to its line at once; its fields leave the window with it.
-  settled.set(id, { id, conversation, outcome: null });
+  settled.set(id, { id, conversation, outcome: null, closed: null });
   tell();
   try {
-    return await browserAnswer(allow, id, conversation);
-  } catch {
+    return { said: await browserAnswer(allow, id, conversation), code: null };
+  } catch (error) {
+    const code = refusalCode(error);
+    // **A press that never went is not one of those.** The browser was busy:
+    // the request was never sent, the card is still waiting, and the person can
+    // press it again. A card that is not waiting for an answer any more is the
+    // same thing: nothing was sent either, so there is nothing to be unclear
+    // about. So no outcome is queued, and the model is told nothing about a
+    // request that never left.
+    if (code !== null && isPressThatNeverLeft(code)) {
+      if (isCardAlreadyResolved(code)) {
+        // **And the card is closed.** It was answered somewhere else, so the
+        // sidecar has already taken it off its own table: the window's copy of
+        // it is stale, and a button that could only be refused again is not a
+        // decision. The card leaves the list — so it cannot come back when the
+        // line below is taken away with the outcomes — and the line that stays
+        // is the app's own sentence for the code.
+        //
+        // **And the tombstone is written.** The line goes with the outcomes once
+        // the model has been told, and the sidecar's list is a reading of the
+        // world that can arrive late: an older reading still carries this card,
+        // and it would put it back on the window with its buttons. The
+        // tombstone is what says the closure outlived the line, so **a closed
+        // card is never pressable again, for any snapshot.**
+        closedIds.add(id);
+        cards = cards.filter((one) => one.id !== id);
+        settled.get(id)!.closed = code;
+      } else {
+        // **The browser was busy**, so the card is still the person's to press.
+        settled.delete(id);
+      }
+      tell();
+      return { said: null, code };
+    }
     // Unclear, and queued for the conversation that caused it, so the next thing
     // the person says in that chat carries it.
     const unclear: Outcome = { code: "unclear", host: "" };
     queue(conversation, unclear);
     settled.get(id)!.outcome = unclear;
     tell();
-    return null;
+    return { said: null, code };
   }
+}
+
+/**
+ * **What a press came back with.**
+ *
+ * **The code is the page's and the words are the app's.** A refusal that
+ * carries a code nobody here wrote is not shown as itself: it becomes
+ * `browser.refused`, which is a fact about it rather than a guess.
+ */
+export interface Pressed {
+  /** What the app said, or `null` when it said nothing. */
+  said: string | null;
+  /** **The code of the refusal, or `null` when it carried none.** */
+  code: BrowserCode | null;
+}
+
+/**
+ * **The code a refusal carried, or `null` when it carried none.**
+ *
+ * The failure comes off the wire as the code the page reads and the words the
+ * model reads; only the code is looked at here, and only a code of ours
+ * survives it.
+ */
+function refusalCode(error: unknown): BrowserCode | null {
+  const said = error as { code?: unknown } | null;
+  if (said === null || typeof said !== "object" || typeof said.code !== "string") return null;
+  return browserCode(said.code);
 }

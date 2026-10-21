@@ -67,11 +67,23 @@ const SHOP: &str = r#"
   </script>
 "#;
 
+/// A shop whose order form is answered with a **redirect**: the server sends
+/// the browser somewhere else, and that somewhere else is the receipt. The
+/// form posts to the path the fixture answers with a 302.
+const REDIRECTING: &str = r#"
+  <h1>the shop</h1>
+  <form id="order" action="/go" method="post">
+    <label for="city">the city</label>
+    <input id="city" name="city" type="text">
+    <input type="hidden" name="csrf" value="a-token-the-model-never-wrote">
+    <button type="submit">buy it</button>
+  </form>
+"#;
+
 /// What the browser asked the fixture to do, in its own words, so a test can say
 /// "nothing new arrived" without counting the page it is already standing on.
 #[derive(Clone)]
 struct Arrivals(common::Arrived);
-
 impl Arrivals {
     fn of(arrived: &common::Arrived) -> Self {
         Self(arrived.clone())
@@ -317,9 +329,9 @@ async fn a_scripted_request_submit_is_held_the_same_way_a_click_is() {
 /// **A body a card cannot show honestly is refused, not held.** There would be
 /// no card to ask about, and a request nobody can see is not one to ask about.
 ///
-/// The page builds the body itself: a file input sends nothing until a file is
-/// chosen, so a `Blob` with a filename is the honest way to make a browser send
-/// a multipart part that carries a file.
+/// The form is sent in a form a card cannot read, and the catcher reads it
+/// before the network is asked for anything: a body it cannot show is refused
+/// there, and nothing goes out.
 #[tokio::test]
 async fn a_body_the_person_cannot_be_shown_is_refused_and_nothing_is_sent() {
     let (base, arrived) = common::serve(&[common::page(SHOP)]).await;
@@ -327,8 +339,8 @@ async fn a_body_the_person_cannot_be_shown_is_refused_and_nothing_is_sent() {
 
     let seen = Arrivals::of(&arrived);
     let before = seen.so_far();
-    let upload = ref_of(&page, "upload a file").await;
-    assert!(clicking(&page, &holds, &upload).await.is_none(), "a file is caught and refused, never held");
+    let upload = ref_of(&page, "upload it").await;
+    assert!(clicking(&page, &holds, &upload).await.is_none(), "a body in a form a card cannot show is refused, never held");
     tokio::time::sleep(Duration::from_millis(300)).await;
 
     assert!(holds.ids().await.is_empty(), "nothing is held: there is no card to ask about");
@@ -352,19 +364,21 @@ async fn a_body_the_person_cannot_be_shown_is_refused_and_nothing_is_sent() {
 /// cap is the sidecar's own number rather than a copy of it.
 #[tokio::test]
 async fn an_address_over_the_cap_is_refused_and_nothing_is_held() {
-    let long = format!(
-        r#"<h1>the shop</h1>
-  <button type="button" onclick="fetch('/order?q=' + 'a'.repeat({}), {{method: 'POST', body: 'x'}}); this.textContent = 'sent'">fill the query</button>
-  <script>document.addEventListener('submit', () => {{}});</script>"#,
-        hold::MAX_URL
-    );
-    let (base, arrived) = common::serve(&[common::page(&long)]).await;
+    let (base, arrived) = common::serve(&[common::page(SHOP)]).await;
     let (_sessions, page, holds) = common::confirming_window("confirm-long-url", &base).await;
+    page.goto(&base, None).await.expect("the shop loads");
 
     let seen = Arrivals::of(&arrived);
     let before = seen.so_far();
-    let long_ref = ref_of(&page, "fill the query").await;
-    assert!(clicking(&page, &holds, &long_ref).await.is_none(), "an address over the cap is refused, never held");
+    // **A submission the catcher does not see**, so this one reaches the route
+    // and the cap is the route's own.
+    submitting_without_the_event(
+        &page,
+        &base,
+        "application/x-www-form-urlencoded",
+        &format!("/order?q={}", "a".repeat(hold::MAX_URL)),
+    )
+    .await;
     tokio::time::sleep(Duration::from_millis(300)).await;
 
     assert!(holds.ids().await.is_empty(), "nothing is held: there is no card to ask about");
@@ -468,22 +482,46 @@ async fn the_call_answers_within_the_deadline_while_the_request_is_still_held() 
     assert_eq!(seen.since(before), Vec::<String>::new(), "and nothing was sent while it waited");
 }
 
-/// A `fetch` that writes is a request like any other: it does not navigate, and
-/// it is still held.
-///
+/// **A form with a field the page has named to look like a secret.** The field
+/// is a text field, so what goes in it is the model's own and not the person's.
+const NAMED: &str = r#"
+  <h1>the named shop</h1>
+  <form id="signin" action="/login" method="post">
+    <label for="the user">the user</label>
+    <input id="the user" name="user" type="text">
+    <label for="the passphrase">the passphrase</label>
+    <input id="the passphrase" name="password_x" type="text">
+    <button type="submit">sign in with the form</button>
+  </form>
+"#;
+
 /// **What the person typed is hidden, and what the model typed is not.** The
 /// model filled this form, so nothing here is anyone's secret and the card shows
 /// it in full — including the field the page has named to look like a secret.
 #[tokio::test]
 async fn what_the_model_typed_is_shown_in_full_even_under_a_secret_name() {
-    let (base, arrived) = common::serve(&[common::page(SHOP)]).await;
+    let (base, arrived) = common::serve(&[common::page(NAMED)]).await;
     let (_sessions, page, holds) = common::confirming_window("confirm-fetch", &base).await;
 
     let seen = Arrivals::of(&arrived);
     let before = seen.so_far();
-    let sign_in = ref_of(&page, "sign in").await;
+    for (label, value) in [("the user", "giulia"), ("the passphrase", "hunter2")] {
+        let field = ref_of(&page, label).await;
+        let before = holds.ids().await;
+        let (filled, _) = mcp::acting(
+            &page,
+            &holds,
+            common::CHAT,
+            &before,
+            common::the_fixture,
+            input::fill(&page, &field, value),
+        )
+        .await;
+        filled.expect("the field is filled");
+    }
+    let sign_in = ref_of(&page, "sign in with the form").await;
     let waiting = click_holds(&page, &holds, &sign_in).await;
-    assert!(is_a_card_id(&waiting), "a scripted write is held too: {waiting}");
+    assert!(is_a_card_id(&waiting), "the submission is held: {waiting}");
     assert_eq!(seen.since(before), Vec::<String>::new());
     let card = holds.card(&waiting).await.expect("a card");
 
@@ -492,10 +530,8 @@ async fn what_the_model_typed_is_shown_in_full_even_under_a_secret_name() {
         named(&card.fields, "password_x"), Some("hunter2"),
         "the page named this to get it hidden and it is not: a name is not evidence"
     );
-    // **A name may add dots; it may never take a value away.** This request came
-    // from the page's own `fetch`, so there is no element behind it and the name
-    // is all there is to go on — which is why `password_x` is drawn as dots. The
-    // value is on the card either way, and pressing Show gives it back.
+    // **A name may add dots; it may never take a value away.** The value is on
+    // the card either way, and pressing Show gives it back.
     let dotted = card.fields.iter().find(|field| field.name == "password_x").expect("the field is there");
     assert_eq!(dotted.value, "hunter2", "a name can add dots and cannot remove a value");
     assert!(dotted.secret, "and this one does read as a password");
@@ -555,17 +591,20 @@ async fn a_value_the_person_typed_is_on_the_card_and_printed_nowhere() {
 }
 
 /// The other way a write has no card: not a file, but a body in a form nobody
-/// can read. A `fetch` with a plain string body is `text/plain` whatever the
-/// page meant by it, and there is no honest way to show that as fields.
+/// can read. A body sent as `text/plain` is a sentence, and there is no honest
+/// way to show that as fields.
+///
+/// **This one reaches the route**, so the refusal is the route's own: the
+/// catcher never saw it.
 #[tokio::test]
 async fn a_write_in_a_form_the_card_cannot_show_is_refused_rather_than_guessed_at() {
     let (base, arrived) = common::serve(&[common::page(SHOP)]).await;
     let (_sessions, page, holds) = common::confirming_window("confirm-opaque", &base).await;
+    page.goto(&base, None).await.expect("the shop loads");
 
     let seen = Arrivals::of(&arrived);
     let before = seen.so_far();
-    let note = ref_of(&page, "post a sentence").await;
-    assert!(clicking(&page, &holds, &note).await.is_none(), "an unreadable body is refused, not held");
+    submitting_without_the_event(&page, &base, "text/plain", "/note").await;
     tokio::time::sleep(Duration::from_millis(300)).await;
 
     assert!(holds.ids().await.is_empty(), "there is no card to ask about");
@@ -692,6 +731,120 @@ async fn a_confirmed_submit_lands_the_page_on_what_the_server_answers() {
     .unwrap_or(false);
     assert!(landed, "a confirmed submit leaves the page where it was: {} arrived {:?}", page.url(), arrived.requests());
     assert!(snapshot::snapshot(&page, 1).await.expect("the page reads").contains("the order went through"));
+}
+
+/// **A confirmed submit whose server answers with a redirect leaves the receipt
+/// ours.**
+///
+/// The request the person approved goes out, and the server may answer it with
+/// a redirect — **a navigation the browser makes on its own**. That redirect is
+/// ours, exactly as the first one is: the receipt of what the person agreed to
+/// is the page they are owed, and a phone asked for a picture of it must get
+/// one rather than a refusal.
+///
+/// **The server answers late**, so the race is not a coin. A driving that
+/// ended with the request would be over long before the redirect arrived, the
+/// redirect would then be read as the person's own navigation, and the page
+/// would lose its owner — the receipt of the thing the person just agreed to
+/// would belong to nobody.
+#[tokio::test]
+async fn a_confirmed_submit_that_is_redirected_leaves_the_receipt_ours() {
+    // **The receipt lives on another site.** The fixture answers on `127.0.0.1`;
+    // the receipt is reached as `localhost`, which is the same machine and the
+    // same process but **another host name** — and a redirect to another host
+    // is a request of its own.
+    let (receipt, _arrived) = common::serve(&[common::page_at("/receipt", "<h1>the receipt</h1>")]).await;
+    let port = receipt.rsplit(':').next().expect("a port");
+    let other = format!("http://localhost:{port}");
+
+    let (base, arrived) = common::serve(&[
+        common::page(REDIRECTING),
+        common::redirect_to(&format!("{other}/receipt")).slow(Duration::from_millis(400)),
+    ])
+    .await;
+    let (_sessions, page, holds) = common::confirming_window("confirm-redirect", &base).await;
+
+    let buy = ref_of(&page, "buy it").await;
+    let id = click_holds(&page, &holds, &buy).await;
+    assert!(is_a_card_id(&id), "the submit is held, and it has an id: {id}");
+    assert_eq!(holds.answer(&id, common::CHAT, true).await, hold::Answer::Spent(Outcome::Sent { host: host_of(&format!("{base}/go")) }));
+
+    // **The redirect is followed**, and the receipt lands on the other site.
+    let landed = tokio::time::timeout(Duration::from_secs(15), async {
+        loop {
+            if page.url() == format!("{other}/receipt") {
+                return true;
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    })
+    .await
+    .unwrap_or(false);
+    assert!(landed, "the receipt landed: {} arrived {:?}", page.url(), arrived.requests());
+
+    // **And the receipt is still ours.** The redirect was our navigation, and
+    // the page it landed on is the conversation's.
+    assert_eq!(holds.stamp_for_the_page().await, common::CHAT, "the receipt is still ours");
+    assert_eq!(holds.stamp_for_our_call().await, common::CHAT, "and still the last actor with it");
+}
+
+/// **The navigation that follows a confirmed submission is ours too.**
+///
+/// **This is the one that bites**, and the difference from the proof above is
+/// how the browser is sent on: a server that answers `302` is followed **inside
+/// the same request**, below the interception, so the route never sees that hop
+/// and the ownership was never at risk from it. A page that sends the browser on
+/// — `location.replace`, a meta refresh, the "you are being redirected" page
+/// most receipts use — is **a request of its own**, and that one the route
+/// does see.
+///
+/// **And that is the hop that can take the page away.** The navigation arrives
+/// after the request the person approved is out and its answer is in; if the
+/// driving ended with the request, the hop would be read as the person's own
+/// navigation, the receipt would lose its owner, and a phone asked for a
+/// picture of the receipt of what the person just agreed to would be refused.
+#[tokio::test]
+async fn the_navigation_that_follows_a_confirmed_submission_is_ours_too() {
+    // **The receipt lives on another site**, and the page the server answers
+    // with is the one that sends the browser there.
+    let (receipt, _arrived) = common::serve(&[common::page_at("/receipt", "<h1>the receipt</h1>")]).await;
+    let port = receipt.rsplit(':').next().expect("a port");
+    let other = format!("http://localhost:{port}");
+
+    let (base, arrived) = common::serve(&[
+        common::page(REDIRECTING),
+        // **The page the server answers with sends the browser on.** A `302` is
+        // followed inside the same request and never reaches the route; a page
+        // that navigates is a request of its own, and that one the route sees.
+        common::page_at("/go", &format!(r#"<script>location.replace("{other}/receipt")</script>"#)).slow(Duration::from_millis(400)),
+    ])
+    .await;
+    let (_sessions, page, holds) = common::confirming_window("confirm-redirect-on", &base).await;
+
+    // **The shop's order form posts to a path the fixture answers with the
+    // redirecting page.**
+    let buy = ref_of(&page, "buy it").await;
+    let id = click_holds(&page, &holds, &buy).await;
+    assert!(is_a_card_id(&id), "the submit is held, and it has an id: {id}");
+    assert_eq!(holds.answer(&id, common::CHAT, true).await, hold::Answer::Spent(Outcome::Sent { host: host_of(&format!("{base}/go")) }));
+
+    // **The browser is sent on**, and the receipt lands on the other site.
+    let landed = tokio::time::timeout(Duration::from_secs(15), async {
+        loop {
+            if page.url() == format!("{other}/receipt") {
+                return true;
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    })
+    .await
+    .unwrap_or(false);
+    assert!(landed, "the receipt landed: {} arrived {:?}", page.url(), arrived.requests());
+
+    // **And the receipt is still ours.** The hop was our navigation, and the
+    // page it landed on is the conversation's.
+    assert_eq!(holds.stamp_for_the_page().await, common::CHAT, "the receipt is still ours");
+    assert_eq!(holds.stamp_for_our_call().await, common::CHAT, "and still the last actor with it");
 }
 
 /// **A GET carrying a value the person typed into a password field is held like
@@ -935,13 +1088,19 @@ async fn a_probe_that_is_not_a_navigation_cannot_spend_the_answer() {
     // Exactly what the form below would send, to the byte.
     let order = format!("{base}/order");
     let body = "city=Bologna";
-    holds.pass_next(kalsa_browser::hold::Ticket::of_parts(
-        "POST",
-        &order,
-        "application/x-www-form-urlencoded",
-        body.as_bytes().to_vec(),
-    ))
-    .await;
+    // **The ticket is armed for one driving**, the way the call that fires a
+    // confirmed submission arms it: the watch that the route starts is the one
+    // that holds the duty of ending the driving.
+    let driving = holds.drive(common::CHAT);
+    let _armed = holds.pass_next(
+        kalsa_browser::hold::Ticket::of_parts(
+            "POST",
+            &order,
+            "application/x-www-form-urlencoded",
+            body.as_bytes().to_vec(),
+        ),
+        driving,
+    );
 
     // The probe: same method, same address, same content type, same bytes, and
     // not a navigation because it was never going to be one.
@@ -958,24 +1117,26 @@ async fn a_probe_that_is_not_a_navigation_cannot_spend_the_answer() {
     )
     .await
     .ok();
-    // Long enough for the probe to have been held rather than merely slow.
+    // Long enough for the probe to have gone out rather than merely slow.
     tokio::time::sleep(Duration::from_millis(600)).await;
 
+    // The probe went out on its own: a request the page makes by itself is not
+    // the person's submission, and it is not held to ask the person about it.
     assert!(
-        arrived.body_of("/order").is_none(),
-        "a fetch spent the answer and went: {:?}",
+        arrived.body_of("/order").is_some(),
+        "the probe went, as a normal browser's would: {:?}",
         arrived.received()
     );
-    assert!(holds.answer_pending().await, "and it spent the answer, so the real request cannot go");
+    assert!(holds.answer_pending().await, "and it did not spend the answer, so the real request can still go");
 
     // The real thing: a form that navigates, with the same address and the same
     // body. This is the request the person was shown, and it is the one the
     // answer was for.
     page.evaluate::<String, ()>(NAVIGATION, Some(&serde_json::json!([order, body]).to_string())).await.ok();
 
+    assert!(holds.wait_for_spent(Duration::from_secs(10)).await, "and it spent the answer, once");
     let sent = poll_for_body(&arrived, "/order", 30).await.unwrap_or_default();
     assert!(sent.contains(body), "the navigation the person approved went: {sent}");
-    assert!(!holds.answer_pending().await, "and it spent the answer, once");
 }
 
 /// **What the dispatch calls is whatever `submit` is at that moment**, and that
@@ -1102,11 +1263,7 @@ async fn a_delayed_request_belongs_to_the_navigation_that_made_the_page() {
     holds.in_conversation("chat-b").await;
     page.evaluate::<(), ()>(
         r"() => {
-          fetch('/note', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-            body: 'note=a delayed write',
-          });
+          setTimeout(() => document.getElementById('racer').requestSubmit(), 50);
         }",
         None,
     )
@@ -1239,14 +1396,13 @@ async fn while_paused_the_persons_own_submit_goes_and_resume_holds_ours_again() 
 
 /// **Pausa is the person's claim on the window, not the page's licence to send.**
 ///
-/// It used to let *every* request through. That is right for a click and wrong
-/// for a `fetch`: a page that keeps posting to a server while the person sits
-/// reading is not the person acting, and a pause that waved it through was a
-/// pause that held nothing at all. The rule is now the shape of the request — a
-/// navigation of the main frame — and everything else falls through to the rules
-/// below it, which is where the held writes and the secret-carrying GET live.
+/// It lets the person's own navigation through, and a pause that froze the page
+/// they are using would be the one thing a pause may not do. Everything else
+/// falls through to the rules below it: a request the page makes by itself goes
+/// out like a normal browser's, and a GET carrying what the person typed is
+/// still held.
 #[tokio::test]
-async fn while_paused_the_persons_navigation_goes_and_the_pages_own_writes_do_not() {
+async fn while_paused_the_persons_navigation_goes_and_a_secret_is_still_held() {
     let (base, arrived) = common::serve(&[
         common::page(SHOP),
         common::page_at("/order", "<h1>the order went through</h1>"),
@@ -1258,8 +1414,8 @@ async fn while_paused_the_persons_navigation_goes_and_the_pages_own_writes_do_no
     sessions.set_paused(true);
     assert!(sessions.paused(), "the window is paused");
 
-    // **A page's own post is not the person acting.** It is held, like any other
-    // write, and nothing reaches the server.
+    // **A page's own post goes out, like a normal browser's.** Nothing in it is
+    // the person acting, and there is nobody to ask about it.
     page.evaluate::<String, ()>(
         // **Fired, not awaited.** A held request is a request that never answers,
         // and a promise waiting on one is a test that never finishes.
@@ -1276,11 +1432,11 @@ async fn while_paused_the_persons_navigation_goes_and_the_pages_own_writes_do_no
     .ok();
     tokio::time::sleep(Duration::from_millis(600)).await;
     assert!(
-        arrived.body_of("/telemetry").is_none(),
+        arrived.body_of("/telemetry").is_some(),
         "a page's own post went out while the person was holding the browser: {:?}",
         arrived.received()
     );
-    assert_eq!(holds.waiting().await, 1, "and it is held as a card, which is what a write is");
+    assert_eq!(holds.waiting().await, 0, "and it is not held: there is nobody to ask");
 
     // **The person's own submission still goes**, or pausing would freeze the
     // page they are using — the one thing a pause may not do.
@@ -1337,7 +1493,7 @@ async fn while_paused_a_login_to_the_person_s_own_site_goes_and_the_same_navigat
     let base = bound.replace("0.0.0.0", "127.0.0.1");
     let other = bound.replace("0.0.0.0", "127.0.0.2");
     let (sessions, page, holds) =
-        common::confirming_window_for("confirm-paused-cross-site", &base, Some(&other)).await;
+        common::window_for("confirm-paused-cross-site", &base, Some(&other)).await;
 
     sessions.set_paused(true);
     assert!(sessions.paused(), "the window is paused");
@@ -1456,7 +1612,7 @@ async fn off_site_a_paused_navigation_is_refused_when_its_body_cannot_be_read_an
     let base = bound.replace("0.0.0.0", "127.0.0.1");
     let other = bound.replace("0.0.0.0", "127.0.0.2");
     let (sessions, page, holds) =
-        common::confirming_window_for("confirm-paused-unreadable", &base, Some(&other)).await;
+        common::window_for("confirm-paused-unreadable", &base, Some(&other)).await;
 
     sessions.set_paused(true);
     assert!(sessions.paused(), "the window is paused");
@@ -1732,6 +1888,30 @@ async fn posting(page: &Page, where_: &str, enctype: &str, path: &str, fields: &
             form.requestSubmit();
         }"#,
         Some(&serde_json::json!([where_, enctype, path, fields]).to_string()),
+    )
+    .await
+    .ok();
+}
+
+/// **A submission the catcher does not see.** `submit` does not fire the event
+/// the catcher listens for, so this one reaches the route instead of the card.
+async fn submitting_without_the_event(page: &Page, where_: &str, enctype: &str, path: &str) {
+    page.evaluate::<String, ()>(
+        r#"payload => {
+            const [where_, enctype, path] = JSON.parse(payload);
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.enctype = enctype;
+            form.action = where_ + path;
+            const field = document.createElement('input');
+            field.type = 'hidden';
+            field.name = 'note';
+            field.value = 'a note the card cannot show';
+            form.appendChild(field);
+            document.body.appendChild(form);
+            form.submit();
+        }"#,
+        Some(&serde_json::json!([where_, enctype, path]).to_string()),
     )
     .await
     .ok();

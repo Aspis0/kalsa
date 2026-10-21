@@ -38,6 +38,7 @@ Routes live under `/kalsa/chat/`:
 |---|---|---|
 | `/kalsa/chat/turn` | POST | SSE stream (§3) |
 | `/kalsa/chat/browser/answer` | POST | JSON (§3.1) |
+| `/kalsa/chat/browser/preview` | POST | JSON (§3.1) |
 | `/kalsa/chat/mail/read` | POST | JSON (§4) |
 | `/kalsa/chat/mail/send` | POST | JSON (§5) |
 
@@ -280,6 +281,54 @@ does not know rather than guessing. **`host` appears only with `code:"sent"`**, 
 as a bare name: letters, digits, dot, dash, underscore, or a bracketed IPv6 address. No path,
 no query, no port, no `user@`. The answer to a question about the desktop is the same shape,
 so a phone learns nothing the window would not have shown.
+
+#### The page preview
+
+`POST /kalsa/chat/browser/preview` with `{}` → `200` with the picture or a code. It is a
+separate request and not a turn, so it has a lane of its own: a running turn never refuses it,
+and a second preview of the same phone, while the first is being taken, is `busy`.
+
+**The picture is of the page as it is now.** The computer takes one JPEG of the viewport of the
+browser it already has open and hands it to the phone that asked. It is the **current** page and
+not a page of an earlier turn: a phone that asks again later gets the page as it is at that
+moment, and `taken_at` says when the picture was taken so the phone can show that.
+
+**The computer starts nothing for this.** A preview of a page that is not open is refused, and no
+browser window appears on the person's desk because a phone pressed something. The picture is
+never put in the model's context, never written to a file and never logged: it crosses once and
+is gone.
+
+**Only the phone that owns the page gets it.** The page belongs to the conversation that opened
+it, and the computer asks the sidecar whether that is still so. Reading the page does not make it
+yours, and a page the person opened by hand is nobody's. Those are refused as `not_yours`.
+
+| body | meaning |
+|---|---|
+| `{"image":"<base64 JPEG>","media_type":"image/jpeg","host":"shop.example","taken_at":1767225600000}` | the picture |
+| `{"error":"no_page"}` | no browser is open; nothing was started |
+| `{"error":"not_yours"}` | the page is another conversation's, or nobody's |
+| `{"error":"busy"}` | another call is driving the browser, the person has paused it, or another preview of this phone's is in flight |
+| `{"error":"too_large"}` | the picture was bigger than the road can carry |
+| `{"error":"cancelled"}` | the phone was gone, the pairing changed, or the browser's session ended, while the picture was taken |
+| `{"error":"unavailable"}` | this computer will not show that page, or could not take the picture |
+
+`image` is base64 **without a prefix**, of a JPEG of at most 262,144 bytes — at most 349,528
+characters — so the whole body stays under the half a megabyte the road carries. `taken_at` is
+the moment the picture was taken, in **milliseconds** since the epoch, on the computer's clock.
+`host` is a bare host name, the same shape the card's host is.
+
+**The pairing is checked before and after.** A phone that is not paired gets nothing, and a phone
+the owner unpairs while its picture is being taken is told `cancelled` and gets no picture. What
+has already gone on the wire is not recalled — there is no way to recall it — but nothing leaves
+after the second check.
+
+**Nothing is asked for twice.** The phone presses, the computer answers, and the phone asks again
+if it wants a new picture: there is no polling, no retry, no stream and no video.
+
+**A computer that does not know this route answers `404`**, and the phone shows `unavailable`
+for it — that computer has no preview to give. A body that is not a JSON object is
+`400 {"error":"bad_request"}`, and the phone shows its own unreadable message for that: it can
+tell that shape from any answer, so it does not need a word from the computer.
 
 #### An outcome the phone did not ask for
 

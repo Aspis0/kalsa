@@ -1,12 +1,12 @@
-//! What the browser commands can fail with. The UI translates the code, and
-//! nothing here carries a path, an address or a digest: a driver failure is
-//! shown as a sentence about Kalsa, not about a file.
+//! What the browser commands can fail with. **The page reads the code and the
+//! model reads the reason**; a failure of ours has no reason to give, and says
+//! so in a fixed sentence that names no path, no address and no digest.
 
 use serde::Serialize;
 
 use super::codes::BrowserCode;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum BrowserError {
     /// The machine is not one Kalsa ships a driver for.
     UnsupportedPlatform,
@@ -28,11 +28,14 @@ pub(crate) enum BrowserError {
     Unpack,
     Storage,
     Failed,
-    /// The sidecar answered that it will not do it. **Its own words are for the
-    /// model and its own code is for the page**, so the two can be told apart and
-    /// neither is built from the other. An answer with no code is a refusal,
-    /// which is what `BrowserCode::Refused` says.
-    Refused(BrowserCode),
+    /// The sidecar answered that it will not do it. **Its own code is for the
+    /// page and its own words are for the model**, so the two are told apart
+    /// and neither is built from the other. An answer with no code is a
+    /// refusal, which is what `BrowserCode::Refused` says.
+    ///
+    /// `why` is `None` for a refusal the app raised on its own account, before
+    /// the sidecar was asked.
+    Refused { code: BrowserCode, why: Option<String> },
     /// Nobody pressed this twice: the id was already answered, it had expired,
     /// or there was never a card. A person pressing "send" on a request that is
     /// not waiting is owed a sentence, not an error to guess at.
@@ -45,7 +48,7 @@ pub(crate) enum BrowserError {
 }
 
 impl BrowserError {
-    pub(crate) fn code(self) -> &'static str {
+    pub(crate) fn code(&self) -> &'static str {
         match self {
             Self::UnsupportedPlatform => "browser.unsupported_platform",
             Self::Busy => "browser.busy",
@@ -56,19 +59,45 @@ impl BrowserError {
             Self::Unpack => "browser.unpack_failed",
             Self::Storage => "browser.storage",
             Self::Failed => "browser.failed",
-            Self::Refused(said) => said.as_str(),
+            Self::Refused { code, .. } => code.as_str(),
             Self::NoCard => "browser.no_pending_request",
             Self::Stopped => "browser.stopped",
         }
     }
+
+    /// **Whether this code is a press that never went anywhere.**
+    ///
+    /// **One family, one list, and both sides of the app read it.** The browser
+    /// was busy, so nothing was sent; or the request was not waiting for an
+    /// answer any more, so nothing was sent either. Neither of them leaves an
+    /// outcome behind — the window's own rule (`leaves_an_outcome`) is this list
+    /// read the other way round, and the phone's rule is this list as it is.
+    ///
+    /// **The phone asks it by code**, because the phone's answer route carries
+    /// the code and not the failure; the window asks it with the failure in
+    /// hand. It is the same list either way.
+    pub(crate) fn a_press_that_never_went(code: &str) -> bool {
+        code == Self::Busy.code() || code == Self::NoCard.code()
+    }
+
+    /// The sentence the model reads: the sidecar's own words when the sidecar
+    /// refused, and the fixed fallback when the failure was ours.
+    fn sentence(&self) -> String {
+        match self {
+            Self::Refused { why: Some(why), .. } => why.clone(),
+            other => fallback(other).to_owned(),
+        }
+    }
 }
 
-/// The shape a command returns across IPC. The English sentence is the
-/// fallback the page shows when a language has no row for the code.
+/// The shape a command returns across IPC. **The code is the page's**: a closed
+/// set it turns into its own words, with the English text as the fallback for
+/// a language that has no row. **The text is the model's**: the reason the
+/// sidecar gave, or the fixed fallback for a failure that was ours.
 #[derive(Debug, Serialize)]
 pub(crate) struct CommandFailure {
     code: &'static str,
-    text: &'static str,
+    text: String,
 }
 
 impl CommandFailure {
@@ -81,13 +110,13 @@ impl CommandFailure {
 
 impl From<BrowserError> for CommandFailure {
     fn from(error: BrowserError) -> Self {
-        Self { code: error.code(), text: fallback(error) }
+        Self { code: error.code(), text: error.sentence() }
     }
 }
 
 /// The sentence a code falls back to. Kalsa is the only noun in any of them,
 /// because the driver is ours and the person did not ask for a file path.
-fn fallback(error: BrowserError) -> &'static str {
+fn fallback(error: &BrowserError) -> &'static str {
     match error {
         BrowserError::UnsupportedPlatform => "Kalsa does not have a browser driver for this computer.",
         BrowserError::Busy => "Kalsa is already downloading its browser driver.",
@@ -99,7 +128,7 @@ fn fallback(error: BrowserError) -> &'static str {
         BrowserError::Changed => "Kalsa's browser driver has changed on disk, so it was not started.",
         BrowserError::Unpack => "The browser driver Kalsa downloaded could not be unpacked, so it was not installed.",
         BrowserError::Storage => "Kalsa could not write to its data folder.",
-        BrowserError::Refused(_) => "the browser would not open that.",
+        BrowserError::Refused { .. } => "the browser would not open that.",
         BrowserError::NoCard => "that request is not waiting for an answer any more.",
         BrowserError::Stopped => "Kalsa stopped that. Nothing it was doing was carried on.",
         BrowserError::Failed => "Something went wrong with Kalsa's browser. Try again.",
@@ -122,7 +151,7 @@ mod tests {
             BrowserError::Unpack,
             BrowserError::Storage,
             BrowserError::Failed,
-            BrowserError::Refused(BrowserCode::Refused),
+            BrowserError::Refused { code: BrowserCode::Refused, why: None },
             BrowserError::NoCard,
         ];
         let mut codes: Vec<&str> = all.iter().map(|error| error.code()).collect();
@@ -132,8 +161,30 @@ mod tests {
         assert_eq!(codes.len(), count, "two failures answer the same code");
         for error in all {
             assert!(!error.code().is_empty());
-            assert!(!fallback(error).is_empty());
+            assert!(!fallback(&error).is_empty());
         }
+    }
+
+    /// **The sidecar's words are the sentence the model reads, and the code is
+    /// the one the page reads.**
+    #[test]
+    fn a_refusal_reaches_the_model_with_the_sidecars_own_words() {
+        let said = "the element is not on the page any more: read the page again";
+        let failure = CommandFailure::from(BrowserError::Refused {
+            code: BrowserCode::Refused,
+            why: Some(said.to_owned()),
+        });
+        assert_eq!(failure.code, "browser.refused", "the page reads the code and only the code");
+        assert_eq!(failure.text, said, "and the model reads what the sidecar said");
+    }
+
+    /// **A refusal the app raised on its own account has no words of its own**,
+    /// so it falls back to the fixed sentence.
+    #[test]
+    fn a_refusal_of_the_apps_own_falls_back_to_the_sentence_it_had() {
+        let failure = CommandFailure::from(BrowserError::Refused { code: BrowserCode::Refused, why: None });
+        assert_eq!(failure.code, "browser.refused");
+        assert_eq!(failure.text, "the browser would not open that.");
     }
 
     /// The sentences a person reads must not hand out a path or a digest.
@@ -147,7 +198,7 @@ mod tests {
             BrowserError::Storage,
             BrowserError::Failed,
         ] {
-            let text = fallback(error);
+            let text = fallback(&error);
             assert!(!text.contains('/') && !text.contains('\\'), "{text}");
             assert!(!text.chars().any(|c| c.is_ascii_digit()), "{text}");
         }

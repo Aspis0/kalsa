@@ -9,12 +9,13 @@ pub(crate) mod commands;
 pub(crate) mod confirm;
 pub(crate) mod host;
 pub(crate) mod pending;
+pub(crate) mod preview;
 pub(crate) mod session;
 pub(crate) mod state;
 pub(crate) mod window;
 
 mod driver;
-mod error;
+pub(crate) mod error;
 mod fetch;
 mod profile;
 mod tree;
