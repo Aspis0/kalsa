@@ -111,6 +111,49 @@ function engineTokens(messages, tools) {
   return Math.ceil(prose / PROSE_CHARS_PER_TOKEN + dense / DENSE_CHARS_PER_TOKEN);
 }
 
+/**
+ * What the engine's prompt is, as far as its prefix cache is concerned: the
+ * wire the chat template renders, in order, with the tool definitions in
+ * front of it.
+ *
+ * **The engine keeps the prefix of the previous prompt only when the new
+ * prompt extends it** — when the text it has already read is the beginning
+ * of the text it is asked now. That is what the engine does, measured on it
+ * (dev/lab-real/append-vs-insert.mjs, dev/lab-real/closing-before-after.mjs,
+ * and the turn of 21 October 2026 where the closing request came back with
+ * `cache 0`): a request that changes a part of the prompt the engine had
+ * read is answered by a full re-read of the thread — 205 seconds for 62558
+ * tokens, where the same request with the status appended reuses 56036 of
+ * 56084 tokens in 0.58 seconds.
+ *
+ * The model below is the shape of that rule, not a token-exact one: it counts
+ * characters where the engine counts tokens, and it gives back the whole
+ * prefix where the engine gives back all but the generation prompt it renders
+ * again. What it has to get right is the shape — a change in what the engine
+ * has read costs everything, an addition at the end costs nothing — and that
+ * is what the negative control below is about.
+ */
+function promptText(body) {
+  let text = body.tools === undefined ? "" : JSON.stringify(body.tools);
+  for (const message of body.messages) {
+    text += `\n${message.role}\n`;
+    const content = typeof message.content === "string" ? message.content : "";
+    if (message.role === "tool") {
+      // The template wraps a tool result in markers of its own, and they
+      // close after the result's own text: a change inside the result moves
+      // them, and the text the engine had read is no longer the beginning of
+      // the text it is asked now.
+      text += `<tool_response>\n${content}\n</tool_response>`;
+    } else {
+      text += content;
+    }
+    for (const call of message.tool_calls ?? []) {
+      text += `\n${call.function.name}\n${call.function.arguments}`;
+    }
+  }
+  return text;
+}
+
 // ------------------------------------------------------------- the transport
 
 /**
@@ -125,9 +168,23 @@ function engineTokens(messages, tools) {
  * `calls` is the list of tools the model asks for, one per round; when the
  * wire already carries that many results, the model answers in words.
  */
+/**
+ * What the engine would have reused between two bodies: the prefix of the
+ * prompt it read last, and nothing at all when the new prompt changed any of
+ * it.
+ */
+function engineCache(previous, next) {
+  if (previous === null) return 0;
+  const before = promptText(previous);
+  const after = promptText(next);
+  return after.startsWith(before) ? before.length : 0;
+}
+
 function mockEngine({ bodyChars, reports, calls = [], limit = LIMIT, reportTotal = null }) {
   const requests = [];
+  const caches = [];
   let refused = 0;
+  let previousBody = null;
   globalThis.fetch = async (_url, init) => {
     const body = JSON.parse(init.body);
     requests.push(body);
@@ -145,12 +202,17 @@ function mockEngine({ bodyChars, reports, calls = [], limit = LIMIT, reportTotal
         { status: 400, headers: { "Content-Type": "application/json" } },
       );
     }
+    // What the engine would have reused: the prefix of the prompt it read
+    // last — and nothing at all when this prompt changed any of it.
+    const cache = engineCache(previousBody, body);
+    previousBody = body;
+    caches.push(cache);
     const frames = [];
     if (reports) {
       frames.push({
         prompt_progress: {
           total: reportTotal === null ? tokens : reportTotal,
-          cache: 0,
+          cache,
           processed: tokens,
           time_ms: 1,
         },
@@ -185,7 +247,7 @@ function mockEngine({ bodyChars, reports, calls = [], limit = LIMIT, reportTotal
     const text = `${frames.map((frame) => `data: ${JSON.stringify(frame)}\n\n`).join("")}data: [DONE]\n\n`;
     return new Response(text, { headers: { "Content-Type": "text/event-stream" } });
   };
-  return { requests, refusedCount: () => refused };
+  return { requests, caches, refusedCount: () => refused };
 }
 
 // ----------------------------------------------------------------- the turn
@@ -302,22 +364,51 @@ check(
 const closing = engine.requests[engine.requests.length - 1];
 const beforeClosing = engine.requests[engine.requests.length - 2];
 equal(closing.tool_choice, "none", "the closing round forbids the calls");
-equal(closing.messages.length, beforeClosing.messages.length, "the closing round carries the same messages");
+equal(
+  closing.messages.length,
+  beforeClosing.messages.length + 1,
+  "the closing round carries the wire the engine read, and one message more",
+);
 const statusCarried = closing.messages[closing.messages.length - 1].content.includes(FINAL_STATUS);
 check(statusCarried, "the closing round carries the execution status");
 equal(
   closing.messages[closing.messages.length - 1].role,
-  "tool",
-  "the closing round ends on the tool result the engine had read",
+  "user",
+  "and the status is a message of its own, at the end of the wire",
 );
 const keptEverything = beforeClosing.messages.every((message, index) => {
   const after = closing.messages[index];
-  if (index === closing.messages.length - 1) return true;
   return JSON.stringify(message) === JSON.stringify(after);
 });
 check(
   keptEverything,
-  "the closing round rewrites nothing the engine had read — only the status is added",
+  "the closing round rewrites nothing the engine had read — the status is added, not folded in",
+);
+equal(
+  JSON.stringify(closing.tools),
+  JSON.stringify(beforeClosing.tools),
+  "and it offers the same tools",
+);
+equal(
+  JSON.stringify({ ...closing, messages: undefined, tool_choice: undefined }),
+  JSON.stringify({ ...beforeClosing, messages: undefined, tool_choice: undefined }),
+  "and the same sampling and the same template kwargs: the tool_choice is the only difference",
+);
+
+// **The prefix the engine keeps.** The closing request asks the engine to
+// read the thread it has already read, plus one sentence at the end. The
+// engine reuses the prefix of a prompt it has read when the new prompt
+// extends it, and reads the whole thread again when it does not: that is
+// what the turn of 21 October 2026 paid for, 205 seconds of prefill and an
+// answer that arrived after the door had stopped waiting.
+check(
+  engine.caches[engine.caches.length - 1] > 0,
+  "the closing request keeps the prefix the engine had read",
+  `cache ${engine.caches[engine.caches.length - 1]}`,
+);
+check(
+  engine.caches[engine.caches.length - 1] === promptText(beforeClosing).length,
+  "and keeps all of it: the wire it gets is the wire it had",
 );
 check(
   engineTokens(closing.messages, closing.tools) <= LIMIT,
@@ -510,6 +601,49 @@ check(
   engineTokens(limitClosing.messages, limitClosing.tools) <= limitWindow,
   "the closing request fits the window",
   `${engineTokens(limitClosing.messages, limitClosing.tools)} tokens`,
+);
+
+// ---------------------------------------------------------------------------
+console.log("\n4c. the negative control: the status folded into the last tool result");
+
+// **The closing request of the code before this fix.** The status was copied
+// into the last tool result the engine had read: the same thread, the same
+// length, and the text the engine had read is no longer the beginning of the
+// text it is asked now. The prefix is gone, the whole thread is read again —
+// 205 seconds for 62558 tokens, and an answer that arrives after the door
+// has stopped waiting for it.
+const lastTool = beforeClosing.messages[beforeClosing.messages.length - 1];
+const folded = {
+  ...beforeClosing,
+  messages: beforeClosing.messages.slice(0, -1).concat([
+    { ...lastTool, content: `${lastTool.content}\n\n${FINAL_STATUS}` },
+  ]),
+};
+const appended = {
+  ...beforeClosing,
+  messages: beforeClosing.messages.concat([{ role: "user", content: FINAL_STATUS }]),
+};
+check(
+  !promptText(folded).startsWith(promptText(beforeClosing)),
+  "the folded status changes the text the engine had read",
+);
+equal(
+  engineCache(beforeClosing, folded),
+  0,
+  "so the engine keeps nothing of it — and the check above would fail",
+);
+check(
+  promptText(appended).startsWith(promptText(beforeClosing)),
+  "the appended status leaves the text the engine had read where it was",
+);
+check(
+  engineCache(beforeClosing, appended) > 0,
+  "so the engine keeps the whole prefix — and the check above holds",
+);
+equal(
+  engineCache(beforeClosing, beforeClosing),
+  engineCache(beforeClosing, appended),
+  "and the same prefix as the request the app sends",
 );
 
 // ---------------------------------------------------------------------------

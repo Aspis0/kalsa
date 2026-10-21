@@ -279,13 +279,12 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
    *
    * If it does not — the thread was already at the limit — the status is
    * left out. The closing request is then the very body the engine
-   * accepted, which fits by definition, and the answer still comes from
-   * what the turn read. The status is a sentence, not a load: dropping it
-   * costs the model a sentence of instruction and saves the turn a 400.
+   * accepted, which fits by definition and keeps the whole prefix, and the
+   * answer still comes from what the turn read.
    */
   function closingCarriesStatus(marked: WireMessage[]): boolean {
     if (fit === null) return true;
-    const statusSize = fit.size([{ role: "tool", content: FINAL_STATUS }]);
+    const statusSize = fit.size([{ role: "user", content: FINAL_STATUS }]);
     if (measured !== null) return measured + statusSize <= fit.budget;
     return wireEstimate(marked) <= fit.budget;
   }
@@ -390,12 +389,22 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
               },
         )
       : null;
-    // The final request needs execution state as well as tool_choice. Copy
-    // the tool message so the status stays off the stored result.
+    // The final request needs execution state as well as tool_choice.
     // **A turn closing for space carries the wire the engine has already
     // read**, not the exchange it has not: that exchange is the one that did
-    // not fit, and the model is answered from what it really saw. And the
-    // status rides that copy only while there is room for it.
+    // not fit, and the model is answered from what it really saw.
+    //
+    // **And the status is a message of its own, at the end.** The engine keeps
+    // the prefix of what it has read only when the new prompt changes none of
+    // it: measured on the engine (Qwen3.6, the turn of 21 October 2026), a
+    // request that rewrites a message the engine had read comes back with
+    // `cache 0` — the whole thread to read again, 62558 tokens in 205 seconds
+    // — and its answer arrives after the door has stopped waiting for it. A
+    // status folded into the last tool result rewrites exactly such a
+    // message. Appended, the status leaves everything the engine read where
+    // it was: the prefix is kept (56036 of 56084 tokens reused, 0.58 s of
+    // prefill instead of 147 s), and the model still reads the sentence that
+    // tells it the calls are over.
     let messages = closingForSpace ? acceptedWire() : conversation;
     if (last && !statusSent && calledTool) {
       const marked = withFinalStatus(messages);
@@ -602,13 +611,26 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
   }
 }
 
-// Copy only the final tool message so the status stays off the stored result
-// and every earlier message keeps its cached prefix.
+/**
+ * The execution status, as a message of its own at the end of the wire.
+ *
+ * **It used to be folded into the last tool result, and that is what cost the
+ * closing request its prefix.** The engine keeps what it has read only while
+ * the new prompt changes none of it: a request that rewrites a message the
+ * engine had read comes back with `cache 0` — the whole thread to read again
+ * (62558 tokens, 205 seconds) — and its answer arrives after the door has
+ * stopped waiting for it. The fold rewrote exactly such a message: the last
+ * tool result, which the engine had read.
+ *
+ * As a message of its own the status leaves everything the engine read where
+ * it was: the wire it gets is the wire it had, plus one sentence at the end.
+ * The prefix is kept — 56036 of 56084 tokens reused, 0.58 s of prefill where
+ * the fold cost 147 s — and the model still reads the sentence that tells it
+ * the calls are over.
+ */
 function withFinalStatus(conversation: WireMessage[]): WireMessage[] | null {
-  const at = conversation.length - 1;
-  const last = conversation[at];
-  if (last === undefined || last.role !== "tool" || typeof last.content !== "string") return null;
-  return [...conversation.slice(0, at), { ...last, content: `${last.content}\n\n${FINAL_STATUS}` }];
+  if (conversation.length === 0) return null;
+  return [...conversation, { role: "user", content: FINAL_STATUS }];
 }
 
 /**

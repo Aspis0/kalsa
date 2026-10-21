@@ -618,8 +618,14 @@ export function useChatTurns({ store, announce, contextSizes, saveMailDraft }: T
           thoughtStartedAt !== null
             ? Math.max(0, Math.round((answerStartedAt ?? performance.now()) - thoughtStartedAt))
             : undefined;
-        persistLive(ms !== undefined ? { reasoningMs: ms } : undefined);
+        // **The turn's own line is said before the last write.** The line is
+        // built from this turn's runs and lands on the last one of them; the
+        // write that follows is what puts it in the store. Written the other
+        // way round, the line waits for the debounce — and the debounce is
+        // cancelled when the live buffer is dropped, so a turn that closed for
+        // space kept its rows and lost its summary.
         closeTurn();
+        persistLive(ms !== undefined ? { reasoningMs: ms } : undefined);
         announce(!hasAnswer && hasThought ? shell.thinkingComplete : shell.responseComplete);
       } catch (error) {
         closeTurn();

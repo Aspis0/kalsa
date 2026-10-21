@@ -122,6 +122,17 @@ export async function loadApp() {
         export { MAIL_TOOLS, mailShowTool } from "../src/lib/tools/definitions.ts";
         export { MAIL as ITALIAN_MAIL } from "../src/i18n/it/mail.ts";
         export { MAIL as ENGLISH_MAIL } from "../src/i18n/en/mail.ts";
+        // **The turn engine, and a way to mount it.** The hook is the app's
+        // own turn: the stream, the buffers, the write-back to the store and
+        // the order the turn's closing line is said in. A harness that drives
+        // it has to mount it, and React has to be the *same* React the app
+        // uses — two copies would mean two dispatchers and "invalid hook
+        // call". So the renderer comes from this bundle too, and the harness
+        // never imports React on its own.
+        export { useChatTurns } from "../src/surfaces/useChatTurns.ts";
+        export { LanguageProvider } from "../src/i18n/useLanguage.tsx";
+        export { renderToStaticMarkup } from "react-dom/server.browser";
+        export { createElement } from "react";
       `,
       resolveDir: SCRIPTS_DIR,
       loader: "ts",
