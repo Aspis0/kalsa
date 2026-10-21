@@ -8,6 +8,7 @@ import { streamChatCompletion } from "../toolLoop";
 import { armedConversation, executeToolCall, offeredTools } from "../tools/registry";
 import type { ToolDefinition } from "../tools/definitions";
 import { MAIL_NAMES } from "../tools/definitions";
+import { BROWSER_NAMES } from "../tools/browserTools";
 import { closeRecap, sayRuns, takeNote } from "../browser/note";
 import { recapLine } from "../browser/recap";
 import { isBrowserRun } from "../browser/runs";
@@ -34,12 +35,17 @@ const FACTS_TIMEOUT_MS = 8000;
 /**
  * The tools a phone turn may call.
  *
- * **The browser is one of them, when the turn names its phone.** A paired phone
- * is the owner's own device and it drives the same browser the desktop drives,
- * under the same web switch and the same rules — and a write still needs the card
- * and the answer. What a phone may not have is a card it cannot be shown: without
- * a device there is nobody who could answer, so an unidentified turn is offered
- * the reads and nothing that could hold a request. Better no write than a write
+ * **The browser is not one of them, and this is a change on purpose.** The
+ * desktop's browser turn is armed by a person at the screen, one message at a
+ * time, by a control that says so; a phone has no such control, so a phone
+ * turn is never a browser turn — and a turn that cannot be armed is a turn
+ * that cannot be finished: the browser's tools raise cards, and a card needs
+ * somebody to answer it. **The phone stays in web-only mode** until it has a
+ * control of its own.
+ *
+ * What a phone may not have is a card it cannot be shown: without a device
+ * there is nobody who could answer, so an unidentified turn is offered the
+ * reads and nothing that could hold a request. Better no write than a write
  * nobody is ever asked about.
  *
  * A stranger's phone cannot reach this window at all: the bridge binds a request
@@ -56,9 +62,16 @@ export function phoneTools(
   armed = false,
 ): ToolDefinition[] {
   const writable = device !== null && !armed;
-  return offeredTools(webTools, language, model).filter(
+  return offeredTools(webTools, language, model, "web").filter(
     (tool) =>
       tool.function.name !== "create_miniapp" &&
+      // **No browser on a phone.** The rule is here as well as in the mode the
+      // offer is built with, so it survives a change to that offer: the
+      // filter below is what a phone may not have, and the browser's tools
+      // are not on the list at all.
+      !BROWSER_NAMES.has(tool.function.name) &&
+      // The second line, kept as it was: it is what a phone may not have
+      // without a device, and a rule that is not drawn cannot be broken.
       (writable || !BROWSER_WRITES.has(tool.function.name)) &&
       (mail || !MAIL_NAMES.has(tool.function.name)),
   );

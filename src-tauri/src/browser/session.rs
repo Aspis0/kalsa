@@ -120,7 +120,7 @@ pub(crate) async fn brain_browser_pause(
     if !state.inner().pause(&app, true) {
         // There is no session here to pause, and nothing was said about it: a
         // page with no window on it has nothing to put words on.
-        return Err(BrowserError::Busy.into());
+        return Err(BrowserError::SlotBusy.into());
     }
     // **A Pausa pressed while a call is running cuts that call short.** The call
     // is what Kalsa is doing, and the person has just said to stop doing it; a
@@ -153,7 +153,7 @@ pub(crate) async fn brain_browser_resume(
     state: State<'_, BrowserState>,
 ) -> Result<String, super::error::CommandFailure> {
     if !state.inner().pause(&app, false) {
-        return Err(BrowserError::Busy.into());
+        return Err(BrowserError::SlotBusy.into());
     }
     match push_to_the_sidecar(&app, &state, "browser_resume").await {
         Ok(reading) => Ok(reading),
@@ -186,7 +186,7 @@ async fn push_to_the_sidecar(
     let pushed = tokio::time::timeout(PRESS_DEADLINE, retry_while_busy(app, state, tool)).await;
     match pushed {
         Ok(said) => said,
-        Err(_elapsed) => Err(BrowserError::Busy.into()),
+        Err(_elapsed) => Err(BrowserError::SlotBusy.into()),
     }
 }
 
@@ -205,7 +205,7 @@ async fn retry_while_busy(
         }
         tokio::time::sleep(SLOT_GAP).await;
     }
-    Err(BrowserError::Busy.into())
+    Err(BrowserError::SlotBusy.into())
 }
 
 /// Ends the session. The window closing and the app quitting both come here:

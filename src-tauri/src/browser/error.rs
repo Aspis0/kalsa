@@ -13,6 +13,16 @@ pub(crate) enum BrowserError {
     /// A download is already running; one at a time, so two presses cannot
     /// write the same directory.
     Busy,
+    /// **The browser's slot is taken.** Another call holds it, or the profile
+    /// is being emptied underneath it.
+    ///
+    /// **It answers with the same code as the download's busy, on purpose.**
+    /// The page reads one line for both — the browser is busy, whoever asked —
+    /// and only the model is told which one it was: a download that is
+    /// running and a browser that is taken are the same fact for the person
+    /// and two different ones for the model. A second code would mean a second
+    /// line to read, saying the same thing.
+    SlotBusy,
     /// The person pressed Cancel. Nothing was installed and nothing partial is
     /// left behind, so the next press starts clean.
     Cancelled,
@@ -52,6 +62,7 @@ impl BrowserError {
         match self {
             Self::UnsupportedPlatform => "browser.unsupported_platform",
             Self::Busy => "browser.busy",
+            Self::SlotBusy => "browser.busy",
             Self::Cancelled => "browser.cancelled",
             Self::Download => "browser.download_failed",
             Self::Corrupt => "browser.driver_corrupt",
@@ -120,6 +131,9 @@ fn fallback(error: &BrowserError) -> &'static str {
     match error {
         BrowserError::UnsupportedPlatform => "Kalsa does not have a browser driver for this computer.",
         BrowserError::Busy => "Kalsa is already downloading its browser driver.",
+        BrowserError::SlotBusy => {
+            "The browser is busy: another call is using it. Nothing was sent. Say what you would have done, and wait."
+        }
         BrowserError::Cancelled => "The browser driver download was cancelled.",
         BrowserError::Download => "Kalsa could not download its browser driver. Try again.",
         BrowserError::Corrupt => {
@@ -140,10 +154,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn every_error_has_a_code_and_a_sentence_and_no_two_share_a_code() {
+    fn every_error_has_a_code_and_a_sentence_and_only_the_two_busy_failures_share_a_code() {
         let all = [
             BrowserError::UnsupportedPlatform,
             BrowserError::Busy,
+            BrowserError::SlotBusy,
             BrowserError::Cancelled,
             BrowserError::Download,
             BrowserError::Corrupt,
@@ -158,11 +173,28 @@ mod tests {
         codes.sort_unstable();
         let count = codes.len();
         codes.dedup();
-        assert_eq!(codes.len(), count, "two failures answer the same code");
+        // **The two busy failures answer the same code, and they are the only
+        // two that do.** The page reads one line for both — the browser is busy
+        // — and the model is told which one it was.
+        assert_eq!(codes.len(), count - 1, "two failures answer the same code");
         for error in all {
             assert!(!error.code().is_empty());
             assert!(!fallback(&error).is_empty());
         }
+    }
+
+    /// **The busy slot has its own sentence, and it is not the download's.**
+    /// The model reads it: a call refused because the browser is taken must not
+    /// say that a driver is being downloaded, because nothing is.
+    #[test]
+    fn the_busy_slot_says_the_browser_is_taken_and_not_that_a_driver_is_downloading() {
+        let busy = CommandFailure::from(BrowserError::SlotBusy);
+        assert_eq!(busy.code, "browser.busy", "the page reads one code for both");
+        assert!(busy.text.contains("busy"), "{}", busy.text);
+        assert!(!busy.text.contains("download"), "{}", busy.text);
+        // And the download keeps its own sentence, which says what it is.
+        let download = CommandFailure::from(BrowserError::Busy);
+        assert!(download.text.contains("download"), "{}", download.text);
     }
 
     /// **The sidecar's words are the sentence the model reads, and the code is

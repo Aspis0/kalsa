@@ -431,7 +431,28 @@ export async function extractAttachment(file: File): Promise<Attachment> {
  * phone is offered no mini app and draws none, so the two sentences about
  * them would name a tool the model cannot call. Every other turn sends the
  * bytes below unchanged.
+ *
+ * **The browse sentence is not an axis.** Whether the turn is armed for the
+ * browser or not is the tool list's business, and the prompt says the same
+ * thing in both: a prompt that changed with the turn would move the whole
+ * prefix of the conversation and throw the engine's cache away for the sake of
+ * a word the model can read once.
  */
+/**
+ * The control's name, in the two words the people who use it know it by.
+ *
+ * **Both are literals, and both are written here.** The prompt's bytes must
+ * not move between turns — the engine caches the prefix, so a byte that
+ * changed would prefill the whole conversation again — and the Italian alias
+ * is therefore a constant and not a lookup of the interface's language: the
+ * model is told both names in every language, and it names the chip the way
+ * the person sees it on their own screen.
+ */
+const BROWSE_NAME_EN = "Browse for me";
+const BROWSE_NAME_IT = "Naviga per me";
+/** How the prompt says the control: the English name, the Italian one beside it. */
+const BROWSE_NAME = `${BROWSE_NAME_EN} (${BROWSE_NAME_IT})`;
+
 function promptBytes(vision: boolean, think: boolean, phone: boolean): string {
   return (
     "You are Kalsa, a private assistant running on this computer. " +
@@ -453,6 +474,22 @@ function promptBytes(vision: boolean, think: boolean, phone: boolean): string {
       : "") +
     "A paperclip in the message box attaches files. " +
     (phone ? "" : "Miniapps (a table, calculator, quiz or checklist) open inline in the chat. ") +
+    // **The browse control, said once and the same way in every turn.** The
+    // sentence is constant on purpose: the engine caches the prompt's prefix,
+    // and a byte that moved between an armed turn and an ordinary one would
+    // prefill the whole conversation again. It says what the control is, what
+    // an armed turn means, what to do when a task needs the browser and the
+    // browser's tools are not there, and that a search is not a page.
+    //
+    // **The control is named twice, in both of the names it goes by**: the
+    // English one and the Italian alias beside it, so no part of the prompt
+    // calls it by one language only. Both are the constants above — literal
+    // bytes, not a per-language choice — so the sentence is still one fixed
+    // string for every turn, armed or not, and it is left out of the phone's
+    // prompt whole.
+    (phone
+      ? ""
+      : `A ${BROWSE_NAME} control sits in the message box: when the person turns it on, that turn is a browser turn and the browser tools drive the real browser for them. If a task needs the browser and you are given no browser tools, say so and ask the person to turn on ${BROWSE_NAME}. A web search is not the same as opening the page the person asked for. `) +
     "Phones paired to this computer can get answers from you too. " +
     "The Room is a group chat on this computer where people call you by writing @Kalsa or with the button in the message box that asks you. " +
     "You cannot press these buttons yourself; tell the person which one to use."

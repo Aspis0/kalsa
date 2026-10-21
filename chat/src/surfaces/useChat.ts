@@ -29,6 +29,9 @@ import {
 } from "../lib/attachments";
 import { isImageFile, prepareImage } from "../lib/images";
 import type { PreparedImage } from "../lib/images";
+import { useBrowserUsable } from "../lib/browser/useStatus";
+import { DISARMED, spend } from "../lib/browseArm";
+import type { Arming } from "../lib/browseArm";
 import { isVideoFile, prepareVideo, VideoCanceled } from "../lib/video";
 import { deleteConversationImages, deleteImage, putImage } from "../lib/imageStore";
 import { ATTACH_IMAGE_CEILING, wireImageBytes } from "../lib/wireBudget";
@@ -289,6 +292,16 @@ export function useChat(shell: ChatShell) {
   useEffect(() => {
     setThinking(loadThinking(effectiveSettings.model));
   }, [effectiveSettings.model]);
+  // **The browser control, armed for the next message and no other.** The chip
+  // in the composer turns it on, a second tap takes it back, and the send
+  // spends it: a turn is the browser's because the person said so once, and
+  // the next message is an ordinary one again.
+  const [arming, setArming] = useState<Arming>(DISARMED);
+  // **The control is drawn only where there is a browser to drive**: a driver
+  // that is installed, and the owner's web switch on. Both are read live, so
+  // the chip appears and disappears with them.
+  const browserReady = useBrowserUsable();
+  const browseAvailable = browserReady && effectiveSettings.webTools;
   const attachments: Attachment[] = useMemo(
     () => (activeId ? store.getAttachments(activeId) : []),
     // conversations refreshes on every store notification (index is small).
@@ -897,6 +910,14 @@ export function useChat(shell: ChatShell) {
     const browserNote = takeNote(conv.id, table.tools.recap);
     // Blocked words never reach the model: the decline is the answer instead.
     const decline = contentDecline(text, table.contentFilter);
+    // **The arming is read here and spent here.** One message is the browser's
+    // and the next is an ordinary one, whatever the chip does afterwards; and
+    // a message sent while the browser had gone missing is still the
+    // browser's — the person asked for the browser, and a turn that quietly
+    // became a web turn would answer with a search they did not ask for.
+    // The offer that follows is empty instead, and the model says so.
+    const spent = spend(arming);
+    setArming(spent.next);
     const sentAt = new Date();
     const updated: Conversation = {
       ...conv,
@@ -911,6 +932,10 @@ export function useChat(shell: ChatShell) {
             ? { docs: bindable.map((a) => a.id), docTokens: estTokens(boundBlock) }
             : {}),
           ...(wireNote === "" ? {} : { mailNote: wireNote }),
+          // **This turn was the browser's.** The flag rides the message, so the
+          // badge says so after a reload too, and the turn's own tools are
+          // read from it.
+          ...(spent.browserMode ? { browserMode: true } : {}),
           // What became of a request the person was asked about since they last
           // spoke, carried here and read by the model alone. Drained once: an
           // outcome is told once, not every turn afterwards.
@@ -1187,6 +1212,10 @@ export function useChat(shell: ChatShell) {
     effectiveSettings,
     thinkingSupported,
     thinking,
+    // The browser control: **null where there is no browser to drive**, and the
+    // armed state otherwise. The composer draws it, and the send spends it.
+    browse: browseAvailable ? arming.armed : null,
+    setBrowse: (next: Arming) => setArming(next),
     // The served model's own word about itself: every image road below it.
     vision,
     // The projector the brain has on the shelf — the composer's one quiet

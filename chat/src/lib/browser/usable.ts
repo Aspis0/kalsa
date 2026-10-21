@@ -15,6 +15,9 @@
 /** What the last status read said: installed, and on a platform that has one. */
 let usable = false;
 
+/** The screens that want to know when that answer changes. */
+const listeners = new Set<() => void>();
+
 /** What `brain_browser_driver_status` answered. */
 export interface BrowserStatus {
   supported: boolean;
@@ -24,9 +27,30 @@ export interface BrowserStatus {
 
 export function noteBrowserStatus(status: BrowserStatus): void {
   usable = status.supported && status.installed;
+  // **The answer is told to whoever is watching.** The composer's control is
+  // drawn from this, and a control that appears or vanishes only at the next
+  // reload is a control the person cannot trust.
+  for (const listener of listeners) listener();
 }
 
 /** Whether the three read tools are offered in the next request. */
 export function browserUsable(): boolean {
   return usable;
+}
+
+/** The same answer, for a screen that watches it. */
+export function browserUsableSnapshot(): boolean {
+  return usable;
+}
+
+/**
+ * Watch the answer. The reader is called now and whenever it changes, and
+ * **the same snapshot is what it is told**, so a screen that draws from it
+ * never disagrees with the offer the tools make.
+ */
+export function subscribeBrowserUsable(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
 }

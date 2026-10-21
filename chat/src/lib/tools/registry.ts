@@ -17,7 +17,7 @@ import { logBrowserFailure, logProvenanceFailure } from "../browser/diagnostics"
 import { isPaused } from "../browser/window";
 import { browserUsable } from "../browser/usable";
 import { browserClick, browserFind, browserOpen, browserRead, browserType, fence } from "./browserCall";
-import { browserCode } from "../browser/codes";
+import { browserCode, LINK_UNSEEN } from "../browser/codes";
 import * as ledger from "../callLedger";
 import { mailAllowed } from "../mail/allowlist";
 import { isMailRun } from "../mail/runs";
@@ -36,7 +36,9 @@ function refusedTwice(code: string, name: string): string {
     ? `No more browser steps this turn: Kalsa has already run ${ledger.BROWSER_CALLS_PER_TURN}. Answer the person, or stop asking the browser.`
     : code === "browser.already_run"
       ? `You already asked for that ${what} since the page last changed, and have its answer above. Do not ask again.`
-      : `You already asked for that ${what} in this turn and it failed with ${code}, which will not change on a second try. Say what you will do instead, or stop.`;
+      : code === LINK_UNSEEN
+        ? `You already asked for that ${what} in this turn and it failed with ${code}: that address has not appeared in the conversation. Click its ref instead: use browser_read or browser_find to find the link on the page, then click its ref.`
+        : `You already asked for that ${what} in this turn and it failed with ${code}, which will not change on a second try. Say what you will do instead, or stop.`;
 }
 
 /** What one held call looks like to the page: which tool, the exact string
@@ -93,18 +95,52 @@ const WEB_OFF =
   "Not run: web access is switched off in Settings, so Kalsa is not opening or driving a \
 browser. Nothing was sent. Answer from the conversation, or ask the person to turn it on.";
 
-export function offeredTools(enabled: boolean, language: Language, model: string): ToolDefinition[] {
+/**
+ * Which family of tools a turn may offer. **The two never sit in the same
+ * list**: the person chooses, not the model. The composer carries a "Browse
+ * for me" control, and the turn it arms is a browser turn — the web tools are
+ * then not offered at all, so a model that would rather search than open a
+ * page cannot.
+ */
+export type ToolMode = "web" | "browser";
+
+export function offeredTools(
+  enabled: boolean,
+  language: Language,
+  model: string,
+  /** The family this turn may offer. Required on purpose: a caller that
+   *  forgets to say which turn it is building is a compile error, not a
+   *  silent choice between the browser and the web. */
+  mode: ToolMode,
+): ToolDefinition[] {
   if (!available()) return [];
   const mail = mailAllowed(model) ? [...MAIL_TOOLS, mailShowTool(language)] : [];
+  // **The armed turn is the browser's turn and nothing else.** The person armed
+  // it because the task needs a real page — a search result is not a page, and
+  // a mini app is not a page — so the browser's five tools are the whole list.
+  // The web tools are not offered beside them: a list with both families in it
+  // is a list the model chooses from, and the choice is not the person's.
+  if (mode === "browser") {
+    // The browser is behind the owner's web switch, like everything else that
+    // reaches the web — and behind the driver being installed. An armed turn
+    // with no browser to drive offers nothing at all: it would answer in words,
+    // which is the honest answer for a browser that cannot open.
+    return browserUsable() && enabled ? [...BROWSER_TOOLS] : [];
+  }
   const web = enabled ? TOOL_DEFINITIONS : [CREATE_MINIAPP_TOOL];
-  // **The browser is behind the owner's web switch, like everything else that
-  // reaches the web.** Step 4 made these tools able to *send*, and an owner who
-  // turned the web off did so because this computer should not be reaching out
-  // — a window opening a stranger's page is that, whatever runs the fetch. So
-  // the switch is checked here, where it is an offer, and again at the call,
-  // where an offer cannot be the only thing standing between a model and the
-  // network: a name in a tool list is something the model wrote, not a promise.
-  return browserUsable() && enabled ? [...web, ...mail, ...BROWSER_TOOLS] : [...web, ...mail];
+  // **The web tools are behind the owner's web switch, like everything else
+  // that reaches the web.** Step 4 made these tools able to *send*, and an
+  // owner who turned the web off did so because this computer should not be
+  // reaching out — a window opening a stranger's page is that, whatever runs
+  // the fetch. So the switch is checked here, where it is an offer, and again
+  // at the call, where an offer cannot be the only thing standing between a
+  // model and the network: a name in a tool list is something the model wrote,
+  // not a promise.
+  //
+  // **And the browser's tools are not in this list at all.** A turn that was not
+  // armed for the browser is a web turn; the two families are exclusive, and
+  // the control in the composer is what arms the browser's.
+  return [...web, ...mail];
 }
 
 /**
@@ -270,7 +306,10 @@ export async function executeToolCall(
         const said = ledger.decide(calls, name, record);
         if (!said.run) {
           return {
-            text: refusedTwice(said.code, name),
+            // **The reason the call failed the first time**, not the ledger's
+            // own word for "it failed again": the model is told what happened,
+            // so it can do something else instead of asking a third time.
+            text: refusedTwice(said.said, name),
             ok: false,
             resultCode: said.answer === null ? said.code : "browser.already_run",
           };

@@ -47,6 +47,10 @@ export interface CallContext {
   /** The conversation the model is reading, growing round by round; the
       web_fetch provenance rule reads it at call time. */
   conversation: WireMessage[];
+  /** Whether this request is a browser turn — the person armed the "Browse for
+      me" control and only the browser's tools were offered. It changes the
+      sentence a call to a tool this request never offered is answered with. */
+  browse?: boolean;
 }
 
 /**
@@ -65,15 +69,20 @@ export async function runToolCall(
     // string, an address. It is not put on the record: a run that never ran has
     // nothing to say about what was asked for, and `store.ts` writes whatever it
     // is handed straight to localStorage.
+    // **In a browser turn the answer says why.** The person armed the browser
+    // for this message, and a model that reaches for the web tools anyway is
+    // told in one sentence that this turn is the browser's — which is the one
+    // thing it cannot work out from a list of tool names.
+    const said = ctx.browse === true ? ctx.say.notOfferedBrowser : ctx.say.notOffered;
     const record: ToolRun = {
       id: call.id,
       name: call.name,
       arguments: "",
-      result: ctx.say.notOffered,
+      result: said,
       state: "refused",
     };
     ctx.onToolRun?.(record);
-    return { result: ctx.say.notOffered, wire: wireArguments(call.arguments, call.cut) };
+    return { result: said, wire: wireArguments(call.arguments, call.cut) };
   }
   const name = definition.function.name;
 

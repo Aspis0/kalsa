@@ -88,13 +88,13 @@ try {
 
   // ── the web switch, and nothing else, gates the web tools ─────────────────
   {
-    const on = offeredTools(true).map((tool) => tool.function.name);
-    const off = offeredTools(false).map((tool) => tool.function.name);
+    const on = offeredTools(true, "en", "any-model", "web").map((tool) => tool.function.name);
+    const off = offeredTools(false, "en", "any-model", "web").map((tool) => tool.function.name);
     equal("switch on offers all three, local first", on, ["create_miniapp", "web_search", "web_fetch"]);
     equal("switch off offers only the local tool", off, ["create_miniapp"]);
     const door = globalThis.window.__TAURI__;
     globalThis.window.__TAURI__ = undefined;
-    equal("a page with no desktop offers nothing", offeredTools(true).map((t) => t.function.name), []);
+    equal("a page with no desktop offers nothing", offeredTools(true, "en", "any-model", "web").map((t) => t.function.name), []);
     globalThis.window.__TAURI__ = door;
   }
 

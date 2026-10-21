@@ -147,12 +147,12 @@ impl<H> Slot<H> {
         if !matches!(self.state, State::Open | State::Idle) {
             // A call already owns the browser, and one has been asked to end.
             // Both are the same answer to the person: Kalsa is busy.
-            return Err(BrowserError::Busy);
+            return Err(BrowserError::SlotBusy);
         }
         if self.clearing {
             // The profile is being emptied underneath: a browser started now
             // would be writing into a folder that is on its way elsewhere.
-            return Err(BrowserError::Busy);
+            return Err(BrowserError::SlotBusy);
         }
         let existing = self.host.take();
         self.taken += 1;
@@ -542,7 +542,7 @@ impl Browser {
                 Ok(result.for_model.join("\n"))
             }
             // Nothing the chat offers in this step needs an answer from a person.
-            CallOutcome::NeedsConfirmation(_) => Err(BrowserError::Busy),
+            CallOutcome::NeedsConfirmation(_) => Err(BrowserError::SlotBusy),
         }
     }
 
@@ -751,7 +751,7 @@ mod tests {
         let mut slot = idle();
         assert!(slot.take(|| Ok("new".to_owned())).is_ok());
         assert_eq!(state(&slot), State::Busy, "the running call holds the slot");
-        assert!(matches!(slot.take(|| panic!("a second host was started")), Err(BrowserError::Busy)));
+        assert!(matches!(slot.take(|| panic!("a second host was started")), Err(BrowserError::SlotBusy)));
         assert_eq!(state(&slot), State::Busy, "and it is still the first call's slot");
     }
 
@@ -769,7 +769,7 @@ mod tests {
             spent = true;
             true
         });
-        assert!(matches!(refused, Err(BrowserError::Busy)), "the press is refused as busy");
+        assert!(matches!(refused, Err(BrowserError::SlotBusy)), "the press is refused as busy");
         assert!(!spent, "and the card was not spent by a press that never went");
         assert_eq!(state(&slot), State::Busy, "and the running call still holds the browser");
     }
@@ -796,7 +796,7 @@ mod tests {
                 second = true;
                 true
             }),
-            Err(BrowserError::Busy)
+            Err(BrowserError::SlotBusy)
         ));
         assert_eq!(spends, 1, "one press spent the card");
         assert!(!second, "and the other press spent nothing");
@@ -895,7 +895,7 @@ mod tests {
             || pending.spend_in("c1", CHAT).is_some(),
         );
 
-        assert!(matches!(refused, Err(BrowserError::Busy)), "the decline is refused as busy");
+        assert!(matches!(refused, Err(BrowserError::SlotBusy)), "the decline is refused as busy");
         assert!(pending.holds("c1", CHAT), "and the request is still waiting where it was raised");
         assert_eq!(state(&slot), State::Busy, "and the call that holds the browser still holds it");
     }
@@ -954,7 +954,7 @@ mod tests {
                 },
             )
             .await;
-        assert!(matches!(refused, Err(BrowserError::Busy)), "the press is refused as busy");
+        assert!(matches!(refused, Err(BrowserError::SlotBusy)), "the press is refused as busy");
         assert!(!spent.load(std::sync::atomic::Ordering::SeqCst), "and the card was not spent by a press that never went");
     }
 
@@ -1043,7 +1043,7 @@ mod tests {
 
         // A second call while the close is on its way out is refused, and the
         // slot stays put — it does not become Busy-owned and start someone else.
-        assert!(matches!(slot.take(|| panic!("a second host was started")), Err(BrowserError::Busy)));
+        assert!(matches!(slot.take(|| panic!("a second host was started")), Err(BrowserError::SlotBusy)));
         assert_eq!(state(&slot), State::Closing, "a refused call must not take the slot");
 
         assert!(!slot.give_back(lease), "the host was put back after the session ended");
@@ -1060,7 +1060,7 @@ mod tests {
         let mut slot = idle();
         let first = slot.take(|| Ok("first".to_owned())).expect("the first call");
         let second = slot.take(|| Ok("second".to_owned()));
-        assert!(matches!(second, Err(BrowserError::Busy)), "one call at a time");
+        assert!(matches!(second, Err(BrowserError::SlotBusy)), "one call at a time");
 
         // The slot has moved to a later call than the lease believes.
         slot.taken += 1;
@@ -1233,7 +1233,7 @@ mod tests {
 
         assert!(slot.end().is_none(), "and a second end changes nothing at all");
         assert_eq!(state(&slot), State::Closing, "still refusing the calls that would race the last one");
-        assert!(matches!(slot.take(|| panic!("a call took a closing slot")), Err(BrowserError::Busy)));
+        assert!(matches!(slot.take(|| panic!("a call took a closing slot")), Err(BrowserError::SlotBusy)));
 
         // The lease finally comes back, and the browser is gone for good.
         assert!(!slot.give_back(running));
@@ -1258,7 +1258,7 @@ mod tests {
         assert_eq!(state(&slot), State::Closing);
         assert!(slot.end().is_none(), "and the second end changes nothing");
         assert!(
-            matches!(slot.take(|| panic!("a new call took a closing slot")), Err(BrowserError::Busy)),
+            matches!(slot.take(|| panic!("a new call took a closing slot")), Err(BrowserError::SlotBusy)),
             "so nothing can get in while that lease is still out"
         );
 
@@ -1286,7 +1286,7 @@ mod tests {
         // waiting on it: a call arriving now is refused on the slot alone.
         assert!(slot.end().is_none());
         assert!(
-            matches!(slot.take(|| panic!("a call arrived in the gap")), Err(BrowserError::Busy)),
+            matches!(slot.take(|| panic!("a call arrived in the gap")), Err(BrowserError::SlotBusy)),
             "the slot alone refuses it, so the generation it would read is never reached"
         );
 
@@ -1374,7 +1374,7 @@ mod tests {
         assert!(slot.begin_clear(), "nothing is running, so a clear may");
         assert!(!slot.begin_clear(), "and a second clear is refused rather than raced");
         assert!(
-            matches!(slot.take(|| panic!("a browser started under a clear")), Err(BrowserError::Busy)),
+            matches!(slot.take(|| panic!("a browser started under a clear")), Err(BrowserError::SlotBusy)),
             "no call may take the browser while the profile is being emptied"
         );
 

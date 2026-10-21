@@ -65,6 +65,10 @@ export const TOOLS = {
     "argumentsTooLong": "内容太长，Kalsa 无法核查。请用更短的搜索词或地址再试。",
     "argumentsNotValid": "Kalsa 没有核查完。请再问一次。",
     "notOffered": "该工具当前不可用。请直接回答。",
+    // 浏览器这一轮的拒绝：**所有语言都用英文**，因为模型可能读不懂对话者的语言。
+    "notOfferedBrowser": "The person asked you to browse for them this turn. Use the browser tools.",
+    // 已武装发送的消息下方的徽章：那一轮属于浏览器。
+    "browserBadge": "浏览器",
   "recap": {
     "lede": "Kalsa：",
     "joiner": " · ",

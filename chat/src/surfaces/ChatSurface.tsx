@@ -47,6 +47,8 @@ export function ChatSurface({ chat, restartedAt }: { chat: Chat; restartedAt: nu
     thinking,
     thinkingSupported,
     saveThinking,
+    browse,
+    setBrowse,
     vision,
     visionOfferBytes,
     visionFlow,
@@ -205,6 +207,8 @@ export function ChatSurface({ chat, restartedAt }: { chat: Chat; restartedAt: nu
           <Composer
             thinking={thinkingSupported ? thinking : null}
             onThinking={saveThinking}
+            browse={browse}
+            onBrowse={setBrowse}
             streaming={streaming}
             opening={pending || creating}
             // An attach reading for THIS conversation holds Send: the reading

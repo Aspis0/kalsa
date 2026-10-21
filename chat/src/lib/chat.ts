@@ -112,6 +112,11 @@ export interface StreamOptions {
       phone calls are the desktop's, so without this a phone's mail call and
       the owner's own are one undifferentiated line. */
   phone?: boolean;
+  /** This turn is a browser turn: the person armed the "Browse for me" control
+      and the request was built with the browser's tools and nothing else. It
+      changes one sentence — the one a call to a tool this request never
+      offered is answered with — and nothing else. */
+  browse?: boolean;
   /** The reader's thinking choice for this model: `false` asks the model's own
       template not to think. `undefined` leaves it to the template. */
   thinking?: boolean;
@@ -140,6 +145,10 @@ export interface ToolPhrases {
   argumentsNotValid: string;
   /** The answer a call gets when this request never offered its tool. */
   notOffered: string;
+  /** The answer a call gets when this request never offered its tool **and the
+      turn is a browser turn**: the person armed the browser for this message,
+      and the model is told so in as many words. */
+  notOfferedBrowser: string;
 }
 
 /** What a tool answered, and whether that answer is a result or a refusal.

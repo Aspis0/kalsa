@@ -352,6 +352,9 @@ export function Thread({
                 <MessageVideos videos={message.videos} />
                 {message.content ? <div className="user-bubble">{message.content}</div> : null}
                 {message.mailSubject ? <p className="row-mail-subject">{message.mailSubject}</p> : null}
+                {/* The turn was sent armed for the browser: a badge says so, and
+                    the flag that carries it survives a reload. */}
+                {message.browserMode ? <p className="row-browser-badge">{table.tools.browserBadge}</p> : null}
               </div>
             ) : (
               <AssistantRow

@@ -65,6 +65,11 @@ export const TOOLS = {
     "argumentsTooLong": "Era demasiado largo para que Kalsa lo comprobara. Prueba con una búsqueda o una dirección más corta.",
     "argumentsNotValid": "Kalsa no terminó de comprobarlo. Pregunta de nuevo.",
     "notOffered": "Esa herramienta no está disponible ahora. Responde sin ella.",
+    // El rechazo del turno del navegador: **en inglés en todos los idiomas**,
+    // porque el modelo puede que no lea el idioma de quien escribe.
+    "notOfferedBrowser": "The person asked you to browse for them this turn. Use the browser tools.",
+    // El badge bajo un mensaje enviado armado: ese turno fue del navegador.
+    "browserBadge": "navegador",
   "recap": {
     "lede": "Kalsa ha:",
     "joiner": " · ",

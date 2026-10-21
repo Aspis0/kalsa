@@ -89,7 +89,12 @@ export async function loadApp() {
         export { runCreateMiniapp } from "../src/lib/tools/createMiniapp.ts";
         export { createStore, forDisk } from "../src/lib/store.ts";
         export { createAttachGate, NEW_CHAT } from "../src/lib/attachGate.ts";
-        export { buildPinnedContext, estTokens, turnDocBlock } from "../src/lib/attachments.ts";
+        export { buildPinnedContext, estTokens, turnDocBlock, systemPrompt } from "../src/lib/attachments.ts";
+        export { DISARMED, tap, spend, modeOf } from "../src/lib/browseArm.ts";
+        export { subscribeBrowserUsable, browserUsableSnapshot } from "../src/lib/browser/usable.ts";
+        export { LINK_UNSEEN, isRefusalCode } from "../src/lib/browser/codes.ts";
+        export { neverRan, fetchProvenanceRefusal } from "../src/lib/tools/fetchProvenance.ts";
+        export { BROWSER_NAMES } from "../src/lib/tools/browserTools.ts";
         export { sentDatePhrase } from "../src/lib/sentDate.ts";
         export { newUserTurn } from "../src/lib/userTurn.ts";
         export { mailRecord, mailRecords } from "../src/lib/mail/records.ts";

@@ -51,6 +51,28 @@ export const BROWSER_CODES = [
 /** One of `BROWSER_CODES`, and nothing else. */
 export type BrowserCode = (typeof BROWSER_CODES)[number];
 
+/**
+ * The code the provenance rule refuses an address with when the conversation
+ * never carried it. **It is the web's own code and not one of the browser's**:
+ * the rule is the same for a fetch and for an open, and the page reads it as
+ * "this link was never seen". The ledger remembers it anyway, because a second
+ * identical open would be refused the same way.
+ */
+export const LINK_UNSEEN = "web.link_unseen";
+
+/**
+ * A code a browser call can be refused with that the ledger keeps: the
+ * browser's own, and the provenance rule's. **The two are one union** because
+ * the ledger's job is the same for both — a call that was refused must not be
+ * asked again in the same turn, whatever refused it.
+ */
+export type RefusalCode = BrowserCode | typeof LINK_UNSEEN;
+
+/** Whether a word from the wire is one the ledger keeps. */
+export function isRefusalCode(code: unknown): code is RefusalCode {
+  return isBrowserCode(code) || code === LINK_UNSEEN;
+}
+
 /** Whether a word from the wire is one of ours. **Anything else is not shown**:
     it becomes `browser.refused`, which is a fact about it rather than a guess. */
 export function browserCode(code: unknown): BrowserCode {
@@ -147,7 +169,10 @@ export function isCardAlreadyResolved(code: BrowserCode): boolean {
     browser itself owns is deterministic by definition** — the same address, the
     same element, the same failure — so it is not tried twice in one turn. The
     codes that can differ on a second try are the ones Kalsa raised herself:
-    she was busy, the person paused, the page had not been opened yet. */
-export function isDeterministic(code: BrowserCode): boolean {
+    she was busy, the person paused, the page had not been opened yet. **The
+    provenance rule's code is deterministic too**: the same address will be
+    refused the same way, and a model that tries it again is told to click
+    the ref instead. */
+export function isDeterministic(code: RefusalCode): boolean {
   return code !== "browser.busy" && code !== "browser.paused" && code !== "browser.stopped";
 }

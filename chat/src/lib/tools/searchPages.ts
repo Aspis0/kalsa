@@ -100,10 +100,15 @@ async function readOne(
  * What one page may add, and the sentence that says the rest is not here: a
  * prefix must never read as the whole page. Cut by code points, which is what
  * the engine is charged for and what never leaves half a surrogate pair behind.
+ *
+ * **The sentence names both ways through.** A fetch is the way for a web turn,
+ * and the browser's own tools are the way for a browser turn: a model that is
+ * driving the browser for the person is told about `browser_open` and
+ * `browser_read`, so it does not stop at the first screen of a page.
  */
 function cut(page: string): string {
   if (!exceedsCodePoints(page, PAGE_CHARS)) return page;
-  return `${firstCodePoints(page, PAGE_CHARS)}\n\n[Only the first ${PAGE_CHARS} characters of this page are shown. Open it with web_fetch to read the rest.]`;
+  return `${firstCodePoints(page, PAGE_CHARS)}\n\n[Only the first ${PAGE_CHARS} characters of this page are shown. Open it with web_fetch to read the rest, or, when you are driving the browser, with browser_open and browser_read.]`;
 }
 
 /**

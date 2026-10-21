@@ -481,7 +481,7 @@ mod tests {
     /// came back, and the person pressed a button: somebody has to be told.
     #[test]
     fn only_a_refusal_that_spent_the_card_leaves_an_outcome_behind() {
-        assert!(!leaves_an_outcome(&BrowserError::Busy), "a press that never went leaves nothing behind");
+        assert!(!leaves_an_outcome(&BrowserError::SlotBusy), "a press that never went leaves nothing behind");
         assert!(!leaves_an_outcome(&BrowserError::NoCard), "a card that was already answered leaves nothing behind");
         assert!(
             leaves_an_outcome(&BrowserError::Stopped),

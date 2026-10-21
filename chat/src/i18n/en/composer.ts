@@ -9,6 +9,12 @@ export const COMPOSER = {
   think: "Think",
   thinkingOn: "Turn thinking on",
   thinkingOff: "Turn thinking off",
+  // The browser control. It arms the next message and only the next one.
+  browser: "Browse for me",
+  browserOn: "Browse for me · next message only",
+  browserOff: "Turn Browse for me off",
+  browserTitle: "Can open websites, click and fill in pages for you.",
+  browserOnTitle: "Browse for me is on: it applies to the next message only. Turn it off to cancel.",
   hintOpening: "Opening the chat…",
   disclaimer: "Kalsa can make mistakes. Check important information.",
   thinkingOnTitle: "Thinking is on: Kalsa works the question through before it answers. Turn it off to answer at once.",

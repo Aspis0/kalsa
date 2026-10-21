@@ -98,6 +98,18 @@
   border-color: var(--ac);
 }
 
+/* The browser control, armed. The same accent as the thinking switch: both
+   are the one control that changes what the next message does. */
+.composer-browser.is-on {
+  color: var(--ac-tx);
+  background: var(--ac-soft);
+  border-color: var(--ac-soft);
+}
+
+.composer-browser:hover:not(:disabled) {
+  border-color: var(--ac);
+}
+
 .composer-vision {
   max-width: 280px;
   color: var(--ac-tx);

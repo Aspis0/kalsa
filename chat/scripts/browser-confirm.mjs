@@ -259,19 +259,18 @@ try {
   // --- what is offered --------------------------------------------------------
   {
     noteBrowserStatus({ supported: true, installed: true, size: 42 });
-    const names = offeredTools(true, "en", "any-model").map((tool) => tool.function.name);
+    const names = offeredTools(true, "en", "any-model", "browser").map((tool) => tool.function.name);
     equal("a driver offers the three reads and the two writes", names.filter((name) => OFFERED.includes(name)), OFFERED);
 
-    // **A phone turn drives the same browser**, under the same offer: it is a
-    // paired phone and it is the person. What it must not be is a phone that
-    // cannot be told which phone it is — a write behind an unidentified turn is a
-    // card with nobody to show it, so it is not offered.
+    // **A phone has no browser, and this is a change on purpose.** The browser
+    // turn is armed by a person at the screen, and a phone has no control to
+    // arm it with: the phone stays in web-only mode until it has one.
     const named = phoneTools(true, "en", "any-model", true, "2").map((tool) => tool.function.name);
-    equal("a phone turn that names its phone is offered the whole browser", named.filter((name) => OFFERED.includes(name)), OFFERED);
+    equal("a phone turn that names its phone is offered no browser tool", named.filter((name) => OFFERED.includes(name)), []);
     const anonymous = phoneTools(true, "en", "any-model", true, null).map((tool) => tool.function.name);
     check(
-      "and a turn that names no phone is offered the reads and neither write",
-      anonymous.includes("browser_open") && !anonymous.includes("browser_click") && !anonymous.includes("browser_type"),
+      "and a turn that names no phone is offered no browser tool either",
+      !anonymous.some((name) => OFFERED.includes(name)),
       anonymous.join(","),
     );
   }

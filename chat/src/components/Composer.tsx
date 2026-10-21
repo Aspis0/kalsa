@@ -2,6 +2,8 @@ import { useLayoutEffect, useRef, useState } from "react";
 import type { ClipboardEvent, KeyboardEvent, ReactNode } from "react";
 import { useLanguage } from "../i18n/useLanguage";
 import { downloadBytes } from "../lib/downloadBytes";
+import { tap } from "../lib/browseArm";
+import type { Arming } from "../lib/browseArm";
 import type { Attachment } from "../lib/attachments";
 import { ComposerChips } from "./ComposerChips";
 import { Icon } from "./Icon";
@@ -76,6 +78,11 @@ interface ComposerProps {
       is worse than none. */
   thinking?: boolean | null;
   onThinking?: (enabled: boolean) => void;
+  /** The browser control: null where there is no browser to offer, and the
+      armed state otherwise. It arms the **next message only** — the composer
+      never disarms it, the send does. */
+  browse?: boolean | null;
+  onBrowse?: (arming: Arming) => void;
   /** A second send beside the primary one — the Room's call to Kalsa. The
       chat leaves it out. `disabled` is the caller's own rule (a call of
       yours already pending); the words are the same draft, cleared when
@@ -114,6 +121,8 @@ export function Composer({
   onPinDoc,
   thinking = null,
   onThinking,
+  browse = null,
+  onBrowse,
   ask,
   placeholder,
   attach,
@@ -287,6 +296,21 @@ export function Composer({
             >
               <Icon name="thought" size={18} />
               {composer.think}
+            </button>
+          )}
+          {/* The browser control. It arms the next message and nothing else:
+              the send disarms it, and the person can disarm it before that. */}
+          {browse === null || browse === undefined ? null : (
+            <button
+              type="button"
+              className={`composer-pill composer-browser${browse ? " is-on" : ""}`}
+              aria-pressed={browse}
+              aria-label={browse ? composer.browserOff : composer.browser}
+              title={browse ? composer.browserOnTitle : composer.browserTitle}
+              onClick={() => onBrowse?.(tap({ armed: browse }))}
+            >
+              <Icon name="globe" size={18} />
+              {browse ? composer.browserOn : composer.browser}
             </button>
           )}
           {/* Where the chat waits on the door, the line says so in place of the disclaimer. */}

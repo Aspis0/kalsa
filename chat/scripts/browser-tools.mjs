@@ -42,7 +42,12 @@ const LIT_UNSEEN =
   "Not run: this link has not appeared in the conversation, so it was not opened. Use web_search to find the page, or ask the user for the link.";
 
 const LIT_BROWSER_UNSEEN =
-  "Not run: this exact address has not appeared in the conversation, so it was not opened. Use browser_read or browser_find to locate the link, then click its ref or copy its whole printed address, including the path and query. Do not shorten or reconstruct the address.";
+  "Not run: this exact address has not appeared in the conversation, so it was not opened. Use browser_read or browser_find to locate the link, then click its ref. Only if the link carries no ref, copy its whole printed address, including the path and query, and open that; do not shorten or reconstruct the address.";
+
+// The same refusal said to a web_fetch made while the browser has already read
+// a page: the link is on that page, with a ref to click.
+const LIT_UNSEEN_BROWSER =
+  "Not run: this link has not appeared in the conversation, so it was not opened. The page in front of you carries it: use browser_read or browser_find to locate the link, then click its ref. If the link has no ref, copy its whole printed address, including the path and query, and open that; do not shorten or reconstruct it.";
 
 const OFFERED = ["browser_open", "browser_read", "browser_find"];
 /** The two writing tools, which the confirm script proves and this one only
@@ -145,22 +150,24 @@ try {
     noteBrowserStatus({ supported: false, installed: false, size: 0 });
     check(
       "no driver means no browser tools",
-      !offeredTools(true, "en", "any-model").some((tool) => OFFERED.includes(tool.function.name)),
+      !offeredTools(true, "en", "any-model", "browser").some((tool) => OFFERED.includes(tool.function.name)),
     );
     noteBrowserStatus({ supported: true, installed: true, size: 42 });
-    const names = offeredTools(true, "en", "any-model").map((tool) => tool.function.name);
+    const names = offeredTools(true, "en", "any-model", "browser").map((tool) => tool.function.name);
     equal("a driver offers exactly open, read and find", names.filter((name) => OFFERED.includes(name)), OFFERED);
     // Click and type arrived with step 4 and are proved in browser-confirm.mjs.
     // What matters here is that adding them did not widen the phone: see below.
 
-    // A phone turn drives the same browser once it has said which phone it is —
-    // the card it raises is what proves it — and is offered no write before that.
+    // **A phone has no browser, and this is a change on purpose.** The browser
+    // turn is armed by a person at the screen, one message at a time, by a
+    // control that says so; a phone has no control to arm it with, so a phone
+    // turn is never a browser turn.
     const phone = phoneTools(true, "en", "any-model", true, "2").map((tool) => tool.function.name);
-    equal("a named phone turn is offered the whole browser", phone.filter((name) => OFFERED.includes(name)), OFFERED);
+    check("a named phone turn is offered no browser tool", !phone.some((name) => name.startsWith("browser_")), phone.join(","));
     const unnamed = phoneTools(true, "en", "any-model", true, null).map((tool) => tool.function.name);
     check(
       "and an unnamed one no write, since no card of its could be shown anywhere",
-      unnamed.includes("browser_read") && !unnamed.some((name) => WRITES.includes(name)),
+      !unnamed.some((name) => WRITES.includes(name)),
       unnamed.join(","),
     );
   }
@@ -168,12 +175,17 @@ try {
   // --- the web switch, at the offer and at the call ---------------------------
   {
     noteBrowserStatus({ supported: true, installed: true, size: 42 });
-    const withWeb = offeredTools(true, "en", "any-model").map((tool) => tool.function.name);
-    const withoutWeb = offeredTools(false, "en", "any-model").map((tool) => tool.function.name);
+    const withWeb = offeredTools(true, "en", "any-model", "browser").map((tool) => tool.function.name);
+    const withoutWeb = offeredTools(false, "en", "any-model", "browser").map((tool) => tool.function.name);
     check(
-      "web on offers the browser",
+      "a browser turn with the switch on is offered the browser",
       withWeb.some((name) => name === "browser_open"),
       withWeb.join(","),
+    );
+    check(
+      "and the web turn is offered no browser tool at all",
+      !offeredTools(true, "en", "any-model", "web").some((tool) => tool.function.name.startsWith("browser_")),
+      offeredTools(true, "en", "any-model", "web").map((tool) => tool.function.name).join(","),
     );
     check(
       "web off is offered no browser tool at all, reads or writes",
@@ -282,7 +294,7 @@ try {
   {
     noteBrowserStatus({ supported: true, installed: true, size: 42 });
     for (const web of [true, false]) {
-      const offered = new Set(offeredTools(web, "en", "any-model").map((tool) => tool.function.name));
+      const offered = new Set(offeredTools(web, "en", "any-model", "browser").map((tool) => tool.function.name));
       const conversation = [{ role: "user", content: "Read https://news.example/story" }];
       for (const name of ["browser_open", "browser_read", "browser_find", "browser_click", "browser_type"]) {
         OPENED.length = 0;
@@ -322,7 +334,7 @@ try {
     const refusedOpen = await attempt("browser_open", { url: coined }, conversation);
     equal("a URL the model coined is refused for browser_open", [refusedOpen.ok, refusedOpen.text], [false, LIT_BROWSER_UNSEEN]);
     const refusedFetch = await attempt("web_fetch", { url: coined }, conversation);
-    equal("and refused for web_fetch", [refusedFetch.ok, refusedFetch.text], [false, LIT_UNSEEN]);
+    equal("and refused for web_fetch", [refusedFetch.ok, refusedFetch.text], [false, LIT_UNSEEN_BROWSER]);
     equal("neither refusal reached the sidecar", OPENED, ["https://news.example/story"]);
   }
 
@@ -410,9 +422,9 @@ try {
   // --- the status is read at the app's start --------------------------------
   {
     noteBrowserStatus({ supported: false, installed: false, size: 0 });
-    check("unknown is no", !offeredTools(true, "en", "any-model").some((tool) => OFFERED.includes(tool.function.name)));
+    check("unknown is no", !offeredTools(true, "en", "any-model", "browser").some((tool) => OFFERED.includes(tool.function.name)));
     noteBrowserStatus({ supported: true, installed: true, size: 1 });
-    check("a read that answers turns them on", offeredTools(true, "en", "any-model").some((tool) => OFFERED.includes(tool.function.name)));
+    check("a read that answers turns them on", offeredTools(true, "en", "any-model", "browser").some((tool) => OFFERED.includes(tool.function.name)));
     check("the app-start read exists and answers a status", typeof refreshBrowserStatus === "function");
   }
 

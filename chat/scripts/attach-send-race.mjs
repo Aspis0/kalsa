@@ -128,6 +128,13 @@ check(
 );
 
 const { dir, app } = await loadApp();
+
+// **The windows below are sized against the prompt.** The prompt is the
+// biggest fixed thing on the wire, and it grows when a sentence is added to
+// it: a window written as a plain number rots the day the prompt grows, and
+// the proof then fails for a reason that has nothing to do with what it
+// proves. These are the prompt's own tokens plus the room each case needs.
+const PROMPT_TOKENS = app.estTokens(app.systemPrompt(false, false).content);
 try {
   const store = app.createStore();
   for (const id of ["c1", "c2"]) {
@@ -246,7 +253,7 @@ try {
 
   // --- 4. the fit sheds the turn, and the document goes with it: a window
   //     that cannot hold the first turn drops the block it carried.
-  const shed = wireFor("c1", 756);
+  const shed = wireFor("c1", PROMPT_TOKENS + 500);
   check(
     "a shed turn takes its bound document with it",
     shed.status === "ok" && !JSON.stringify(shed.wire).includes("quarterly-report.pdf"),
@@ -378,7 +385,7 @@ try {
     const trialBoth = app.buildPinnedContext(
       store.get("c3").messages,
       store.getAttachments("c3"),
-      1000,
+      PROMPT_TOKENS + 744,
       blind,
       0,
       app.estTokens(app.turnDocBlock([...riding, arriving])),
@@ -391,7 +398,7 @@ try {
     const trialStagedAlone = app.buildPinnedContext(
       store.get("c3").messages,
       store.getAttachments("c3"),
-      1000,
+      PROMPT_TOKENS + 744,
       blind,
       0,
       app.estTokens(app.turnDocBlock([...riding])),
@@ -404,7 +411,7 @@ try {
     const trialArrivingAlone = app.buildPinnedContext(
       store.get("c4").messages,
       [],
-      1000,
+      PROMPT_TOKENS + 744,
       blind,
       0,
       app.estTokens(app.turnDocBlock([arriving])),

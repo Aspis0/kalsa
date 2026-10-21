@@ -193,6 +193,10 @@ function cleanMessage(value: unknown): ChatMessage | null {
     ...(typeof value.sentOn === "string" && value.sentOn ? { sentOn: value.sentOn } : {}),
     ...(typeof value.mailNote === "string" && value.mailNote ? { mailNote: value.mailNote } : {}),
     ...(browserNote ? { browserNote } : {}),
+    // **The armed flag rides the message.** It is a fact about the turn — this
+    // one was the browser's — and the badge that says so is drawn from it, so
+    // without this line the badge dies at the first reload.
+    ...(value.browserMode === true ? { browserMode: true } : {}),
     ...(typeof value.mailId === "string" && value.mailId ? { mailId: value.mailId } : {}),
     ...(typeof value.mailSubject === "string" && value.mailSubject
       ? { mailSubject: value.mailSubject.slice(0, 500) }

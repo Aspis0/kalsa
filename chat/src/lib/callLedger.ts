@@ -1,5 +1,5 @@
-import type { BrowserCode } from "./browser/codes";
-import { isBrowserCode, isDeterministic } from "./browser/codes";
+import type { BrowserCode, RefusalCode } from "./browser/codes";
+import { isDeterministic, isRefusalCode } from "./browser/codes";
 import { BROWSER_NAMES } from "./tools/browserTools";
 
 /** Bound browser work and suppress repeated actions; observations stay fresh
@@ -8,7 +8,7 @@ export interface Ledger {
   /** The action that ran in **this** round, and the answer it got. */
   ran: Map<string, string>;
   /** The action that failed with a deterministic code. */
-  failed: Map<string, BrowserCode>;
+  failed: Map<string, RefusalCode>;
   /** Which round this is: every call that can move the page opens the next. */
   round: number;
   /** How many browser calls have run this turn, across every round. */
@@ -69,29 +69,40 @@ export function actionKey(name: string, args: Record<string, unknown>): string {
 export type LedgerVerdict =
   | { run: true }
   /** Already run in this round: the answer it got is the answer, again. */
-  | { run: false; code: BrowserCode; answer: string }
-  /** Refused, with the code the browser would have refused it with anyway. */
-  | { run: false; code: BrowserCode; answer: null };
+  | { run: false; code: BrowserCode; answer: string; said: BrowserCode }
+  /** Refused, with the code the browser would have refused it with anyway.
+   *  `said` is the reason the call failed the first time: **the page reads
+   *  `code`, the model reads `said`** — the code is one word, and the reason is
+   *  the sentence the model can act on. */
+  | { run: false; code: BrowserCode; answer: null; said: RefusalCode };
 
 /** Explicit observations may run again; actions retain their duplicate guard. */
 export function decide(ledger: Ledger, name: string, args: Record<string, unknown>): LedgerVerdict {
   if (LOOKS.has(name)) {
     // A read spends a step and runs: the page it reads is the page now.
-    if (ledger.spent >= BROWSER_CALLS_PER_TURN) return { run: false, code: "browser.too_many_steps", answer: null };
+    if (ledger.spent >= BROWSER_CALLS_PER_TURN) {
+      return { run: false, code: "browser.too_many_steps", answer: null, said: "browser.too_many_steps" };
+    }
     return { run: true };
   }
   const key = actionKey(name, args);
   // A key that ran in this round is answered from what it got: asking twice is
   // a loop in the making.
   const ran = ledger.ran.get(key);
-  if (ran !== undefined) return { run: false, code: "browser.already_run", answer: ran };
+  if (ran !== undefined) {
+    return { run: false, code: "browser.already_run", answer: ran, said: "browser.already_run" };
+  }
   const failed = ledger.failed.get(key);
   if (failed !== undefined) {
     // A deterministic action failure stays suppressed until another action
-    // opens a new round.
-    return { run: false, code: "browser.deterministic", answer: null };
+    // opens a new round. **The reason it failed travels with the refusal**,
+    // so the model is told what happened the first time and not "it failed
+    // again".
+    return { run: false, code: "browser.deterministic", answer: null, said: failed };
   }
-  if (ledger.spent >= BROWSER_CALLS_PER_TURN) return { run: false, code: "browser.too_many_steps", answer: null };
+  if (ledger.spent >= BROWSER_CALLS_PER_TURN) {
+    return { run: false, code: "browser.too_many_steps", answer: null, said: "browser.too_many_steps" };
+  }
   return { run: true };
 }
 
@@ -101,7 +112,7 @@ export function decide(ledger: Ledger, name: string, args: Record<string, unknow
     A call that can move the page opens the next round **before** it is filed,
     so what it answered is remembered against the page it left behind and the
     turn it begins is the one a second identical call belongs to. */
-function record(ledger: Ledger, name: string, args: Record<string, unknown>, answer: string, code?: BrowserCode): void {
+function record(ledger: Ledger, name: string, args: Record<string, unknown>, answer: string, code?: RefusalCode): void {
   if (MOVES.has(name)) openedNextRound(ledger);
   const key = actionKey(name, args);
   ledger.ran.set(key, answer);
@@ -126,11 +137,23 @@ export function filed(
     return;
   }
   const code = outcome.resultCode;
-  if (!isBrowserCode(code)) return;
+  // **A refusal the browser raised and a refusal the provenance rule raised are
+  // both a step the turn spent.** The rule's own code (`web.link_unseen`) is not
+  // one of the browser's, and it used to be dropped here: the model could ask
+  // for the same unseen address as many times as it liked, and every refusal
+  // cost it nothing. It costs a step now, and the key is remembered — so the
+  // second refusal of the same address is the one that says "click its ref".
+  if (!isRefusalCode(code)) return;
   // It spent its step — the browser was asked and said no — but it **did not
   // run**, so there is no answer to reuse and nothing to call dead: a refusal
   // that can differ next time is allowed to happen again.
   ledger.spent += 1;
+  // **The ledger's own refusal does not overwrite the reason.** A call that
+  // failed for one reason and is refused again for that same reason keeps
+  // saying it: "you already asked, and it failed with web.link_unseen — click
+  // its ref" is a sentence the model can act on, and "browser.deterministic"
+  // is a word it cannot.
+  if (code === "browser.deterministic") return;
   if (isDeterministic(code)) record(ledger, name, args, outcome.text, code);
 }
 

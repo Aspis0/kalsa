@@ -44,11 +44,23 @@ const UNSEEN: FetchRefusal = {
   text: "Not run: this link has not appeared in the conversation, so it was not opened. Use web_search to find the page, or ask the user for the link.",
 };
 
+// **The same refusal said to a turn that already has a page in front of it.**
+// The browser tools are the way through — the link is on the page that is
+// open, with a ref to click — so telling this model to go and search for the
+// page it is already looking at is a step backwards.
+const UNSEEN_BROWSER: FetchRefusal = {
+  code: UNSEEN.code,
+  text: "Not run: this link has not appeared in the conversation, so it was not opened. The page in front of you carries it: use browser_read or browser_find to locate the link, then click its ref. If the link has no ref, copy its whole printed address, including the path and query, and open that; do not shorten or reconstruct it.",
+};
+
 // Browser recovery can use the open page; the shared fetch refusal still
-// offers a search.
+// offers a search. **Click first, address second**: the model is holding a
+// page, and the link is on it with a ref that can be clicked — an address
+// written by hand is a page nobody asked for, and one the rule will refuse
+// again anyway.
 const BROWSER_UNSEEN: FetchRefusal = {
   code: UNSEEN.code,
-  text: "Not run: this exact address has not appeared in the conversation, so it was not opened. Use browser_read or browser_find to locate the link, then click its ref or copy its whole printed address, including the path and query. Do not shorten or reconstruct the address.",
+  text: "Not run: this exact address has not appeared in the conversation, so it was not opened. Use browser_read or browser_find to locate the link, then click its ref. Only if the link carries no ref, copy its whole printed address, including the path and query, and open that; do not shorten or reconstruct the address.",
 };
 
 const CREDENTIAL: FetchRefusal = {
@@ -105,11 +117,38 @@ export function fetchProvenanceRefusal(url: string, conversation: WireMessage[])
   // user's own words excuse one; a page or a result quoting it does not.
   if (!credentialExcused(url, userTexts)) return CREDENTIAL;
   const key = canonical(url);
-  if (key === null || !seen.has(key)) return UNSEEN;
+  // **A turn that already holds a browser result is answered with the browser's
+  // way through**, not with a search: the link it wants is on the page it is
+  // looking at, and a search for it is a page the person never asked for.
+  if (key === null || !seen.has(key)) return browserResults(conversation) ? UNSEEN_BROWSER : UNSEEN;
   return null;
 }
 
 type BrowserEntry = { url: string; refusal: null } | { url: null; refusal: FetchRefusal };
+
+/**
+ * Whether the conversation already holds a browser result: a page the browser
+ * read, not a refusal of one. **It is the signal that there is a page in
+ * front of the model** — and a page is where the ref it needs lives, which is
+ * why the unseen link is answered with the browser's way through and not with
+ * a search.
+ */
+function browserResults(conversation: WireMessage[]): boolean {
+  const calls = new Map<string, string>();
+  for (const message of conversation) {
+    if (message.role !== "assistant" || !Array.isArray(message.tool_calls)) continue;
+    for (const call of message.tool_calls) calls.set(call.id, call.function.name);
+  }
+  for (const message of conversation) {
+    if (message.role !== "tool" || typeof message.content !== "string") continue;
+    const name = calls.get(message.tool_call_id ?? "");
+    if (name === undefined || !BROWSER_NAMES.has(name)) continue;
+    // A refusal read nothing, so no page is in front of the model.
+    if (neverRan(name, message.content)) continue;
+    return true;
+  }
+  return false;
+}
 
 // Open the user's homepage spelling and let the site redirect it; www and
 // the bare host are not interchangeable provenance for paths or queries.

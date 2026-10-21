@@ -122,7 +122,7 @@ async function throughRegistry(args, gate, conversation, signal) {
 
 const USER = [{ role: "user", content: "Read https://news.example/story" }];
 const LIT_BROWSER_UNSEEN =
-  "Not run: this exact address has not appeared in the conversation, so it was not opened. Use browser_read or browser_find to locate the link, then click its ref or copy its whole printed address, including the path and query. Do not shorten or reconstruct the address.";
+  "Not run: this exact address has not appeared in the conversation, so it was not opened. Use browser_read or browser_find to locate the link, then click its ref. Only if the link carries no ref, copy its whole printed address, including the path and query, and open that; do not shorten or reconstruct the address.";
 
 /** A gate that asks the owner and says no. */
 const refusingGate = {

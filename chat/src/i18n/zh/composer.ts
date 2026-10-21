@@ -9,6 +9,12 @@ export const COMPOSER = {
     "think": "Think",
     "thinkingOn": "开启思考",
     "thinkingOff": "关闭思考",
+    // 浏览控制。它只武装下一条消息。
+    "browser": "帮我浏览",
+    "browserOn": "帮我浏览 · 仅限下一条消息",
+    "browserOff": "关闭「帮我浏览」",
+    "browserTitle": "可以为你打开网站、点击并填写页面。",
+    "browserOnTitle": "「帮我浏览」已开启：仅对下一条消息生效。关闭即可取消。",
     "hintOpening": "正在打开对话…",
     "disclaimer": "Kalsa 可能会出错。请核实重要信息。",
     "thinkingOnTitle": "思考已开启：Kalsa 会先想一想再回答。关闭后会立刻回答。",

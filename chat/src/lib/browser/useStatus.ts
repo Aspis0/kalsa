@@ -1,7 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { available } from "../tauri";
 import { driverStatus } from "../driver";
-import { noteBrowserStatus } from "./usable";
+import { browserUsableSnapshot, noteBrowserStatus, subscribeBrowserUsable } from "./usable";
 
 /**
  * The browser's answer for the chat, read once at the app's start.
@@ -42,4 +42,19 @@ export async function refreshBrowserStatus(): Promise<void> {
     // tools stay unoffered rather than being offered on a guess.
     noteBrowserStatus({ supported: false, installed: false, size: 0 });
   }
+}
+
+/**
+ * Whether the browser may be offered right now, watched.
+ *
+ * **The answer is read, not asked.** `browserUsable` is a plain read of what
+ * the last status said, and a screen that read it once would keep drawing a
+ * control the app can no longer honour — so the screen watches the answer
+ * instead, and the control appears and disappears with it.
+ *
+ * **Unknown is no**, on the server snapshot too: a screen that renders before
+ * the first read has no browser to offer, and offers none.
+ */
+export function useBrowserUsable(): boolean {
+  return useSyncExternalStore(subscribeBrowserUsable, browserUsableSnapshot, () => false);
 }

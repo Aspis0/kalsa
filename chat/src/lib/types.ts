@@ -127,6 +127,11 @@ export interface ChatMessage {
    *  sidecar's own words, never a payload. Drained once it is carried, so it is
    *  not told again on a later turn. */
   browserNote?: string;
+  /** True when this turn was sent armed for the browser: the "Browse for me"
+   *  control was on, so the turn was the browser's and the browser's tools
+   *  were the only ones offered. It rides the message as a badge and survives
+   *  a reload, so the person can still see which turn drove the browser. */
+  browserMode?: boolean;
   /** Documents bound to this user turn, by attachment id: their text rides
       the wire as a block before this message's words, and drops with the
       turn when the fit sheds it. */

@@ -89,12 +89,20 @@ function wire(app) {
   // The phone is offered no mini app and draws none, so its prompt is the
   // desktop's own minus the two sentences about building one — every other byte
   // is the desktop's, or the engine's cache would prefill two prompts.
-  equal("the system message is the desktop's own prompt, without the mini app sentences", plain.wire[0], {
+  //
+  // **And the browse sentence goes too**: the phone has no control to arm the
+  // browser with, so a sentence about a control it cannot show would name a
+  // thing that is not there. It is the same rule as the mini app's, and it
+  // costs the prompt the same bytes.
+  const desktop = app.systemPrompt(false, false).content;
+  const withoutMiniapp = desktop.replace(
+    /Use create_miniapp[^.]*\. |Miniapps \(a table, calculator, quiz or checklist\) open inline in the chat\. /g,
+    "",
+  );
+  const withoutBrowse = withoutMiniapp.replace(/A Browse for me \(Naviga per me\) control sits in the message box:.*?asked for\. /s, "");
+  equal("the system message is the desktop's own prompt, without the mini app and browse sentences", plain.wire[0], {
     role: "system",
-    content: app.systemPrompt(false, false).content.replace(
-      /Use create_miniapp[^.]*\. |Miniapps \(a table, calculator, quiz or checklist\) open inline in the chat\. /g,
-      "",
-    ),
+    content: withoutBrowse,
   });
   check(
     "the phone's prompt names no mini app",
@@ -404,7 +412,7 @@ async function refusedReasoning(app) {
       messages: [{ role: "user", content: "fammi vedere le mail" }],
       sampling: {},
       signal: abortable(),
-      tools: app.offeredTools(true, "en", settings.model),
+      tools: app.offeredTools(true, "en", settings.model, "web"),
       runTool: async () => ({ ok: true, text: "" }),
       onToken: (text) => seen.push(text),
       onReasoning: (text) => seen.push(`[${text}]`),
@@ -458,21 +466,26 @@ async function phoneBrowser(app) {
       .phoneTools(SETTINGS.webTools, "en", SETTINGS.model, MAIL_ON, device)
       .map((tool) => tool.function.name);
 
-  // A turn that names its phone gets the whole browser, writes included: it is a
-  // paired phone and it drives the same browser the desktop drives.
+  // **A phone is offered no browser tool at all, and this is a change on
+  // purpose.** The browser turn is armed by a person at the screen, one message
+  // at a time, by a control that says so; a phone has no control to arm it
+  // with, so a phone turn is never a browser turn and the phone stays in
+  // web-only mode until it has a control of its own. What the phone's *calls*
+  // do is proved below all the same: the machinery is the desktop's, and it
+  // stamps the phone's own conversation.
   const named = tools(PHONE);
-  check("a phone turn that names itself is offered the browser", named.filter(browser).length === 5, JSON.stringify(named));
+  check("a phone turn is offered no browser tool", named.filter(browser).length === 0, JSON.stringify(named));
   check(
-    "and the writes are among them",
-    ["browser_click", "browser_type"].every((name) => named.includes(name)),
+    "and the writes are not among them either",
+    ["browser_click", "browser_type"].every((name) => !named.includes(name)),
     JSON.stringify(named),
   );
-  // A turn that does not gets the reads and nothing that could raise a card
-  // nobody would be shown.
+  // A turn that does not get the reads and nothing that could raise a card
+  // nobody would be shown — and now not the browser either.
   const anonymous = tools(null);
   check(
-    "a turn that names no phone is offered the reads and no writes",
-    anonymous.filter(browser).every((name) => !["browser_click", "browser_type"].includes(name)),
+    "a turn that names no phone is offered no browser tool either",
+    anonymous.filter(browser).length === 0,
     JSON.stringify(anonymous),
   );
   check("and it keeps no mini app either", !anonymous.includes("create_miniapp"), JSON.stringify(anonymous));
@@ -569,9 +582,8 @@ async function phoneBrowser(app) {
     .phoneTools(SETTINGS.webTools, "en", SETTINGS.model, MAIL_ON, PHONE, true)
     .map((tool) => tool.function.name);
   check(
-    "so an armed phone is offered the browser's reads and neither of its writes",
-    ["browser_open", "browser_read"].every((name) => armedTools.includes(name)) &&
-      !["browser_click", "browser_type"].some((name) => armedTools.includes(name)),
+    "so an armed phone is offered no browser tool either",
+    armedTools.filter(browser).length === 0,
     JSON.stringify(armedTools.filter(browser)),
   );
 
@@ -768,8 +780,11 @@ async function roundCap(app) {
     const { log, sink } = recorder(app);
     await app.runPhoneTurn(turnOf([USER(`buy this: ${PAGE}`)], { device: PHONE }), { ...SETTINGS, endpoint: await brain.listen() }, sink, new AbortController().signal, MAIL_ON, { loop: app.streamChatCompletion, facts: facts() });
     const ran = (command) => bridge.calls.slice(from).filter((c) => c.command === command);
-    equal("every field is filled and the click that sends the form is pressed", [ran("brain_browser_type").map((c) => c.args.ref), ran("brain_browser_click").length], [FIELDS, 1]);
-    check("and the engine was asked eight times: seven calls, then the answer", brain.rounds() === 8, String(brain.rounds()));
+    // **The phone's turn is web-only, so not one of these calls reaches the
+    // browser.** The model is told the tool is not available and the turn ends
+    // on its own round cap: this is the phone without a control of its own.
+    equal("no field is filled and no click is pressed: the phone has no browser", [ran("brain_browser_type").length, ran("brain_browser_click").length], [0, 0]);
+    check("and the engine was asked five times: four rounds, then the answer", brain.rounds() === 5, String(brain.rounds()));
     equal("the turn's own line goes out once, before the frame that ends it", [log.filter(([event]) => event === "recap").length, log.slice(-2).map(([event]) => event)], [1, ["recap", "done"]]);
     brain.close();
   }

@@ -54,6 +54,7 @@ const ENGLISH_PHRASES: ToolPhrases = {
   argumentsTooLong: "That was too long for Kalsa to check. Try a shorter search or address.",
   argumentsNotValid: "Kalsa couldn't finish checking. Ask again.",
   notOffered: "That tool is not available now. Answer without it.",
+  notOfferedBrowser: "The person asked you to browse for them this turn. Use the browser tools.",
 };
 
 export async function streamChatCompletion(options: StreamOptions): Promise<void> {
@@ -303,7 +304,7 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
       const answer = await runToolCall(
         call,
         canonical === null ? null : definitions.get(canonical)!,
-        { say, runTool: runTool!, onToolRun: noteRun, signal, url, conversation },
+        { say, runTool: runTool!, onToolRun: noteRun, signal, url, conversation, browse: options.browse === true },
       );
       results.push(answer.result);
       wireTexts.push(answer.wire);

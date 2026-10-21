@@ -23,6 +23,7 @@ import { blobToDataUrl } from "../lib/images";
 import { selectWireImages, wireBodyBytes, WIRE_BODY_BUDGET } from "../lib/wireBudget";
 import type { WireImage } from "../lib/wireBudget";
 import { executeToolCall, offeredTools } from "../lib/tools/registry";
+import { modeOf } from "../lib/browseArm";
 import { filed, newLedger } from "../lib/callLedger";
 import { closeRecap, sayRuns } from "../lib/browser/note";
 import { isBrowserRun } from "../lib/browser/runs";
@@ -255,6 +256,13 @@ export function useChatTurns({ store, announce, contextSizes, saveMailDraft }: T
       const at = conv.messages.findIndex((m) => m.id === assistantId);
       const before = at === -1 ? conv.messages : conv.messages.slice(0, at);
       const turns = wireTurns(before);
+      // **Whether this turn is the browser's, read from one place.** The last
+      // user message is the one that was sent, and it carries the flag: the
+      // person armed the browser for that message and for no other. The dry
+      // run and the real offer below are given this same answer, so the wire
+      // that is measured is the wire that is sent.
+      const mode = modeOf(before);
+      const armed = mode === "browser";
       // The mail this turn was opened for, if it was: a reply written for
       // another one is refused however the model names it.
       const openedFor = [...before].reverse().find((m) => m.role === "user")?.mailId;
@@ -351,7 +359,7 @@ export function useChatTurns({ store, announce, contextSizes, saveMailDraft }: T
           currentSettings.model,
           dry.wire,
           samplingWire(loadSampling()),
-          offeredTools(currentSettings.webTools, language, currentSettings.model),
+          offeredTools(currentSettings.webTools, language, currentSettings.model, mode),
           "auto",
           loadThinking(currentSettings.model),
         ),
@@ -519,7 +527,10 @@ export function useChatTurns({ store, announce, contextSizes, saveMailDraft }: T
               : { budget: Math.max(0, known - CONTEXT_RESERVE_TOKENS), size: wireSize },
           sampling: samplingWire(loadSampling()),
           signal: controller.signal,
-          tools: offeredTools(currentSettings.webTools, language, currentSettings.model),
+          tools: offeredTools(currentSettings.webTools, language, currentSettings.model, mode),
+          // **This turn is the browser's**, so a call to a tool this request
+          // never offered is answered with the browser's own sentence.
+          browse: armed,
           // Read at send time, so the control takes effect on the very next
           // message with no reload.
           thinking: loadThinking(currentSettings.model),

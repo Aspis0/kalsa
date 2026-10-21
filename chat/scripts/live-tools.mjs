@@ -80,7 +80,7 @@ async function modelName() {
 }
 
 const model = await modelName();
-const tools = app.offeredTools(true);
+const tools = app.offeredTools(true, "en", "any-model", "web");
 if (tools.length !== 2) {
   console.error(`offeredTools said ${tools.length} tools; the door is not being seen`);
   process.exit(2);

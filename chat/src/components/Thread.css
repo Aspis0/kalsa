@@ -60,6 +60,19 @@
   overflow-wrap: anywhere;
 }
 
+/* The badge of a turn that was sent armed for the browser: the same line the
+   mail subject takes, one word long. It says which turn drove the browser, and
+   it survives a reload because the flag rides the message. */
+.row-browser-badge {
+  max-width: min(540px, 85%);
+  padding: 4px 19px 0;
+  margin: 0;
+  color: var(--tx3);
+  font-size: 12.5px;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+}
+
 /* Kalsa's: a card on the left; the thinking and mini apps sit above it. */
 .row-assistant {
   display: flex;

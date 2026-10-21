@@ -403,7 +403,7 @@ for (const model of REFUSED_MODELS) {
   check(`${model} may not read mail`, !app.mailAllowed(model));
 }
 
-const offeredTo = (model) => app.offeredTools(true, "it", model).map((tool) => tool.function.name);
+const offeredTo = (model) => app.offeredTools(true, "it", model, "web").map((tool) => tool.function.name);
 const allowedNames = offeredTo("Alibaba Qwen 3.6");
 for (const name of ["mail_list", "mail_read", "mail_draft", "mail_show"]) {
   check(`${name} is offered to an approved model`, allowedNames.includes(name), allowedNames.join(", "));

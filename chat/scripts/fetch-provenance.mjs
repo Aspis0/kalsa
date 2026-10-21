@@ -20,7 +20,7 @@ import { rm } from "node:fs/promises";
 import { loadApp } from "./lib/app-bundle.mjs";
 
 const { dir, app } = await loadApp();
-const { executeToolCall, streamChatCompletion, WEB_TOOLS, TOOL_DEFINITIONS, BROWSER_TOOLS, noteBrowserStatus } = app;
+const { executeToolCall, streamChatCompletion, WEB_TOOLS, TOOL_DEFINITIONS, BROWSER_TOOLS, noteBrowserStatus, newLedger, filed, actionKey } = app;
 
 let fail = 0;
 function check(label, condition, detail) {
@@ -44,9 +44,16 @@ function hasLoneSurrogate(text) {
 // screen keys its localized line off these codes.
 const LIT_UNSEEN = "Not run: this link has not appeared in the conversation, so it was not opened. Use web_search to find the page, or ask the user for the link.";
 // The same refusal said to a browser, which is told to read the link on the
-// page in front of it rather than to search for it again.
+// page in front of it rather than to search for it again. **Click first**: the
+// link is on the page with a ref that can be clicked, and an address written
+// by hand is a page nobody asked for.
 const LIT_BROWSER_UNSEEN =
-  "Not run: this exact address has not appeared in the conversation, so it was not opened. Use browser_read or browser_find to locate the link, then click its ref or copy its whole printed address, including the path and query. Do not shorten or reconstruct the address.";
+  "Not run: this exact address has not appeared in the conversation, so it was not opened. Use browser_read or browser_find to locate the link, then click its ref. Only if the link carries no ref, copy its whole printed address, including the path and query, and open that; do not shorten or reconstruct the address.";
+// The same refusal said to a web_fetch made while the browser has already read
+// a page: the link is on that page, with a ref to click, so it is not told to
+// go and search for it.
+const LIT_UNSEEN_BROWSER =
+  "Not run: this link has not appeared in the conversation, so it was not opened. The page in front of you carries it: use browser_read or browser_find to locate the link, then click its ref. If the link has no ref, copy its whole printed address, including the path and query, and open that; do not shorten or reconstruct it.";
 const LIT_CREDENTIAL = "Not run: this address looks like it carries a password or key that the user did not type.";
 const LIT_QUERY = "Not run: the search carries an address that has not appeared in the conversation, so it was not made. Search in your own words, or ask the user for the link.";
 // What Rust answers an empty search with (exa.rs): no query rides in it.
@@ -379,6 +386,74 @@ try {
     equal("a web_fetch of the model's spelling is still refused", [r.ok, r.text], [false, LIT_UNSEEN]);
     r = await searchAttempt("https://www.amazon.it/s?k=computer", named);
     equal("a search carrying the address is still refused", [r.ok, r.resultCode], [false, "web.query_link_unseen"]);
+  }
+
+  // --- a page in front of the model is the way through, not a search ---------
+  {
+    // The browser has read a page, so the model is holding it: the link it
+    // wants is on that page, with a ref to click. It is not sent off to search
+    // for a page it is already looking at.
+    const holding = exchange("b1", "browser_open", '{"url":"https://news.example/story"}', "PAGE TEXT");
+    const r = await attempt("https://www.amazon.it/", holding);
+    equal("a fetch of an unseen link is told to click the ref on the page it has", [r.ok, r.text], [false, LIT_UNSEEN_BROWSER]);
+    check("and not to go and search for it", !r.text.includes("web_search"), r.text);
+
+    // With no page in front of it there is no ref to click, so the refusal is
+    // the search's: this is the control, and the two refusals are not the same
+    // sentence.
+    const empty = await attempt("https://www.amazon.it/", [{ role: "user", content: "hello" }]);
+    equal("and with no page in front of it the refusal is the search's", [empty.ok, empty.text], [false, LIT_UNSEEN]);
+    check("and the two are different sentences", empty.text !== r.text, empty.text);
+
+    // A refusal read nothing, so a page that was refused is not a page.
+    const refused = exchange("b2", "browser_open", '{"url":"https://news.example/story"}', LIT_BROWSER_UNSEEN);
+    const after = await attempt("https://www.amazon.it/", refused);
+    equal("a refused browser call is not a page in front of the model", [after.ok, after.text], [false, LIT_UNSEEN]);
+  }
+
+  // --- the ledger remembers the rule's refusals ------------------------------
+  {
+    // **A refusal the rule raised is a step the turn spent and a key the
+    // ledger keeps.** It used to be neither: the rule's own code is not one of
+    // the browser's, so the ledger dropped it, and a model could ask for the
+    // same unseen address as many times as it liked.
+    const ledger = newLedger();
+    const address = "https://www.amazon.it/";
+    const named = [{ role: "user", content: "buy this" }];
+    const gate = { documents: () => [], confirm: async () => true, firstSearch: async () => true };
+    const open = (conversation, calls) =>
+      executeToolCall("browser_open", { url: address }, undefined, gate, conversation, "any-model", undefined, undefined, true, "", calls);
+
+    const before = ledger.spent;
+    let r = await open(named, ledger);
+    filed(ledger, "browser_open", { url: address }, r);
+    equal("the rule's refusal is the browser's own refusal", [r.ok, r.resultCode, r.text], [false, "web.link_unseen", LIT_BROWSER_UNSEEN]);
+    check("and it cost the turn a step", ledger.spent === before + 1, `${ledger.spent}`);
+    check(
+      "and the key is remembered with the rule's code",
+      ledger.failed.get(actionKey("browser_open", { url: address })) === "web.link_unseen",
+      JSON.stringify([...ledger.failed.entries()]),
+    );
+
+    // The second identical open is the one that says "you already asked" and
+    // points at the ref: the same sentence would not change anything.
+    r = await open(named, ledger);
+    filed(ledger, "browser_open", { url: address }, r);
+    check("the second open of the same address is refused", r.ok === false, r.text);
+    check("and it says the model already asked", r.text.startsWith("You already asked for that browser.open"), r.text);
+    check("and it points at the ref", r.text.includes("click its ref"), r.text);
+    check("and it cost a step as well", ledger.spent === before + 2, `${ledger.spent}`);
+    check(
+      "and the reason is still the rule's own",
+      ledger.failed.get(actionKey("browser_open", { url: address })) === "web.link_unseen",
+      JSON.stringify([...ledger.failed.entries()]),
+    );
+
+    // And a third one still points at the ref: the ledger's own word for "it
+    // failed again" must not take the reason's place.
+    r = await open(named, ledger);
+    filed(ledger, "browser_open", { url: address }, r);
+    check("a third open still points at the ref", r.text.includes("click its ref"), r.text);
   }
 
   // --- credentials --------------------------------------------------------------

@@ -79,6 +79,15 @@ export const TOOLS = {
   argumentsTooLong: "That was too long for Kalsa to check. Try a shorter search or address.",
   argumentsNotValid: "Kalsa couldn't finish checking. Ask again.",
   notOffered: "That tool is not available now. Answer without it.",
+  // **The browser turn's own refusal.** The person armed the browser for this
+  // message, and a model that reaches for the web tools anyway has to be told
+  // that this turn is the browser's — the tool list alone does not say it.
+  // **Fixed in English in every language on purpose**: the model may not read
+  // the owner's language, and a sentence it cannot read is a sentence it will
+  // try again.
+  notOfferedBrowser: "The person asked you to browse for them this turn. Use the browser tools.",
+  // The badge under a message that was sent armed: the turn was the browser's.
+  browserBadge: "browser",
   // **What Kalsa did, said once at the end of a browser turn**, and the words for
   // every code a browser call can come back with. Five tables over one set of
   // facts: the line the person reads and the line the model reads are the same.

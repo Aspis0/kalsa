@@ -17,9 +17,21 @@ import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { build } from "../node_modules/esbuild/lib/main.js";
 
-// The largest variant (seeing, Think) is 313 tokens today; the ceiling is that
+// The largest variant (seeing, Think) is 400 tokens today; the ceiling is that
 // plus a little slack, so the next sentence moves it on purpose.
-const PROMPT_CEILING_TOKENS = 325;
+//
+// **The browse sentence is what moved it.** The sentence that tells the model
+// about the "Browse for me" control costs 95 tokens on every variant, and the
+// ceiling moved with it: the rule this file keeps is not "the prompt is
+// small" but "the prompt does not grow without somebody deciding it did".
+//
+// **And the Italian alias is what moved it this time.** The control is named
+// in both of the names it goes by — "Browse for me (Naviga per me)" — and the
+// alias is written into the sentence twice, so the sentence grew by thirty
+// characters: eight tokens, on every variant. The largest one is 408 now and
+// the ceiling is still 412, so the sentence fitted under it and the ceiling
+// did not have to move.
+const PROMPT_CEILING_TOKENS = 412;
 
 const VARIANTS = [
   { name: "blind, no Think", vision: false, think: false },
@@ -38,6 +50,7 @@ const SENTENCES = [
   { label: "paperclip", text: "A paperclip in the message box attaches files.", when: () => true },
   { label: "a greeting needs no tool", text: "A greeting, a thank-you or a short acknowledgement such as \"ok\" is answered in words, with no tool.", when: () => true },
   { label: "miniapps", text: "Miniapps (a table, calculator, quiz or checklist) open inline in the chat.", when: () => true },
+  { label: "the browse control, in both of its names", text: "A Browse for me (Naviga per me) control sits in the message box", when: () => true },
   { label: "phones", text: "Phones paired to this computer can get answers from you too.", when: () => true },
   { label: "Room", text: "The Room is a group chat on this computer where people call you by writing @Kalsa", when: () => true },
   { label: "buttons", text: "You cannot press these buttons yourself; tell the person which one to use.", when: () => true },
@@ -73,6 +86,7 @@ const DESKTOP_BLIND =
   "The app around you: " +
   "A paperclip in the message box attaches files. " +
   "Miniapps (a table, calculator, quiz or checklist) open inline in the chat. " +
+  "A Browse for me (Naviga per me) control sits in the message box: when the person turns it on, that turn is a browser turn and the browser tools drive the real browser for them. If a task needs the browser and you are given no browser tools, say so and ask the person to turn on Browse for me (Naviga per me). A web search is not the same as opening the page the person asked for. " +
   "Phones paired to this computer can get answers from you too. " +
   "The Room is a group chat on this computer where people call you by writing @Kalsa or with the button in the message box that asks you. " +
   "You cannot press these buttons yourself; tell the person which one to use.";

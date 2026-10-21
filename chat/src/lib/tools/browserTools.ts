@@ -8,7 +8,7 @@ export const BROWSER_TOOLS: ToolDefinition[] = [
     function: {
       name: "browser_open",
       description:
-        "Opens a web page in the browser and shows what is on it. Use an address exactly as printed, including its path and query. To follow a link on the current page, you can click its ref instead.",
+        "Opens a web page in the browser and shows what is on it. Use it when the person asks to see a page: it is the only tool that shows the real page, with its links and its fields. Use an address exactly as printed, including its path and query. To follow a link on the current page, click that link's ref instead of opening it by hand.",
       parameters: {
         type: "object",
         properties: {
@@ -53,7 +53,7 @@ export const BROWSER_TOOLS: ToolDefinition[] = [
     function: {
       name: "browser_click",
       description:
-        "Clicks one element on the open page. If that submits a non-GET form, the request is held for the person to allow first: the answer names the request and says it is waiting, and the page does not move until they decide. Fetch/XHR requests follow normal browser behavior, subject to the typed-secret checks.",
+        "Clicks one element on the open page. To open a product from a list of results, click that product's link — do not build its address by hand. If that submits a non-GET form, the request is held for the person to allow first: the answer names the request and says it is waiting, and the page does not move until they decide. Fetch/XHR requests follow normal browser behavior, subject to the typed-secret checks.",
       parameters: {
         type: "object",
         properties: {
