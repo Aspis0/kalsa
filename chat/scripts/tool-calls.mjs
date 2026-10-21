@@ -229,6 +229,30 @@ check(
   JSON.stringify(stripped(["before <tool_", "call>after: more prose"])),
 );
 
+// A call written out in the model's own tokens, the shape that reached the reader.
+const GEMMA = '<|tool_call>call:browser_type{ref:<|"|>f8e242<|"|>,text:<|"|>12<|"|>}<tool_call|>';
+check("markup: the Gemma spelling is hidden", stripped([GEMMA]) === "", JSON.stringify(stripped([GEMMA])));
+check(
+  "markup: the Gemma spelling split at every character is still hidden",
+  stripped([...GEMMA].map((ch) => ch)) === "",
+  JSON.stringify(stripped([...GEMMA].map((ch) => ch))),
+);
+check(
+  "markup: the words around a Gemma block are kept",
+  stripped(["prima ", GEMMA, " dopo"]) === "prima  dopo",
+  JSON.stringify(stripped(["prima ", GEMMA, " dopo"])),
+);
+check(
+  "markup: an unclosed Gemma block is not given back",
+  stripped(["prima <|tool_call>call:browser_type{ref:x}"]) === "prima ",
+  JSON.stringify(stripped(["prima <|tool_call>call:browser_type{ref:x}"])),
+);
+check(
+  "markup: a Gemma block split across deltas is still hidden",
+  stripped(["<|tool_", "call>call:browser_type{ref:x}<tool_", "call|>dopo"]) === "dopo",
+  JSON.stringify(stripped(["<|tool_", "call>call:browser_type{ref:x}<tool_", "call|>dopo"])),
+);
+
 await rm(dir, { recursive: true, force: true });
 console.log(fail ? `\n${fail} failed` : "\nall tool-call fragment cases passed");
 process.exit(fail ? 1 : 0);
