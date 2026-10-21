@@ -8,7 +8,7 @@ export const BROWSER_TOOLS: ToolDefinition[] = [
     function: {
       name: "browser_open",
       description:
-        "Opens a web page in the browser and shows what is on it. Use it when the person asks to see a page: it is the only tool that shows the real page, with its links and its fields. Use an address exactly as printed, including its path and query. To follow a link on the current page, click that link's ref instead of opening it by hand.",
+        "Opens a web page in the browser and shows what is on it. Use it when the person asks to see a page: it is the only tool that shows the real page, with its links and its fields. Use an address as printed, or the product's own short address when its pieces have been printed in a link you have already read. To follow a link on the current page, click that link's ref instead of opening it by hand.",
       parameters: {
         type: "object",
         properties: {

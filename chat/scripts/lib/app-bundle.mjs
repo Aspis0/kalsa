@@ -10,7 +10,7 @@
 // modules, and the one place that turns a dead endpoint into a loud failure
 // with the command that fixes it.
 
-import { mkdtemp } from "node:fs/promises";
+import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -23,7 +23,13 @@ const SCRIPTS_DIR = fileURLToPath(new URL("..", import.meta.url));
 /// virtual entry (esbuild `stdin`) keeps this to one file: nothing is copied
 /// into JavaScript, and nothing new is written beside the app. The caller owns
 /// the returned temp directory and must remove it.
-export async function loadApp() {
+///
+/// `compileOut` builds the app a second time with one rule switched off, so a
+/// harness can prove what that rule changes: the same case must fail there.
+/// The rule is named by the file it lives in and by the exact text that turns
+/// it off, and a marker that is not found is a loud failure — a negative
+/// control that silently did nothing proves nothing.
+export async function loadApp({ compileOut } = {}) {
   const dir = await mkdtemp(join(tmpdir(), "kalsa-app-bundle-"));
   const outfile = join(dir, "app.mjs");
   await build({
@@ -164,6 +170,27 @@ export async function loadApp() {
           }));
         },
       },
+      // **One rule, switched off in the source as it is read.** The app itself
+      // is untouched: this is a second build of it, with one line of one file
+      // rewritten, and it exists so a harness can say "the case fails without
+      // the rule" and mean it.
+      ...(compileOut === undefined
+        ? []
+        : [
+            {
+              name: "compile-out",
+              setup(build) {
+                const wanted = compileOut.file.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                build.onLoad({ filter: new RegExp(`${wanted}$`) }, async (args) => {
+                  const source = await readFile(args.path, "utf8");
+                  if (!source.includes(compileOut.from)) {
+                    throw new Error(`compile-out marker not found in ${args.path}: ${compileOut.from}`);
+                  }
+                  return { contents: source.replace(compileOut.from, compileOut.to), loader: "ts" };
+                });
+              },
+            },
+          ]),
     ],
   });
   const app = await import(`${pathToFileURL(outfile).href}?cache=${Date.now()}`);

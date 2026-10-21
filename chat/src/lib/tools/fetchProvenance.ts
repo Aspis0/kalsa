@@ -57,10 +57,12 @@ const UNSEEN_BROWSER: FetchRefusal = {
 // offers a search. **Click first, address second**: the model is holding a
 // page, and the link is on it with a ref that can be clicked — an address
 // written by hand is a page nobody asked for, and one the rule will refuse
-// again anyway.
+// again anyway. The last sentence is the one way out of that: the product's
+// own short address, which the rule opens when the conversation already
+// carries its id on that host.
 const BROWSER_UNSEEN: FetchRefusal = {
   code: UNSEEN.code,
-  text: "Not run: this exact address has not appeared in the conversation, so it was not opened. Use browser_read or browser_find to locate the link, then click its ref. Only if the link carries no ref, copy its whole printed address, including the path and query, and open that; do not shorten or reconstruct the address.",
+  text: "Not run: this exact address has not appeared in the conversation, so it was not opened. Use browser_read or browser_find to locate the link, then click its ref. Only if the link carries no ref, copy its whole printed address, including the path and query, and open that. A shorter form opens only when it is the same http or https address, spelled the same way, with no query of its own, and with the last piece of its path already printed in a link you have read: the product's own address, for example https://shop.example/dp/B012345678.",
 };
 
 const CREDENTIAL: FetchRefusal = {
@@ -157,7 +159,11 @@ export function browserEntry(url: string, conversation: WireMessage[]): BrowserE
   if (refusal === null) return { url, refusal: null };
   if (refusal.code !== UNSEEN.code) return { url: null, refusal };
   const named = userNamedHomepage(url, conversation);
-  return named === null ? { url: null, refusal: BROWSER_UNSEEN } : { url: named, refusal: null };
+  if (named !== null) return { url: named, refusal: null };
+  // **The second check**: the product's own short address, which the exact
+  // rule refuses and the person asked for all the same.
+  const short = shortFormEntry(url, conversation);
+  return short === null ? { url: null, refusal: BROWSER_UNSEEN } : { url: short, refusal: null };
 }
 
 function userNamedHomepage(url: string, conversation: WireMessage[]): string | null {
@@ -184,6 +190,90 @@ function isHomepage(key: string): boolean {
 
 function withoutWww(host: string): string {
   return host.startsWith("www.") ? host.slice(4) : host;
+}
+
+/**
+ * **The short form of a product: the same page, addressed by its own name.**
+ *
+ * A listing prints the whole address of every link on it — path, tracking
+ * tokens, query, hundreds of characters the model cannot copy — and what the
+ * model builds instead is the product's own short address
+ * (`https://shop.example/dp/B0XXXX`). The exact rule refuses that, because
+ * the conversation never carried it, and the model is left holding a page it
+ * cannot reach: measured on a real turn, three tries out of three ended in
+ * `open_unseen` and no product page was ever opened. This is the way through,
+ * and it is narrow on purpose.
+ *
+ * **Why this form is safe.** The rule exists to stop two things: (a) an
+ * address towards a host nobody has ever seen, and (b) data walking out
+ * through the query string. (a) stands — the address asked for must be the
+ * same address, spelled the same way, as one the conversation already
+ * carries: scheme, host and port, byte for byte, with no `www` forgiven here,
+ * no scheme forgiven and no userinfo folded away, so a host the model
+ * invented is still refused and `http` is not `https`. (b) stands — the form
+ * that opens carries no query of its own, and **every piece of its path** must
+ * already be a piece of one path an address the conversation already carries
+ * prints: a piece nobody printed is a piece the model made up, and a piece in
+ * the middle of the path is a piece that carries data out. So a secret can
+ * leave only if the conversation already carried a path carrying it, which is
+ * the case today's design already arms for `web_fetch`. The short form
+ * reaches the same site the person asked to navigate to, and every piece of
+ * the address it opens was already printed there.
+ *
+ * **Only `browser_open` gets this.** A `web_fetch` is the app's own door and
+ * it stays exact: nothing about it changes here.
+ */
+function shortFormEntry(url: string, conversation: WireMessage[]): string | null {
+  // A name or a password in front of the host is never folded away.
+  if (carriesUserinfo(url)) return null;
+  const key = canonical(url);
+  if (key === null) return null;
+  const asked = new URL(key);
+  // No fragment of its own. The door never sends one, so an address that
+  // carries one is not the product's own address.
+  if (url.includes("#")) return null;
+  // **No query of its own.** This is where data walks out, and the short form
+  // has no query to walk it through.
+  if (asked.search !== "") return null;
+  // Not the front door: a homepage has no piece of path to name a product
+  // by, and it has a rule of its own.
+  const pieces = asked.pathname.split("/").filter((piece) => piece !== "");
+  if (pieces.length === 0) return null;
+  const { seen } = seenCorpus(conversation);
+  // **The address, spelled the same way.** The addresses already carried are
+  // the conversation's own corpus — the person's words, the web results, the
+  // pages the browser read — and nothing is forgiven here: the scheme, the
+  // host and the port have to be the ones already carried. `www` is not
+  // dropped (`shop.example` and `www.shop.example` are two addresses), and a
+  // scheme is not dropped either: the same host on `http` and on `https` is
+  // two addresses, and the bytes a plain request gets back are not the bytes a
+  // secure one gets back.
+  const onHost: URL[] = [];
+  for (const address of seen) {
+    let other: URL;
+    try {
+      other = new URL(address);
+    } catch {
+      continue;
+    }
+    if (other.origin === asked.origin) onHost.push(other);
+  }
+  if (onHost.length === 0) return null;
+  // **Every piece of the path asked for, already printed.** Each piece of the
+  // path has to be a piece of ONE path the conversation already carries: the
+  // listing prints the whole address, so its pieces are in it; a piece nobody
+  // printed is a piece the model made up, and it opens nothing. The pieces
+  // have to come from the same printed path — a piece taken from one path and
+  // another from a different one is not a printed path either, and an
+  // invented piece is a piece that carries data out.
+  const known = onHost.some((other) => {
+    const printed = new Set(other.pathname.split("/"));
+    return pieces.every((piece) => printed.has(piece));
+  });
+  // **What was checked is what opens.** The verified spelling of the address,
+  // with its scheme — not the raw text the model wrote, which was never the
+  // thing this rule read.
+  return known ? asked.href : null;
 }
 
 /**
