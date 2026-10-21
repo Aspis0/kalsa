@@ -76,6 +76,17 @@ async fn raw_snapshot(page: &Page) -> Result<(String, bool), playwright_rs::Erro
     Ok(capped(&raw))
 }
 
+/// **The tree of the page, taken once, with nothing waited for.**
+///
+/// This is the call a read makes and nothing else, and it is what the probe at
+/// the start of a session asks for: a driver that cannot take the tree yet is
+/// a driver that is not ready, and a session is not ready until the driver has
+/// answered something. The page the probe asks about is the one the browser has
+/// just opened, which holds nothing, so the call costs almost nothing.
+pub(crate) async fn probe(page: &Page) -> Result<(), playwright_rs::Error> {
+    raw_snapshot(page).await.map(|_| ())
+}
+
 /// **Said in the header of every part when the tree did not fit.** A cut that is
 /// mentioned only at the end is a cut the model has already read past.
 const PARTIAL_NOTE: &str = "note: partial snapshot — some content omitted";

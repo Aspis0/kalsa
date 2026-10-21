@@ -19,6 +19,33 @@ const MAX_PAGES: usize = 16;
 pub(crate) const DISCOVER_DEADLINE: Duration = Duration::from_secs(15);
 pub(crate) const CALL_DEADLINE: Duration = Duration::from_secs(60);
 
+/// **A browser call waits for the browser, and gets more room than every other
+/// call.** A read may spend the driver's own patience twice over — the settle
+/// waits 30 s for the page to finish loading and the tree takes 30 s of its
+/// own, and the read is started over once when the page moves under it
+/// (`READ_ATTEMPTS` is two) — plus the 8 s the content poll waits, plus the
+/// 10 s the retry is given when the driver did not answer: 30 + 30 + 8 + 30 +
+/// 30 + 10 = 138 s in the worst case, and 107 s was measured on a real page
+/// before the retry existed. **150 s leaves room for the whole of it.**
+///
+/// **The deadline is not a slow call.** A call that passes it does not come
+/// back as the page's own refusal: the host turns it into a failure of the
+/// browser's own and drops the sidecar, and the turn loses its page.
+pub(crate) const BROWSER_CALL_DEADLINE: Duration = Duration::from_secs(150);
+
+/// The browser's own server: the one whose calls drive a real browser.
+const BROWSER_SERVER: &str = "browser";
+
+/// **The deadline one call gets.** Everything but the browser keeps the 60 s it
+/// has always had.
+fn deadline_for(server: &ServerId) -> Duration {
+    if server.to_string() == BROWSER_SERVER {
+        BROWSER_CALL_DEADLINE
+    } else {
+        CALL_DEADLINE
+    }
+}
+
 impl Connection {
     /// Goes to the peer directly, not through rmcp's list cache: a server's
     /// `ttlMs` must not let a changed definition go unseen.
@@ -56,7 +83,8 @@ impl Connection {
         arguments: Map<String, Value>,
     ) -> Result<ToolResult, Error> {
         let params = CallToolRequestParams::new(tool.to_owned()).with_arguments(arguments);
-        match timeout(CALL_DEADLINE, self.service.call_tool_once(params)).await {
+        let deadline = deadline_for(server);
+        match timeout(deadline, self.service.call_tool_once(params)).await {
             Ok(Ok(CallToolResponse::Complete(result))) => Ok(ToolResult {
                 server: server.clone(),
                 is_error: result.is_error.unwrap_or(false),
@@ -72,7 +100,7 @@ impl Connection {
                 Err(service_error(error, server))
             }
             Err(_) => {
-                log::warn!("mcp {server}: {tool} passed its {CALL_DEADLINE:?} deadline");
+                log::warn!("mcp {server}: {tool} passed its {deadline:?} deadline");
                 Err(Error::ServerGone(server.clone()))
             }
         }
@@ -103,5 +131,36 @@ fn service_error(error: ServiceError, server: &ServerId) -> Error {
             Error::ServerGone(server.clone())
         }
         _ => Error::Protocol(server.clone()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{deadline_for, BROWSER_CALL_DEADLINE, CALL_DEADLINE};
+    use crate::server_id::ServerId;
+    use std::time::Duration;
+
+    /// **The browser's own calls get the room a read needs, and nothing else
+    /// does.** Every other server keeps the 60 s it has always had.
+    #[test]
+    fn a_browser_call_gets_more_room_than_any_other() {
+        let browser = ServerId::new("browser").expect("the browser's own name");
+        let mail = ServerId::new("mail").expect("the mail's own name");
+        assert_eq!(deadline_for(&browser), BROWSER_CALL_DEADLINE);
+        assert_eq!(deadline_for(&mail), CALL_DEADLINE);
+        assert!(BROWSER_CALL_DEADLINE > CALL_DEADLINE);
+    }
+
+    /// **The room is enough for the whole of the worst case.** The settle waits
+    /// 30 s for the page and the tree takes 30 s of its own, and the read is
+    /// started over once when the page moves under it: twice over, plus the 8 s
+    /// the content poll waits and the 10 s the retry is given.
+    #[test]
+    fn the_browser_deadline_covers_the_worst_case_a_read_can_reach() {
+        let worst = Duration::from_secs(30 * 4 + 8 + 10);
+        assert!(
+            BROWSER_CALL_DEADLINE >= worst,
+            "{BROWSER_CALL_DEADLINE:?} must cover the {worst:?} a read can reach"
+        );
     }
 }

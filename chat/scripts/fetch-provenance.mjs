@@ -712,7 +712,7 @@ try {
     check("and it cost the turn a step", ledger.spent === before + 1, `${ledger.spent}`);
     check(
       "and the key is remembered with the rule's code",
-      ledger.failed.get(actionKey("browser_open", { url: address })) === "web.link_unseen",
+      ledger.failed.get(actionKey("browser_open", { url: address }))?.code === "web.link_unseen",
       JSON.stringify([...ledger.failed.entries()]),
     );
 
@@ -726,7 +726,7 @@ try {
     check("and it cost a step as well", ledger.spent === before + 2, `${ledger.spent}`);
     check(
       "and the reason is still the rule's own",
-      ledger.failed.get(actionKey("browser_open", { url: address })) === "web.link_unseen",
+      ledger.failed.get(actionKey("browser_open", { url: address }))?.code === "web.link_unseen",
       JSON.stringify([...ledger.failed.entries()]),
     );
 

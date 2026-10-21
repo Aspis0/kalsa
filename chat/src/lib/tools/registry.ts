@@ -31,8 +31,13 @@ import type { Language } from "../../i18n";
  * reason, and the model is told so in as many words as it takes to stop
  * asking** — "you have already tried this" is not something a model can act on,
  * but a code it has seen twice is.
+ *
+ * **After an action, the sentence is a different one.** A click or a type whose
+ * read the driver did not answer is not a call that failed and may be made
+ * again: the action may already have happened, and doing it twice is a second
+ * action and not a retry. So the model is told to read the page and see.
  */
-function refusedTwice(code: string, name: string): string {
+function refusedTwice(code: string, name: string, stage?: string): string {
   const what = `browser.${name.replace(/^browser_/, "").replace(/_/g, " ")}`;
   return code === "browser.too_many_steps"
     ? `No more browser steps this turn: Kalsa has already run ${ledger.BROWSER_CALLS_PER_TURN}. Answer the person, or stop asking the browser.`
@@ -40,7 +45,9 @@ function refusedTwice(code: string, name: string): string {
       ? `You already asked for that ${what} since the page last changed, and have its answer above. Do not ask again.`
       : code === LINK_UNSEEN
         ? `You already asked for that ${what} in this turn and it failed with ${code}: that address has not appeared in the conversation. Click its ref instead: use browser_read or browser_find to find the link on the page, then click its ref.`
-        : `You already asked for that ${what} in this turn and it failed with ${code}, which will not change on a second try. Say what you will do instead, or stop.`;
+        : stage === ledger.READ_DRIVER && (name === "browser_click" || name === "browser_type")
+          ? `You already asked for that ${what} in this turn and the page did not answer it, so you do not know what it did. Read the page with browser_read to see what it says now, and do not do it again.`
+          : `You already asked for that ${what} in this turn and it failed with ${code}, which will not change on a second try. Say what you will do instead, or stop.`;
 }
 
 /** What one held call looks like to the page: which tool, the exact string
@@ -348,7 +355,7 @@ export async function executeToolCall(
             // **The reason the call failed the first time**, not the ledger's
             // own word for "it failed again": the model is told what happened,
             // so it can do something else instead of asking a third time.
-            text: refusedTwice(said.said, name),
+            text: refusedTwice(said.said, name, said.stage),
             ok: false,
             resultCode: said.answer === null ? said.code : "browser.already_run",
           };
@@ -477,11 +484,22 @@ export async function executeToolCall(
   } catch (error) {
     // A coded refusal from Rust: the wire keeps the English the model
     // reads, the code rides along for the screen.
-    const coded = error as { code?: unknown; text?: unknown };
+    const coded = error as { code?: unknown; text?: unknown; stage?: unknown };
     if (coded !== null && typeof coded === "object" && typeof coded.code === "string" && typeof coded.text === "string") {
       // **A refusal is fenced like an answer.** It can carry the page's own words
       // — a label, a field name — and those are page text like any other.
-      return { text: fence(coded.text), ok: false, resultCode: browserCode(coded.code) };
+      return {
+        text: fence(coded.text),
+        ok: false,
+        resultCode: browserCode(coded.code),
+        // **The stage, when the sidecar named one.** It says where the call
+        // stopped, and the ledger has to know it: a read the driver did not
+        // answer after an open is worth another try, and the same failure after
+        // a click is not — the action may already have happened. It is the
+        // app's own whitelist that let it through, so a word that is not a
+        // stage of ours never gets here.
+        stage: typeof coded.stage === "string" ? coded.stage : undefined,
+      };
     }
     // Anything else is a surprise and is passed on as it reads. A rejected command
     // with only a code says that code, not "[object Object]".

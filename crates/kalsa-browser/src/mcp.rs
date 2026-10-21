@@ -434,8 +434,12 @@ where
         if let Some(refusal) = landings.refused(&before).await {
             return Err(view::failed(Stage::from(refusal), refusal.reason()));
         }
-        let read = match take().await {
+        let read = match take_twice(&take).await {
             Ok(read) => read,
+            // **A driver that did not answer is asked again.** The read has no
+            // retry of its own, and the failure it fails with is the one that
+            // tells a model to try again — so the read is asked once more, and
+            // the second answer is the one this call is judged on.
             Err(error) => return Err(failed(sessions, page, &error, Stage::ReadDriver).await),
         };
         if !unmoved(&before, &page.url(), navigations, landings.navigations().await) {
@@ -495,6 +499,66 @@ const MOVED: &str =
 /// One: a page that navigates once is worth reading again, and a page that
 /// navigates on every read is not a page anyone is asking to be read.
 const READ_ATTEMPTS: usize = 2;
+
+/// **The read, asked at most twice: once, and once more if the driver did not
+/// answer.**
+///
+/// A driver that has just woken up, or a page that was busy for a moment, does
+/// not answer the first call it is given — and the read that follows it has no
+/// retry of its own: the page is not there, and the model is told the page did
+/// not answer.
+///
+/// **The pause is short and the second attempt is bounded.** The first attempt
+/// has the driver's own patience, and a read that is going to fail must fail in
+/// a time a turn can afford. A window that has gone is not asked again: there
+/// is nothing there to answer.
+async fn take_twice<F, Fut>(take: &F) -> Result<snapshot::Read, playwright_rs::Error>
+where
+    F: Fn() -> Fut,
+    Fut: Future<Output = Result<snapshot::Read, playwright_rs::Error>>,
+{
+    take_twice_within(take, DRIVER_RETRY_PAUSE, DRIVER_RETRY_WAIT).await
+}
+
+/// The same read, with its own pause and its own ceiling, so a test can ask for
+/// a short one.
+async fn take_twice_within<F, Fut>(
+    take: &F,
+    pause: std::time::Duration,
+    wait: std::time::Duration,
+) -> Result<snapshot::Read, playwright_rs::Error>
+where
+    F: Fn() -> Fut,
+    Fut: Future<Output = Result<snapshot::Read, playwright_rs::Error>>,
+{
+    let first = match take().await {
+        Ok(read) => return Ok(read),
+        Err(first) => first,
+    };
+    // A window that has gone is not a driver that was busy.
+    if session::reason_of(&first).is_some() {
+        return Err(first);
+    }
+    tokio::time::sleep(pause).await;
+    match tokio::time::timeout(wait, take()).await {
+        Ok(answer) => answer,
+        // The second attempt ran out of time: the first failure is the one
+        // that says why the driver did not answer.
+        Err(_elapsed) => Err(first),
+    }
+}
+
+/// **How long a read waits before it asks the driver again.** A driver that was
+/// busy for a moment answers a second call, and one that is waking up needs a
+/// moment before it does.
+const DRIVER_RETRY_PAUSE: std::time::Duration = std::time::Duration::from_millis(250);
+
+/// **How long the second attempt at a read may take.** The first attempt has
+/// the driver's own patience — half a minute of nothing — and the second does
+/// not: it is a last chance for a driver that was busy, not a second long
+/// wait. A page that has settled answers in a moment, and one that has not
+/// answered by now will not answer the turn either.
+const DRIVER_RETRY_WAIT: std::time::Duration = std::time::Duration::from_secs(10);
 
 /// Lets a navigation finish before anything is taken from the page. Best
 /// effort — a page that never fires `load` must not make the read impossible,
@@ -1394,5 +1458,140 @@ mod tests {
         let (kept, _, _) = sessions.page_if_started().await.expect("the started session survived");
         kept.title().await.expect("the retained page still answers");
         context.close().await.expect("the fixture closes");
+    }
+
+    /// **A driver that did not answer is asked again.** The read has no retry of
+    /// its own, so the failure it fails with — the page did not answer that
+    /// call; try again — was a failure a model could only answer by asking the
+    /// same thing and being told it would not change. **The second answer is
+    /// the one the call is judged on**, so a read that answers the second time
+    /// is a read.
+    ///
+    /// The branch is exercised here and not through a page, because a page this
+    /// crate can open in a test is on this computer's own network, and the
+    /// guard refuses that before anything is read.
+    #[tokio::test]
+    async fn a_read_that_did_not_answer_is_asked_again() {
+        let asked = std::cell::Cell::new(0);
+        let take = || {
+            let attempt = asked.get() + 1;
+            asked.set(attempt);
+            async move {
+                if attempt == 1 {
+                    Err(playwright_rs::Error::Timeout("the driver did not answer".to_owned()))
+                } else {
+                    Ok(crate::snapshot::Read {
+                        text: "url: a.example\n\nthe page as the model reads it".to_owned(),
+                        main: std::collections::HashSet::new(),
+                    })
+                }
+            }
+        };
+        let read = super::take_twice_within(
+            &take,
+            std::time::Duration::from_millis(1),
+            std::time::Duration::from_secs(1),
+        )
+        .await
+        .expect("the read answers the second time");
+        assert_eq!(asked.get(), 2, "the read was asked twice");
+        assert!(read.text.contains("the page as the model reads it"), "{}", read.text);
+    }
+
+    /// **A read the driver will not answer is asked once more and no more.** The
+    /// failure that comes back is the first one, because it says why the driver
+    /// did not answer — and the model reads the same words it always read.
+    #[tokio::test]
+    async fn a_read_the_driver_will_not_answer_is_asked_once_more_and_no_more() {
+        let asked = std::cell::Cell::new(0);
+        let take = || {
+            asked.set(asked.get() + 1);
+            async { Err(playwright_rs::Error::Timeout("the driver did not answer".to_owned())) }
+        };
+        let error = match super::take_twice_within(
+            &take,
+            std::time::Duration::from_millis(1),
+            std::time::Duration::from_secs(1),
+        )
+        .await
+        {
+            Ok(_) => panic!("the driver does not answer"),
+            Err(error) => error,
+        };
+        assert_eq!(asked.get(), 2, "the read was asked twice and not a third time");
+        assert!(
+            crate::session::reason_of(&error).is_none(),
+            "and the failure is the driver's, not a closed window: {error}"
+        );
+        assert_eq!(
+            crate::session::explain(&error),
+            "the page did not answer that call; try again",
+            "the model reads the same words it always read"
+        );
+    }
+
+    /// **A window that has gone is not asked again.** There is nothing there to
+    /// answer, and a second attempt would only report a second failure.
+    #[tokio::test]
+    async fn a_window_that_has_gone_is_not_asked_again() {
+        let asked = std::cell::Cell::new(0);
+        let take = || {
+            asked.set(asked.get() + 1);
+            async { Err(playwright_rs::Error::ServerError("Target closed".to_owned())) }
+        };
+        let error = match super::take_twice_within(
+            &take,
+            std::time::Duration::from_millis(1),
+            std::time::Duration::from_secs(1),
+        )
+        .await
+        {
+            Ok(_) => panic!("the window is gone"),
+            Err(error) => error,
+        };
+        assert_eq!(asked.get(), 1, "the read was asked once and not again");
+        assert_eq!(
+            crate::session::explain(&error),
+            "the browser window is closed, so the page is not there: open it again to carry on"
+        );
+    }
+
+    /// **A second attempt that runs out of time is the first failure.** The
+    /// driver that did not answer is not asked for ever, and the failure that
+    /// comes back is the one that says why.
+    #[tokio::test]
+    async fn a_second_attempt_that_runs_out_of_time_is_the_first_failure() {
+        let asked = std::cell::Cell::new(0);
+        let take = || {
+            let attempt = asked.get() + 1;
+            asked.set(attempt);
+            async move {
+                if attempt == 1 {
+                    Err(playwright_rs::Error::Timeout("the driver did not answer".to_owned()))
+                } else {
+                    tokio::time::sleep(std::time::Duration::from_secs(30)).await;
+                    Ok(crate::snapshot::Read {
+                        text: "url: a.example\n\nnever reached".to_owned(),
+                        main: std::collections::HashSet::new(),
+                    })
+                }
+            }
+        };
+        let error = match super::take_twice_within(
+            &take,
+            std::time::Duration::from_millis(1),
+            std::time::Duration::from_millis(50),
+        )
+        .await
+        {
+            Ok(_) => panic!("the second attempt never answers"),
+            Err(error) => error,
+        };
+        assert_eq!(asked.get(), 2, "the read was asked twice");
+        assert_eq!(
+            crate::session::explain(&error),
+            "the page did not answer that call; try again",
+            "the failure is the first one, and the model reads the same words it always read"
+        );
     }
 }

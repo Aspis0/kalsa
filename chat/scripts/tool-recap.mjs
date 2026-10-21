@@ -20,12 +20,18 @@ function check(label, condition, detail) {
 // **The door the window answers a card through.** A press has to reach the
 // backend for the card to come off the window, and a card that has come off is
 // the only thing that stops the line saying it is still waiting.
+//
+// **A refusal the sidecar raised, with the stage that says where it stopped.**
+// The ledger's rule is about the stage, so a refusal that carries one has to
+// reach the app the way a real one does.
+let refusal = null;
 globalThis.window = {
   addEventListener: () => {},
   __TAURI__: {
     core: {
       invoke: async (command) => {
         if (command === "brain_browser_confirm" || command === "brain_browser_decline") return "the sidecar answered";
+        if (refusal !== null && command.startsWith("brain_browser_")) throw refusal;
         throw new Error(`${command} is not on this road`);
       },
     },
@@ -369,6 +375,78 @@ const { app } = await loadApp();
     const one = newLedger();
     filed(one, "browser_click", { ref: "e9" }, { text: "no", ok: false, resultCode: code });
     check(`${code} is not remembered either`, decide(one, "browser_click", { ref: "e9" }).run === true);
+  }
+
+  // **A read the driver did not answer, after an open, is asked again.** The
+  // open reached the page and the read is what failed: the same open a moment
+  // later can answer, and nothing happened on the page that a retry would
+  // repeat. The stage is what says so — the sidecar raises its refusals with
+  // no code of their own, so the code alone cannot.
+  const driver = newLedger();
+  filed(driver, "browser_open", { url: "https://shop.example/" }, { text: "the page did not answer that call; try again", ok: false, resultCode: "browser.refused", stage: "read_driver" });
+  const afterDriver = decide(driver, "browser_open", { url: "https://shop.example/" });
+  check("a read the driver did not answer is asked again", afterDriver.run === true, JSON.stringify(afterDriver));
+  check("and it spent its step, so the bound still bites", driver.spent === 1, String(driver.spent));
+
+  // **The page the open reached is a new page.** The failed open is not
+  // remembered — the retry must not find an "already run" from the page before
+  // it — and what the last round read no longer says anything about the page
+  // the window is on now.
+  const moved = newLedger();
+  filed(moved, "browser_click", { ref: "e9" }, { text: "clicked", ok: true });
+  filed(moved, "browser_open", { url: "https://shop.example/" }, { text: "the page did not answer that call; try again", ok: false, resultCode: "browser.refused", stage: "read_driver" });
+  check("the click of the page before is not answered from that page", decide(moved, "browser_click", { ref: "e9" }).run === true);
+  check("and the open that failed is not remembered as run", decide(moved, "browser_open", { url: "https://shop.example/" }).run === true);
+
+  // **An element the page never printed is dead.** It fails the same way the
+  // second time, and the ledger says so.
+  const unprinted = newLedger();
+  filed(unprinted, "browser_click", { ref: "e9" }, { text: "that element is not one this page printed", ok: false, resultCode: "browser.refused", stage: "ref_unprinted" });
+  const afterUnprinted = decide(unprinted, "browser_click", { ref: "e9" });
+  check("an element the page never printed is not asked again", afterUnprinted.run === false && afterUnprinted.code === "browser.deterministic", JSON.stringify(afterUnprinted));
+
+  // **An address the conversation never saw is dead too.** It is not the read
+  // the driver did not answer, so the open that named it is not asked again.
+  const unseen = newLedger();
+  filed(unseen, "browser_open", { url: "https://unseen.example/" }, { text: "that address has not appeared in the conversation", ok: false, resultCode: "browser.refused", stage: "read_unseen" });
+  const afterUnseen = decide(unseen, "browser_open", { url: "https://unseen.example/" });
+  check("an address the conversation never saw is not asked again", afterUnseen.run === false && afterUnseen.code === "browser.deterministic", JSON.stringify(afterUnseen));
+
+  // **An action the driver did not answer is not asked again.** The click may
+  // already have happened, and a second click is a second action and not a
+  // retry: the refusal says so, and tells the model to read the page instead.
+  const acted = newLedger();
+  filed(acted, "browser_click", { ref: "e9" }, { text: "the page did not answer that call; try again", ok: false, resultCode: "browser.refused", stage: "read_driver" });
+  const afterAction = decide(acted, "browser_click", { ref: "e9" });
+  check("an action the driver did not answer is not asked again", afterAction.run === false && afterAction.code === "browser.deterministic", JSON.stringify(afterAction));
+  check("and the refusal it gets carries the stage", afterAction.stage === "read_driver", JSON.stringify(afterAction));
+
+  // **And the sentence the model reads says to read the page.** The click may
+  // have happened and the model does not know what it did, so the sentence
+  // tells it to look, and not to do the thing a second time.
+  {
+    refusal = { code: "browser.refused", text: "the page did not answer that call; try again", stage: "read_driver" };
+    const calls = newLedger();
+    const ask = async () =>
+      app.executeToolCall(
+        "browser_click",
+        { ref: "e9" },
+        undefined,
+        null,
+        [{ role: "user", content: "click the first thing" }],
+        "any-model",
+        undefined,
+        undefined,
+        true,
+        "stage-aware",
+        calls,
+      );
+    const first = await ask();
+    filed(calls, "browser_click", { ref: "e9" }, { text: first.text, ok: first.ok, resultCode: first.resultCode, stage: first.stage });
+    const second = await ask();
+    check("the second click is refused", second.ok === false, second.text);
+    check("and it says to read the page, not to click again", second.text.includes("browser_read") && second.text.includes("do not do it again"), second.text);
+    refusal = null;
   }
 
   // **A refusal that never reached the browser spends nothing.** The switch is

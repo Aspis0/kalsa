@@ -32,7 +32,7 @@ use kalsa_mcp::registry::Registry;
 use kalsa_mcp::server_id::ServerId;
 use serde_json::{json, Map, Value};
 
-use super::codes::{failure_category, BrowserCode};
+use super::codes::{failure_category, failure_stage, BrowserCode};
 use super::error::BrowserError;
 use super::preview;
 use super::program;
@@ -472,7 +472,7 @@ impl Browser {
         spent: Option<Box<dyn FnOnce() -> bool + Send>>,
     ) -> Result<String, BrowserError> {
         if HOST_ONLY.contains(&tool) != person {
-            return Err(BrowserError::Refused { code: BrowserCode::Refused, why: None });
+            return Err(BrowserError::Refused { code: BrowserCode::Refused, why: None, stage: None });
         }
         // **The generation is read before the lease is taken.** Taking the lease
         // first leaves a window in which a Stop lands and this call has already
@@ -657,7 +657,14 @@ fn the_window_went(result: &ToolResult) -> bool {
 /// own words; the sidecar's text is what the model reads.
 fn refusal(result: &ToolResult) -> BrowserError {
     let said = result.for_model.join("\n");
-    BrowserError::Refused { code: BrowserCode::of(result), why: (!said.is_empty()).then_some(said) }
+    BrowserError::Refused {
+        code: BrowserCode::of(result),
+        why: (!said.is_empty()).then_some(said),
+        // **The stage rides with the refusal, whitelisted.** It says where the
+        // call stopped, and the ledger has to know it to tell a failure a retry
+        // can answer from one that is dead.
+        stage: failure_stage(result),
+    }
 }
 
 /// Whether the Stop that raised the generation is this call's to answer.
@@ -1141,14 +1148,14 @@ mod tests {
     fn a_refusal_keeps_the_sidecars_words_and_the_code_for_the_page() {
         assert_eq!(
             refusal(&result(true, None)),
-            BrowserError::Refused { code: BrowserCode::Refused, why: Some("the sidecar's sentence".to_owned()) }
+            BrowserError::Refused { code: BrowserCode::Refused, why: Some("the sidecar's sentence".to_owned()), stage: None }
         );
 
         let mut silent = result(true, None);
         silent.for_model.clear();
         assert_eq!(
             refusal(&silent),
-            BrowserError::Refused { code: BrowserCode::Refused, why: None },
+            BrowserError::Refused { code: BrowserCode::Refused, why: None, stage: None },
             "a refusal with nothing said falls back to the app's own sentence"
         );
     }
@@ -1507,9 +1514,9 @@ mod tests {
         let browser = Browser::default();
         let app_data = PathBuf::from("/nonexistent/kalsa-browser-app-data");
 
-        assert_eq!(browser.call(&app_data, "browser_confirm", Map::new()).await.err(), Some(BrowserError::Refused { code: BrowserCode::Refused, why: None }));
-        assert_eq!(browser.call(&app_data, "browser_waiting", Map::new()).await.err(), Some(BrowserError::Refused { code: BrowserCode::Refused, why: None }));
-        assert_eq!(browser.call_host(&app_data, "browser_open", Map::new()).await.err(), Some(BrowserError::Refused { code: BrowserCode::Refused, why: None }));
+        assert_eq!(browser.call(&app_data, "browser_confirm", Map::new()).await.err(), Some(BrowserError::Refused { code: BrowserCode::Refused, why: None, stage: None }));
+        assert_eq!(browser.call(&app_data, "browser_waiting", Map::new()).await.err(), Some(BrowserError::Refused { code: BrowserCode::Refused, why: None, stage: None }));
+        assert_eq!(browser.call_host(&app_data, "browser_open", Map::new()).await.err(), Some(BrowserError::Refused { code: BrowserCode::Refused, why: None, stage: None }));
         assert!(!browser.is_open(), "and no browser was started");
     }
 
@@ -1531,13 +1538,13 @@ mod tests {
         // the model's, and the person has the phone's own preview for it.
         assert_eq!(
             browser.call_host(&app_data, "browser_screenshot", Map::new()).await.err(),
-            Some(BrowserError::Refused { code: BrowserCode::Refused, why: None })
+            Some(BrowserError::Refused { code: BrowserCode::Refused, why: None, stage: None })
         );
         // **And the model's path cannot take the preview**: the phone's
         // picture is the phone's.
         assert_eq!(
             browser.call(&app_data, "browser_preview", Map::new()).await.err(),
-            Some(BrowserError::Refused { code: BrowserCode::Refused, why: None })
+            Some(BrowserError::Refused { code: BrowserCode::Refused, why: None, stage: None })
         );
         assert!(!browser.is_open(), "and no browser was started");
     }

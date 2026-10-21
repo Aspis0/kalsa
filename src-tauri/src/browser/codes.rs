@@ -85,34 +85,50 @@ impl BrowserCode {
 
 /// Whitelist both stage and log literal so unknown content cannot reach the log.
 pub(crate) fn failure_category(result: &ToolResult) -> Option<&'static str> {
+    failure_of(result).map(|(_, category)| category)
+}
+
+/// **The stage the sidecar named, whitelisted.** It says where the call stopped,
+/// and it travels beside the code — to the ledger, which has to tell a failure
+/// a retry can answer from one that is dead — and to nobody else. **It is not
+/// a sentence and not a name of ours to invent**: a word this build does not
+/// know is dropped, exactly as it is dropped for the log.
+pub(crate) fn failure_stage(result: &ToolResult) -> Option<&'static str> {
+    failure_of(result).map(|(stage, _)| stage)
+}
+
+/// The stage and the line the log writes for it, **read in one place**: the two
+/// are the same word, and a whitelist that could disagree with itself is a
+/// whitelist with two lists in it.
+fn failure_of(result: &ToolResult) -> Option<(&'static str, &'static str)> {
     let word = result.for_ui.as_ref()?.pointer("/kalsa/failure")?.as_str()?;
-    match word {
-        "ref_missing" => Some("browser_failure.ref_missing"),
-        "ref_malformed" => Some("browser_failure.ref_malformed"),
-        "ref_unprinted" => Some("browser_failure.ref_unprinted"),
-        "action_input_failed" => Some("browser_failure.action_input_failed"),
-        "action_unfillable" => Some("browser_failure.action_unfillable"),
-        "action_password" => Some("browser_failure.action_password"),
-        "action_destination" => Some("browser_failure.action_destination"),
-        "action_not_accepted" => Some("browser_failure.action_not_accepted"),
-        "action_date_format" => Some("browser_failure.action_date_format"),
-        "read_unseen" => Some("browser_failure.read_unseen"),
-        "read_address_refused" => Some("browser_failure.read_address_refused"),
-        "read_moved" => Some("browser_failure.read_moved"),
-        "read_driver" => Some("browser_failure.read_driver"),
-        "open_driver" => Some("browser_failure.open_driver"),
-        "open_address_refused" => Some("browser_failure.open_address_refused"),
-        "paused" => Some("browser_failure.paused"),
-        "unavailable" => Some("browser_failure.unavailable"),
-        "busy" => Some("browser_failure.busy"),
-        "panicked" => Some("browser_failure.panicked"),
-        _ => None,
-    }
+    Some(match word {
+        "ref_missing" => ("ref_missing", "browser_failure.ref_missing"),
+        "ref_malformed" => ("ref_malformed", "browser_failure.ref_malformed"),
+        "ref_unprinted" => ("ref_unprinted", "browser_failure.ref_unprinted"),
+        "action_input_failed" => ("action_input_failed", "browser_failure.action_input_failed"),
+        "action_unfillable" => ("action_unfillable", "browser_failure.action_unfillable"),
+        "action_password" => ("action_password", "browser_failure.action_password"),
+        "action_destination" => ("action_destination", "browser_failure.action_destination"),
+        "action_not_accepted" => ("action_not_accepted", "browser_failure.action_not_accepted"),
+        "action_date_format" => ("action_date_format", "browser_failure.action_date_format"),
+        "read_unseen" => ("read_unseen", "browser_failure.read_unseen"),
+        "read_address_refused" => ("read_address_refused", "browser_failure.read_address_refused"),
+        "read_moved" => ("read_moved", "browser_failure.read_moved"),
+        "read_driver" => ("read_driver", "browser_failure.read_driver"),
+        "open_driver" => ("open_driver", "browser_failure.open_driver"),
+        "open_address_refused" => ("open_address_refused", "browser_failure.open_address_refused"),
+        "paused" => ("paused", "browser_failure.paused"),
+        "unavailable" => ("unavailable", "browser_failure.unavailable"),
+        "busy" => ("busy", "browser_failure.busy"),
+        "panicked" => ("panicked", "browser_failure.panicked"),
+        _ => return None,
+    })
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{failure_category, BrowserCode};
+    use super::{failure_category, failure_stage, BrowserCode};
     use kalsa_mcp::outcome::ToolResult;
     use kalsa_mcp::server_id::ServerId;
     use serde_json::json;
@@ -251,5 +267,33 @@ mod tests {
         assert!(category.starts_with("browser_failure."), "{category}");
         assert!(!category.contains(' '), "{category}");
         assert!(!category.contains("://"), "{category}");
+    }
+
+    /// **The stage travels beside the code, and it is whitelisted like the log
+    /// line.** The ledger has to tell a failure a retry can answer from one that
+    /// is dead, and the stage is what says where the call stopped — so a word
+    /// this build does not know is no stage at all.
+    #[test]
+    fn a_stage_this_build_knows_travels_and_one_it_does_not_is_dropped() {
+        let known = said(Some(json!({ "kalsa": { "failure": "read_driver" } })));
+        assert_eq!(failure_stage(&known), Some("read_driver"));
+        assert_eq!(
+            failure_category(&known),
+            Some("browser_failure.read_driver"),
+            "the same word, read both ways"
+        );
+
+        for word in ["browser.who_knows", "ref_unprinted ", "read_driver\nui: chat.tool.opened", ""] {
+            let stranger = said(Some(json!({ "kalsa": { "failure": word } })));
+            assert_eq!(failure_stage(&stranger), None, "{word} is not a stage this build knows");
+        }
+        for shape in [
+            None,
+            Some(json!({})),
+            Some(json!({ "kalsa": {} })),
+            Some(json!({ "kalsa": { "failure": 7 } })),
+        ] {
+            assert_eq!(failure_stage(&said(shape.clone())), None, "{shape:?}");
+        }
     }
 }

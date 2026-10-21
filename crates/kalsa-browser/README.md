@@ -30,6 +30,37 @@ own environment (`src/driver_env.rs`) — `PLAYWRIGHT_NODE_EXE` and
 `PLAYWRIGHT_SKIP_DRIVER_DOWNLOAD` is a build-time knob that has no meaning here.
 `PLAYWRIGHT_DRIVER_PATH` is the only one that survives.
 
+## The driver, awake
+
+**A browser that has just been started is not ready the moment it exists.** The
+first call it is given can fail with a driver error, and that failure has no
+retry of its own: the page is not there, and the model is told the page did not
+answer. Two real turns showed it on the same night — with the sidecar started a
+couple of seconds before the first call, the first `browser_open` failed on the
+read, and the turn was over before the model could say anything else.
+
+So the session is not declared ready until the driver has answered a call of its
+own. `launch::start` asks for the tree of the page — the call a read makes, on
+the page the browser has just opened, which holds nothing and so costs almost
+nothing — and asks again after a pause if the answer does not come. **Each
+attempt is bounded at two seconds and the whole wait at five**, because the
+driver's own patience is half a minute of nothing, and a browser that cannot be
+asked must not hold the call for ever: it is the browser that could not be
+started, and the person is told that.
+
+**A read the driver does not answer is asked again.** The read has no retry of
+its own, and the failure it fails with is the one that tells a model to try
+again — the page did not answer that call; try again. So the read is asked once
+more, after a pause of a quarter of a second, and **the second answer is the
+one the call is judged on**. The second attempt is bounded at ten seconds: the
+first attempt already had the driver's own patience, and a page that has settled
+answers in a moment. A window that has gone is not asked again, since there is
+nothing there to answer.
+
+**The move retry is untouched.** A page that keeps moving under a read is still
+read twice and then refused, and a driver failure never spends that second
+attempt: the two are counted apart.
+
 ## Tests
 
 `cargo test -p kalsa-browser` runs the browser tests, which launch the installed
@@ -499,6 +530,13 @@ answer carries the fact beside the text:
   address, no ref, no title, no page text and nothing the driver said, so a host
   can log it without reading a stranger's words. A word outside the set is not
   ours: match it against the set and drop what is not in it.
+- **The stage is load-bearing for the host, and it is whitelisted there.** The
+  app keeps the stage beside the code when it hands the refusal on, and the
+  ledger in the chat reads it to tell a read the driver did not answer — which
+  is worth another try after an open — from the same failure after a click,
+  which is not: the action may already have happened. The word the host carries
+  is one of the set above, and anything else is dropped there as it is dropped
+  here.
 - **The text is unchanged and still there for the model.** The mark and the stage
   are added beside it, never in place of it.
 - **In this crate** the same facts are on `mcp::Said::gone` and

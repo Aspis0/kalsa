@@ -45,7 +45,12 @@ pub(crate) enum BrowserError {
     ///
     /// `why` is `None` for a refusal the app raised on its own account, before
     /// the sidecar was asked.
-    Refused { code: BrowserCode, why: Option<String> },
+    ///
+    /// `stage` is where the sidecar stopped, when it said: **it is internal**,
+    /// and it travels beside the code because the ledger has to tell a failure
+    /// a retry can answer from one that is dead. It is never a sentence and
+    /// never a word this build does not know.
+    Refused { code: BrowserCode, why: Option<String>, stage: Option<&'static str> },
     /// Nobody pressed this twice: the id was already answered, it had expired,
     /// or there was never a card. A person pressing "send" on a request that is
     /// not waiting is owed a sentence, not an error to guess at.
@@ -105,10 +110,18 @@ impl BrowserError {
 /// set it turns into its own words, with the English text as the fallback for
 /// a language that has no row. **The text is the model's**: the reason the
 /// sidecar gave, or the fixed fallback for a failure that was ours.
+///
+/// **The stage is nobody's but the ledger's.** It says where the call stopped,
+/// and it is what tells a failure a retry can answer from one that is dead: a
+/// read the driver did not answer after an open is one, and the same failure
+/// after a click is not, because the action may already have happened. It is
+/// absent when there is nothing to say.
 #[derive(Debug, Serialize)]
 pub(crate) struct CommandFailure {
     code: &'static str,
     text: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    stage: Option<&'static str>,
 }
 
 impl CommandFailure {
@@ -121,7 +134,11 @@ impl CommandFailure {
 
 impl From<BrowserError> for CommandFailure {
     fn from(error: BrowserError) -> Self {
-        Self { code: error.code(), text: error.sentence() }
+        let stage = match &error {
+            BrowserError::Refused { stage, .. } => *stage,
+            _ => None,
+        };
+        Self { code: error.code(), text: error.sentence(), stage }
     }
 }
 
@@ -166,7 +183,7 @@ mod tests {
             BrowserError::Unpack,
             BrowserError::Storage,
             BrowserError::Failed,
-            BrowserError::Refused { code: BrowserCode::Refused, why: None },
+            BrowserError::Refused { code: BrowserCode::Refused, why: None, stage: None },
             BrowserError::NoCard,
         ];
         let mut codes: Vec<&str> = all.iter().map(|error| error.code()).collect();
@@ -205,6 +222,7 @@ mod tests {
         let failure = CommandFailure::from(BrowserError::Refused {
             code: BrowserCode::Refused,
             why: Some(said.to_owned()),
+            stage: None,
         });
         assert_eq!(failure.code, "browser.refused", "the page reads the code and only the code");
         assert_eq!(failure.text, said, "and the model reads what the sidecar said");
@@ -214,9 +232,34 @@ mod tests {
     /// so it falls back to the fixed sentence.
     #[test]
     fn a_refusal_of_the_apps_own_falls_back_to_the_sentence_it_had() {
-        let failure = CommandFailure::from(BrowserError::Refused { code: BrowserCode::Refused, why: None });
+        let failure = CommandFailure::from(BrowserError::Refused { code: BrowserCode::Refused, why: None, stage: None });
         assert_eq!(failure.code, "browser.refused");
         assert_eq!(failure.text, "the browser would not open that.");
+    }
+
+    /// **The stage travels with the refusal, and nothing else does.** The code
+    /// the page reads is the one it always read and the model reads the
+    /// sidecar's words; the stage is the ledger's, and it says where the call
+    /// stopped — so a read the driver did not answer after an open can be told
+    /// from the same failure after a click.
+    #[test]
+    fn a_refusal_carries_its_stage_and_a_failure_of_ours_carries_none() {
+        let refusal = CommandFailure::from(BrowserError::Refused {
+            code: BrowserCode::Refused,
+            why: Some("the page did not answer that call; try again".to_owned()),
+            stage: Some("read_driver"),
+        });
+        assert_eq!(refusal.code, "browser.refused", "the page reads the code it always read");
+        let said = serde_json::to_value(&refusal).expect("the failure is JSON");
+        assert_eq!(said["stage"], "read_driver", "and the stage rides beside it");
+        assert_eq!(
+            said["text"],
+            "the page did not answer that call; try again",
+            "the model still reads the sidecar's own words"
+        );
+
+        let ours = serde_json::to_value(CommandFailure::from(BrowserError::Failed)).expect("the failure is JSON");
+        assert!(ours.get("stage").is_none(), "and a failure of ours has no stage to say: {ours}");
     }
 
     /// The sentences a person reads must not hand out a path or a digest.

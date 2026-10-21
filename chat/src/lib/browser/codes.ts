@@ -172,7 +172,17 @@ export function isCardAlreadyResolved(code: BrowserCode): boolean {
     she was busy, the person paused, the page had not been opened yet. **The
     provenance rule's code is deterministic too**: the same address will be
     refused the same way, and a model that tries it again is told to click
-    the ref instead. */
+    the ref instead.
+
+    **The sidecar's own refusals are deterministic as well, and they stay so.**
+    They all answer `browser.refused` — the sidecar names no code of its own —
+    and among them are the refusals that are truly a decision about the page: an
+    element the page never printed, an address the conversation never saw. Those
+    fail the same way the second time.
+
+    **What is worth another try is decided by the stage, not by the code.** A
+    read the driver did not answer is not a decision about the page, and the
+    ledger knows which stage stopped the call; see `callLedger.ts`. */
 export function isDeterministic(code: RefusalCode): boolean {
   return code !== "browser.busy" && code !== "browser.paused" && code !== "browser.stopped";
 }

@@ -201,6 +201,11 @@ export interface ToolOutcome {
   text: string;
   ok: boolean;
   resultCode?: string;
+  /** The sidecar's stage, when the call was refused and it named one: **where
+   *  the call stopped.** It is internal — it decides whether a retry is worth
+   *  anything, and it is neither the code the page reads nor the sentence the
+   *  model reads. */
+  stage?: string;
   miniapp?: Miniapp;
   /** Cards or a draft this call drew. The wire only ever carries `text`. */
   mail?: Mail;

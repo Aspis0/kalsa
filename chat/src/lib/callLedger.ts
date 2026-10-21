@@ -7,8 +7,8 @@ import { BROWSER_NAMES, BROWSER_SCREENSHOT_NAME } from "./tools/browserTools";
 export interface Ledger {
   /** The action that ran in **this** round, and the answer it got. */
   ran: Map<string, string>;
-  /** The action that failed with a deterministic code. */
-  failed: Map<string, RefusalCode>;
+  /** The action that failed with a deterministic code, and where it stopped. */
+  failed: Map<string, Failure>;
   /** Which round this is: every call that can move the page opens the next. */
   round: number;
   /** How many browser calls have run this turn, across every round. */
@@ -18,6 +18,28 @@ export interface Ledger {
    *  picture the turn took, and six is six. */
   pictures: number;
 }
+
+/**
+ * What a failed action left behind.
+ *
+ * **The code is what the page reads and the stage is where the call stopped.**
+ * The two are separate because the sidecar names no code of its own: every
+ * refusal it raises answers `browser.refused`, and the stage is the only thing
+ * that tells a failure a retry can answer from one that is dead.
+ */
+export interface Failure {
+  /** The code the page reads for this refusal. */
+  code: RefusalCode;
+  /** The sidecar's own stage, when it named one: where the call stopped. */
+  stage?: string;
+}
+
+/**
+ * **The stage that says the driver did not answer the read.** The sidecar
+ * raises it when the page is there and the tree of it could not be taken — and
+ * it is the only stage the ledger treats specially.
+ */
+export const READ_DRIVER = "read_driver";
 
 /**
  * How many browser calls one turn may run. Past this the rest are refused: a
@@ -76,12 +98,14 @@ export function actionKey(name: string, args: Record<string, unknown>): string {
 export type LedgerVerdict =
   | { run: true }
   /** Already run in this round: the answer it got is the answer, again. */
-  | { run: false; code: BrowserCode; answer: string; said: BrowserCode }
+  | { run: false; code: BrowserCode; answer: string; said: BrowserCode; stage?: undefined }
   /** Refused, with the code the browser would have refused it with anyway.
    *  `said` is the reason the call failed the first time: **the page reads
    *  `code`, the model reads `said`** — the code is one word, and the reason is
-   *  the sentence the model can act on. */
-  | { run: false; code: BrowserCode; answer: null; said: RefusalCode };
+   *  the sentence the model can act on. `stage` is where that call stopped,
+   *  when the sidecar named it: the sentence after an action has to say that
+   *  the action may already have happened. */
+  | { run: false; code: BrowserCode; answer: null; said: RefusalCode; stage?: string };
 
 /** Explicit observations may run again; actions retain their duplicate guard. */
 export function decide(ledger: Ledger, name: string, args: Record<string, unknown>): LedgerVerdict {
@@ -104,8 +128,9 @@ export function decide(ledger: Ledger, name: string, args: Record<string, unknow
     // A deterministic action failure stays suppressed until another action
     // opens a new round. **The reason it failed travels with the refusal**,
     // so the model is told what happened the first time and not "it failed
-    // again".
-    return { run: false, code: "browser.deterministic", answer: null, said: failed };
+    // again" — and so is the stage it stopped at, which is what tells a read
+    // that did not answer from an action that may already have happened.
+    return { run: false, code: "browser.deterministic", answer: null, said: failed.code, stage: failed.stage };
   }
   if (ledger.spent >= BROWSER_CALLS_PER_TURN) {
     return { run: false, code: "browser.too_many_steps", answer: null, said: "browser.too_many_steps" };
@@ -113,20 +138,20 @@ export function decide(ledger: Ledger, name: string, args: Record<string, unknow
   return { run: true };
 }
 
-/** What one call left behind: the answer the model reads, and the code if it
+/** What one call left behind: the answer the model reads, and the failure if it
     was a refusal. A key that ran after failing has worked, so its old failure
     goes with it — a stale refusal would deny an attempt that has just succeeded.
     A call that can move the page opens the next round **before** it is filed,
     so what it answered is remembered against the page it left behind and the
     turn it begins is the one a second identical call belongs to. */
-function record(ledger: Ledger, name: string, args: Record<string, unknown>, answer: string, code?: RefusalCode): void {
+function record(ledger: Ledger, name: string, args: Record<string, unknown>, answer: string, failure?: Failure): void {
   if (MOVES.has(name)) openedNextRound(ledger);
   const key = actionKey(name, args);
   ledger.ran.set(key, answer);
-  if (code === undefined) ledger.failed.delete(key);
+  if (failure === undefined) ledger.failed.delete(key);
   else {
     ledger.ran.delete(key);
-    ledger.failed.set(key, code);
+    ledger.failed.set(key, failure);
   }
 }
 
@@ -135,7 +160,7 @@ export function filed(
   ledger: Ledger,
   name: string,
   args: Record<string, unknown>,
-  outcome: { text: string; ok: boolean; resultCode?: string },
+  outcome: { text: string; ok: boolean; resultCode?: string; stage?: string },
 ): void {
   if (!BROWSER_NAMES.has(name)) return;
   if (outcome.ok) {
@@ -164,7 +189,36 @@ export function filed(
   // its ref" is a sentence the model can act on, and "browser.deterministic"
   // is a word it cannot.
   if (code === "browser.deterministic") return;
-  if (isDeterministic(code)) record(ledger, name, args, outcome.text, code);
+  const failure: Failure = { code, stage: outcome.stage };
+  // **A read the driver did not answer, after an open, is asked again.** The
+  // open reached the page and the read is what failed: the same open a moment
+  // later can answer, and nothing happened on the page that a retry would
+  // repeat.
+  if (worthAnotherTry(name, failure)) {
+    // **The page may have moved** — the open reached it — so what the last
+    // round read no longer says anything about it. The failed open is not
+    // remembered: the retry must not find an "already run" from the page
+    // before it.
+    openedNextRound(ledger);
+    return;
+  }
+  if (isDeterministic(code)) record(ledger, name, args, outcome.text, failure);
+}
+
+/**
+ * **Whether this failure is worth another try.**
+ *
+ * **Only an open, and only a read the driver did not answer.** After a click
+ * or a type the same failure is another thing entirely: the action may
+ * already have happened, and running it again is not a retry but a second
+ * action. So the answer there is to read the page and see, not to do it again.
+ *
+ * **The other refusals stay dead.** An element the page never printed, an
+ * address the conversation never saw and a page that kept moving all fail the
+ * same way the second time, and the model is told to do something else.
+ */
+function worthAnotherTry(name: string, failure: Failure): boolean {
+  return name === "browser_open" && failure.stage === READ_DRIVER;
 }
 
 /** A call that can leave the page different opens the next round, and what the
