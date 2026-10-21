@@ -180,6 +180,23 @@ export interface ToolPhrases {
     `resultCode` is the Rust refusal's code for the screen; `text` stays the
     English the model reads. `miniapp` is a locally built envelope the thread
     renders — it rides the transcript, never the wire. */
+/**
+ * A picture a tool brought back.
+ *
+ * **The bytes never go inside `text`.** They ride the tool message as their
+ * own part, and the record keeps a line in words instead: a picture inside a
+ * sentence is a picture in every later turn's replay and in the storage
+ * behind it.
+ */
+export interface ToolImage {
+  /** The bytes, base64, with no prefix. */
+  data: string;
+  /** The media type of those bytes. */
+  mediaType: string;
+  /** The text that goes beside the picture on the wire. */
+  text: string;
+}
+
 export interface ToolOutcome {
   text: string;
   ok: boolean;
@@ -191,6 +208,9 @@ export interface ToolOutcome {
       ones the model was asked about but did not ask to open. For the screen;
       the wire carries them inside `text`. */
   pagesRead?: number;
+  /** A picture this call brought. **Its bytes are never inside `text`**: the
+      model reads them as their own part, and the record keeps the line. */
+  image?: ToolImage;
 }
 
 /** No new words for this long means the server is gone, not slow. */

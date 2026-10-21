@@ -94,7 +94,14 @@ export function recapOf(runs: ToolRun[], outcomes: Outcome[], waiting: number): 
  */
 function counted(runs: ToolRun[], outcomes: Outcome[], waiting: number): Recap {
   const opened = runs.filter((run) => run.name === "browser_open" && run.state === "ok");
-  const read = runs.filter((run) => run.name === "browser_read" && run.state === "ok");
+  // **A picture is a read of the page**, and the record counts it as one: the
+  // model saw the page, so a turn that only took a picture has read
+  // something, and a record that said it had read nothing would be wrong in
+  // the one way that matters — the model would answer that it had seen
+  // nothing.
+  const read = runs.filter(
+    (run) => (run.name === "browser_read" || run.name === "browser_screenshot") && run.state === "ok",
+  );
   const typed = distinctRefs(runs.filter((run) => run.name === "browser_type" && run.state === "ok"));
   const clicked = runs.filter((run) => run.name === "browser_click" && run.state === "ok");
   // **A click that was cut short is its own fact.** The sidecar may have

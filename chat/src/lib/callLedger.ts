@@ -1,6 +1,6 @@
 import type { BrowserCode, RefusalCode } from "./browser/codes";
 import { isDeterministic, isRefusalCode } from "./browser/codes";
-import { BROWSER_NAMES } from "./tools/browserTools";
+import { BROWSER_NAMES, BROWSER_SCREENSHOT_NAME } from "./tools/browserTools";
 
 /** Bound browser work and suppress repeated actions; observations stay fresh
  * because the page can change on its own. */
@@ -13,6 +13,10 @@ export interface Ledger {
   round: number;
   /** How many browser calls have run this turn, across every round. */
   spent: number;
+  /** How many pictures of the page this turn has taken. **The count is of the
+   *  calls, not of the bytes**: a picture the body later let go is still a
+   *  picture the turn took, and six is six. */
+  pictures: number;
 }
 
 /**
@@ -33,8 +37,11 @@ export const BROWSER_CALLS_PER_TURN = 24;
 const MOVES = new Set(["browser_open", "browser_click", "browser_type"]);
 
 /** The calls that only look at the page. A read may be asked again, because the
-    page changes on its own and the last answer is not the answer now. */
-const LOOKS = new Set(["browser_read", "browser_find"]);
+    page changes on its own and the last answer is not the answer now.
+    **The picture is one of them**: a second picture is a second look at a page
+    that may have moved, and the bytes of the first are not the answer now.
+    The ledger keeps no bytes either way — what it remembers is the line. */
+const LOOKS = new Set(["browser_read", "browser_find", "browser_screenshot"]);
 
 /**
  * What a call is, as far as "have I already done this" is concerned.
@@ -133,6 +140,9 @@ export function filed(
   if (!BROWSER_NAMES.has(name)) return;
   if (outcome.ok) {
     ledger.spent += 1;
+    // **A picture is counted as a picture.** The turn's ceiling is on how many
+    // it took, and a body that let the bytes go does not un-take it.
+    if (name === BROWSER_SCREENSHOT_NAME) ledger.pictures += 1;
     record(ledger, name, args, outcome.text);
     return;
   }
@@ -168,5 +178,5 @@ function openedNextRound(ledger: Ledger): void {
 }
 
 export function newLedger(): Ledger {
-  return { ran: new Map(), failed: new Map(), round: 0, spent: 0 };
+  return { ran: new Map(), failed: new Map(), round: 0, spent: 0, pictures: 0 };
 }

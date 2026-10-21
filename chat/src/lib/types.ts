@@ -183,6 +183,18 @@ export interface ChatSettings {
    * the model at all.
    */
   webTools: boolean;
+  /**
+   * Whether the model may **see** the page: the browser's picture tool takes
+   * a photograph of the viewport and the model reads it, beside the page's
+   * own text.
+   *
+   * **Off by default, and hidden on purpose.** It is the lever of an A/B: the
+   * tool is offered only in the turns that may see one — the person armed the
+   * browser, this is on, and the engine has eyes — and this switch is the one
+   * that says yes to any of it. Off is the release gate: a build that has not
+   * been asked for this feature never offers it, whatever else is true.
+   */
+  browserVision: boolean;
 }
 
 /** The stored settings plus this computer's own door — the only endpoint

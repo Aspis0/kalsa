@@ -101,6 +101,36 @@ try {
     const phone = phoneTools(true, "en", "any-model", true, "2").map((tool) => tool.function.name);
     check("a phone turn is offered no browser tool", !phone.some((name) => name.startsWith("browser_")), phone.join(","));
 
+    // --- the picture of the page ------------------------------------------------
+    // **The sixth tool, and the one the owner switches on.** A picture is
+    // offered only where three things hold: the person armed the browser for
+    // this turn, the hidden setting is on, and the engine has eyes. The
+    // setting is the lever: it is off unless somebody asked for it, so a build
+    // nobody asked for this feature never offers a picture.
+    {
+      const gate = { armed: true, flag: true, vision: true };
+      const names = (over) =>
+        offeredTools(true, "en", "any-model", "browser", { ...gate, ...over }).map((tool) => tool.function.name);
+      equal("an armed turn with the switch on and eyes is offered the picture", names({}), [
+        ...THE_BROWSER,
+        "browser_screenshot",
+      ]);
+      equal("with the switch off it is not", names({ flag: false }), THE_BROWSER);
+      equal("and without eyes it is not", names({ vision: false }), THE_BROWSER);
+      equal("and an unarmed turn is not", names({ armed: false }), THE_BROWSER);
+      // **The control cell is the one of today**: the same call as before the
+      // picture existed, with no gate at all, offers the browser's five.
+      equal("the armed turn without the gate is the browser's five, as before", armed, THE_BROWSER);
+      // **A phone is never offered one**, whatever else is true.
+      check(
+        "a phone turn is offered no picture",
+        !phone.includes("browser_screenshot"),
+        phone.join(","),
+      );
+      const webWithGate = offeredTools(true, "en", "any-model", "web", gate).map((tool) => tool.function.name);
+      check("and an ordinary turn is offered no picture", !webWithGate.includes("browser_screenshot"), webWithGate.join(","));
+    }
+
     // And with no driver there is no browser turn to arm.
     noteBrowserStatus({ supported: false, installed: false, size: 0 });
     const without = offeredTools(true, "en", "any-model", "browser").map((tool) => tool.function.name);

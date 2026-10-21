@@ -1512,4 +1512,33 @@ mod tests {
         assert_eq!(browser.call_host(&app_data, "browser_open", Map::new()).await.err(), Some(BrowserError::Refused { code: BrowserCode::Refused, why: None }));
         assert!(!browser.is_open(), "and no browser was started");
     }
+
+    /// **The picture of the page is the model's tool, and the phone's preview is
+    /// the person's.** The two are different tools with different names, and the
+    /// table that says which side may reach a tool by name is what keeps them
+    /// apart: the model's path takes the picture and refuses the preview, the
+    /// person's path takes the preview and refuses the picture.
+    ///
+    /// **The app data folder here does not exist**, so a call that got past the
+    /// check would fail with a different error, and the refusal below is the
+    /// table's doing.
+    #[tokio::test]
+    async fn the_picture_of_the_page_is_the_model_s_tool_and_the_preview_is_the_person_s() {
+        let browser = Browser::default();
+        let app_data = PathBuf::from("/nonexistent/kalsa-browser-app-data");
+
+        // **The person's path cannot take the picture**: a page's picture is
+        // the model's, and the person has the phone's own preview for it.
+        assert_eq!(
+            browser.call_host(&app_data, "browser_screenshot", Map::new()).await.err(),
+            Some(BrowserError::Refused { code: BrowserCode::Refused, why: None })
+        );
+        // **And the model's path cannot take the preview**: the phone's
+        // picture is the phone's.
+        assert_eq!(
+            browser.call(&app_data, "browser_preview", Map::new()).await.err(),
+            Some(BrowserError::Refused { code: BrowserCode::Refused, why: None })
+        );
+        assert!(!browser.is_open(), "and no browser was started");
+    }
 }

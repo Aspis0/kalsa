@@ -8,7 +8,7 @@ import { streamChatCompletion } from "../toolLoop";
 import { armedConversation, executeToolCall, offeredTools } from "../tools/registry";
 import type { ToolDefinition } from "../tools/definitions";
 import { MAIL_NAMES } from "../tools/definitions";
-import { BROWSER_NAMES } from "../tools/browserTools";
+import { BROWSER_NAMES, BROWSER_SCREENSHOT_NAME } from "../tools/browserTools";
 import { closeRecap, sayRuns, takeNote } from "../browser/note";
 import { recapLine } from "../browser/recap";
 import { isBrowserRun } from "../browser/runs";
@@ -70,6 +70,11 @@ export function phoneTools(
       // filter below is what a phone may not have, and the browser's tools
       // are not on the list at all.
       !BROWSER_NAMES.has(tool.function.name) &&
+      // **And no picture of the page, said in its own words.** The picture is
+      // one of the browser's names, so the line above already keeps it off a
+      // phone; this one says why, because a picture of the owner's page is
+      // the one thing a phone must never be able to ask for.
+      tool.function.name !== BROWSER_SCREENSHOT_NAME &&
       // The second line, kept as it was: it is what a phone may not have
       // without a device, and a rule that is not drawn cannot be broken.
       (writable || !BROWSER_WRITES.has(tool.function.name)) &&

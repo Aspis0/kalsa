@@ -447,6 +447,7 @@ Fixed in the follow-up: install guard, stale notice version, redaction of a key-
 
 - Redirects: Rust `kalsa_web::fetch` follows `Location` without re-checking provenance, so a user-typed URL carrying a credential can be redirected to another host with it (crates/kalsa-web/src/fetch.rs). Consider refusing cross-origin redirects when the query names a credential.
 - The rule lives in the webview (`chat/src/lib/tools/fetchProvenance.ts`); `brain_web_fetch` and `brain_open_url` (src-tauri/src/web.rs) have no notion of it. Any other IPC caller bypasses it.
+- `brain_browser_screenshot` (`src-tauri/src/browser/session.rs`) ha la stessa forma: il gate armed+`browserVision`+vision vive nel webview (`registry.ts`), e un chiamante IPC che non passa dal registry prende un'immagine del viewport della pagina della conversazione che nomina. Ciò che regge è lo stamp di proprietà del sidecar. Chiuderla significa tenere armed/flag in Rust e legare il comando a un permesso che il webview non possa concedersi — non in questa slice.
 - `web_search` still sends the model's query to Exa unchecked: injected text can push private chat text to the search provider (not to the attacker). The pinned-document gate covers it only when a document is pinned.
 - The localized refusal line on a tool row is lost on reload; the stored record shows the model-facing English.
 
@@ -594,3 +595,10 @@ Report: 0 P0, 2 P1, 8 P2. The engine-key P1 (llama-server answered any Origin, n
 - A read or a find on a page with no text holds the slot for 8 s (`crates/kalsa-browser/src/snapshot.rs:218`), and a turn may spend 24 browser calls (`chat/src/lib/callLedger.ts:25`): up to 24×8 s.
 - One line of a page can be worth ~1 MB (`crates/kalsa-browser/src/snapshot.rs:40` `TREE_CHARS`, `parts` at `:236`) and a find prints up to 40 of them (`crates/kalsa-browser/src/mcp.rs:706`).
 - Prompt cache: arming the browser mode changes the tools array (`chat/src/lib/tools/registry.ts:107`), so every toggle costs one re-prefill — to measure in the chip slice.
+
+## Screenshot of the page (`browser_screenshot`, 2026-10-21)
+- TOCTOU between `ours()` and `before = page.url()` (`crates/kalsa-browser/src/preview.rs:199-232`): the person navigates in between, and the shot carries the new page's bytes while the ownership was checked on the old one. Closing it is about three lines — re-check `ours()` and the pause after `after`.
+- `browser_screenshot` is missing from `WEB_NAMES` (`chat/src/lib/toolLoop.ts:794`), so the text-to-tool-call recovery stays on after a turn whose only outside source was a screenshot (risk ~nil, restricted alphabet).
+- The fallback `picturesTaken` (`chat/src/lib/pictures.ts:96-110`) walks the whole wire, previous turns included, while its own doc says "this turn"; not load-bearing today.
+- `browser_screenshot` with no session open starts the visible browser and then refuses `not_yours` (the same as `browser_read`), while the DESCRIPTION says "a look, not a step" — either accept it in writing or add "if no page is open, nothing is opened".
+- `chat/scripts/rust-codes.mjs` is permanently red on 17 pre-existing codes, so it will not tell a new missing code from an old one.

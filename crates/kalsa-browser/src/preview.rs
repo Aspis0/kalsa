@@ -1,9 +1,16 @@
-//! The phone's preview of the page this browser is showing: one JPEG, bounded,
-//! and only for the conversation that owns the page.
+//! The picture of the page this browser is showing: one JPEG, bounded, and only
+//! for the conversation that owns the page.
 //!
-//! **Host-only.** The tool is answered here and is not in `tools/list`, so no
-//! model is offered it: the picture is the person's page, and it goes to the
-//! phone that asked for it and nowhere else.
+//! **Two answers, two readers.** The phone's preview is **host-only**: its tool
+//! is answered here and is not in `tools/list`, so no model is offered it —
+//! that picture is the person's screen, and it goes to the phone that asked for
+//! it and nowhere else.
+//!
+//! **The model's answer is a separate one.** `browser_screenshot` *is* in
+//! `tools/list`, in the turns that may see a picture, and it answers a model
+//! that is driving the page. The two answers share the capture and nothing
+//! else: the words a refusal carries are written for the reader, and the
+//! phone's reader knows its codes without a sentence.
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -100,6 +107,62 @@ pub(crate) async fn answer(sessions: &Sessions, conversation: &str) -> CallToolR
 /// The refusal, in the shape the phone reads.
 fn refusal_json(refusal: Refusal) -> Value {
     json!({"ok": false, "error": refusal.as_str()})
+}
+
+/// **The model's answer: the picture, or why there is none.**
+///
+/// **A separate answer from the phone's, on purpose.** The phone's answer is
+/// the host's and goes to a phone that asked for a preview of the person's
+/// page; this one goes to a model that was offered a tool to look at the page
+/// it is driving. The capture is shared — the same guards, the same bytes —
+/// and the words are not: a refusal says here what it says *to a model*.
+///
+/// **The answer is a success, not a refusal**, for the reason the phone's is:
+/// an MCP refusal would collapse the codes into one word, so the picture and
+/// the reason travel as the text of an ordinary answer and the app reads them
+/// as JSON.
+pub(crate) async fn answer_model(sessions: &Sessions, conversation: &str) -> CallToolResult {
+    let Ok(_call) = sessions.begin().await else {
+        return view::answered(model_refusal_json(Refusal::Busy).to_string());
+    };
+    let answer = match capture(sessions, conversation).await {
+        Ok(captured) => json!({
+            "ok": true,
+            "image": captured.image,
+            "media_type": "image/jpeg",
+            "host": captured.host,
+            "taken_at": captured.taken_at,
+        }),
+        Err(refusal) => model_refusal_json(refusal),
+    };
+    view::answered(answer.to_string())
+}
+
+/// The refusal, in the shape a model reads: the code it knows and the sentence
+/// it can act on.
+fn model_refusal_json(refusal: Refusal) -> Value {
+    json!({
+        "ok": false,
+        "error": refusal.as_str(),
+        "message": refusal_words(refusal),
+    })
+}
+
+/// **What a refusal says to a model. One sentence each, and fixed**: the same
+/// code always says the same thing, so a model that reads two refusals reads
+/// the same answer twice and does not read a difference into it.
+fn refusal_words(refusal: Refusal) -> &'static str {
+    match refusal {
+        Refusal::NoPage => "There is no page open, so there is no picture to take.",
+        Refusal::NotYours => {
+            "The page on the screen is not this conversation's, so no picture was taken."
+        }
+        Refusal::Busy => {
+            "The browser is paused, or busy with another step, so no picture was taken."
+        }
+        Refusal::TooLarge => "The picture of the page was too large to send.",
+        Refusal::Unavailable => "The picture of the page could not be taken.",
+    }
 }
 
 /// Takes the picture of the page this conversation owns.

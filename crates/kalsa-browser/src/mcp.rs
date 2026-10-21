@@ -191,9 +191,21 @@ impl BrowserServer {
             // reads, not a sentence the model reads.
             .with_route(ToolRoute::new(tools::preview(), {
                 let sessions = sessions.clone();
-                move |Parameters(args): Parameters<PreviewArgs>| {
+                move |Parameters(args): Parameters<ConversationArgs>| {
                     let sessions = sessions.clone();
                     async move { crate::preview::answer(&sessions, &args.conversation).await }
+                }
+            }))
+            // **The model's picture of the page it is driving.** Listed, so a
+            // model may be offered it, and answered like the preview is — the
+            // answer is JSON the app reads, so `guarded` stays off it — but by
+            // the model's own answer, which is a separate one: the phone's
+            // words are the host's.
+            .with_route(ToolRoute::new(tools::screenshot(), {
+                let sessions = sessions.clone();
+                move |Parameters(args): Parameters<ConversationArgs>| {
+                    let sessions = sessions.clone();
+                    async move { crate::preview::answer_model(&sessions, &args.conversation).await }
                 }
             }));
         BrowserServer { tool_router, sessions }
@@ -212,8 +224,14 @@ impl BrowserServer {
         // app reads, and `guarded` would put the model's outcomes in front of
         // it. The preview takes the session's own lock inside its answer.
         if name == "browser_preview" {
-            let args: PreviewArgs = from(args)?;
+            let args: ConversationArgs = from(args)?;
             return Ok(said(crate::preview::answer(&sessions, &args.conversation).await));
+        }
+        // **And the model's picture is not either**, for the same reason: its
+        // answer is JSON the app reads too, and it is the model's own answer.
+        if name == "browser_screenshot" {
+            let args: ConversationArgs = from(args)?;
+            return Ok(said(crate::preview::answer_model(&sessions, &args.conversation).await));
         }
         // Boxed so the futures are one type, and left unstarted so the call
         // runs inside `guarded` exactly as the router's closure runs it.
@@ -323,10 +341,12 @@ struct TypeArgs {
     conversation: String,
 }
 
-/// What the phone's preview takes: **the conversation asking for it**. The
-/// host names it, because the host knows which device authenticated.
+/// What a picture takes: **the conversation asking for it**. The host names it,
+/// because the host knows which conversation is driving the page — and the
+/// phone's preview and the model's screenshot are the same question asked by
+/// two readers, so they take the same thing.
 #[derive(Deserialize)]
-struct PreviewArgs {
+struct ConversationArgs {
     conversation: String,
 }
 

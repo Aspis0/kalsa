@@ -1,4 +1,4 @@
-//! The five tool definitions a host pins a hash of. They live apart from the code
+//! The six tool definitions a host pins a hash of. They live apart from the code
 //! that runs them: a host that found one of these changed has to see it by reading
 //! this file alone, and these schemas are what it hashes.
 //!
@@ -144,6 +144,38 @@ typed-secret checks.",
     .with_annotations(writes())
 }
 
+/// **The picture of the page this conversation is driving.**
+///
+/// **A model tool, and the sixth one.** The phone's preview stays host-only:
+/// that picture is the person's screen and goes to the phone that asked for
+/// it. This one is offered to a model in the turns that may see one, and it
+/// is the same picture — the viewport as it is now, for the conversation that
+/// owns the page.
+///
+/// **The description is the model's only word about it, so it says what the
+/// picture is.** A photograph of the viewport is not the page's text: a model
+/// that believes it is reading the page's words will say the page said
+/// something it did not.
+pub(crate) fn screenshot() -> Tool {
+    Tool::new(
+        "browser_screenshot",
+        "Take one picture of the page this conversation is driving, and look at it. The \
+answer is a photograph of the viewport as it is now — the window as the person would see \
+it, not the page's text. Use it to get your bearings on the page, to check what the \
+page's own words do not say (a price, a total, an error message, whether a form is full \
+or half filled), and to see what is on the screen when reading the text is not enough. \
+The picture belongs to the conversation that opened the page: a page that is not this \
+conversation's is refused. Nothing is written and nothing is sent — this is a look, not \
+a step.",
+        schema(json!({
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+        })),
+    )
+    .with_annotations(read_only())
+}
+
 /// Every tool a **model** may call, in the order `tools/list` returns them.
 ///
 /// Public because the app pins these against `src/browser/tool_pins.json` and
@@ -152,7 +184,7 @@ typed-secret checks.",
 /// this list: they are how a person answers, and a model that could answer its
 /// own confirm would be a person asked nothing.
 pub fn tool_definitions() -> Vec<Tool> {
-    vec![open(), read(), find(), click(), type_into()]
+    vec![open(), read(), find(), click(), type_into(), screenshot()]
 }
 
 /// Everything waiting for the person, oldest first.
@@ -300,20 +332,28 @@ mod tests {
     }
 
     /// A host hashes these definitions, so a tool that appears or changes name
-    /// is a release event. The set is exactly the plan's five.
+    /// is a release event. The set is the plan's six.
     #[test]
-    fn the_surface_is_exactly_the_five_tools_the_plan_names() {
+    fn the_surface_is_exactly_the_six_tools_the_plan_names() {
         let tools = [
             super::open(),
             super::read(),
             super::find(),
             super::click(),
             super::type_into(),
+            super::screenshot(),
         ];
         let names: Vec<&str> = tools.iter().map(|t| t.name.as_ref()).collect();
         assert_eq!(
             names,
-            ["browser_open", "browser_read", "browser_find", "browser_click", "browser_type"]
+            [
+                "browser_open",
+                "browser_read",
+                "browser_find",
+                "browser_click",
+                "browser_type",
+                "browser_screenshot"
+            ]
         );
     }
 
@@ -330,7 +370,14 @@ mod tests {
 
     #[test]
     fn every_tool_takes_nothing_it_does_not_name() {
-        for tool in [super::open(), super::read(), super::find(), super::click(), super::type_into()] {
+        for tool in [
+            super::open(),
+            super::read(),
+            super::find(),
+            super::click(),
+            super::type_into(),
+            super::screenshot(),
+        ] {
             let additional = tool.input_schema.get("additionalProperties");
             assert_eq!(additional, Some(&Value::Bool(false)), "{}", tool.name);
         }
@@ -346,5 +393,29 @@ mod tests {
         assert!(!listed.contains(&"browser_preview"), "a model was offered the picture of a page");
         assert_eq!(super::preview().name.as_ref(), "browser_preview");
         assert_eq!(properties(&super::preview()), ["conversation"]);
+    }
+
+    /// **The model's picture is a different tool from the phone's.** The phone's
+    /// preview is host-only and is never listed; the screenshot is listed, is
+    /// named apart from it, and takes nothing the model has to fill in — the
+    /// conversation is the host's to name, as it is for every other call.
+    ///
+    /// **This list is the list `tools/list` answers with**: the handler hands
+    /// back these definitions and nothing else, so what is proved here is what
+    /// a model is offered.
+    #[test]
+    fn the_screenshot_is_listed_and_is_not_the_phone_s_preview() {
+        let definitions = super::tool_definitions();
+        let listed: Vec<&str> = definitions.iter().map(|tool| tool.name.as_ref()).collect();
+        assert!(listed.contains(&"browser_screenshot"), "the model was offered no picture");
+        assert_ne!(super::screenshot().name.as_ref(), super::preview().name.as_ref());
+        assert!(properties(&super::screenshot()).is_empty(), "the model has nothing to name");
+        // **The description is the model's only word about it**, so it has to
+        // say what the picture is: a photograph of the viewport, and when to
+        // take one.
+        let screenshot = super::screenshot();
+        let description = screenshot.description.as_deref().unwrap_or_default();
+        assert!(description.contains("photograph of the viewport"), "{description}");
+        assert!(description.contains("get your bearings on the page"), "{description}");
     }
 }

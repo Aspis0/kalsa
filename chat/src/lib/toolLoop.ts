@@ -1,5 +1,5 @@
 import { ChatRequestError, completionsUrl } from "./chat";
-import type { StreamOptions, ToolPhrases, WireMessage } from "./chat";
+import type { StreamOptions, ToolImage, ToolPhrases, WireContentPart, WireMessage } from "./chat";
 import { runRound } from "./streamRound";
 import type { Round } from "./streamRound";
 import { isToolRefusal } from "./refusal";
@@ -16,6 +16,7 @@ import { denseTokens, definitionsTokens, HOUSE_CHARS_PER_TOKEN } from "./density
 import { turnRecord } from "./browser/recap";
 import { MAIL_NAMES, MAIL_TOOLS, WEB_TOOLS } from "./tools/definitions";
 import { BROWSER_NAMES, BROWSER_TOOLS } from "./tools/browserTools";
+import { demoteOldestToolPicture, PICTURE_BYTES_PER_TURN, pictureLoad } from "./pictures";
 import type { ToolDefinition } from "./tools/definitions";
 import type { ToolRun } from "./types";
 
@@ -174,6 +175,29 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
       // What the shed took out is not in the wire any more, and the engine's
       // count of it is inside `measured`: the estimate has to give it back.
       shedTokens += before - fit.size(conversation);
+    }
+  }
+
+  /**
+   * The body's own guard, and the pictures are what it guards.
+   *
+   * **Beside the token fit, and for the same reason: the fit counts a picture
+   * as IMAGE_TOKENS whatever it weighs.** A wire full of pictures can pass the
+   * window's fit and still be refused by the door, which counts bytes and
+   * answers 413 past sixteen of them. So the pictures that are let go are the
+   * tool's own, oldest first, and the person's are never touched: the road
+   * they took was measured before the turn began.
+   *
+   * **It costs what the shed costs.** Letting a picture go rewrites the wire
+   * the engine has already read, so the cached prefix is gone and the prompt
+   * is prefilled again — the same trade the token fit makes, and the same
+   * reason: a picture the model has already looked at is worth more than the
+   * bytes it takes.
+   */
+  function pictureGuard(): void {
+    while (pictureLoad(conversation).bytes > PICTURE_BYTES_PER_TURN) {
+      if (!demoteOldestToolPicture(conversation)) break;
+      // Each pass gives one picture up, and the load is measured again.
     }
   }
 
@@ -407,6 +431,11 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
       }
     } else {
       fitHistory();
+      // **And the pictures are weighed beside it.** The fit counts a picture
+      // as IMAGE_TOKENS whatever it weighs, so the body's own budget is a
+      // separate thing to keep: the tool's oldest pictures go until the
+      // picture parts weigh no more than a turn's may.
+      pictureGuard();
       // **The thread stops short of the budget by the room the status takes.**
       if (!nextRoundFits(STATUS_RESERVE_TOKENS) && pending > 0) {
         closingForSpace = true;
@@ -629,7 +658,7 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
     // (`web_search` with the switch off), and running it would send the very
     // query the switch withholds; a name differing in case alone is the same
     // tool (repairToolCall.ts).
-    const results: string[] = [];
+    const results: (string | WireContentPart[])[] = [];
     const wireTexts: string[] = [];
     const canonicalNames: string[] = [];
     for (const call of named) {
@@ -644,7 +673,10 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
         canonical === null ? null : definitions.get(canonical)!,
         { say, runTool: runTool!, onToolRun: noteRun, signal, url, conversation, browse: options.browse === true },
       );
-      results.push(answer.result);
+      // **A picture is not a sentence.** It rides as its own part beside the
+      // line that says what it is, and the line the record keeps is the plain
+      // one — the record never holds the bytes.
+      results.push(answer.image === undefined ? answer.result : picturePartsOf(answer.image));
       wireTexts.push(answer.wire);
     }
     calledTool = true;
@@ -672,9 +704,36 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
     // are the part a character count gets most wrong — a page is denser than
     // prose by a factor no house rule knows — so they are counted apart from
     // the rest, and the pessimistic rule weighs them.
-    for (const result of results) addedToolChars += result.length;
+    for (const result of results) {
+      // **A picture's own weight is IMAGE_TOKENS**, and the wire's estimate
+      // counts it where the part rides (`attachments.ts` → `wireSize`): what
+      // is counted here is the line beside it, which is prose like any other.
+      addedToolChars += typeof result === "string" ? result.length : textOf(result);
+    }
     for (const text of wireTexts) addedOtherChars += text.length;
   }
+}
+
+/**
+ * The parts a picture rides in: **the line that says what it is, and the
+ * bytes.**
+ *
+ * **The bytes are a data URI and never a sentence.** The line beside them is
+ * the fenced one — the host in it is the page's own — and the record keeps
+ * the plain line instead, so the record never holds a byte of the picture.
+ */
+function picturePartsOf(image: ToolImage): WireContentPart[] {
+  return [
+    { type: "text", text: image.text },
+    { type: "image_url", image_url: { url: `data:${image.mediaType};base64,${image.data}` } },
+  ];
+}
+
+/** How many characters the text parts of a message carry. */
+function textOf(parts: WireContentPart[]): number {
+  let chars = 0;
+  for (const part of parts) if (part.type === "text") chars += part.text.length;
+  return chars;
 }
 
 /**

@@ -46,14 +46,22 @@ const MAIN = `${REPO_DIR}/src-tauri/src/main.rs`;
 const NAME = "(?:brain_[a-z0-9_]+|window_hidden)";
 // invoke may carry a type argument before its parenthesis, array types
 // included (invoke<RoomEntry[]>(…)); the forwarding wrappers are named after
-// the header — `through`, and the browser's own `throughBrowser`. They are
-// listed by name rather than matched by shape, because "any function whose
-// first argument is a string" is a rule that passes on a wrapper that quietly
-// drops its argument, which is the failure this check exists to catch. The type
-// argument admits anything but parentheses, which cannot appear in a type the
-// app writes and would otherwise span past the call.
+// the header — `through`, and the browser's own `throughBrowser` and
+// `throughBrowserRaw`. They are listed by name rather than matched by shape,
+// because "any function whose first argument is a string" is a rule that passes
+// on a wrapper that quietly drops its argument, which is the failure this
+// check exists to catch. The type argument admits anything but parentheses,
+// which cannot appear in a type the app writes and would otherwise span past
+// the call.
+//
+// **`throughBrowserRaw` is the browser's own wrapper without the fence**: the
+// picture of the page comes back as JSON — the bytes, the host, the moment —
+// and a fence around it would put the page's own marker inside the bytes'
+// frame. It forwards the command name like the other one does, so it is
+// listed here too: a wrapper that did not would fail its command uncalled,
+// which is the loud direction to fail.
 const COMMAND_CALL = new RegExp(
-  "\\b(?:invoke|through|throughBrowser|call)\\s*(?:<[^()]*>)?\\s*\\(\\s*[\"'`](" + NAME + ")[\"'`]",
+  "\\b(?:invoke|through|throughBrowser|throughBrowserRaw|call)\\s*(?:<[^()]*>)?\\s*\\(\\s*[\"'`](" + NAME + ")[\"'`]",
   "g",
 );
 const EVENT_CALL = new RegExp(

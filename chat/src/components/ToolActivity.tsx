@@ -153,7 +153,12 @@ function ToolRow({ run, awaitingOk }: { run: ToolRun; awaitingOk: boolean }) {
                   ? t.browserClicking
                   : run.name === "browser_type"
                     ? t.browserTyped
-                    : t.browserRead}
+                    : run.name === "browser_screenshot"
+                      // **A picture is a line and nothing more.** The bytes are
+                      // the model's and the record's placeholder is a sentence;
+                      // no row on this screen ever shows an image.
+                      ? t.browserShot
+                      : t.browserRead}
         </span>
       </p>
     );

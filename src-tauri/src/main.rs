@@ -2774,6 +2774,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             browser::session::brain_browser_find,
             browser::session::brain_browser_click,
             browser::session::brain_browser_type,
+            browser::session::brain_browser_screenshot,
             browser::session::brain_browser_pause,
             browser::session::brain_browser_resume,
             browser::session::brain_browser_confirm,

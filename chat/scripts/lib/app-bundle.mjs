@@ -51,6 +51,16 @@ export async function loadApp({ compileOut } = {}) {
         export { guideCut, guideNotValidJson, guideProblem } from "../src/lib/guideRetry.ts";
         export { TOOL_DEFINITIONS, WEB_TOOLS } from "../src/lib/tools/definitions.ts";
         export { BROWSER_TOOLS } from "../src/lib/tools/browserTools.ts";
+        export { BROWSER_SCREENSHOT, BROWSER_SCREENSHOT_NAME, picturesAllowed } from "../src/lib/tools/browserTools.ts";
+        export { browserScreenshot, shotLine, shotImage } from "../src/lib/tools/browserCall.ts";
+        export {
+          MAX_PICTURES_PER_TURN,
+          PICTURE_BYTES_PER_TURN,
+          pictureLoad,
+          pictureParts,
+          demoteOldestToolPicture,
+        } from "../src/lib/pictures.ts";
+        export { WIRE_BODY_BUDGET, wireBodyBytes } from "../src/lib/wireBudget.ts";
         export { browserAnswer } from "../src/lib/tools/browserCall.ts";
         export {
           answer as browserAnswerNow,
@@ -95,7 +105,7 @@ export async function loadApp({ compileOut } = {}) {
         export { runCreateMiniapp } from "../src/lib/tools/createMiniapp.ts";
         export { createStore, forDisk } from "../src/lib/store.ts";
         export { createAttachGate, NEW_CHAT } from "../src/lib/attachGate.ts";
-        export { buildPinnedContext, estTokens, turnDocBlock, systemPrompt, wireSize, ANSWER_RESERVE_TOKENS } from "../src/lib/attachments.ts";
+        export { buildPinnedContext, estTokens, turnDocBlock, systemPrompt, wireSize, ANSWER_RESERVE_TOKENS, IMAGE_TOKENS } from "../src/lib/attachments.ts";
         export { definitionsTokens, denseTokens, HOUSE_CHARS_PER_TOKEN, DENSE_CHARS_PER_TOKEN, DENSE_MARGIN } from "../src/lib/density.ts";
         export { FINAL_STATUS } from "../src/lib/toolLoop.ts";
         export { DISARMED, tap, spend, modeOf } from "../src/lib/browseArm.ts";

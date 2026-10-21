@@ -21,6 +21,7 @@ export const TOOLS = {
   browserFound: "Kalsa looked for the text on the page.",
   browserClicking: "Kalsa clicked something on the page.",
   browserTyped: "Kalsa wrote into a field on the page.",
+  browserShot: "Kalsa took a picture of the page.",
   browserDidNotRun: "Kalsa did not do that in the browser.",
   couldNotFinish: "Kalsa couldn't finish checking. Ask again.",
   read: (what: string) => `Kalsa read ${what}`,

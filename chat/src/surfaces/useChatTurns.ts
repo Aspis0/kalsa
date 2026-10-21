@@ -24,6 +24,7 @@ import { blobToDataUrl } from "../lib/images";
 import { selectWireImages, wireBodyBytes, WIRE_BODY_BUDGET } from "../lib/wireBudget";
 import type { WireImage } from "../lib/wireBudget";
 import { executeToolCall, offeredTools } from "../lib/tools/registry";
+import type { PictureGate } from "../lib/tools/browserTools";
 import { modeOf } from "../lib/browseArm";
 import { filed, newLedger } from "../lib/callLedger";
 import { closeRecap, sayRuns } from "../lib/browser/note";
@@ -297,7 +298,17 @@ export function useChatTurns({ store, announce, contextSizes, saveMailDraft }: T
       // same ones. Asked twice, they could differ — and a fit that leaves
       // them out sends a request the engine refuses (a 400) before there is
       // any measurement of the engine's own to go by.
-      const tools = offeredTools(currentSettings.webTools, language, currentSettings.model, mode);
+      // **Whether this turn may see the page.** Three things, and this is the
+      // only place that knows all three: the person armed the browser for
+      // this message, the hidden switch is on, and the engine has eyes. The
+      // same answer goes to the offer and to the call, so the list and the
+      // executor never disagree about what this turn may do.
+      const pictures: PictureGate = {
+        armed,
+        flag: currentSettings.browserVision === true,
+        vision,
+      };
+      const tools = offeredTools(currentSettings.webTools, language, currentSettings.model, mode, pictures);
       // The token fit is answered once, on the wire where every picture is
       // the placeholder sentence: each stored picture costs IMAGE_TOKENS
       // whether it rides or not, so the fit is the same for both shapes.
@@ -578,6 +589,7 @@ export function useChatTurns({ store, announce, contextSizes, saveMailDraft }: T
               currentSettings.webTools,
               conversationId,
               calls,
+              pictures,
             );
             return answered.then((outcome) => {
               filed(calls, name, args, outcome);

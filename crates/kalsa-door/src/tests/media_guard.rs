@@ -64,6 +64,34 @@ fn inline_media_passes() {
     ));
 }
 
+/// **A picture on a tool's answer is admitted too.** The browser's picture of
+/// the page rides a `tool` message as its own part, beside the line that
+/// says what it is: the role of the message says nothing about what the
+/// picture is, and the guard is a decision over the bytes and not over who
+/// sent them.
+///
+/// **The role is the only thing that differs here**, and the case is here
+/// because it is the one the guard has never been asked: every other case in
+/// this file is a `user` message, and a picture that arrives on a `tool`
+/// message is the one this app now sends.
+#[test]
+fn a_picture_on_a_tool_answer_passes() {
+    assert!(allowed(
+        r#"{"messages":[{"role":"assistant","content":"","tool_calls":[{"id":"call-1","type":"function","function":{"name":"browser_screenshot","arguments":"{}"}}]},{"role":"tool","tool_call_id":"call-1","content":[{"type":"text","text":"screenshot of shop.example at 2026-10-21T12:00:00.000Z"},{"type":"image_url","image_url":{"url":"data:image/jpeg;base64,/9j/4AAQSkZJRg"}}]}]}"#
+    ));
+    // And the same body with the picture's own line only — the bytes are
+    // gone, the line is not — is admitted as well.
+    assert!(allowed(
+        r#"{"messages":[{"role":"tool","tool_call_id":"call-1","content":[{"type":"text","text":"screenshot of shop.example at 2026-10-21T12:00:00.000Z"}]}]}"#
+    ));
+    // **And the guard still refuses a named source on a tool's answer**: what
+    // rides a tool message is not exempt from the rule.
+    assert!(refused(
+        r#"{"messages":[{"role":"tool","tool_call_id":"call-1","content":[{"type":"text","text":"look"},{"type":"image_url","image_url":{"url":"https://example.com/pixel.png"}}]}]}"#,
+        Refusal::Source
+    ));
+}
+
 /// Every source form the engine would reach for itself, refused wherever
 /// it sits: the chat dialect, the bare strings, the audio part, the
 /// Messages dialect, and a source split across a JSON escape.

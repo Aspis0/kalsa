@@ -12,12 +12,14 @@ import { browserEntry, fetchProvenanceRefusal, searchQueryRefusal } from "./fetc
 import { readSearchPages } from "./searchPages";
 import { runMailDraft, runMailList, runMailRead } from "./mailCall";
 import { runMailShow } from "./mailShow";
-import { BROWSER_NAMES, BROWSER_TOOLS } from "./browserTools";
+import { BROWSER_NAMES, BROWSER_SCREENSHOT, BROWSER_TOOLS, picturesAllowed } from "./browserTools";
+import type { PictureGate } from "./browserTools";
 import { logBrowserFailure, logProvenanceFailure } from "../browser/diagnostics";
 import { isPaused } from "../browser/window";
 import { browserUsable } from "../browser/usable";
-import { browserClick, browserFind, browserOpen, browserRead, browserType, fence } from "./browserCall";
+import { browserClick, browserFind, browserOpen, browserRead, browserScreenshot, browserType, fence, shotImage, shotLine } from "./browserCall";
 import { browserCode, LINK_UNSEEN } from "../browser/codes";
+import { MAX_PICTURES_PER_TURN, picturesTaken } from "../pictures";
 import * as ledger from "../callLedger";
 import { mailAllowed } from "../mail/allowlist";
 import { isMailRun } from "../mail/runs";
@@ -96,6 +98,28 @@ const WEB_OFF =
 browser. Nothing was sent. Answer from the conversation, or ask the person to turn it on.";
 
 /**
+ * What a call to the picture says when this turn may not take one.
+ *
+ * **Fixed, and the same every time.** A model that asks twice reads the same
+ * answer twice, and does not read a difference into it: the three conditions
+ * are the person's to change, not the model's to try.
+ */
+const PICTURE_REFUSED =
+  "Not run: this turn may not take a picture of the page. A picture is offered only in a \
+turn where the person armed the browser, the picture is switched on, and the model can see. \
+Answer from the text you have, or say what you would need to look at.";
+
+/**
+ * What a call to the picture says when the turn has already had its share.
+ *
+ * **Fixed, like every other refusal here.** The turn's own pictures are the
+ * ones the model has; asking for another does not make it see them better.
+ */
+const PICTURE_TOO_MANY =
+  "Not run: this turn has already taken as many pictures of the page as a turn may take. \
+Look at the pictures you have, or say what you would do next.";
+
+/**
  * Which family of tools a turn may offer. **The two never sit in the same
  * list**: the person chooses, not the model. The composer carries a "Browse
  * for me" control, and the turn it arms is a browser turn — the web tools are
@@ -112,6 +136,11 @@ export function offeredTools(
    *  forgets to say which turn it is building is a compile error, not a
    *  silent choice between the browser and the web. */
   mode: ToolMode,
+  /** Whether this turn may see the page: the picture of the browser's own
+   *  window, offered only when the person armed the browser, the hidden
+   *  switch is on and the engine has eyes. Absent means no picture — the
+   *  switch is off unless somebody asked for it. */
+  pictures?: PictureGate,
 ): ToolDefinition[] {
   if (!available()) return [];
   const mail = mailAllowed(model) ? [...MAIL_TOOLS, mailShowTool(language)] : [];
@@ -125,7 +154,12 @@ export function offeredTools(
     // reaches the web — and behind the driver being installed. An armed turn
     // with no browser to drive offers nothing at all: it would answer in words,
     // which is the honest answer for a browser that cannot open.
-    return browserUsable() && enabled ? [...BROWSER_TOOLS] : [];
+    if (!browserUsable() || !enabled) return [];
+    // **The picture is offered only where the three conditions hold.** It is
+    // the sixth tool and not one of the five: a turn that may not see one
+    // offers the five and no picture, and the answer to a call to it is
+    // refused at the call (below) whatever the list said.
+    return picturesAllowed(pictures) ? [...BROWSER_TOOLS, BROWSER_SCREENSHOT] : [...BROWSER_TOOLS];
   }
   const web = enabled ? TOOL_DEFINITIONS : [CREATE_MINIAPP_TOOL];
   // **The web tools are behind the owner's web switch, like everything else
@@ -182,6 +216,11 @@ export async function executeToolCall(
    *  behaviour of a turn with nothing to remember, which is the honest answer
    *  for a turn that did not open a page. */
   calls: ledger.Ledger | null = null,
+  /** Whether this turn may see the page: the person armed the browser, the
+   *  hidden switch is on, and the engine has eyes. **Absent means no
+   *  picture** — the switch is off unless somebody asked for it, and a
+   *  caller that forgot is the case this closes. */
+  pictures?: PictureGate,
 ): Promise<ToolOutcome> {
   // The turn can be stopped while the arguments are being read; starting a
   // request nobody is waiting for would be work and traffic for nothing.
@@ -386,6 +425,49 @@ export async function executeToolCall(
         if (!allowed) return heldBack(record.text, signal, stoppedText);
         if (signal?.aborted) return stopped(stoppedText);
         return { text: await browserType(ref, record.text, conversationId, signal), ok: true };
+      }
+      if (name === "browser_screenshot") {
+        // **The gate is here, at the call as well as at the offer.** An offer
+        // is something the model can write past: the name in the list is the
+        // model's own word, and the picture of the person's page is not a
+        // thing a model may write its way to.
+        // The registry is the model's road: a name the request never offered is refused before this (`runToolCall.ts`), and this gate is the second. Any other caller of `brain_browser_screenshot` — a script inside this webview — does not come through here; what stops it is the sidecar's ownership stamp (`preview::shot`, `ours()`), which refuses a page that is not that conversation's. The webview is the trust boundary.
+        if (!picturesAllowed(pictures)) {
+          return { text: PICTURE_REFUSED, ok: false, resultCode: "browser.refused" };
+        }
+        // **The turn's own pictures are counted before another is taken.** Six
+        // a turn is the ceiling, and past it the picture is refused with its
+        // own sentence rather than sent and dropped at the far end.
+        //
+        // **The count is of the calls, not of the bytes on the wire.** The
+        // ledger knows the calls of the round in flight — two pictures asked
+        // for at once are two — and the wire's count is the fallback for a
+        // caller with no ledger.
+        //
+        // **The bytes are not counted here.** What the picture parts weigh is
+        // `pictureGuard`'s business, in `toolLoop.ts`, and it is measured
+        // there on the tool's own pictures: the person's photographs are
+        // theirs, and a turn that carries them has not taken a picture of
+        // the page.
+        const taken = calls !== null ? calls.pictures : picturesTaken(conversation);
+        if (taken >= MAX_PICTURES_PER_TURN) {
+          return { text: PICTURE_TOO_MANY, ok: false, resultCode: "browser.too_many_steps" };
+        }
+        const shot = await browserScreenshot(conversationId, signal);
+        const image = shotImage(shot);
+        if (image === null) {
+          // **The sidecar refused**, and it says why in its own words: the code
+          // is for the screen and the sentence is for the model.
+          return {
+            text: shot.message ?? PICTURE_REFUSED,
+            ok: false,
+            resultCode: browserCode(shot.code === "no_page" ? "browser.no_page" : "browser.refused"),
+          };
+        }
+        // **The line is the record's; the bytes are the model's.** The record
+        // keeps the placeholder — the host and the moment — and the picture
+        // rides the tool message as its own part, never inside the sentence.
+        return { text: shotLine(shot), ok: true, image };
       }
       const text = typeof record.text === "string" ? record.text.trim() : "";
       if (!text) return { text: "Nothing was searched for: there were no words to look for.", ok: false };

@@ -28,7 +28,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 export function loadSettings(): ChatSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
-    if (!raw) return { model: "", webTools: true };
+    if (!raw) return { model: "", webTools: true, browserVision: false };
     const parsed: unknown = JSON.parse(raw);
     if (!isRecord(parsed)) {
       // A record in a shape nothing can read cannot be partially cleaned:
@@ -38,7 +38,7 @@ export function loadSettings(): ChatSettings {
       } catch {
         // Private mode etc: there is nothing left to come back to.
       }
-      return { model: "", webTools: true };
+      return { model: "", webTools: true, browserVision: false };
     }
     // Only these two keys go; everything else — including keys this version
     // does not know — comes back as it was: a whitelist rewrite would
@@ -52,6 +52,12 @@ export function loadSettings(): ChatSettings {
       // Settings written before this switch existed have no answer to give,
       // and the default — the same one new installs get — is on.
       webTools: parsed.webTools !== false,
+      // **The picture of the page is off unless it is switched on.** A stored
+      // record without the key is a record from before the tool existed, and
+      // what it says is nothing: the tool is not offered. Only an explicit
+      // true turns it on, so a build that has not been asked for it never
+      // offers a picture — the lever is a decision, not a default.
+      browserVision: parsed.browserVision === true,
     };
     if ("endpoint" in parsed || "token" in parsed) {
       try {
@@ -68,7 +74,7 @@ export function loadSettings(): ChatSettings {
     } catch {
       // Private mode etc: there is nothing left to come back to.
     }
-    return { model: "", webTools: true };
+    return { model: "", webTools: true, browserVision: false };
   }
 }
 

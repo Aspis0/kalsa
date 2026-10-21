@@ -50,6 +50,11 @@ const FIRST_PARTY_ALLOW: &[&str] = &[
     "browser.browser_find",
     "browser.browser_click",
     "browser.browser_type",
+    // **The picture of the page is a look, and it is the model's own tool.**
+    // It is a read of the screen the model is driving, not a write, and the
+    // sidecar takes the conversation's own guards for it: a page that is not
+    // this conversation's is refused there.
+    "browser.browser_screenshot",
 ];
 
 pub(crate) struct Standing {

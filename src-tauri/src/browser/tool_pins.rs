@@ -1,11 +1,10 @@
 //! The approved tool definitions, as kalsa-browser declares them.
 //!
 //! The host stores a digest of each tool's name, description and schema, so
-//! these five definitions are a contract: a sidecar that answers a tool the
-//! app has not heard of is one Kalsa will not call. Nothing offers them yet —
-//! step 3 is where the chat learns `open`, `read` and `find` — but the pins are
-//! what the host would check, and they are checked against the definitions now
-//! so a change to a description cannot pass unnoticed into a later step.
+//! these six definitions are a contract: a sidecar that answers a tool the
+//! app has not heard of is one Kalsa will not call. The pins are checked
+//! against the definitions now, so a change to a description cannot pass
+//! unnoticed into a later step.
 
 use kalsa_mcp::pins::Pins;
 
@@ -48,7 +47,7 @@ mod tests {
     }
 
     #[test]
-    fn the_five_tools_are_the_ones_the_sidecar_declares() {
+    fn the_six_tools_are_the_ones_the_sidecar_declares() {
         // The host namespaces what it registers, so a tool the sidecar calls
         // `browser_open` is pinned as `browser.browser_open`. The plan's own
         // names (`open`, `read`, `find`, `click`, `type`) are a step-3 decision
@@ -65,6 +64,7 @@ mod tests {
                 "browser.browser_find",
                 "browser.browser_click",
                 "browser.browser_type",
+                "browser.browser_screenshot",
             ]
         );
     }

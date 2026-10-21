@@ -78,6 +78,25 @@ pub(crate) async fn brain_browser_type(
     Ok(said)
 }
 
+/// One picture of the page this conversation is driving.
+///
+/// **The model's own tool, and the app's gate on it.** The answer is JSON: the
+/// bytes of the JPEG, the host the page was on and the moment it was taken —
+/// and the app hands it on as it is, because the bytes never go into the
+/// sentence the model reads: they ride the tool message as their own part.
+///
+/// The picture belongs to the conversation that opened the page, and the
+/// sidecar says so: a page the person drove themselves is not this
+/// conversation's, and it is refused there.
+#[tauri::command]
+pub(crate) async fn brain_browser_screenshot(
+    app: AppHandle,
+    state: State<'_, BrowserState>,
+    conversation: String,
+) -> Result<String, super::error::CommandFailure> {
+    call(&app, &state, "browser_screenshot", one("conversation", Value::from(conversation))).await
+}
+
 /// The person said yes. The id is spent inside the sidecar before anything is
 /// dispatched, so a second press sends nothing more.
 #[tauri::command]

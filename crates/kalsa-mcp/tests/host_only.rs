@@ -80,6 +80,15 @@ async fn call_host_only_takes_only_the_names_in_its_table() {
         host.call_host_only("conv", "browser.browser_steal", args(json!({}))).await,
         Err(Error::UnknownTool(_))
     ));
+    // **The model's picture of the page is not the host's.** The table is how
+    // the phone's preview is reached, and the picture the model takes is a
+    // model tool: the app calls it the way it calls the browser's other
+    // tools, and the gate that says whether this turn may see one is the
+    // app's own.
+    assert!(matches!(
+        host.call_host_only("conv", "browser.browser_screenshot", args(json!({}))).await,
+        Err(Error::UnknownTool(_))
+    ));
     assert!(matches!(
         host.call_host_only("conv", "browser_waiting", args(json!({}))).await,
         Err(Error::NoNamespace)
@@ -120,11 +129,23 @@ async fn a_changed_program_is_not_called_for_the_host() {
 #[tokio::test]
 async fn the_browsers_model_tools_run_without_asking_while_their_pins_hold() {
     let binary = TempBinary::new("browser-allow", b"browser v1");
-    let (mut host, sidecar) = browser(&binary, Trust::FirstParty, &[("browser_open", "Open"), ("browser_click", "Click")], &[]);
+    let (mut host, sidecar) = browser(
+        &binary,
+        Trust::FirstParty,
+        &[("browser_open", "Open"), ("browser_click", "Click"), ("browser_screenshot", "Take a picture of the page")],
+        &[],
+    );
 
     assert!(matches!(host.call("conv", "browser.browser_open", args(json!({}))).await, Ok(CallOutcome::Ran(_))));
     assert!(matches!(host.call("conv", "browser.browser_click", args(json!({"ref": "e1"}))).await, Ok(CallOutcome::Ran(_))));
-    assert_eq!(calls(&sidecar), vec!["browser_open", "browser_click"]);
+    // **The picture of the page is one of the browser's model tools.** It is
+    // listed, so a model may be offered it, and the host's own table is not
+    // where it lives.
+    assert!(matches!(
+        host.call("conv", "browser.browser_screenshot", args(json!({"conversation": "conv"}))).await,
+        Ok(CallOutcome::Ran(_))
+    ));
+    assert_eq!(calls(&sidecar), vec!["browser_open", "browser_click", "browser_screenshot"]);
 
     set_tools(&sidecar, vec![tool("browser_click", "Click, described differently now")]);
     assert!(matches!(

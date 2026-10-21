@@ -1,5 +1,5 @@
 import { ChatRequestError } from "./chat";
-import type { ToolOutcome, ToolPhrases, WireMessage } from "./chat";
+import type { ToolImage, ToolOutcome, ToolPhrases, WireMessage } from "./chat";
 import { readArguments, wireArguments } from "./toolCalls";
 import { exceedsCodePoints, firstCodePoints } from "./text";
 import type { ToolCall } from "./toolCalls";
@@ -29,6 +29,10 @@ export interface CallAnswer {
   result: string;
   /** The arguments text the wire replays for this call. */
   wire: string;
+  /** A picture the call brought back: the bytes and the line that goes with
+   *  them. **Never inside `result`** — the result is what the record keeps,
+   *  and the record keeps a line. */
+  image?: ToolImage;
 }
 
 /** The turn's state one call needs. */
@@ -122,6 +126,7 @@ export async function runToolCall(
   let miniapp: Miniapp | undefined;
   let mail: Mail | undefined;
   let pagesRead: number | undefined;
+  let image: ToolImage | undefined;
   if (guide === null) {
     const answered = await untilStopped(() => ctx.runTool(name, repaired!.args, ctx.signal, ctx.conversation), ctx.signal);
     if (answered === null) {
@@ -135,6 +140,7 @@ export async function runToolCall(
     miniapp = answered.miniapp;
     mail = answered.mail;
     pagesRead = answered.pagesRead;
+    image = answered.image;
     state = answered.ok ? "ok" : "failed";
   }
   ctx.onToolRun?.({
@@ -149,6 +155,7 @@ export async function runToolCall(
   return {
     result,
     wire: repaired !== null && repaired.repairs.length > 0 ? effective : wireArguments(call.arguments, call.cut),
+    ...(image !== undefined ? { image } : {}),
   };
 }
 

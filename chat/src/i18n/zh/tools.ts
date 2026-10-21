@@ -16,6 +16,7 @@ export const TOOLS = {
     "browserFound": "Kalsa 在页面上查找了这段文字。",
     "browserClicking": "Kalsa 点击了页面上的一个元素。",
     "browserTyped": "Kalsa 在页面的一个字段里输入了内容。",
+    "browserShot": "Kalsa 拍下了页面的画面。",
     "browserDidNotRun": "Kalsa 没有在浏览器中执行该操作。",
     "couldNotFinish": "Kalsa 没有核查完。请再问一次。",
     "read": (what: string) => `Kalsa 读了${what}`,
