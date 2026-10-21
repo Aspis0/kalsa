@@ -108,6 +108,8 @@ export const MAIL = {
       "failed": "Kalsa 无法连接。请检查地址后重试。",
     },
     "modelNotAllowed": "这个 AI 不能读取邮件。到设置 → 你的 AI 里更换。",
+    "modelCannotRead": "这个 AI 不能读取邮件。",
+    "mailUnavailableHere": "这台电脑上提供的 AI 都无法读取邮件。",
     "back": "返回设置",
     canDo: "Kalsa 能对你的邮件做什么",
     permRead: "读取邮件来帮你",

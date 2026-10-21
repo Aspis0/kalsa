@@ -109,6 +109,8 @@ export const MAIL = {
       "failed": "Kalsa no pudo conectarse. Comprueba la dirección e inténtalo de nuevo.",
     },
     "modelNotAllowed": "Esta IA no puede leer el correo. Cámbiala en Ajustes → Tu IA.",
+    "modelCannotRead": "Esta IA no puede leer el correo.",
+    "mailUnavailableHere": "El correo no está disponible con las IA que ofrece este equipo.",
     "back": "Volver a Ajustes",
     canDo: "Qué puede hacer Kalsa con tu correo",
     permRead: "Lee tu correo para ayudarte",

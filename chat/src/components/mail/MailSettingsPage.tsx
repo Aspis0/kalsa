@@ -7,9 +7,10 @@ import { prepareCredentials } from "../../lib/mail/credentials";
 import { accountErrorKey } from "../../lib/mail/accountError";
 import { guessServer } from "../../lib/mail/providers";
 import { appPasswordProvider } from "../../lib/mail/appPassword";
-import { mailAllowed } from "../../lib/mail/allowlist";
+import { mailNotice } from "../../lib/mail/notice";
 import { rustSentence } from "../../lib/rustText";
 import { useBrain } from "../../surfaces/useBrain";
+import { useCapability } from "../../surfaces/useCapability";
 import { usePairedDevices } from "../../surfaces/usePairedDevices";
 import { deviceName, hidesOnSeat } from "../../surfaces/pairingWords";
 import type { PairedDevice } from "../../surfaces/pairingWords";
@@ -38,7 +39,10 @@ function refusalCode(error: unknown): string {
 export function MailSettingsPage({ onBack }: { onBack: () => void }) {
   const { table, tag } = useLanguage();
   const t = table.mail;
-  const { state } = useBrain();
+  const { state, busy: brainBusy } = useBrain();
+  // Which AIs this computer offers, read the same way the models page reads
+  // them: the notice below can only be honest if it knows what is on offer.
+  const { capability } = useCapability(state, brainBusy);
   // The paired phones come from the read-only list, not from the Pairing
   // page's reader: that read expires what is due, mints or retires a square
   // and detects a tailnet, and this page wants a list — on a page whose whole
@@ -150,9 +154,10 @@ export function MailSettingsPage({ onBack }: { onBack: () => void }) {
   }, []);
 
   // The mailbox is closed to any model but the approved ones, so the page says
-  // where to change it rather than leaving a form that cannot be used.
+  // what this computer can back up: an AI that may read mail, none that may,
+  // or nothing known yet.
   const running = state?.kind === "running" && typeof state.model === "string" ? state.model : "";
-  const modelBlocked = running !== "" && !mailAllowed(running);
+  const notice = mailNotice(running, capability);
 
   function onEmail(next: string): void {
     setEmail(next);
@@ -207,10 +212,10 @@ export function MailSettingsPage({ onBack }: { onBack: () => void }) {
       </button>
 
       <div className="settings-group">
-        {modelBlocked ? (
+        {notice !== null ? (
           <p className="mail-settings-block" role="status">
-            <Icon name="alert" size={15} />
-            {t.modelNotAllowed}
+            <Icon name={notice === "modelNotAllowed" ? "alert" : "info"} size={15} />
+            {t[notice]}
           </p>
         ) : (
           <>
