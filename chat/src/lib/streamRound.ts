@@ -33,6 +33,57 @@ export interface Round {
   /** The answer text and the reasoning the sinks were given this round, exactly. */
   text: string;
   reasoning: string;
+  /**
+   * **The engine's own count of the prompt it read**, when it said so.
+   *
+   * The prefill report the engine sends with `return_progress` carries the
+   * prompt's size in tokens (`total`); the shape is the one the door reads
+   * too (`crates/kalsa-door/src/room/prefill.rs`). It is the only number in
+   * this file that is not an estimate: four characters to a token is right
+   * for prose and wrong for a page's own text, which is denser than prose by
+   * a factor the app cannot know. `null` when the server sent no report.
+   */
+  promptTokens: number | null;
+}
+
+/**
+ * The prompt's token count out of one prefill report. A report that cannot
+ * be read says nothing (`null`), never a number of its own.
+ *
+ * **A count of zero for a prompt that is not empty is a broken report, not
+ * a measurement.** The engine read words and said they were free. Kept, it
+ * would project the whole wire to nothing: the turn would believe it had
+ * room for ever, and the request that does not fit would go out — the 400
+ * this count exists to prevent. So it is dropped, and the turn falls back
+ * to its own estimate.
+ */
+function promptTokensOf(progress: unknown, promptIsEmpty: boolean): number | null {
+  if (!progress || typeof progress !== "object") return null;
+  const { total } = progress as Record<string, unknown>;
+  if (typeof total !== "number" || !Number.isFinite(total) || total < 0) return null;
+  const tokens = Math.floor(total);
+  if (tokens === 0 && !promptIsEmpty) return null;
+  return tokens;
+}
+
+/**
+ * Whether the prompt this round sends carries nothing at all: no words, no
+ * pictures, no calls, and no definitions beside them.
+ *
+ * It is the one case where a count of zero is honest — an empty prompt
+ * really does weigh nothing — and the one case where it is the only thing
+ * that makes the zero true.
+ */
+function promptIsEmpty(messages: WireMessage[], tools: ToolDefinition[]): boolean {
+  if (tools.length > 0) return false;
+  return messages.every((message) => {
+    if (message.tool_calls !== undefined && message.tool_calls.length > 0) return false;
+    if (typeof message.content === "string") return message.content === "";
+    if (Array.isArray(message.content)) {
+      return message.content.every((part) => part.type === "text" && part.text === "");
+    }
+    return true;
+  });
 }
 
 function firstPresent(values: unknown[]): string | null {
@@ -176,6 +227,9 @@ export async function runRound(
 ): Promise<Round> {
   const { token, model, sampling, signal, onToken, onReasoning } = options;
   const url = completionsUrl(options.endpoint);
+  // Whether this prompt carries anything at all: the one case where a
+  // reported count of zero is honest rather than broken.
+  const emptyPrompt = promptIsEmpty(messages, tools);
   // The round as the caller will judge it: every chunk, whether or not the caller shows it yet.
   let shown = "";
   const show = (text: string): void => {
@@ -355,6 +409,9 @@ export async function runRound(
         toolCalls: accumulate([], complete.toolCalls),
         text: shown,
         reasoning: reasoningShown,
+        // A body that is not a stream carries no prefill report: the prompt's
+        // size stays unknown, and the caller falls back to its own estimate.
+        promptTokens: null,
       };
     } catch (error) {
       finish();
@@ -379,6 +436,10 @@ export async function runRound(
   let sawDone = false;
   let toolCalls: ToolCall[] = [];
   let finishReason: string | null = null;
+  // The engine's own count of the prompt, when it reported one. The report
+  // says the same number every time (the prompt's size, not the part that
+  // was still to be read), so the last one is as good as the first.
+  let promptTokens: number | null = null;
 
   const round = (): Round => ({
     gotContent: gotToken,
@@ -388,6 +449,7 @@ export async function runRound(
     toolCalls,
     text: shown,
     reasoning: reasoningShown,
+    promptTokens,
   });
 
   function releaseMarkup(): void {
@@ -412,6 +474,10 @@ export async function runRound(
       // A prefill report is a sign of life and nothing else: its delta is
       // role-only, so it can never become text below.
       if (data.prompt_progress !== undefined && data.prompt_progress !== null) {
+        // The report carries the prompt's own size in tokens: the one number
+        // about this request that is measured rather than estimated.
+        const counted = promptTokensOf(data.prompt_progress, emptyPrompt);
+        if (counted !== null) promptTokens = counted;
         telemetryPrefill(data.prompt_progress);
         allowance = prefill.report(data.prompt_progress);
         events += 1;

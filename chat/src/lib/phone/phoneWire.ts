@@ -7,6 +7,7 @@ import { TABLES } from "../../i18n";
 import { newUserTurn } from "../userTurn";
 import { wireTurns } from "../wireTurns";
 import type { ChatMessage } from "../types";
+import type { ToolDefinition } from "../tools/definitions";
 import type { PhoneTurn } from "./phoneRequest";
 
 interface PhoneFacts {
@@ -18,8 +19,15 @@ interface PhoneFacts {
 
 /** The phone's last words are the turn being answered, so they alone carry the
     send date and, for a reply, the note that pins the turn to its mail. The
-    earlier words went out on their own turns and are sent as they are. */
-export function phoneWire(turn: PhoneTurn, facts: PhoneFacts, now: Date): PinnedContext {
+    earlier words went out on their own turns and are sent as they are.
+    `tools` is the offer this turn may make: the definitions travel with
+    every request, so the fit weighs them beside the conversation. */
+export function phoneWire(
+  turn: PhoneTurn,
+  facts: PhoneFacts,
+  now: Date,
+  tools: ToolDefinition[] = [],
+): PinnedContext {
   const last = turn.messages.length - 1;
   const messages: ChatMessage[] = turn.messages.map((message, at) => {
     const id = `phone-${at}`;
@@ -33,12 +41,20 @@ export function phoneWire(turn: PhoneTurn, facts: PhoneFacts, now: Date): Pinned
           };
     return newUserTurn(id, message.content, now, riders);
   });
-  return buildPinnedContext(wireTurns(messages), [], facts.nctx, {
-    vision: facts.vision,
-    think: facts.think,
-    // The phone draws no mini app and is offered none, so the prompt says
-    // nothing about building one.
-    phone: true,
-    url: () => null,
-  });
+  return buildPinnedContext(
+    wireTurns(messages),
+    [],
+    facts.nctx,
+    {
+      vision: facts.vision,
+      think: facts.think,
+      // The phone draws no mini app and is offered none, so the prompt says
+      // nothing about building one.
+      phone: true,
+      url: () => null,
+    },
+    0,
+    0,
+    tools,
+  );
 }

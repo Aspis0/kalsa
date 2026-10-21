@@ -189,6 +189,22 @@ export async function runPhoneTurn(
   // The engine's own facts, read now: a model switch applies to the next turn.
   const facts = await deps.facts(serverBase(settings.endpoint), FACTS_TIMEOUT_MS, settings.token);
   if (signal.aborted) return sink.fail("cancelled");
+  // **This turn is this phone's own conversation**, for the browser: it is what a
+  // card is stamped with, what decides the phone that is shown it, and what the
+  // outcome comes back under. A turn with no device has no conversation, and so
+  // no card and no writes.
+  const conversation = turn.device === null ? "" : phoneConversation(turn.device);
+  // **The armed state, read once, at the start of the turn** — the flag has
+  // side effects, and a reader that cleared the very thing it was asked about
+  // would be no reader at all.
+  const armedChat = phoneChatArmed(conversation, turn);
+  // **The offer this turn makes, built before the wire.** The definitions
+  // travel with every request and the engine counts them into the prompt, so
+  // the fit weighs them beside the conversation — and it weighs the exact
+  // list the loop will send: a phone is never offered the browser's tools,
+  // and those are the only ones arming takes away, so the phone's list is
+  // the same armed or not.
+  const offered = phoneTools(settings.webTools, turn.language, settings.model, mail, turn.device, armedChat);
   const wire = phoneWire(
     turn,
     {
@@ -197,14 +213,10 @@ export async function runPhoneTurn(
       nctx: facts.nctx,
     },
     new Date(),
+    offered,
   );
   if (wire.status === "refused") return sink.fail("bad_request");
   const openedFor = turn.replyFor ?? undefined;
-  // **This turn is this phone's own conversation**, for the browser: it is what a
-  // card is stamped with, what decides the phone that is shown it, and what the
-  // outcome comes back under. A turn with no device has no conversation, and so
-  // no card and no writes.
-  const conversation = turn.device === null ? "" : phoneConversation(turn.device);
   // What this turn has already done with the browser, and what it failed at.
   const calls = newLedger();
   // **What Kalsa did, said once at the end of the turn** — on the phone as on the
@@ -240,7 +252,7 @@ export async function runPhoneTurn(
   // round it is answering from. So the moment **any** mail tool runs in this turn
   // the flag is set and stays set for the rest of the turn, and a write into a
   // chat that has read the owner's mail is refused whatever the wire now says.
-  let armed = phoneChatArmed(conversation, turn) || phoneArmed(said) || turn.replyFor !== null;
+  let armed = armedChat || phoneArmed(said) || turn.replyFor !== null;
   try {
     await deps.loop({
       endpoint: settings.endpoint,

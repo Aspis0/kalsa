@@ -266,6 +266,9 @@ function AssistantRow({
       />
         )}
         {message.stopped && failedHere === null ? <p className="row-note">{t.stoppedEarly}</p> : null}
+        {/* The turn was closed for space: the answer is what the turn found
+            before it stopped reading, and the line says so. */}
+        {message.closedForSpace ? <p className="row-note">{table.shell.spaceClosed}</p> : null}
         {showNoAnswer ? (
           <div className="no-answer">
             <p>{engineOff ? t.engineOffBody : t.noAnswer}</p>

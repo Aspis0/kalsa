@@ -19,6 +19,13 @@ export const SHELL = {
   // The live region: one sentence per turn of its life.
   gateWaiting: "Kalsa wants to search the web. Allow it?",
   tooMuchAtOnce: "This is too much for Kalsa at once. Remove a file or shorten your message.",
+  // A turn refused for size: what it had read was too much to answer in one
+  // go. It says so without blaming the message or the files — the weight may
+  // have come from what the turn read, not from what the person sent.
+  readTooMuch: "Kalsa had too much to read for one answer.",
+  // The turn was closed for space: the answer is what the turn found before
+  // it stopped reading.
+  spaceClosed: "Kalsa stopped reading here: this turn had read more than fits in one answer.",
   waitingFirstWord: "Kalsa is answering…",
   thinking: "Kalsa is thinking…",
   thinkingComplete: "Thinking complete, no answer arrived.",

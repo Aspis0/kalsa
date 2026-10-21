@@ -639,6 +639,15 @@ export function useChat(shell: ChatShell) {
       // unpinned document — what was already staged and this new batch
       // together — measured as the block they render into, so the attach's
       // fit and the send's fit agree on the same number.
+      //
+      // **The offer is not weighed here, and that is deliberate.** The offer
+      // belongs to the message the person is about to send, and that message
+      // does not exist yet: arming the browser for it changes the offer. The
+      // send weighs the exact offer (`useChatTurns` → `buildPinnedContext`)
+      // and refuses the turn if the whole thing does not fit — so a trial that
+      // guessed the offer would walk back attachments that would have been
+      // sent, and a trial that refused them would lose work the send could
+      // have done.
       const riding = store.getAttachments(target).filter((a) => a.active && !(a.pinned ?? true));
       const trial = buildPinnedContext(
         history,

@@ -17,6 +17,7 @@ import { uid } from "../lib/store";
 import type { DraftRecord } from "../lib/mail/drafts";
 import { buildPinnedContext, CONTEXT_RESERVE_TOKENS, wireSize } from "../lib/attachments";
 import type { MediaView } from "../lib/attachments";
+import { definitionsTokens } from "../lib/density";
 import { wireTurns } from "../lib/wireTurns";
 import { getImage } from "../lib/imageStore";
 import { blobToDataUrl } from "../lib/images";
@@ -290,10 +291,17 @@ export function useChatTurns({ store, announce, contextSizes, saveMailDraft }: T
       // Send-time never fetches: the cached size (or unknown) decides, so a
       // request never waits on /props. Unknown means unpruned, never refused.
       const known = contextSizes.current.get(currentSettings.endpoint) ?? null;
+      // **The offer this turn makes, built once.** The same definitions go
+      // into the fit, into the body, and into the tool loop: the fit has to
+      // weigh the bytes the server will read, and the loop has to weigh the
+      // same ones. Asked twice, they could differ — and a fit that leaves
+      // them out sends a request the engine refuses (a 400) before there is
+      // any measurement of the engine's own to go by.
+      const tools = offeredTools(currentSettings.webTools, language, currentSettings.model, mode);
       // The token fit is answered once, on the wire where every picture is
       // the placeholder sentence: each stored picture costs IMAGE_TOKENS
       // whether it rides or not, so the fit is the same for both shapes.
-      const dry = buildPinnedContext(turns, all, known, { vision, think, url: () => null });
+      const dry = buildPinnedContext(turns, all, known, { vision, think, url: () => null }, 0, 0, tools);
 
       function refuseOversize(code: string): void {
         // History outgrew the context after attaching — or the pictures the
@@ -306,7 +314,11 @@ export function useChatTurns({ store, announce, contextSizes, saveMailDraft }: T
           [assistantId]: { messageId: assistantId, kind: "oversize" },
         }));
         logUiEvent(code);
-        announce(shell.tooMuchAtOnce);
+        // The line says what actually happened: too much to read for one
+        // answer. It does not blame the message or the files — the weight may
+        // have come from what the turn read, and the person cannot shorten
+        // that.
+        announce(shell.readTooMuch);
       }
 
       if (dry.status === "refused") {
@@ -359,7 +371,7 @@ export function useChatTurns({ store, announce, contextSizes, saveMailDraft }: T
           currentSettings.model,
           dry.wire,
           samplingWire(loadSampling()),
-          offeredTools(currentSettings.webTools, language, currentSettings.model, mode),
+          tools,
           "auto",
           loadThinking(currentSettings.model),
         ),
@@ -378,7 +390,7 @@ export function useChatTurns({ store, announce, contextSizes, saveMailDraft }: T
         }
       }
       const media: MediaView = { vision, think, url: (id) => urlMap.get(id) ?? null };
-      const ctx = buildPinnedContext(turns, all, known, media);
+      const ctx = buildPinnedContext(turns, all, known, media, 0, 0, tools);
       // Unreachable by construction: this build spends the same tokens the
       // dry one already passed above (a picture costs IMAGE_TOKENS riding
       // or not), so the check exists to hand the type that invariant.
@@ -402,7 +414,7 @@ export function useChatTurns({ store, announce, contextSizes, saveMailDraft }: T
       let thoughtStartedAt: number | null = null;
       let answerStartedAt: number | null = null;
 
-      function persistLive(extra?: { stopped?: boolean; reasoningMs?: number; failed?: ChatErrorKind | undefined }): void {
+      function persistLive(extra?: { stopped?: boolean; reasoningMs?: number; failed?: ChatErrorKind | undefined; closedForSpace?: boolean }): void {
         const b = bufs.current.get(assistantId);
         const latest = store.get(conversationId);
         if (!latest) return;
@@ -520,14 +532,20 @@ export function useChatTurns({ store, announce, contextSizes, saveMailDraft }: T
           // less the answer's reserve, and the one estimator that measures
           // it. The tool loop re-checks each follow-up round against both
           // (`toolLoop.ts`); unknown stays null, and nothing is pruned on a
-          // guess.
+          // guess. The definitions' weight rides with it: they travel with
+          // every request, and the loop has to weigh the same bytes the fit
+          // weighed — the same number, not a second opinion.
           contextFit:
             known === null
               ? null
-              : { budget: Math.max(0, known - CONTEXT_RESERVE_TOKENS), size: wireSize },
+              : {
+                  budget: Math.max(0, known - CONTEXT_RESERVE_TOKENS),
+                  size: wireSize,
+                  definitions: definitionsTokens(tools),
+                },
           sampling: samplingWire(loadSampling()),
           signal: controller.signal,
-          tools: offeredTools(currentSettings.webTools, language, currentSettings.model, mode),
+          tools,
           // **This turn is the browser's**, so a call to a tool this request
           // never offered is answered with the browser's own sentence.
           browse: armed,
@@ -568,6 +586,14 @@ export function useChatTurns({ store, announce, contextSizes, saveMailDraft }: T
           },
           onToolRun: ingestToolRun,
           onWithdraw: withdraw,
+          // The turn was closed for space: the next request would not have
+          // fit the window, so the turn answered from what it had read. The
+          // line on the turn says so — the answer is what the turn found
+          // before it stopped, and the person has to know that.
+          onClosedForSpace: () => {
+            persistLive({ closedForSpace: true });
+            announce(shell.spaceClosed);
+          },
           toolPhrases: words.current.tools,
           onReasoning: (text) => {
             if (thoughtStartedAt === null) {
@@ -609,7 +635,9 @@ export function useChatTurns({ store, announce, contextSizes, saveMailDraft }: T
           // The kind is the code's tail; the hyphen in `bad-response` is not
           // a character the log writes, so it leaves as an underscore.
           logUiEvent(`chat.turn_${kind.replace(/-/g, "_")}`);
-          announce(shell.stoppedBeforeFinishing);
+          // A refusal for size says what it was: too much to read for one
+          // answer. Every other failure is a stop that asks again.
+          announce(kind === "oversize" ? shell.readTooMuch : shell.stoppedBeforeFinishing);
         }
       } finally {
         dropLive();

@@ -14,6 +14,8 @@ export const SHELL = {
     "readingMany": (count: number) => `Leyendo ${count} archivos…`,
     "gateWaiting": "Kalsa quiere buscar en la web. ¿La dejas?",
     "tooMuchAtOnce": "Es demasiado para Kalsa de una vez. Quita un archivo o acorta el mensaje.",
+    "readTooMuch": "Kalsa tenía demasiado que leer para una respuesta.",
+    "spaceClosed": "Kalsa dejó de leer aquí: en este turno había leído más de lo que cabe en una respuesta.",
     "waitingFirstWord": "Kalsa está respondiendo…",
     "thinking": "Kalsa está pensando…",
     "thinkingComplete": "Pensamiento completo, no llegó ninguna respuesta.",

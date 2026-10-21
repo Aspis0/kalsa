@@ -14,6 +14,8 @@ export const SHELL = {
     "readingMany": (count: number) => `Lecture de ${count} fichiers…`,
     "gateWaiting": "Kalsa veut chercher sur le web. Tu la laisses ?",
     "tooMuchAtOnce": "C'est trop pour Kalsa d'un coup. Retire un fichier ou raccourcis ton message.",
+    "readTooMuch": "Kalsa avait trop à lire pour une seule réponse.",
+    "spaceClosed": "Kalsa s'est arrêtée de lire ici : ce tour avait lu plus que ce qu'une seule réponse peut contenir.",
     "waitingFirstWord": "Kalsa répond…",
     "thinking": "Kalsa réfléchit…",
     "thinkingComplete": "Réflexion terminée, aucune réponse n'est arrivée.",

@@ -12,6 +12,7 @@ import { canonicalToolName } from "./repairToolCall";
 import { recoverToolCall } from "./recoverToolCall";
 import { runToolCall } from "./runToolCall";
 import { logUiEvent } from "./uiLog";
+import { denseTokens, definitionsTokens, HOUSE_CHARS_PER_TOKEN } from "./density";
 import { MAIL_NAMES, MAIL_TOOLS, WEB_TOOLS } from "./tools/definitions";
 import { BROWSER_NAMES, BROWSER_TOOLS } from "./tools/browserTools";
 import type { ToolDefinition } from "./tools/definitions";
@@ -38,7 +39,7 @@ const MAX_BROWSER_ROUNDS = BROWSER_CALLS_PER_TURN;
 
 /** What the last request says about the turn's own state: the calls are done,
     so the answer comes now, from what arrived, and promises nothing more. */
-const FINAL_STATUS =
+export const FINAL_STATUS =
   "[Kalsa execution status] No tool calls remain in this turn. Give the final answer now using the results already received. State what is unverified or incomplete, and do not promise another action.";
 
 function maxToolRounds(offered: string[]): number {
@@ -83,6 +84,12 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
   // overflow is retried — every other failure, and an overflow with nothing
   // left to shed, leaves as it came, and the caller shows the oversize
   // sentence for that one.
+  //
+  // **The closing request may not shed and may not retry.** Its body is the
+  // one the engine has already read; a retry would send a different one, or
+  // none at all, and the turn would answer from a thread the model never
+  // saw. So the recovery is off on that path, and the body that goes out is
+  // the body that was read.
   async function askRound(
     messages: WireMessage[],
     offer: ToolDefinition[],
@@ -90,6 +97,9 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
     hideInventedCalls: boolean,
     hold: ReturnType<typeof createAnswerHold> | null,
     reason: ReasoningHold | null = null,
+    /** Whether an oversize may be recovered by shedding the older half and
+        asking again. Off for the closing request. */
+    mayShed = true,
   ): Promise<Round> {
     const sinks =
       hold === null && reason === null
@@ -100,7 +110,7 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
         return await runRound(sinks, messages, offer, toolChoice, hideInventedCalls);
       } catch (error) {
         if (!(error instanceof ChatRequestError) || error.kind !== "oversize") throw error;
-        if (!shedOlderHalf(messages)) throw error;
+        if (!mayShed || !shedOlderHalf(messages)) throw error;
       }
     }
   }
@@ -110,11 +120,174 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
   // history before this turn's last user message falls. The engine remains
   // the authority on what fits — this only spares the round trip when the
   // estimator already knows the answer.
+  //
+  // **What the shed costs is written down here.** It rewrites the history
+  // the engine has already read, so the engine's cached prefix is gone and
+  // the prompt is prefilled again from the new start. That is the app's
+  // trade for making room in prose: the tool results of the turn are worth
+  // more than the older half of the conversation. When the turn closes for
+  // space instead (below), nothing is rewritten at all — the closing
+  // request carries the thread the engine really read.
   function fitHistory(): void {
     if (fit === null) return;
-    while (fit.size(conversation) > fit.budget && shedOlderHalf(conversation)) {
-      // Each pass re-measures what is left.
+    while (fit.size(conversation) > fit.budget) {
+      const before = fit.size(conversation);
+      if (!shedOlderHalf(conversation)) break;
+      // What the shed took out is not in the wire any more, and the engine's
+      // count of it is inside `measured`: the estimate has to give it back.
+      shedTokens += before - fit.size(conversation);
     }
+  }
+
+  /**
+   * What the prompt carries besides the conversation: the tool definitions.
+   *
+   * They travel with every request and the house estimator weighs only the
+   * messages, so they are counted here as well — with the dense rule, on the
+   * same text the engine reads. **Without this the density is wrong:**
+   * the engine's count of a prompt includes the definitions and the estimate
+   * of it does not, so the ratio between the two reads the definitions'
+   * weight as if it were the conversation's density, and every turn stops
+   * thousands of tokens early.
+   *
+   * The caller may hand the number in (`contextFit.definitions`): it is the
+   * one that fitted the first wire, and the two have to be the same number.
+   * Absent, the loop weighs the definitions it sends itself.
+   */
+  function definitionsSize(): number {
+    if (tools.length === 0) return 0;
+    const weighed = fit?.definitions;
+    return weighed ?? definitionsTokens(tools);
+  }
+
+  /**
+   * The house estimate of a whole request: the conversation plus the tool
+   * definitions that travel with it. The engine's count and this estimate
+   * have to weigh the same things, or their ratio says nothing.
+   */
+  function wireEstimate(messages: WireMessage[]): number {
+    if (fit === null) return 0;
+    return fit.size(messages) + definitionsSize();
+  }
+
+  /**
+   * The density this model has shown: the engine's own count of the prompt
+   * it read against what this app's estimator said that same prompt weighed.
+   *
+   * Never below one. A ratio under one would make the estimate of the new
+   * content smaller than the words it weighs, and the estimate is the only
+   * thing standing between a turn and a request the engine refuses.
+   */
+  function densityRatio(): number {
+    if (measured === null || measuredBase <= 0) return 1;
+    return Math.max(1, measured / measuredBase);
+  }
+
+  /** What the tool results cost above the house rule's count of them: the
+      difference between the pessimistic rule and the house rule on the same
+      characters. */
+  function denseExcess(chars: number): number {
+    if (chars <= 0) return 0;
+    return denseTokens(chars) - Math.ceil(chars / HOUSE_CHARS_PER_TOKEN);
+  }
+
+  /**
+   * What has been added to the wire since the engine read it, in the
+   * engine's tokens: the tool results' own bodies counted the pessimistic
+   * way, and everything else with the house rule scaled by the density the
+   * engine showed.
+   */
+  function addedTokens(): number {
+    const ratio = densityRatio();
+    return Math.round(denseTokens(addedToolChars) + (addedOtherChars / HOUSE_CHARS_PER_TOKEN) * ratio);
+  }
+
+  /**
+   * What the request about to be sent weighs, in the engine's tokens.
+   *
+   * **Two ways of saying it, and the heavier one is the honest one.**
+   *
+   * The first is the engine's own density carried over the whole wire: the
+   * engine's count of the prompt it read, times what this app's estimate
+   * says the wire weighs now against what it said then. It is right when
+   * the new content is like the old, and it is the only one of the two that
+   * knows about a history the shed has shortened.
+   *
+   * The second is the engine's count of what it read, plus what has been
+   * added since — the tool results' bodies counted the pessimistic way,
+   * everything else with the house rule scaled by the density the engine
+   * showed. It is right when the new content is denser than the old, which
+   * is the case that killed the turn of 21 October 2026: a page of 6000
+   * characters (3409 tokens the engine counted, 1500 the house rule said)
+   * after a prompt of prose, where the first way read the page at the
+   * prompt's density and said 1500 more tokens where there were 3409.
+   *
+   * The estimate alone says a wire fits long after it stopped fitting: a
+   * page's own text is denser than prose by a factor no character count
+   * knows. The turn of 21 October 2026 died that way — 63828 tokens of a
+   * 65536 window behind an estimate of 25000, the engine refusing the next
+   * request (a 400) and the turn dying with a thought cut in half.
+   *
+   * **The cost of this check, said plainly.** The arithmetic is constant:
+   * a few numbers, added and multiplied. The estimate is not: it reads the
+   * whole wire, every message and every character of it, once per round.
+   * So one round's check costs the size of the conversation — linear in the
+   * thread, not in the window — and the number of rounds is bounded by the
+   * call budget (four, or the browser's own). Nothing is fetched and
+   * nothing is measured to get it: these are this app's own numbers, read
+   * from the wire it is about to send.
+   */
+  function projectedSize(): number {
+    if (fit === null) return 0;
+    const estimate = wireEstimate(conversation);
+    if (measured === null || measuredBase <= 0) {
+      // No engine count yet: the house estimate of the wire, with the tool
+      // results counted the pessimistic way.
+      return estimate + denseExcess(addedToolChars);
+    }
+    const averaged = Math.round((measured * estimate) / measuredBase);
+    // What the shed took away is not in the wire any more, and the engine's
+    // count of it was part of `measured`: the estimate has to give it back.
+    const counted = measured - Math.round(shedTokens * densityRatio()) + addedTokens();
+    return Math.max(averaged, counted);
+  }
+
+  /** Whether the request about to be sent fits the window the caller knows. */
+  function nextRoundFits(): boolean {
+    if (fit === null) return true;
+    return projectedSize() <= fit.budget;
+  }
+
+  /**
+   * The wire the engine has already read, kept as it was.
+   *
+   * A copy, and the only copy the closing request is built from: the
+   * conversation itself moves — the tool results join it, and a shed may
+   * take the older half of it away — and the closing request must carry the
+   * thread the model really read, not the one that happens to be in the
+   * array when the turn runs out of room. Nothing already sent is cut, so
+   * the engine's cache still holds the prefix, and the model is answered
+   * from what it has really read.
+   */
+  function acceptedWire(): WireMessage[] {
+    return accepted ?? conversation;
+  }
+
+  /**
+   * Whether the closing wire can carry the execution status: the body the
+   * engine read, plus the status, has to fit the window the caller knows.
+   *
+   * If it does not — the thread was already at the limit — the status is
+   * left out. The closing request is then the very body the engine
+   * accepted, which fits by definition, and the answer still comes from
+   * what the turn read. The status is a sentence, not a load: dropping it
+   * costs the model a sentence of instruction and saves the turn a 400.
+   */
+  function closingCarriesStatus(marked: WireMessage[]): boolean {
+    if (fit === null) return true;
+    const statusSize = fit.size([{ role: "tool", content: FINAL_STATUS }]);
+    if (measured !== null) return measured + statusSize <= fit.budget;
+    return wireEstimate(marked) <= fit.budget;
   }
 
   let forceWords = false;
@@ -122,6 +295,32 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
   // already: both are facts of this turn alone.
   let calledTool = false;
   let statusSent = false;
+  // **The wire the engine has read, as it was.** Copied when a round is
+  // accepted, and never written again: the closing request is built from
+  // this copy, so the thread the model is answered from is the thread it
+  // read.
+  let accepted: WireMessage[] | null = null;
+  // **The size of the wire, as the engine measures it.** `measured` is the
+  // engine's own count of the prompt of the last request, `measuredBase` is
+  // what this app's estimator said that same prompt weighed, and the two
+  // together are this model's own density.
+  let measured: number | null = null;
+  let measuredBase = 0;
+  // What has been added to the wire since the engine read it: the tool
+  // results' own bodies, and everything else that came with them. The
+  // counters are emptied when a round is accepted and the engine's count
+  // of that round's prompt arrives; without a count they keep what the
+  // turn has added, which is what the pessimistic rule weighs.
+  let addedToolChars = 0;
+  let addedOtherChars = 0;
+  // Whether anything has been added since the last accepted body: a request
+  // that carries nothing new is the one the engine already read, and it
+  // fits by definition.
+  let pending = 0;
+  // What the shed took out of the history since the engine read it, by the
+  // house estimate: the engine's count of that part is inside `measured`
+  // and the wire no longer carries it.
+  let shedTokens = 0;
   // Whether the app has already drawn what this turn asked for. A mail list the
   // person can see is not a half-finished check, so a model that then rambles,
   // re-lists the mails or asks for tools again cannot end the turn as a failure.
@@ -131,12 +330,45 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
     options.onToolRun?.(run);
   };
   for (let round = 0; round <= toolRounds; round += 1) {
+    // **The turn closes for space before it sends a request that would not
+    // fit.** The engine refuses such a request (a 400), the turn dies there
+    // with its thought cut in half, and everything the turn had read goes
+    // with it. Instead the turn answers from what it has: one last request,
+    // on the wire the engine has already read, with the calls forbidden.
+    let closingForSpace = false;
+    if (round === 0) {
+      // **The first body is checked too.** The caller fit the wire to the
+      // window, but the body it sends carries the tool definitions as well,
+      // and a fit that does not know them sends a request the engine
+      // refuses — a 400, before there is any measurement of the engine's own
+      // to go by. The older half of the history goes first, the way the
+      // Room recovers (crates/kalsa-door/src/room/turn.rs:364), and a wire
+      // that still does not fit is refused here rather than sent.
+      while (fit !== null && !nextRoundFits() && shedOlderHalf(conversation)) {
+        // Each pass re-measures what is left.
+      }
+      if (fit !== null && !nextRoundFits()) {
+        throw new ChatRequestError("oversize", "Context exceeded", undefined, url);
+      }
+    } else {
+      fitHistory();
+      if (!nextRoundFits() && pending > 0) {
+        closingForSpace = true;
+        // Words, not calls: the round that closes the turn answers.
+        forceWords = true;
+        logUiEvent("chat.turn_closed_for_space");
+        // The closing request is the body the engine has already read: the
+        // copy kept of the last accepted round. Nothing is shed and nothing
+        // is retried on this path — the thread the model reads is the
+        // thread it read, and the only thing added to it is the execution
+        // status (and only if that still fits).
+      }
+    }
     const last = forceWords || round >= toolRounds;
     // Hiding invented markup is for the capped round alone: the round that asks
     // a silent model for words can be answering "show me the tags", and eating
     // that is how the answer disappeared in the first place.
-    const hideInventedCalls = tools.length > 0 && round >= toolRounds;
-    if (round > 0) fitHistory();
+    const hideInventedCalls = tools.length > 0 && (round >= toolRounds || closingForSpace);
     // The first round of a turn that offered tools may be a refusal the retry
     // replaces; a later round that can still call may be one written-out call
     // the recovery replaces. Either way the text is held until the round says
@@ -160,17 +392,29 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
       : null;
     // The final request needs execution state as well as tool_choice. Copy
     // the tool message so the status stays off the stored result.
-    let messages = conversation;
+    // **A turn closing for space carries the wire the engine has already
+    // read**, not the exchange it has not: that exchange is the one that did
+    // not fit, and the model is answered from what it really saw. And the
+    // status rides that copy only while there is room for it.
+    let messages = closingForSpace ? acceptedWire() : conversation;
     if (last && !statusSent && calledTool) {
-      const marked = withFinalStatus(conversation);
-      if (marked !== null) {
+      const marked = withFinalStatus(messages);
+      if (marked !== null && (!closingForSpace || closingCarriesStatus(marked))) {
         messages = marked;
         statusSent = true;
       }
     }
     let answered: Round;
     try {
-      answered = await askRound(messages, tools, last ? "none" : "auto", hideInventedCalls, hold, reason);
+      answered = await askRound(
+        messages,
+        tools,
+        last ? "none" : "auto",
+        hideInventedCalls,
+        hold,
+        reason,
+        !closingForSpace,
+      );
     } catch (error) {
       // The round died on the way out, so it never stands: nothing it held is
       // sent. The answer text still settles as it always has.
@@ -178,6 +422,25 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
       hold?.settle(false);
       throw error;
     }
+    // The request that carried the conversation is the one the engine read:
+    // its size is now known, and everything added from here on is unsent.
+    if (answered.promptTokens !== null) {
+      measured = answered.promptTokens;
+      measuredBase = wireEstimate(messages);
+      // The engine's count covers what was added since the last count: the
+      // pessimistic counters start again from nothing.
+      addedToolChars = 0;
+      addedOtherChars = 0;
+      shedTokens = 0;
+    }
+    // **The body the engine accepted, kept as it was.** This is the copy the
+    // closing request is built from: the conversation moves on, this does
+    // not.
+    accepted = messages.map((message) => ({ ...message }));
+    pending = 0;
+    // The turn was closed for space: the person is told, in a line of their
+    // own language, that the answer is what the turn found before it stopped.
+    if (closingForSpace) options.onClosedForSpace?.();
     // The server numbers its calls per response, so round two can hand back the
     // id round one used. The transcript replaces a run by id and the wire pairs
     // a result to its call by id, so an id has to be unique for the whole turn:
@@ -327,6 +590,15 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
     named.forEach((call, index) => {
       conversation.push({ role: "tool", content: results[index], tool_call_id: call.id });
     });
+    // The exchange is on the conversation but has not been sent: the engine has
+    // not read it, so it is what a turn closing for space leaves out.
+    pending += 1 + named.length;
+    // **What the exchange adds, in characters.** The tool results' own bodies
+    // are the part a character count gets most wrong — a page is denser than
+    // prose by a factor no house rule knows — so they are counted apart from
+    // the rest, and the pessimistic rule weighs them.
+    for (const result of results) addedToolChars += result.length;
+    for (const text of wireTexts) addedOtherChars += text.length;
   }
 }
 

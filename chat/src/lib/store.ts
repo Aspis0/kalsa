@@ -204,6 +204,11 @@ function cleanMessage(value: unknown): ChatMessage | null {
     ...(typeof value.failed === "string" && (FAILED_KINDS as readonly string[]).includes(value.failed)
       ? { failed: value.failed as ChatErrorKind }
       : {}),
+    // **The flag that says the turn was closed for space rides the message**,
+    // like the armed one: the line that says so is drawn from it, so without
+    // this line it dies at the first reload and a reloaded chat claims a
+    // complete answer where the turn stopped reading.
+    ...(value.closedForSpace === true ? { closedForSpace: true } : {}),
     ...(Array.isArray(value.toolRuns) ? cleanToolRuns(value.toolRuns) : {}),
     ...(Array.isArray(value.images) ? cleanImages(value.images) : {}),
     ...(Array.isArray(value.videos) ? cleanVideos(value.videos) : {}),

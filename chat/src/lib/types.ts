@@ -146,6 +146,11 @@ export interface ChatMessage {
   /** The failure this turn ended in, so a reload can show its sentence and
       Retry again; absent on every turn that did not fail. */
   failed?: ChatErrorKind;
+  /** This turn was closed for space: the next request would not have fit the
+      window, so the turn answered from what it had read and stopped there.
+      The line is drawn when the thread is drawn, in the language the person
+      is reading in — the flag is what is kept, never a sentence. */
+  closedForSpace?: boolean;
 }
 
 export interface ConversationMeta {

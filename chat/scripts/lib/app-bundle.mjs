@@ -89,7 +89,9 @@ export async function loadApp() {
         export { runCreateMiniapp } from "../src/lib/tools/createMiniapp.ts";
         export { createStore, forDisk } from "../src/lib/store.ts";
         export { createAttachGate, NEW_CHAT } from "../src/lib/attachGate.ts";
-        export { buildPinnedContext, estTokens, turnDocBlock, systemPrompt } from "../src/lib/attachments.ts";
+        export { buildPinnedContext, estTokens, turnDocBlock, systemPrompt, wireSize, CONTEXT_RESERVE_TOKENS } from "../src/lib/attachments.ts";
+        export { definitionsTokens, denseTokens, HOUSE_CHARS_PER_TOKEN, DENSE_CHARS_PER_TOKEN, DENSE_MARGIN } from "../src/lib/density.ts";
+        export { FINAL_STATUS } from "../src/lib/toolLoop.ts";
         export { DISARMED, tap, spend, modeOf } from "../src/lib/browseArm.ts";
         export { subscribeBrowserUsable, browserUsableSnapshot } from "../src/lib/browser/usable.ts";
         export { LINK_UNSEEN, isRefusalCode } from "../src/lib/browser/codes.ts";

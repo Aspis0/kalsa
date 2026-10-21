@@ -126,8 +126,33 @@ export interface StreamOptions {
       both before each follow-up round; `null` or absent means unknown, and
       nothing is pruned. Injected, not imported, because the estimator lives
       beside the attachment code the tool loop has no business pulling in —
-      the same reason `runTool` is a parameter. */
-  contextFit?: { budget: number; size: (messages: WireMessage[]) => number } | null;
+      the same reason `runTool` is a parameter.
+      *
+      * **The check is not free, and the cost is here rather than implied.**
+      * The arithmetic is constant; the estimate is not: it reads the whole
+      * wire — every message, every character — once per round. The cost of a
+      * round's check is therefore the size of the conversation, not the size
+      * of the window, and the rounds are bounded by the call budget. Nothing
+      * is fetched and nothing is measured to get the number: it is this
+      * app's own estimate of the wire it is about to send.
+      *
+      * `definitions` is what the tool definitions of this request weigh, in
+      * tokens. They travel with every request and the engine counts them
+      * into the prompt, so a fit that leaves them out sends a request the
+      * engine refuses (a 400) before there is any measurement to go by. The
+      * caller that fitted the first wire is the one that knows the number;
+      * absent, the tool loop weighs the definitions it sends itself. */
+  contextFit?: {
+    budget: number;
+    size: (messages: WireMessage[]) => number;
+    definitions?: number;
+  } | null;
+  /** The turn was closed for space: the next request would not have fit the
+      window, so the turn answered from what it had and stopped reading. The
+      caller says so on the turn, in a line of its own language — the person
+      has to know the answer is what the turn found before it stopped, and
+      not a complete search. Absent means the caller has no line to show. */
+  onClosedForSpace?: () => void;
   /** The sentences a tool round can end in, in the owner's language. They are
       shown on the call's card and sent back as its answer, except that an
       unreadable argument list is answered to the model in English. Absent

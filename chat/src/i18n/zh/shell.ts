@@ -14,6 +14,8 @@ export const SHELL = {
     "readingMany": (count: number) => `正在读取 ${count} 个文件…`,
     "gateWaiting": "Kalsa 想搜索网络。允许它吗？",
     "tooMuchAtOnce": "这对 Kalsa 来说一次太多了。请移除一个文件或缩短消息。",
+    "readTooMuch": "Kalsa 要读的内容太多，装不进一次回答里。",
+    "spaceClosed": "Kalsa 在这里停止了阅读：这一轮读到的内容超过了一次回答能装下的量。",
     "waitingFirstWord": "Kalsa 正在回答…",
     "thinking": "Kalsa 正在思考…",
     "thinkingComplete": "思考完成，没有回答到来。",

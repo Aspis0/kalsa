@@ -8,6 +8,8 @@ import { sentLine } from "./sentDate";
 import { isMalformedArguments, NOT_VALID_FOR_MODEL, storedAsCut, wireArguments } from "./toolCalls";
 import { guideNotValidJson } from "./guideRetry";
 import { TOOL_DEFINITIONS } from "./tools/definitions";
+import type { ToolDefinition } from "./tools/definitions";
+import { definitionsTokens } from "./density";
 import type { WireContentPart, WireMessage } from "./chat";
 
 export type AttachmentKind = "txt" | "md" | "csv" | "pdf" | "docx" | "pptx";
@@ -513,6 +515,13 @@ export function wireTokens(messages: ChatMessage[], vision = false, think = fals
  * shapes `buildPinnedContext` produced: a picture part costs IMAGE_TOKENS
  * whatever its data URI's length, and a tool call's arguments count where they
  * ride.
+ *
+ * **The cost of the estimate, said plainly.** The arithmetic is constant per
+ * message — a length, a division, a sum. The estimate is not: it reads the
+ * whole wire, every message and every character of it, each time it is asked.
+ * So one fit check costs the size of the conversation, not the size of the
+ * window, and it is asked once per round. That is the price of knowing the
+ * wire's size without asking the engine for it.
  */
 export function wireSize(messages: WireMessage[]): number {
   return messages.reduce((sum, message) => sum + wireMessageTokens(message), 0);
@@ -732,6 +741,20 @@ export type PinnedContext =
  * a seeing model, the placeholder sentence otherwise); `pendingImageTokens` is
  * the weight of pictures attached but not yet sent — the fit answers for them
  * before the send does.
+ *
+ * **The tool definitions travel with the request, so the fit weighs them.**
+ * They are the offer this request makes — the exact definitions
+ * `offeredTools(...)` returned, not an estimate of them — and the engine
+ * counts them into the prompt it reads. A fit that leaves them out sends a
+ * request the engine refuses: the body goes out over the context and comes
+ * back a 400, before there is any measurement of the engine's own to go by.
+ * The five browser tools alone are 2755 characters of JSON: about 689 tokens
+ * by the house rule, 1566 by the engine's count.
+ *
+ * **The answer's reserve stays its own term.** `CONTEXT_RESERVE_TOKENS` is
+ * the room the answer has to write in; it is not a share of the wire's room
+ * and it is not what the definitions borrow. The wire gets what is left, and
+ * the definitions are weighed inside that.
  */
 export function buildPinnedContext(
   messages: ChatMessage[],
@@ -740,6 +763,10 @@ export function buildPinnedContext(
   media?: MediaView,
   pendingImageTokens = 0,
   pendingDocTokens = 0,
+  /** The definitions this request will offer. The exact offer, so the fit
+      weighs the same bytes the server will read. Absent means the request
+      offers no tools and carries no definitions. */
+  tools: ToolDefinition[] = [],
 ): PinnedContext {
   // The system message carries the pinned alone; a per-turn document rides
   // its own message (`wireFor` below) and weighs as history. `docs` is the
@@ -748,6 +775,10 @@ export function buildPinnedContext(
   const pinned = docs.filter((d) => d.active && (d.pinned ?? true));
   const byId = new Map(docs.map((d) => [d.id, d]));
   const docTokens = pinned.reduce((sum, d) => sum + d.tokens, 0);
+  // What the offer weighs beside the conversation, counted the pessimistic
+  // way: the definitions are prose in a JSON envelope, and the engine counts
+  // them denser than the prose of a conversation.
+  const toolTokens = definitionsTokens(tools);
   const turns = [...messages];
   let histTokens = wireTokens(turns, media?.vision ?? false, media?.think ?? false, media?.phone ?? false);
   let dropped = 0;
@@ -760,7 +791,7 @@ export function buildPinnedContext(
   };
   if (nctx !== null) {
     while (
-      docTokens + pendingDocTokens + pendingImageTokens + histTokens + CONTEXT_RESERVE_TOKENS > nctx &&
+      docTokens + pendingDocTokens + pendingImageTokens + histTokens + toolTokens + CONTEXT_RESERVE_TOKENS > nctx &&
       turns.length > 1
     ) {
       shedOne();
@@ -771,7 +802,8 @@ export function buildPinnedContext(
       // wire with its own 400 — the one this fit exists to prevent.
       while (turns.length > 1 && turns[0]?.role !== "user") shedOne();
     }
-    const need = docTokens + pendingDocTokens + pendingImageTokens + histTokens + CONTEXT_RESERVE_TOKENS;
+    const need =
+      docTokens + pendingDocTokens + pendingImageTokens + histTokens + toolTokens + CONTEXT_RESERVE_TOKENS;
     if (need > nctx) {
       return { status: "refused", need, have: nctx, docTokens, historyTokens: histTokens };
     }
