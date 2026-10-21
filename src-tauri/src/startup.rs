@@ -1704,8 +1704,8 @@ mod tests {
 
     /// What a flag renders is the whole element that follows it, and the
     /// flag is rendered exactly once. The joined line is not the artifact to
-    /// assert on: `contains("--ctx-checkpoints 1")` is also true of
-    /// `--ctx-checkpoints 12`, and a saved chat twelve times the size is
+    /// assert on: `contains("--ctx-checkpoints 2")` is also true of
+    /// `--ctx-checkpoints 20`, and a saved chat ten times the size is
     /// exactly what the constant exists to prevent. `position` alone is not
     /// enough either: it reads the first of two renderings and the second
     /// passes in silence, so two occurrences are a fault in the renderer,
@@ -2653,9 +2653,9 @@ mod tests {
             slots.display().to_string(),
             "{joined}"
         );
-        // The literal `"1"`, not the constant: the pair is what the plan
-        // pins, and asserting the constant would follow it into `"12"`.
-        assert_eq!(rendered_value(&argv, "--ctx-checkpoints"), "1", "{joined}");
+        // The literal `"2"`, not the constant: the pair is what the plan
+        // pins, and asserting the constant would follow it into `"20"`.
+        assert_eq!(rendered_value(&argv, "--ctx-checkpoints"), "2", "{joined}");
         assert!(!joined.contains("--swa-full"), "{joined}");
         let _ = std::fs::remove_dir_all(&root);
     }

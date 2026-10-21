@@ -635,7 +635,8 @@ def engine_argv(bin_path, model, port, ctx_size, slots_dir, streams,
     The two optional flags render only when given (default None -> nothing
     in the argv, so the argv at defaults is the committed one) and as the
     same flag/value PAIR the app ships (`--flash-attn on`,
-    `--ctx-checkpoints 1`). Their POSITION in this argv is the harness's
+    `--ctx-checkpoints 2`; two since 2026-10-21, when the closing round
+    needed a checkpoint at the resume point). Their POSITION in this argv is the harness's
     own: the engine does not care about order, and the app's overall
     ordering differs anyway (argv.rs renders the tier pair last). The value
     rides as its own element - a bare substring of the joined argv would
@@ -1739,7 +1740,7 @@ def main():
                          "gate was disabled, not that the run passed a limit")
     ap.add_argument("--ctx-checkpoints", type=int, default=None,
                     help="render `--ctx-checkpoints K` as the same pair the "
-                         "app ships (argv.rs renders `--ctx-checkpoints 1`); "
+                         "app ships (argv.rs renders `--ctx-checkpoints 2`); "
                          "default None renders NOTHING (the argv at defaults "
                          "stays the committed one); the value used is "
                          "recorded as provenance.ctx_checkpoints (null when "

@@ -221,8 +221,8 @@ behind are in §7. Three flags, one place (`crates/kalsa-launch/src/argv.rs`):
 - `--slot-save-path` → a directory the app creates under its data directory before launch. If it
   cannot be created, the launch refuses rather than starting an engine whose disk tier silently
   answers `not supported`.
-- `--ctx-checkpoints 1` → the default is 32 (`common/common.h:630`) and v1 left this out, which
-  would let one chat's save file reach the size the handoff records. One is the point, not a
+- `--ctx-checkpoints` → the default is 32 (`common/common.h:630`) and v1 left this out, which
+  would let one chat's save file reach the size the handoff records. The count is the point, not a
   convenience: the appendix carries the checkpoint blobs, so the flag multiplies the save file, and
   the reader trimming to `n_ctx_checkpoints` (`server-context.cpp:2581-2583`) is a **bound, not a
   licence to ask for more**. The test must pin the exact pair `["--ctx-checkpoints", "1"]`: a

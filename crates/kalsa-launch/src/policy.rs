@@ -1521,7 +1521,7 @@ mod tests {
 
     /// What a flag renders is the element that follows it, compared whole,
     /// and the flag is rendered exactly once: `contains("--ctx-checkpoints
-    /// 1")` is true of `--ctx-checkpoints 12` too, and a saved chat twelve
+    /// 2")` is true of `--ctx-checkpoints 20` too, and a saved chat ten
     /// times the size is the failure this guards. Reading the first of two
     /// occurrences would let the second through in silence, so two are a
     /// fault in the renderer, not a value to pick between.
@@ -1545,9 +1545,10 @@ mod tests {
     /// `--slot-save-path` is the folder the app created before this launch.
     /// Without it the engine answers every slot save with `not supported`,
     /// so a plan that drops it loses the tier in silence.
-    /// `--ctx-checkpoints 1` is the size of a saved chat, not a preference:
-    /// the engine's default is 32 (`common/common.h:630`) and one chat under
-    /// it grew to roughly 2.7 GB.
+    /// `--ctx-checkpoints 2` is the closing round's resumption point, and
+    /// the size of a saved chat: the engine's default is 32
+    /// (`common/common.h:630`) and one chat under it grew to roughly 2.7 GB,
+    /// while the second record adds about 62.8 MiB to every saved chat.
     ///
     /// `--swa-full` is the negative that matters. The committed round-trip
     /// (`dev/results/slot-restore-swa/summary.md`) runs it off and on and
@@ -1568,9 +1569,9 @@ mod tests {
             "/slots",
             "{argv:?}"
         );
-        // The literal `"1"`, not the constant: the pair is what the plan
-        // pins, and asserting the constant would follow it into `"12"`.
-        assert_eq!(rendered_value(&argv, "--ctx-checkpoints"), "1", "{argv:?}");
+        // The literal `"2"`, not the constant: the pair is what the plan
+        // pins, and asserting the constant would follow it into `"20"`.
+        assert_eq!(rendered_value(&argv, "--ctx-checkpoints"), "2", "{argv:?}");
         assert!(
             !line.contains("--swa-full"),
             "the measurement took this flag out; see dev/results/slot-restore-swa/summary.md: {line}"

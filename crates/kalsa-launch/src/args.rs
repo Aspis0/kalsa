@@ -326,14 +326,31 @@ impl KvCache {
 /// legal under, so it is the value rendered.
 pub(crate) const FLASH_ATTN: &str = "on";
 
-/// One context checkpoint per slot. The engine's default is **32**
+/// Two context checkpoints per slot. The engine's default is **32**
 /// (`common/common.h:630`; the flag is at `common/arg.cpp:1695-1701`), and one
-/// saved conversation under it grew to roughly 2.7 GB. One record is what the
-/// reader keeps anyway (`server-context.cpp:2581-2583`).
+/// saved conversation under it grew to roughly 2.7 GB.
+///
+/// The second record is the price of the closing round. The engine reuses a
+/// prefix only when the request arrives at the end of what the slot holds,
+/// and the closing round of `toolLoop` restarts from the last user message:
+/// the one record the save kept did not cover that resumption point, so the
+/// engine reread the whole thread. The engine places the second record at
+/// the start of the last user message — the point the closing round resumes
+/// from — and `server-context.cpp` refuses a checkpoint beyond it, so the
+/// record has to be there before the round starts. Measured on the live
+/// Qwen3.6 engine (2026-10-21, `dev/lab-real`): the closing round reads
+/// ~1 000 tokens instead of 64 650, and takes 3 s instead of 189 s. The
+/// small-scale arm isolates the rule — the same body stopped 18 tokens short
+/// of the end loses the cache entirely (`cache 0`, 10 640 ms of prefill
+/// against 64 ms with the body intact).
+///
+/// The cost is on every saved chat: the second record adds about **62.8 MiB**
+/// to the file (the engine's own line: `save_slot_ch: appended N context
+/// checkpoint(s) (62.813 MiB)`).
 ///
 /// The double dash is the registered spelling: `-ctx-checkpoints` is not a
 /// name the parser knows (the short form is `-ctxcp`) and is refused.
-pub(crate) const CTX_CHECKPOINTS: &str = "1";
+pub(crate) const CTX_CHECKPOINTS: &str = "2";
 
 /// How many layers go to the GPU: stated when the budget decided it (`All`
 /// for a card sized for the model, `ForcedOff` for one that was not),

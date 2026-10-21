@@ -201,9 +201,11 @@ impl ServerArgs {
         // The disk tier. The folder is created by the app before this argv is
         // built (see `ServerArgs::slot_save_path`); the engine refuses a path
         // that is not a directory, so rendering it is what makes the save and
-        // restore routes exist at all. The checkpoint count is the size of a
-        // saved chat: the engine's default is 32, and one record is what a
-        // restore reads. `--swa-full` is deliberately absent — the committed
+        // restore routes exist at all. The checkpoint count rides the named
+        // constant: the engine's default is 32 (one chat under it grew to
+        // roughly 2.7 GB), and the two records are the closing round's
+        // resumption point — `CTX_CHECKPOINTS` says why and what it costs.
+        // `--swa-full` is deliberately absent — the committed
         // round-trip (`dev/results/slot-restore-swa/summary.md`) shows it
         // moves the file's size, not whether a restore comes back warm.
         argv.extend([
@@ -636,8 +638,8 @@ mod tests {
 
     /// What a flag renders is the whole element that follows it, and the
     /// flag is rendered exactly once. The joined line is not the artifact to
-    /// assert on: `contains("--ctx-checkpoints 1")` is also true of
-    /// `--ctx-checkpoints 12`, and a saved chat twelve times the size is
+    /// assert on: `contains("--ctx-checkpoints 2")` is also true of
+    /// `--ctx-checkpoints 20`, and a saved chat ten times the size is
     /// exactly what the constant exists to prevent. `position` alone is not
     /// enough either: it reads the first of two renderings and the second
     /// passes in silence, so two occurrences are a fault in the renderer,
@@ -671,9 +673,9 @@ mod tests {
             "/somewhere/private/slots",
             "{argv:?}"
         );
-        // The literal `"1"`, not `CTX_CHECKPOINTS`: asserting the constant
-        // is a tautology that stays green when it becomes `"12"`.
-        assert_eq!(rendered_value(&argv, "--ctx-checkpoints"), "1", "{argv:?}");
+        // The literal `"2"`, not `CTX_CHECKPOINTS`: asserting the constant
+        // is a tautology that stays green when it becomes `"20"`.
+        assert_eq!(rendered_value(&argv, "--ctx-checkpoints"), "2", "{argv:?}");
     }
 
     /// The id the engine lists is the file's stem: no directory (the
