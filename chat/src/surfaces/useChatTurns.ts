@@ -15,7 +15,7 @@ import type { LiveSettings, ToolRun } from "../lib/types";
 import type { ConversationStore } from "../lib/store";
 import { uid } from "../lib/store";
 import type { DraftRecord } from "../lib/mail/drafts";
-import { buildPinnedContext, CONTEXT_RESERVE_TOKENS, wireSize } from "../lib/attachments";
+import { ANSWER_RESERVE_TOKENS, buildPinnedContext, wireSize } from "../lib/attachments";
 import type { MediaView } from "../lib/attachments";
 import { definitionsTokens } from "../lib/density";
 import { wireTurns } from "../lib/wireTurns";
@@ -539,7 +539,7 @@ export function useChatTurns({ store, announce, contextSizes, saveMailDraft }: T
             known === null
               ? null
               : {
-                  budget: Math.max(0, known - CONTEXT_RESERVE_TOKENS),
+                  budget: Math.max(0, known - ANSWER_RESERVE_TOKENS),
                   size: wireSize,
                   definitions: definitionsTokens(tools),
                 },

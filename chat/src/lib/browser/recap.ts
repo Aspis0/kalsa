@@ -1,5 +1,6 @@
 import { publicHttpUrl } from "../publicUrl";
 import type { Outcome } from "./confirm";
+import { isBrowserRun } from "./runs";
 import type { ToolRun } from "../types";
 import { TOOL_STOPPED } from "../types";
 import type { English } from "../../i18n/en/all";
@@ -33,6 +34,18 @@ export interface Recap {
       landed — which is every open today: the sidecar names no address, so the
       line asks for one rather than claiming to have reached it. */
   asked: string;
+  /** The hosts of the pages that were opened, in the order they were opened,
+      each one of them once. The line names the last of them; the record names
+      them all. */
+  hosts: string[];
+  /** How many times the page in front of the model was read. **Not how many
+      pages**: a read takes a page apart, so the same page read three times is
+      three reads of one page. */
+  read: number;
+  /** How many of the pages that were opened are a product's own page: an
+      address under a path, which is what a product's page has and the front
+      door of a site does not. */
+  detail: number;
   /** Distinct fields written into, each one that took the words. */
   typed: number;
   /** Clicks that came back answered. */
@@ -68,7 +81,20 @@ export interface Recap {
  * outcomes are what the person pressed, and that is the whole record.
  */
 export function recapOf(runs: ToolRun[], outcomes: Outcome[], waiting: number): Recap | null {
+  const recap = counted(runs, outcomes, waiting);
+  return nothingSaid(recap) ? null : recap;
+}
+
+/**
+ * The counts of a turn, whatever there is to say about them.
+ *
+ * **One counter, two readers.** The person reads the line the counts make and
+ * the model reads the record the counts make, and the two cannot disagree
+ * because they are the same numbers — computed here, once.
+ */
+function counted(runs: ToolRun[], outcomes: Outcome[], waiting: number): Recap {
   const opened = runs.filter((run) => run.name === "browser_open" && run.state === "ok");
+  const read = runs.filter((run) => run.name === "browser_read" && run.state === "ok");
   const typed = distinctRefs(runs.filter((run) => run.name === "browser_type" && run.state === "ok"));
   const clicked = runs.filter((run) => run.name === "browser_click" && run.state === "ok");
   // **A click that was cut short is its own fact.** The sidecar may have
@@ -76,10 +102,19 @@ export function recapOf(runs: ToolRun[], outcomes: Outcome[], waiting: number): 
   // click" by a turn that began one is being told the opposite of what
   // happened. So it says what it can stand behind: the click was interrupted.
   const clickInterrupted = runs.some((run) => run.name === "browser_click" && run.result === TOOL_STOPPED);
-  const wanted = opened.map((run) => hostOf(run.arguments)).filter((one): one is string => one !== null);
+  const addresses = opened.map((run) => addressOf(run.arguments));
+  const wanted = addresses.filter((one): one is Address => one !== null);
+  const hosts = [...new Set(wanted.map((one) => one.host))];
   const recap: Recap = {
     opened: opened.length,
-    asked: wanted.length === 0 ? "" : wanted[wanted.length - 1],
+    asked: hosts.length === 0 ? "" : hosts[hosts.length - 1],
+    hosts,
+    read: read.length,
+    // **A product's page is a page under a path.** The front door of a site —
+    // an address with no path — is the site's home and not one product's
+    // page, and the house's own example of a product's address is a path
+    // (`https://shop.example/dp/B012345678`).
+    detail: wanted.filter((one) => one.path !== "").length,
     typed: typed.size,
     clicked: clicked.length,
     tried: runs.some((run) => run.name === "browser_click"),
@@ -105,7 +140,53 @@ export function recapOf(runs: ToolRun[], outcomes: Outcome[], waiting: number): 
     }
     recap[one.code] += 1;
   }
-  return nothingSaid(recap) ? null : recap;
+  return recap;
+}
+
+/**
+ * The turn's own record, said to the model.
+ *
+ * **The app's own record is the only source.** On 21 October 2026 a browser
+ * turn ended with the model writing "dalle schede prodotto che ho visitato"
+ * and prices it called verified — and the app's record said that no product's
+ * page had been opened at all. The model was not lying on purpose: the record
+ * was never in front of it. So the record goes into the status message, in
+ * the same English the status is written in, with the counts the runs stand
+ * for and the sentence that names what was never opened.
+ *
+ * **What it does not say.** Nothing about the pages' own words, nothing about
+ * what was on them, nothing the record does not hold: the runs are what the
+ * app ran, and that is the whole of it.
+ *
+ * **The empty string when the turn was not the browser's.** A turn of web
+ * tools has no page of its own, and a record of nothing but zeroes is a
+ * sentence about a turn that did not happen.
+ */
+export function turnRecord(runs: ToolRun[]): string {
+  if (!runs.some((run) => isBrowserRun(run.name))) return "";
+  const recap = counted(runs, [], 0);
+  const opened = recap.opened;
+  const where = recap.hosts.length === 0 ? "" : ` (asked for ${hostsOf(recap.hosts)})`;
+  const said = [
+    `The browser opened ${opened} ${opened === 1 ? "page" : "pages"}${where}`,
+    `read ${recap.read} ${recap.read === 1 ? "time" : "times"}`,
+    `wrote into ${recap.typed} ${recap.typed === 1 ? "field" : "fields"}`,
+    `clicked ${recap.clicked} ${recap.clicked === 1 ? "time" : "times"}`,
+  ].join(", ");
+  // **The sentence that closes the argument.** A model that read a listing and
+  // calls it a product sheet is not being shown a page it did not see: the
+  // app's record says which pages there were, and says so out loud when none
+  // of them was a product's own page.
+  const detail =
+    recap.detail === 0 ? " No detail page of any product was opened in this turn." : "";
+  return `[Kalsa turn record] ${said}.${detail} Answer only from what those pages actually showed; say what was not verified.`;
+}
+
+/** Up to two hosts and a count of the rest: the same shape the line gives the
+    person, in the one language this record is written in. */
+function hostsOf(hosts: string[]): string {
+  const listed = hosts.slice(0, 2).join(", ");
+  return hosts.length > 2 ? `${listed} +${hosts.length - 2}` : listed;
 }
 
 /** Whether there is anything here to say at all. **`recapLine` never returns an
@@ -202,17 +283,40 @@ function refOf(argumentsJson: string): string | null {
     name the person can still place. */
 const HOST_CHARS = 60;
 
-/** The host an open asked for, never where it landed: **only the open's own
-    structured answer can say that**, and the sidecar names no address in one —
-    its sentence is prose and prose is not an interface. So the line says what
-    was asked for, which is true whatever the page did with it. */
-function hostOf(argumentsJson: string): string | null {
+/** An address as the app reads it: the host it names and the path under it. */
+interface Address {
+  host: string;
+  path: string;
+}
+
+/**
+ * The address a call asked for, as the app's own reading of it: the host, and
+ * the path under it.
+ *
+ * **The address asked for, never where it landed.** Only the call's own
+ * structured answer can say that, and the sidecar names no address in one —
+ * its sentence is prose and prose is not an interface. So the record says what
+ * was asked for, which is true whatever the page did with it.
+ *
+ * **The path is what tells a product's page from a site's front door.** It is
+ * the shape of the address the model wrote, and nothing else: the app does not
+ * read the page, so it cannot know what was on it — only where it was asked
+ * to go.
+ */
+function addressOf(argumentsJson: string): Address | null {
   try {
     const parsed: unknown = JSON.parse(argumentsJson);
     if (parsed === null || typeof parsed !== "object") return null;
     const url = (parsed as { url?: unknown }).url;
     const safe = publicHttpUrl(url);
-    return safe === null ? null : new URL(safe).hostname.slice(0, HOST_CHARS);
+    if (safe === null) return null;
+    const address = new URL(safe);
+    return {
+      host: address.hostname.slice(0, HOST_CHARS),
+      // **The front door has no path.** A site's home is "/", and it is the
+      // site's home and not one product's page.
+      path: address.pathname.replace(/^\/+/, "").replace(/\/+$/, ""),
+    };
   } catch {
     return null;
   }

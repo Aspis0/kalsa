@@ -361,6 +361,9 @@ function normalizeRecap(value: unknown): Recap | null {
     // The hosts are already gone by the time this reads one: `forDisk` strips
     // them, so a line drawn after a reload says "a site" and says nothing false.
     asked: "",
+    hosts: [],
+    read: count("read"),
+    detail: count("detail"),
     typed,
     clicked,
     tried: flag("tried"),
@@ -412,7 +415,7 @@ export function forDisk(messages: ChatMessage[]): unknown[] {
             ...rest,
             arguments: "",
             result: "",
-            ...(run.recap ? { recap: { ...run.recap, asked: "", sentTo: [] } } : {}),
+            ...(run.recap ? { recap: { ...run.recap, asked: "", hosts: [], sentTo: [] } } : {}),
           };
         }
         // A mail run keeps its name and its count, never its arguments or its

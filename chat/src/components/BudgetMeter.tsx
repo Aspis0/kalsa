@@ -1,4 +1,4 @@
-import { CONTEXT_RESERVE_TOKENS } from "../lib/attachments";
+import { ANSWER_RESERVE_TOKENS } from "../lib/attachments";
 import { fitView } from "../lib/fit";
 import { useLanguage } from "../i18n/useLanguage";
 
@@ -35,7 +35,7 @@ export function BudgetMeter({
     fileCount + imageCount,
     docTokens + imageTokens,
     historyTokens,
-    CONTEXT_RESERVE_TOKENS,
+    ANSWER_RESERVE_TOKENS,
   );
   if (view === "hidden" || view === "quiet") return null;
   if (view === "unknown") return <p className="budget-unknown">{t.budgetUnknown}</p>;

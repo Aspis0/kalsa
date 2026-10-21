@@ -13,7 +13,7 @@ import { closeRecap, sayRuns, takeNote } from "../browser/note";
 import { recapLine } from "../browser/recap";
 import { isBrowserRun } from "../browser/runs";
 import { filed, newLedger } from "../callLedger";
-import { CONTEXT_RESERVE_TOKENS, wireSize } from "../attachments";
+import { ANSWER_RESERVE_TOKENS, wireSize } from "../attachments";
 import { loadSampling, samplingWire } from "../sampling";
 import { loadThinking, thinkingSupport } from "../thinking";
 import { TABLES } from "../../i18n";
@@ -262,7 +262,7 @@ export async function runPhoneTurn(
       contextFit:
         facts.nctx === null
           ? null
-          : { budget: Math.max(0, facts.nctx - CONTEXT_RESERVE_TOKENS), size: wireSize },
+          : { budget: Math.max(0, facts.nctx - ANSWER_RESERVE_TOKENS), size: wireSize },
       sampling: samplingWire(loadSampling()),
       signal,
       tools: phoneTools(settings.webTools, turn.language, settings.model, mail, turn.device, armed),

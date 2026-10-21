@@ -36,8 +36,23 @@ export interface Attachment {
 
 /** Browser-side read cap: beyond this a tab risks more than it gains. */
 export const MAX_FILE_BYTES = 32 * 1024 * 1024;
-/** Completion headroom kept free whenever the context size is known. */
-export const CONTEXT_RESERVE_TOKENS = 512;
+/**
+ * The room the answer has to write in, kept free whenever the context size is
+ * known.
+ *
+ * **Measured on 21 October 2026, on the turn that closed for space.** The
+ * thread had grown to 64650 tokens of a 65536 window, so the answer had 886
+ * tokens to write in — and it wrote 886 of them and was cut at
+ * `n_tokens = 65535, truncated = 1`: a table with its header and no rows. A
+ * reserve of 512 is not a room for an answer, and the turn that has to answer
+ * needs one that is bigger than the answer it has to write.
+ *
+ * **It is the answer's own term, and it is paid before the answer is asked
+ * for.** The wire may spend the window less this, so the room is already free
+ * when the last round of a turn goes out: the round that would not leave it
+ * stops the turn instead of asking for an answer that cannot be written.
+ */
+export const ANSWER_RESERVE_TOKENS = 1536;
 /** What one attached picture costs the window, whatever its pixels — the
     engine is launched with `--image-max-tokens` 560, its ceiling. */
 export const IMAGE_TOKENS = 560;
@@ -751,7 +766,7 @@ export type PinnedContext =
  * The five browser tools alone are 2755 characters of JSON: about 689 tokens
  * by the house rule, 1566 by the engine's count.
  *
- * **The answer's reserve stays its own term.** `CONTEXT_RESERVE_TOKENS` is
+ * **The answer's reserve stays its own term.** `ANSWER_RESERVE_TOKENS` is
  * the room the answer has to write in; it is not a share of the wire's room
  * and it is not what the definitions borrow. The wire gets what is left, and
  * the definitions are weighed inside that.
@@ -791,7 +806,7 @@ export function buildPinnedContext(
   };
   if (nctx !== null) {
     while (
-      docTokens + pendingDocTokens + pendingImageTokens + histTokens + toolTokens + CONTEXT_RESERVE_TOKENS > nctx &&
+      docTokens + pendingDocTokens + pendingImageTokens + histTokens + toolTokens + ANSWER_RESERVE_TOKENS > nctx &&
       turns.length > 1
     ) {
       shedOne();
@@ -803,7 +818,7 @@ export function buildPinnedContext(
       while (turns.length > 1 && turns[0]?.role !== "user") shedOne();
     }
     const need =
-      docTokens + pendingDocTokens + pendingImageTokens + histTokens + toolTokens + CONTEXT_RESERVE_TOKENS;
+      docTokens + pendingDocTokens + pendingImageTokens + histTokens + toolTokens + ANSWER_RESERVE_TOKENS;
     if (need > nctx) {
       return { status: "refused", need, have: nctx, docTokens, historyTokens: histTokens };
     }

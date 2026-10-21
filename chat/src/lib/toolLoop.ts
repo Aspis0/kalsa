@@ -13,9 +13,11 @@ import { recoverToolCall } from "./recoverToolCall";
 import { runToolCall } from "./runToolCall";
 import { logUiEvent } from "./uiLog";
 import { denseTokens, definitionsTokens, HOUSE_CHARS_PER_TOKEN } from "./density";
+import { turnRecord } from "./browser/recap";
 import { MAIL_NAMES, MAIL_TOOLS, WEB_TOOLS } from "./tools/definitions";
 import { BROWSER_NAMES, BROWSER_TOOLS } from "./tools/browserTools";
 import type { ToolDefinition } from "./tools/definitions";
+import type { ToolRun } from "./types";
 
 /**
  * Answer, calling tools for as long as the model asks for them.
@@ -37,10 +39,46 @@ const MAX_TOOL_ROUNDS = 4;
     limits are the same number, so the calls stop a turn, not the round count. */
 const MAX_BROWSER_ROUNDS = BROWSER_CALLS_PER_TURN;
 
+/**
+ * The room the final round's status message takes, kept free of the wire's
+ * room so that the status is never the thing that does not fit.
+ *
+ * **The status is the wire's last message, and the wire may spend everything
+ * else.** The turn stops when the thread has taken the budget, and the
+ * closing request is the thread the engine read plus the status: a status
+ * that no longer fits is left out, and with it the record of what the turn
+ * did — the counts, and the sentence that names the pages it never opened.
+ *
+ * **The room it takes is a small one and it is certain.** The status and the
+ * record under it are a couple of hundred tokens at most, and the record's
+ * own size is bounded: two hosts and a count, and the counts themselves.
+ */
+const STATUS_RESERVE_TOKENS = 256;
+
 /** What the last request says about the turn's own state: the calls are done,
     so the answer comes now, from what arrived, and promises nothing more. */
 export const FINAL_STATUS =
   "[Kalsa execution status] No tool calls remain in this turn. Give the final answer now using the results already received. State what is unverified or incomplete, and do not promise another action.";
+
+/**
+ * The status, with the turn's own record under it.
+ *
+ * **The record is what the app ran, and the model was never told.** On 21
+ * October 2026 a browser turn ended with the model writing "dalle schede
+ * prodotto che ho visitato" and prices it called verified: the app's record
+ * said that no product's page had been opened at all, and the model could not
+ * see that record — it was the app's, and the app had not said it out loud.
+ *
+ * **So the final status carries it.** Both ways a turn can end — the round
+ * that closes it for space and the last ordinary round — put the same
+ * sentence at the end of the wire: the counts the runs stand for, and the
+ * sentence that names what was never opened. The answer is written from what
+ * the pages showed, and the record says which pages there were.
+ */
+function finalStatus(runs: ToolRun[]): string {
+  const record = turnRecord(runs);
+  return record === "" ? FINAL_STATUS : `${FINAL_STATUS}\n${record}`;
+}
 
 function maxToolRounds(offered: string[]): number {
   return offered.some((name) => BROWSER_NAMES.has(name)) ? MAX_BROWSER_ROUNDS : MAX_TOOL_ROUNDS;
@@ -252,10 +290,18 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
     return Math.max(averaged, counted);
   }
 
-  /** Whether the request about to be sent fits the window the caller knows. */
-  function nextRoundFits(): boolean {
+  /**
+   * Whether the request about to be sent fits the window the caller knows.
+   *
+   * **The room of the status is kept free of the wire's room.** The closing
+   * request is the thread the engine read plus the status, and a status that
+   * no longer fits is left out — and with it the record of what the turn did.
+   * So the thread stops a little short of the budget, and the status has
+   * somewhere to go.
+   */
+  function nextRoundFits(reserve = 0): boolean {
     if (fit === null) return true;
-    return projectedSize() <= fit.budget;
+    return projectedSize() <= fit.budget - reserve;
   }
 
   /**
@@ -282,9 +328,9 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
    * accepted, which fits by definition and keeps the whole prefix, and the
    * answer still comes from what the turn read.
    */
-  function closingCarriesStatus(marked: WireMessage[]): boolean {
+  function closingCarriesStatus(marked: WireMessage[], status: string): boolean {
     if (fit === null) return true;
-    const statusSize = fit.size([{ role: "user", content: FINAL_STATUS }]);
+    const statusSize = fit.size([{ role: "user", content: status }]);
     if (measured !== null) return measured + statusSize <= fit.budget;
     return wireEstimate(marked) <= fit.budget;
   }
@@ -324,8 +370,18 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
   // person can see is not a half-finished check, so a model that then rambles,
   // re-lists the mails or asks for tools again cannot end the turn as a failure.
   let drewMail = false;
+  // **The turn's own runs, as the record counts them.** A call is seen twice —
+  // once running, once with its answer — so the record keeps one entry per id
+  // and the answer replaces the running one, the way the thread shows it.
+  const turnRuns = new Map<string, ToolRun>();
+  // **How many of those runs the wire the engine read carries.** The closing
+  // request is built from that wire, so the record it carries is about the
+  // runs the model can see: the exchange that did not fit is not in it, and a
+  // call whose answer the model never read is not something it can speak of.
+  let sentRuns = 0;
   const noteRun: NonNullable<StreamOptions["onToolRun"]> = (run) => {
     if (MAIL_NAMES.has(run.name) && run.state === "ok" && run.mail !== undefined) drewMail = true;
+    turnRuns.set(run.id, run);
     options.onToolRun?.(run);
   };
   for (let round = 0; round <= toolRounds; round += 1) {
@@ -351,7 +407,8 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
       }
     } else {
       fitHistory();
-      if (!nextRoundFits() && pending > 0) {
+      // **The thread stops short of the budget by the room the status takes.**
+      if (!nextRoundFits(STATUS_RESERVE_TOKENS) && pending > 0) {
         closingForSpace = true;
         // Words, not calls: the round that closes the turn answers.
         forceWords = true;
@@ -407,8 +464,13 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
     // tells it the calls are over.
     let messages = closingForSpace ? acceptedWire() : conversation;
     if (last && !statusSent && calledTool) {
-      const marked = withFinalStatus(messages);
-      if (marked !== null && (!closingForSpace || closingCarriesStatus(marked))) {
+      // **The record is about the runs the model's own thread carries.** The
+      // closing path answers from the wire the engine read, and the exchange
+      // that did not fit is not on it.
+      const recordRuns = closingForSpace ? [...turnRuns.values()].slice(0, sentRuns) : [...turnRuns.values()];
+      const status = finalStatus(recordRuns);
+      const marked = withFinalStatus(messages, status);
+      if (marked !== null && (!closingForSpace || closingCarriesStatus(marked, status))) {
         messages = marked;
         statusSent = true;
       }
@@ -446,6 +508,10 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
     // closing request is built from: the conversation moves on, this does
     // not.
     accepted = messages.map((message) => ({ ...message }));
+    // **And how many of the turn's runs that body carries.** The calls of this
+    // round have not run yet, so the body holds the results of the rounds
+    // before it — and the record the closing request carries is about those.
+    sentRuns = turnRuns.size;
     pending = 0;
     // The turn was closed for space: the person is told, in a line of their
     // own language, that the answer is what the turn found before it stopped.
@@ -627,10 +693,15 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
  * The prefix is kept — 56036 of 56084 tokens reused, 0.58 s of prefill where
  * the fold cost 147 s — and the model still reads the sentence that tells it
  * the calls are over.
+ *
+ * **And the record of what the turn did goes with it.** The status says the
+ * calls are over; the record says what they were, in the app's own counts, so
+ * the answer is written from what the pages showed and not from what the
+ * model wishes it had seen.
  */
-function withFinalStatus(conversation: WireMessage[]): WireMessage[] | null {
+function withFinalStatus(conversation: WireMessage[], status: string): WireMessage[] | null {
   if (conversation.length === 0) return null;
-  return [...conversation, { role: "user", content: FINAL_STATUS }];
+  return [...conversation, { role: "user", content: status }];
 }
 
 /**

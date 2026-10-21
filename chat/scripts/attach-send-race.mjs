@@ -129,12 +129,16 @@ check(
 
 const { dir, app } = await loadApp();
 
-// **The windows below are sized against the prompt.** The prompt is the
-// biggest fixed thing on the wire, and it grows when a sentence is added to
-// it: a window written as a plain number rots the day the prompt grows, and
-// the proof then fails for a reason that has nothing to do with what it
-// proves. These are the prompt's own tokens plus the room each case needs.
+// **The windows below are sized against the prompt and the reserve.** The
+// prompt is the biggest fixed thing on the wire, and it grows when a sentence
+// is added to it: a window written as a plain number rots the day the prompt
+// grows, and the proof then fails for a reason that has nothing to do with
+// what it proves. The reserve is the room the app keeps for the answer, and
+// the fit keeps it free of the wire: a window that does not count it is a
+// window the fit refuses. These are the prompt's own tokens, the reserve,
+// and the room each case needs.
 const PROMPT_TOKENS = app.estTokens(app.systemPrompt(false, false).content);
+const RESERVE = app.ANSWER_RESERVE_TOKENS;
 try {
   const store = app.createStore();
   for (const id of ["c1", "c2"]) {
@@ -382,10 +386,18 @@ try {
     // useChat's own trial expression, driven as the app drives it.
     const riding = store.getAttachments("c3").filter((a) => a.active && !(a.pinned ?? true));
     const blind = { vision: false, url: () => null };
+    // **The window of the case**: the staged A alone and the reserve fit it,
+    // and A and B together do not. The two weigh the same, so the window is
+    // A's own need and half of B's.
+    const CASE_WINDOW =
+      PROMPT_TOKENS +
+      RESERVE +
+      app.estTokens(app.turnDocBlock([staged])) +
+      Math.round(app.estTokens(app.turnDocBlock([arriving])) / 2);
     const trialBoth = app.buildPinnedContext(
       store.get("c3").messages,
       store.getAttachments("c3"),
-      PROMPT_TOKENS + 744,
+      CASE_WINDOW,
       blind,
       0,
       app.estTokens(app.turnDocBlock([...riding, arriving])),
@@ -398,7 +410,7 @@ try {
     const trialStagedAlone = app.buildPinnedContext(
       store.get("c3").messages,
       store.getAttachments("c3"),
-      PROMPT_TOKENS + 744,
+      CASE_WINDOW,
       blind,
       0,
       app.estTokens(app.turnDocBlock([...riding])),
@@ -411,7 +423,7 @@ try {
     const trialArrivingAlone = app.buildPinnedContext(
       store.get("c4").messages,
       [],
-      PROMPT_TOKENS + 744,
+      CASE_WINDOW,
       blind,
       0,
       app.estTokens(app.turnDocBlock([arriving])),

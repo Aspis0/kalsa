@@ -20,6 +20,7 @@
 //
 // Run: node scripts/turn-space.mjs   (from chat/)
 
+import { rm } from "node:fs/promises";
 import { loadApp } from "./lib/app-bundle.mjs";
 
 const { app } = await loadApp();
@@ -30,7 +31,7 @@ const {
   buildPinnedContext,
   definitionsTokens,
   denseTokens,
-  CONTEXT_RESERVE_TOKENS,
+  ANSWER_RESERVE_TOKENS,
   BROWSER_TOOLS,
   WEB_TOOLS,
   FINAL_STATUS,
@@ -65,7 +66,8 @@ function equal(actual, expected, label) {
 /** The window the engine works in. */
 const LIMIT = 65536;
 /** What the app keeps back for the answer. */
-const RESERVE = CONTEXT_RESERVE_TOKENS;
+/** What the app keeps back: the room the answer has to write in. */
+const RESERVE = ANSWER_RESERVE_TOKENS;
 const BUDGET = LIMIT - RESERVE;
 
 /**
@@ -166,7 +168,15 @@ function promptText(body) {
  * the `total: 0` case is about.
  *
  * `calls` is the list of tools the model asks for, one per round; when the
- * wire already carries that many results, the model answers in words.
+ * wire already carries that many results, the model answers in words. A call
+ * may also be written as `{name, arguments}`: the tool's own arguments are
+ * what the turn's record is counted from, and a mock that always wrote
+ * `{page: n}` would have no address to count.
+ *
+ * `answerTokens` is the size of the answer the engine writes, in tokens: the
+ * engine writes what fits in the room the prompt left and ends the round
+ * there, the way the cell of 21 October 2026 came back with its words cut at
+ * `n_tokens = 65535`.
  */
 /**
  * What the engine would have reused between two bodies: the prefix of the
@@ -180,7 +190,7 @@ function engineCache(previous, next) {
   return after.startsWith(before) ? before.length : 0;
 }
 
-function mockEngine({ bodyChars, reports, calls = [], limit = LIMIT, reportTotal = null }) {
+function mockEngine({ bodyChars, reports, calls = [], limit = LIMIT, reportTotal = null, answerTokens = null }) {
   const requests = [];
   const caches = [];
   let refused = 0;
@@ -222,6 +232,9 @@ function mockEngine({ bodyChars, reports, calls = [], limit = LIMIT, reportTotal
     // per round that called a tool.
     const done = body.messages.filter((message) => message.role === "tool").length;
     if (body.tool_choice !== "none" && done < calls.length) {
+      const call = calls[done];
+      const name = typeof call === "string" ? call : call.name;
+      const args = typeof call === "string" ? { page: done + 1 } : call.arguments;
       frames.push({
         choices: [
           {
@@ -232,7 +245,7 @@ function mockEngine({ bodyChars, reports, calls = [], limit = LIMIT, reportTotal
                   index: 0,
                   id: `call-${requests.length}`,
                   type: "function",
-                  function: { name: calls[done], arguments: JSON.stringify({ page: done + 1 }) },
+                  function: { name, arguments: JSON.stringify(args) },
                 },
               ],
             },
@@ -241,8 +254,14 @@ function mockEngine({ bodyChars, reports, calls = [], limit = LIMIT, reportTotal
       });
       frames.push({ choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }] });
     } else {
-      frames.push({ choices: [{ index: 0, delta: { content: "Ecco cosa ho trovato." } }] });
-      frames.push({ choices: [{ index: 0, delta: {}, finish_reason: "stop" }] });
+      // **The answer, cut where the window ends.** The room the prompt left is
+      // what the engine may write in, and a turn that asks for more than that
+      // comes back with its words cut short.
+      const room = limit - engineTokens(body.messages, body.tools);
+      const said = answerTokens === null ? "Ecco cosa ho trovato." : "z".repeat(4 * answerTokens);
+      const cut = Math.max(0, Math.min(said.length, 4 * room));
+      frames.push({ choices: [{ index: 0, delta: { content: said.slice(0, cut) } }] });
+      frames.push({ choices: [{ index: 0, delta: {}, finish_reason: cut < said.length ? "length" : "stop" }] });
     }
     const text = `${frames.map((frame) => `data: ${JSON.stringify(frame)}\n\n`).join("")}data: [DONE]\n\n`;
     return new Response(text, { headers: { "Content-Type": "text/event-stream" } });
@@ -272,6 +291,9 @@ async function runTurn(
     definitions = definitionsTokens(BROWSER_TOOLS),
     messages = [system, user],
     limit = LIMIT,
+    /** The app this turn runs on: the negative control runs the same case on a
+     * second build, with one rule compiled out of it. */
+    bundle = app,
   } = {},
 ) {
   const answer = [];
@@ -279,7 +301,7 @@ async function runTurn(
   let closedForSpace = false;
   let failure = null;
   try {
-    await streamChatCompletion({
+    await bundle.streamChatCompletion({
       endpoint: "http://127.0.0.1:8130/v1/chat/completions",
       messages,
       tools,
@@ -288,7 +310,7 @@ async function runTurn(
       sampling: { temperature: 0.2 },
       signal: new AbortController().signal,
       runTool: async () => ({ text: "z".repeat(bodyChars), ok: true }),
-      contextFit: { budget, size: wireSize, definitions },
+      contextFit: { budget, size: bundle.wireSize, definitions },
       onToken: (text) => answer.push(text),
       onToolRun: (run) => runs.push(run),
       onClosedForSpace: () => {
@@ -316,13 +338,30 @@ console.log("1. a dense page after a light prompt: the turn closes before the wi
 const PAGE = 6000;
 const firstPrompt = engineTokens([system, user], BROWSER_TOOLS);
 const perPage = denseTokens(PAGE);
+// **What a page costs the engine, as the engine counts it.** The app weighs a
+// page by the pessimistic rule and the engine by its own: the two are not the
+// same number, and the pages the window allows are the ones the engine read.
+const pageCost =
+  engineTokens(
+    [
+      system,
+      user,
+      {
+        role: "assistant",
+        content: "",
+        tool_calls: [{ function: { name: "browser_read", arguments: JSON.stringify({ page: 1 }) } }],
+      },
+      { role: "tool", content: "z".repeat(PAGE) },
+    ],
+    BROWSER_TOOLS,
+  ) - firstPrompt;
 // How many pages the window can carry: the budget less what the first prompt
 // weighed, over what a page weighs — and one page more, because the read
 // happens in the round that is still inside the window and the turn only
 // finds out that the next one is not.
-const expectedReads = Math.floor((BUDGET - firstPrompt) / perPage) + 1;
+const expectedReads = Math.floor((BUDGET - firstPrompt) / pageCost) + 1;
 console.log(
-  `   the shape: the first prompt weighs ${firstPrompt} tokens, a page weighs ${perPage}, so ${expectedReads} pages fit in ${BUDGET}`,
+  `   the shape: the first prompt weighs ${firstPrompt} tokens, a page weighs ${pageCost} to the engine (${perPage} by the app's own pessimistic rule), so ${expectedReads} pages fit in ${BUDGET}`,
 );
 
 const engine = mockEngine({ bodyChars: PAGE, reports: true, calls: Array(expectedReads + 4).fill("browser_read") });
@@ -499,14 +538,19 @@ check(blindSmallTurn.failure !== null, "and the turn dies there");
 
 // The same fit, on the caller's side: the build that assembles the wire
 // knows the offer now, and refuses the send before anything is sent.
+//
+// **Its own window, and a small history.** The window here is big enough for
+// the reserve the app keeps for the answer and for the status, so the fit's
+// answer is about the definitions and not about the room the app keeps back.
+const FIT_WINDOW = 2600;
 const storedUser = {
   id: "u1",
   role: "user",
-  content: "y".repeat(3000),
+  content: "y".repeat(200),
   createdAt: 0,
 };
-const fitted = buildPinnedContext([storedUser], [], SMALL, undefined, 0, 0, BROWSER_TOOLS);
-const unfitted = buildPinnedContext([storedUser], [], SMALL, undefined, 0, 0, []);
+const fitted = buildPinnedContext([storedUser], [], FIT_WINDOW, undefined, 0, 0, BROWSER_TOOLS);
+const unfitted = buildPinnedContext([storedUser], [], FIT_WINDOW, undefined, 0, 0, []);
 equal(fitted.status, "refused", "the caller's fit refuses a send the definitions would not fit into");
 equal(unfitted.status, "ok", "without the definitions in it the same fit says yes — and the body does not fit");
 
@@ -567,10 +611,20 @@ console.log("\n4b. the closing without the status: the thread was already at the
 // accepted, and the person is still told the turn was closed for space.
 const limitWindow = 8192;
 const limitBudget = limitWindow - RESERVE;
-const fullThread = [
-  system,
-  { role: "user", content: "y".repeat(22000) },
-];
+// **The thread fills the window on its own.** The body has to fit the budget
+// — the window less the room the answer has — and the status has not to fit
+// it, which is the case this section is about: the thread was already at the
+// limit when the turn started, so the wire cannot grow and the status has
+// nowhere to go.
+//
+// **Sized by the app's own estimate**, so that the first body is a hair under
+// the budget whatever the definitions weigh — and the engine counts it a few
+// tokens under that, so the status has nowhere to go.
+const limitChars = Math.max(
+  0,
+  (limitBudget - 10 - wireSize([system, { role: "user", content: "" }]) - definitionsTokens(BROWSER_TOOLS)) * 4,
+);
+const fullThread = [system, { role: "user", content: "y".repeat(limitChars) }];
 const limitEngine = mockEngine({
   bodyChars: 50,
   reports: true,
@@ -719,6 +773,250 @@ for (const language of languages) {
     `${language}: the attach refusal still names the file — there it is true`,
     table.shell.tooMuchAtOnce,
   );
+}
+
+// ---------------------------------------------------------------------------
+console.log("\n8. the answer's room: the turn stops before the thread is at the limit");
+
+// The shape of the cell of 21 October 2026: a window of 65536 and a thread
+// that was already most of the way to the limit, with pages still coming. The
+// turn has to stop with the room the answer needs still free, and the answer
+// it goes on to ask for must not be cut.
+//
+// **A small page every round.** The room the answer has is the window less the
+// thread the engine read, and the thread grows by one round's page: a small
+// page means the turn stops within a round of the budget, so the margin is a
+// number and not a coincidence.
+const STEP_CHARS = 170;
+const stepTokens = denseTokens(STEP_CHARS);
+
+// **The thread, sized by the app's own estimate**, so that the first body is
+// the same size in every build and the two stops below are the same case.
+const firstBody = LIMIT - RESERVE - 700;
+const nearlyFullThread = [
+  system,
+  {
+    role: "user",
+    content: "y".repeat(
+      Math.max(0, (firstBody - wireSize([system, user]) - definitionsTokens(BROWSER_TOOLS)) * 4),
+    ),
+  },
+];
+console.log(
+  `   the shape: the first body weighs ${engineTokens(nearlyFullThread, BROWSER_TOOLS)} tokens, a round weighs ${stepTokens}, so the window of ${LIMIT} has ${RESERVE} tokens of it kept for the answer`,
+);
+
+const roomEngine = mockEngine({
+  bodyChars: STEP_CHARS,
+  reports: true,
+  calls: Array(24).fill("browser_read"),
+  answerTokens: 900,
+});
+const roomTurn = await runTurn(roomEngine, { bodyChars: STEP_CHARS, messages: nearlyFullThread });
+equal(roomTurn.failure, null, "the turn did not die");
+equal(roomTurn.closedForSpace, true, "the turn closed for space");
+equal(roomEngine.refusedCount(), 0, "the engine never refused a request");
+const roomClosing = roomEngine.requests[roomEngine.requests.length - 1];
+const roomBefore = roomEngine.requests[roomEngine.requests.length - 2];
+// **The margin is the window less the thread the engine read.** The turn
+// stopped before the thread was at the limit, and the room the answer has is
+// that margin less the status the closing request carries.
+const margin = LIMIT - engineTokens(roomBefore.messages, roomBefore.tools);
+const answerRoom = LIMIT - engineTokens(roomClosing.messages, roomClosing.tools);
+console.log(`   the turn stopped with ${margin} tokens of margin, and the answer had ${answerRoom}`);
+check(
+  margin >= ANSWER_RESERVE_TOKENS,
+  "the turn stopped with the answer's reserve free",
+  `margin ${margin}, reserve ${ANSWER_RESERVE_TOKENS}`,
+);
+check(
+  roomTurn.answer.length === 4 * 900,
+  "and the answer of 900 tokens was written whole",
+  `${roomTurn.answer.length} characters`,
+);
+check(answerRoom >= 900, "the room the answer had was big enough for it", `${answerRoom} tokens`);
+
+// **The negative control.** The same case on a build with the reserve the cell
+// had — 512 tokens. The thread then stops nearer the limit, the answer has
+// less room than it needs, and it comes back cut: the cell's own failure.
+{
+  const blind = await loadApp({
+    compileOut: {
+      file: "lib/attachments.ts",
+      from: "export const ANSWER_RESERVE_TOKENS = 1536;",
+      to: "export const ANSWER_RESERVE_TOKENS = 512;",
+    },
+  });
+  try {
+    const blindEngine = mockEngine({
+      bodyChars: STEP_CHARS,
+      reports: true,
+      calls: Array(24).fill("browser_read"),
+      answerTokens: 900,
+    });
+    const blindTurn = await runTurn(blindEngine, {
+      bodyChars: STEP_CHARS,
+      messages: nearlyFullThread,
+      budget: LIMIT - blind.app.ANSWER_RESERVE_TOKENS,
+      bundle: blind.app,
+    });
+    const blindClosing = blindEngine.requests[blindEngine.requests.length - 1];
+    const blindBefore = blindEngine.requests[blindEngine.requests.length - 2];
+    const blindMargin = LIMIT - engineTokens(blindBefore.messages, blindBefore.tools);
+    const blindRoom = LIMIT - engineTokens(blindClosing.messages, blindClosing.tools);
+    check(
+      blindMargin < ANSWER_RESERVE_TOKENS,
+      "with the reserve of 512 the turn stops inside the answer's room — the check above would fail",
+      `margin ${blindMargin}`,
+    );
+    check(
+      blindTurn.answer.length < 4 * 900,
+      "and the answer of 900 tokens comes back cut, as it did in the cell",
+      `${blindTurn.answer.length} characters`,
+    );
+    check(blindRoom < 900, "because the room left for it was smaller than it is", `${blindRoom} tokens`);
+  } finally {
+    await rm(blind.dir, { recursive: true, force: true });
+  }
+}
+
+// ---------------------------------------------------------------------------
+console.log("\n9. the final status carries the turn's own record");
+
+// **The cell of 21 October 2026, in one line.** The model wrote "dalle schede
+// prodotto che ho visitato" and called the prices verified; the app's record
+// said that no product's page had been opened at all. The record was the app's
+// and the model never saw it — so the final status carries it now.
+//
+// **The turn of the cell, as a mock.** The site, the search, the listing read
+// three times, two fields written and two clicks — and not one product's page.
+const cellCalls = [
+  { name: "browser_open", arguments: { url: "https://amazon.it/" } },
+  { name: "browser_read", arguments: { page: 1 } },
+  { name: "browser_type", arguments: { ref: "e1", text: "laptop" } },
+  { name: "browser_click", arguments: { ref: "e2" } },
+];
+
+/** The status the last request carries: the message of its own at the end. */
+const statusOf = (request) => String(request.messages[request.messages.length - 1].content);
+
+// **The ordinary turn, at the cap.** The model keeps calling until the turn's
+// own bound stops it, and the last round is the one that has to answer.
+const cappedEngine = mockEngine({
+  bodyChars: 400,
+  reports: true,
+  calls: [...cellCalls, ...Array(20).fill({ name: "browser_read", arguments: { page: 2 } })],
+});
+const cappedTurn = await runTurn(cappedEngine, { bodyChars: 400 });
+equal(cappedTurn.failure, null, "the turn did not die");
+equal(cappedTurn.closedForSpace, false, "the turn was not closed for space — the window is not full");
+const cappedClosing = cappedEngine.requests[cappedEngine.requests.length - 1];
+equal(cappedClosing.tool_choice, "none", "the last round forbids the calls");
+const cappedStatus = statusOf(cappedClosing);
+check(cappedStatus.includes(FINAL_STATUS), "the last round carries the execution status");
+check(
+  cappedStatus.includes("The browser opened 1 page (asked for amazon.it)"),
+  "and the record says which page the turn opened, with its host",
+  cappedStatus,
+);
+check(cappedStatus.includes("read 21 times"), "and how many times it read", cappedStatus);
+check(cappedStatus.includes("wrote into 1 field"), "and how many fields it wrote into", cappedStatus);
+check(cappedStatus.includes("clicked 1 time"), "and how many times it clicked", cappedStatus);
+check(
+  cappedStatus.includes("No detail page of any product was opened in this turn."),
+  "and it says out loud that no product's page was among them",
+  cappedStatus,
+);
+check(
+  cappedStatus.includes("Answer only from what those pages actually showed; say what was not verified."),
+  "and it closes with the instruction the answer has to follow",
+  cappedStatus,
+);
+
+// **Two pages that are products' own.** The record then names both of them and
+// says nothing about a page that was never opened.
+const twoEngine = mockEngine({
+  bodyChars: 400,
+  reports: true,
+  calls: [
+    { name: "browser_open", arguments: { url: "https://shop.example/dp/B012345678" } },
+    { name: "browser_open", arguments: { url: "https://other.example/item/9" } },
+    ...Array(22).fill({ name: "browser_read", arguments: { page: 1 } }),
+  ],
+});
+await runTurn(twoEngine, { bodyChars: 400 });
+const twoStatus = statusOf(twoEngine.requests[twoEngine.requests.length - 1]);
+check(
+  twoStatus.includes("The browser opened 2 pages (asked for shop.example, other.example)"),
+  "the record names both pages it opened",
+  twoStatus,
+);
+check(
+  !twoStatus.includes("No detail page of any product was opened"),
+  "and it does not claim that no product's page was opened — two of them were",
+  twoStatus,
+);
+
+// **The turn that closed for space** carries the same record: the closing
+// round is a final round too.
+const spaceEngine = mockEngine({
+  bodyChars: STEP_CHARS,
+  reports: true,
+  calls: [...cellCalls, ...Array(20).fill({ name: "browser_read", arguments: { page: 2 } })],
+});
+const spaceTurn = await runTurn(spaceEngine, { bodyChars: STEP_CHARS, messages: nearlyFullThread });
+equal(spaceTurn.closedForSpace, true, "the turn closed for space");
+const spaceClosing = spaceEngine.requests[spaceEngine.requests.length - 1];
+const spaceStatus = statusOf(spaceClosing);
+check(spaceStatus.includes(FINAL_STATUS), "the closing round carries the execution status");
+check(
+  spaceStatus.includes("[Kalsa turn record]"),
+  "and the record of what the turn did goes with it",
+  spaceStatus,
+);
+check(
+  spaceStatus.includes("asked for amazon.it"),
+  "and it names the page the turn opened",
+  spaceStatus,
+);
+check(
+  spaceStatus.includes("No detail page of any product was opened in this turn."),
+  "and it says out loud that no product's page was among them",
+  spaceStatus,
+);
+
+// **The negative control.** The same turn on a build with the record compiled
+// out: the status is there and the record is not, and the checks above fail.
+{
+  const blind = await loadApp({
+    compileOut: {
+      file: "toolLoop.ts",
+      from: "const status = finalStatus(recordRuns);",
+      to: "const status = FINAL_STATUS;",
+    },
+  });
+  try {
+    const blindEngine = mockEngine({
+      bodyChars: 400,
+      reports: true,
+      calls: [...cellCalls, ...Array(20).fill({ name: "browser_read", arguments: { page: 2 } })],
+    });
+    await runTurn(blindEngine, { bodyChars: 400, bundle: blind.app });
+    const blindStatus = statusOf(blindEngine.requests[blindEngine.requests.length - 1]);
+    check(blindStatus.includes(FINAL_STATUS), "with the record compiled out the status is still there");
+    check(
+      !blindStatus.includes("[Kalsa turn record]"),
+      "and the record is not — the checks above would fail",
+      blindStatus,
+    );
+    check(
+      !blindStatus.includes("No detail page of any product was opened"),
+      "and the sentence that names what was never opened is not either",
+      blindStatus,
+    );
+  } finally {
+    await rm(blind.dir, { recursive: true, force: true });
+  }
 }
 
 console.log(failures === 0 ? "\nAll checks passed." : `\n${failures} check(s) failed.`);
