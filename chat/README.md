@@ -52,6 +52,9 @@ include which AI, processor, graphics card and memory use, never chats or text.
 - `node scripts/mail-notice.mjs` — the mail page's notice: which sentence it
   shows for an AI that may not read mail, decided from the AI options this
   computer offers
+- `node scripts/context-prune.mjs` — the turns the fit leaves behind: the count
+  is turns and not messages, the row appears only when a turn went, all five
+  languages carry the sentence, and the count reaches the wire as zero tokens
 - `node scripts/palette.mjs` — oklch derivation of the accent scale (not verification)
 
 ## Palette

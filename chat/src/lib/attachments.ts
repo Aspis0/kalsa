@@ -756,6 +756,8 @@ function wireFor(
 }
 
 export type PinnedContext =
+  // `dropped` is the number of TURNS the fit left behind, never messages: it is
+  // the number the person is shown, so `dropped > 0` means a whole turn went.
   | { status: "ok"; wire: WireMessage[]; dropped: number; docTokens: number; historyTokens: number }
   | { status: "refused"; need: number; have: number; docTokens: number; historyTokens: number };
 
@@ -815,7 +817,11 @@ export function buildPinnedContext(
     const shed = turns.shift();
     if (shed) {
       histTokens -= messageTokens(shed);
-      dropped++;
+      // `dropped` counts TURNS, because the person reads it as a number of
+      // exchanges. A user message and the answer it carries are one turn, so
+      // the user message is the one that counts. An answer whose user message
+      // was already gone belongs to no turn and counts for nothing.
+      if (shed.role === "user") dropped++;
     }
   };
   if (nctx !== null) {

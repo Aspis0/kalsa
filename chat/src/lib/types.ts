@@ -157,6 +157,11 @@ export interface ChatMessage {
       The line is drawn when the thread is drawn, in the language the person
       is reading in — the flag is what is kept, never a sentence. */
   closedForSpace?: boolean;
+  /** How many turns the fit left behind to make room for this one: the oldest
+      turns, dropped from what the model reads. A count, never a sentence, and
+      never the wire — the line that says so is drawn from it in the reader's
+      language. Absent when the fit dropped nothing. */
+  prunedTurns?: number;
 }
 
 export interface ConversationMeta {

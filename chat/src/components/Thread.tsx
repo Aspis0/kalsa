@@ -1,5 +1,6 @@
 import type { ChatMessage } from "../lib/types";
 import type { ChatErrorKind } from "../lib/chat";
+import { pruneNotice } from "../lib/pruneNotice";
 import { useEffect, useState } from "react";
 import type { English } from "../i18n/en/all";
 import { useLanguage } from "../i18n/useLanguage";
@@ -198,6 +199,7 @@ function AssistantRow({
 }) {
   const { table, tag } = useLanguage();
   const t = table.thread;
+  const leftBehind = pruneNotice(message.prunedTurns ?? 0, table.tools.recap);
   const failedHere: FailedState | null = failures[message.id] ?? null;
   const brainKind = useBrainStateKind();
   // The states Home's start acts on. While stopping, that path would stop the
@@ -269,6 +271,8 @@ function AssistantRow({
         {/* The turn was closed for space: the answer is what the turn found
             before it stopped reading, and the line says so. */}
         {message.closedForSpace ? <p className="row-note">{table.shell.spaceClosed}</p> : null}
+        {/* The fit left turns behind to make room: the two space notes sit together. */}
+        {leftBehind !== null ? <p className="row-note">{leftBehind}</p> : null}
         {showNoAnswer ? (
           <div className="no-answer">
             <p>{engineOff ? t.engineOffBody : t.noAnswer}</p>

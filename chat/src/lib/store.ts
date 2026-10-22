@@ -209,6 +209,12 @@ function cleanMessage(value: unknown): ChatMessage | null {
     // this line it dies at the first reload and a reloaded chat claims a
     // complete answer where the turn stopped reading.
     ...(value.closedForSpace === true ? { closedForSpace: true } : {}),
+    // **The count of turns the fit left behind rides the message too**, for
+    // the same reason: the line says how many, and a field this list does not
+    // name is gone at the first reload.
+    ...(typeof value.prunedTurns === "number" && value.prunedTurns > 0
+      ? { prunedTurns: value.prunedTurns }
+      : {}),
     ...(Array.isArray(value.toolRuns) ? cleanToolRuns(value.toolRuns) : {}),
     ...(Array.isArray(value.images) ? cleanImages(value.images) : {}),
     ...(Array.isArray(value.videos) ? cleanVideos(value.videos) : {}),

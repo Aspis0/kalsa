@@ -406,6 +406,15 @@ export function useChatTurns({ store, announce, contextSizes, saveMailDraft }: T
       // dry one already passed above (a picture costs IMAGE_TOKENS riding
       // or not), so the check exists to hand the type that invariant.
       if (ctx.status === "refused") return;
+      // The turns this wire left behind ride the row that answers them, so the
+      // thread can say so. The count is UI only: the wire above never reads it.
+      // A retry reuses this row, so a count the last try left is cleared here
+      // when this try pruned nothing — the row must not claim a prune that the
+      // wire it sent did not make.
+      const storedPruned = store.get(conversationId)?.messages.find((m) => m.id === assistantId)?.prunedTurns;
+      if (ctx.dropped > 0 || storedPruned !== undefined) {
+        persistLive({ prunedTurns: ctx.dropped > 0 ? ctx.dropped : undefined });
+      }
       const history = ctx.wire;
       const controller = new AbortController();
       controllers.current.set(assistantId, controller);
@@ -425,7 +434,7 @@ export function useChatTurns({ store, announce, contextSizes, saveMailDraft }: T
       let thoughtStartedAt: number | null = null;
       let answerStartedAt: number | null = null;
 
-      function persistLive(extra?: { stopped?: boolean; reasoningMs?: number; failed?: ChatErrorKind | undefined; closedForSpace?: boolean }): void {
+      function persistLive(extra?: { stopped?: boolean; reasoningMs?: number; failed?: ChatErrorKind | undefined; closedForSpace?: boolean; prunedTurns?: number | undefined }): void {
         const b = bufs.current.get(assistantId);
         const latest = store.get(conversationId);
         if (!latest) return;

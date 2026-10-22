@@ -107,5 +107,6 @@ export const TOOLS = {
     "readAgain": "Kalsa aveva già letto quella parte della pagina.",
     "stopped": "Hai fermato Kalsa prima che finisse.",
     "robotCheck": "Il sito ha chiesto una verifica umana e Kalsa non può superarla.",
+    "leftBehind": (n: number) => `Per far spazio Kalsa ha lasciato indietro ${n === 1 ? "il primo scambio" : `i primi ${n} scambi`}`,
   },
 };

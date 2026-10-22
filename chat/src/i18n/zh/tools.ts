@@ -106,5 +106,6 @@ export const TOOLS = {
     "readAgain": "Kalsa 已经读过页面的这一部分了。",
     "stopped": "你在 Kalsa 完成前停止了它。",
     "robotCheck": "该网站要求真人验证，Kalsa 无法通过。",
+    "leftBehind": (n: number) => `为了腾出空间，Kalsa 把最早的${n === 1 ? "一" : ` ${n} `}轮对话留在了身后`,
   },
 };

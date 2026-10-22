@@ -128,5 +128,7 @@ export const TOOLS = {
     readAgain: "Kalsa had already read that part of the page.",
     stopped: "You stopped this before Kalsa finished.",
     robotCheck: "The site asked for a human check, and Kalsa cannot pass it.",
+    // The space note: the oldest turns were dropped from what the model reads.
+    leftBehind: (n: number) => `To make room, Kalsa left the first ${n === 1 ? "exchange" : `${n} exchanges`} behind`,
   },
 };
