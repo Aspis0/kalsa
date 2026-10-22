@@ -419,7 +419,7 @@ export function useChatTurns({ store, announce, contextSizes, saveMailDraft }: T
       // The facts the fit left behind that match this turn, at the head of the
       // last user message. Off unless the switch is on, and empty when nothing
       // was left behind: then the wire is the fit's own, byte for byte.
-      const digest = digestForTurn(currentSettings.contextDigest === true, ctx.shed, ctx.kept, all);
+      const digest = digestForTurn(currentSettings.contextDigest === true, ctx.shed, ctx.kept);
       const digestRoom = digest === "" ? 0 : estTokens(digest);
       const history = withDigest(ctx.wire, digest);
       const controller = new AbortController();

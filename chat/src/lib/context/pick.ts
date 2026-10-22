@@ -2,9 +2,9 @@ import { scoreUnits } from "./bm25";
 import { foldWords, grams } from "./grams";
 import { sentencesOf } from "./sentences";
 
-/** Where a piece of text came from: the turn it belonged to and what kind of
-    text it was. A document is named as one, not as the person's words. */
-export type Role = "user" | "assistant" | "tool" | "document";
+/** Whose words a piece of text is: the person's or the model's. Tool results
+    and documents are not searched, so they have no role here. */
+export type Role = "user" | "assistant";
 
 /** One message's text, as the turn it belonged to said it. */
 export interface Source {

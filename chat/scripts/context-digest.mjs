@@ -7,9 +7,10 @@
 // block), the cases the plan names (a price the window cut, found by the query
 // that names it; accents both ways; a typo; a short follow-up; a generic query
 // that must not pull half the conversation; adjacent and repeated sentences
-// said once), the budget, the stamps, and the wire: with nothing cut the wire
-// is byte-identical with the switch on and off, and when something was cut the
-// two differ in the tail block alone.
+// said once), what is never searched (tool results, documents, and any turn
+// that ran mail), the budget, the stamps, and the wire: with nothing cut the
+// wire is byte-identical with the switch on and off, and when something was cut
+// the two differ in the tail block alone.
 //
 // Run: node scripts/context-digest.mjs   (from chat/)
 
@@ -52,7 +53,6 @@ try {
     withDigest,
     DIGEST_CAP_TOKENS,
     DIGEST_HEADER,
-    pickFragments,
     buildPinnedContext,
     ANSWER_RESERVE_TOKENS,
     loadSettings,
@@ -78,16 +78,16 @@ try {
   const SHED = CONVERSATION.slice(0, 8);
   const KEPT = CONVERSATION.slice(8);
   const askWith = (text) => [...KEPT, m("uq", "user", text)];
-  const blockFor = (query, cap) => digestForTurn(true, SHED, askWith(query), [], cap);
+  const blockFor = (query, cap) => digestForTurn(true, SHED, askWith(query), cap);
   const isPicked = (block, text) => block.includes(text);
 
   console.log("1. the gate: off means no block, nothing cut means no block");
   {
-    const off = digestForTurn(false, SHED, askWith("Quanto costava il Kindle Paperwhite?"), []);
+    const off = digestForTurn(false, SHED, askWith("Quanto costava il Kindle Paperwhite?"));
     check("switch off: no block, whatever the query", off === "", JSON.stringify(off));
-    const none = digestForTurn(true, [], askWith("Quanto costava il Kindle Paperwhite?"), []);
+    const none = digestForTurn(true, [], askWith("Quanto costava il Kindle Paperwhite?"));
     check("switch on, nothing left behind: no block", none === "", JSON.stringify(none));
-    const silent = digestForTurn(true, SHED, askWith("Buongiorno, tutto a posto?"), []);
+    const silent = digestForTurn(true, SHED, askWith("Buongiorno, tutto a posto?"));
     check("switch on, nothing in the cut matches: no block", silent === "", JSON.stringify(silent));
   }
 
@@ -104,7 +104,7 @@ try {
   {
     const plain = blockFor("perche il caffe e amaro?");
     check("unaccented query finds the accented sentence", isPicked(plain, "[turn 3, assistant] Il caffè è amaro per la tostatura scura e l'estrazione."), plain.slice(0, 200));
-    const accented = digestForTurn(true, [m("x1", "user", "Caffe amaro, perche?"), m("x2", "assistant", "Il caffe è corretto.")], askWith("il caffè è amaro?"), []);
+    const accented = digestForTurn(true, [m("x1", "user", "Caffe amaro, perche?"), m("x2", "assistant", "Il caffe è corretto.")], askWith("il caffè è amaro?"));
     check("accented query finds the unaccented sentence", accented.includes("[turn 1, assistant] Il caffe è corretto."), accented);
   }
 
@@ -137,7 +137,7 @@ try {
       m("r3", "user", "Ancora?"),
       m("r4", "assistant", "Il Kindle costa 149,99 € su Amazon."),
     ];
-    const block = digestForTurn(true, SAID, askWith("Il Kindle costa quanto su Amazon?"), []);
+    const block = digestForTurn(true, SAID, askWith("Il Kindle costa quanto su Amazon?"));
     const copies = block.split("Il Kindle costa 149,99").length - 1;
     check("the same price in adjacent and repeated sentences is carried once", copies === 1, `${copies} copies`);
   }
@@ -152,31 +152,51 @@ try {
     const bulk = names.map((name, i) => m(`b${i}`, "assistant", `Il ${name} costa ${100 + i} euro.`));
     const wide = [m("w0", "user", "Confronto?"), ...bulk];
     const question = `Quanto costano ${names.join(" ")}?`;
-    const block = digestForTurn(true, wide, askWith(question), [], 120);
+    const block = digestForTurn(true, wide, askWith(question), 120);
     const tokens = Math.ceil(block.length / 3.5);
     check("a 120-token cap is held (chars ÷ 3.5)", block !== "" && tokens <= 120, `${tokens} tokens, ${block.length} chars`);
-    const roomy = digestForTurn(true, wide, askWith(question), [], DIGEST_CAP_TOKENS);
+    const roomy = digestForTurn(true, wide, askWith(question), DIGEST_CAP_TOKENS);
     check("the default cap is 400 tokens", DIGEST_CAP_TOKENS === 400);
     check("and the same question with the default cap carries more", roomy.length > block.length, `${roomy.length} vs ${block.length} chars`);
     check("and the default block is held to the cap too", Math.ceil(roomy.length / 3.5) <= DIGEST_CAP_TOKENS, `${Math.ceil(roomy.length / 3.5)} tokens`);
   }
 
-  console.log("\n9. tool results and documents ride with their own stamps");
+  console.log("\n9. tool results, documents and mail are never searched");
   {
-    const run = { id: "t1", name: "browser_read", arguments: "{}", result: "Kindle Paperwhite 16 GB: 119,99 euro, spedizione gratuita.", state: "done" };
-    const withRun = [m("p1", "user", "Apri la pagina del Kindle."), m("p2", "assistant", "Fatto.", { toolRuns: [run] })];
-    const fromTool = digestForTurn(true, withRun, askWith("quanto costa il Kindle Paperwhite 16 GB?"), []);
-    check("a page's own words are carried, stamped as tool text", isPicked(fromTool, "[turn 1, tool] Kindle Paperwhite 16 GB: 119,99 euro, spedizione gratuita."), fromTool);
+    // A browser turn: the page's own text is a tool result, and it stays out.
+    // The model's words about the same product are the conversation's, and they ride.
+    const page = "Kindle Paperwhite 16 GB: 119,99 euro, spedizione gratuita.";
+    const run = { id: "t1", name: "browser_read", arguments: "{}", result: page, state: "done" };
+    const browsed = [
+      m("p1", "user", "Apri la pagina del Kindle."),
+      m("p2", "assistant", "Il Kindle Paperwhite 16 GB è a 119,99 euro, con spedizione gratuita.", { toolRuns: [run] }),
+    ];
+    const fromPage = digestForTurn(true, browsed, askWith("quanto costa il Kindle Paperwhite 16 GB?"));
+    check("the page's own words are not carried", !fromPage.includes(page) && !fromPage.includes("[turn 1, tool]"), fromPage);
+    check("the model's words about the page are, stamped as its own", isPicked(fromPage, "[turn 1, assistant] Il Kindle Paperwhite 16 GB è a 119,99 euro, con spedizione gratuita."), fromPage);
+
+    // A document the turn carried: its text is not in the message's words, and
+    // the digest reads only the words, so the document's sentence cannot ride.
     const doc = { id: "d1", name: "offerta.txt", kind: "txt", chars: 40, tokens: 12, text: "Offerta valida fino al 30 novembre.", attachedAt: 0, active: false };
-    const withDoc = [m("q1", "user", "Ecco l'offerta.", { docs: ["d1"] }), m("q2", "assistant", "Letto.")];
-    const fromDoc = digestForTurn(true, withDoc, askWith("fino a quando vale l'offerta?"), [doc]);
-    check("a document a cut turn carried is stamped as a document", isPicked(fromDoc, "[turn 1, document] Offerta valida fino al 30 novembre."), fromDoc);
+    const withDoc = [m("q1", "user", "Ecco l'offerta.", { docs: [doc.id] }), m("q2", "assistant", "Letto.")];
+    const fromDoc = digestForTurn(true, withDoc, askWith("fino a quando vale l'offerta valida?"));
+    check("a document's text is not carried", !fromDoc.includes("Offerta valida") && !fromDoc.includes("30 novembre"), fromDoc);
+
+    // A mail turn: the mail read is a tool call, and the model's words about the
+    // mail are the owner's too. The whole turn is skipped.
+    const mailRun = { id: "t2", name: "mail_show", arguments: "{}", result: "Mario: il contratto costa 900 euro.", state: "done", mail: { kind: "cards" } };
+    const mailed = [
+      m("k1", "user", "Leggi la mail di Mario."),
+      m("k2", "assistant", "Mario scrive che il contratto costa 900 euro.", { toolRuns: [mailRun] }),
+    ];
+    const fromMail = digestForTurn(true, mailed, askWith("quanto costa il contratto di Mario?"));
+    check("a turn that ran mail is not searched at all", fromMail === "", fromMail);
   }
 
   console.log("\n10. the wire: identical with nothing cut, and different only in the tail block");
   {
     const roomy = buildPinnedContext(CONVERSATION, [], 1_000_000);
-    const roomyOn = withDigest(roomy.wire, digestForTurn(true, roomy.shed, roomy.kept, []));
+    const roomyOn = withDigest(roomy.wire, digestForTurn(true, roomy.shed, roomy.kept));
     check("nothing cut: the wire is byte-identical with the switch on", JSON.stringify(roomyOn) === JSON.stringify(roomy.wire));
     check("nothing cut: the same array comes back", roomyOn === roomy.wire);
 
@@ -189,9 +209,9 @@ try {
     const WINDOW = ANSWER_RESERVE_TOKENS + suffixTokens + 5;
     const cut = buildPinnedContext(LIVE, [], WINDOW);
     check("the window cut four turns", cut.status === "ok" && cut.dropped === 4, cut.status === "ok" ? `dropped ${cut.dropped}` : cut.status);
-    const block = digestForTurn(true, cut.shed, cut.kept, []);
+    const block = digestForTurn(true, cut.shed, cut.kept);
     const on = withDigest(cut.wire, block);
-    const off = withDigest(cut.wire, digestForTurn(false, cut.shed, cut.kept, []));
+    const off = withDigest(cut.wire, digestForTurn(false, cut.shed, cut.kept));
     check("switch off: the wire is the fit's own, byte for byte", JSON.stringify(off) === JSON.stringify(cut.wire));
     check("switch on: a block was made", block !== "");
 
@@ -223,17 +243,14 @@ try {
   console.log("\n12. the retriever on a large cut: the time it takes");
   {
     const page = Array.from({ length: 400 }, (_, i) => `Riga ${i} della pagina: il prezzo del modello ${i} è ${100 + (i % 50)},99 euro, spedizione gratuita sopra i 25 euro.`).join(" ");
-    const big = Array.from({ length: 20 }, (_, i) => m(`g${i}`, "assistant", "", { toolRuns: [{ id: `r${i}`, name: "browser_read", arguments: "{}", result: page, state: "done" }] }));
+    const big = Array.from({ length: 20 }, (_, i) => m(`g${i}`, "assistant", page));
     const bigShed = [m("h0", "user", "Leggi le pagine."), ...big];
     const started = performance.now();
-    const picked = pickFragments(
-      bigShed.flatMap((message) => (message.toolRuns ?? []).map((run) => ({ turn: 1, role: "tool", text: run.result }))),
-      "quanto costa il modello 42 con la spedizione?",
-      1300,
-    );
+    const block = digestForTurn(true, bigShed, askWith("quanto costa il modello 42 con la spedizione?"));
     const ms = Math.round(performance.now() - started);
-    const totalChars = big.reduce((sum, message) => sum + (message.toolRuns?.[0]?.result.length ?? 0), 0);
-    check("a large cut (20 pages of text) is searched in under a second", ms < 1000, `${totalChars} chars, ${ms} ms, ${picked.length} fragments`);
+    const totalChars = big.reduce((sum, message) => sum + message.content.length, 0);
+    const pickedLines = block === "" ? 0 : block.split("\n").length - 1;
+    check("a large cut (20 pages of text) is searched in under a second", ms < 1000, `${totalChars} chars, ${ms} ms, ${pickedLines} fragments`);
   }
 
   console.log(failures === 0 ? "\ncontext-digest: all checks passed" : `\ncontext-digest: ${failures} FAILED`);

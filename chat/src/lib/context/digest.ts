@@ -1,5 +1,5 @@
-import type { Attachment } from "../attachments";
 import type { WireMessage } from "../chat";
+import { isMailRun } from "../mail/runs";
 import type { ChatMessage } from "../types";
 import { fragmentLine, pickFragments, type Source } from "./pick";
 
@@ -27,14 +27,13 @@ export function digestForTurn(
   enabled: boolean,
   shed: ChatMessage[],
   kept: ChatMessage[],
-  docs: Attachment[],
   cap: number = DIGEST_CAP_TOKENS,
 ): string {
   if (!enabled || shed.length === 0) return "";
   const query = queryOf(kept);
   if (query === "") return "";
   const room = Math.floor(cap * CHARS_PER_TOKEN) - DIGEST_HEADER.length;
-  const picked = pickFragments(sourcesOf(shed, docs), query, room);
+  const picked = pickFragments(sourcesOf(shed), query, room);
   if (picked.length === 0) return "";
   return [DIGEST_HEADER, ...picked.map(fragmentLine)].join("\n");
 }
@@ -86,31 +85,39 @@ function queryOf(kept: ChatMessage[]): string {
   return answered === "" ? asked : `${asked}\n${answered}`;
 }
 
-/** The text of each left-behind message, stamped with its turn. A turn is a
-    user message and the answer that follows it; the shed always starts at the
-    conversation's first message, so counting from here gives the number the
-    person sees. */
-function sourcesOf(shed: ChatMessage[], docs: Attachment[]): Source[] {
-  const byId = new Map(docs.map((doc) => [doc.id, doc] as const));
+/**
+ * The text of each left-behind message, stamped with its turn: the person's
+ * words and the model's words, and nothing else. A turn is a user message and
+ * the answer that follows it; the shed always starts at the conversation's
+ * first message, so counting from here gives the number the person sees.
+ *
+ * **Tool results, documents and mail are never searched.** A page or a mail is
+ * a stranger's words, and the digest puts what it picks into a user message,
+ * where the model reads it as the person's own. The gate that keeps mail and
+ * pinned documents from a browser is armed by what the wire carries, and a
+ * cut mail's text would come back without arming it. A turn that ran mail is
+ * skipped whole, because the model's words about that mail are the owner's too.
+ */
+function sourcesOf(shed: ChatMessage[]): Source[] {
+  const turns: ChatMessage[][] = [];
+  for (const message of shed) {
+    const last = turns[turns.length - 1];
+    if (message.role === "user" || last === undefined) turns.push([message]);
+    else last.push(message);
+  }
   const sources: Source[] = [];
   let turn = 0;
-  for (const message of shed) {
-    if (message.role === "user") turn++;
-    const stamp = Math.max(1, turn);
-    if (message.role === "user") {
-      for (const id of message.docs ?? []) {
-        const doc = byId.get(id);
-        if (doc !== undefined) sources.push({ turn: stamp, role: "document", text: doc.text });
-      }
-    }
-    if (message.content !== "") {
-      sources.push({ turn: stamp, role: message.role === "user" ? "user" : "assistant", text: message.content });
-    }
-    for (const run of message.toolRuns ?? []) {
-      if (run.state !== "refused" && run.result !== "") {
-        sources.push({ turn: stamp, role: "tool", text: run.result });
-      }
+  for (const messages of turns) {
+    if (messages[0]?.role === "user") turn++;
+    if (messages.some(ranMail)) continue;
+    for (const message of messages) {
+      if (message.content === "") continue;
+      sources.push({ turn: Math.max(1, turn), role: message.role === "user" ? "user" : "assistant", text: message.content });
     }
   }
   return sources;
+}
+
+function ranMail(message: ChatMessage): boolean {
+  return (message.toolRuns ?? []).some((run) => run.mail !== undefined || isMailRun(run.name));
 }
