@@ -15,8 +15,9 @@ import type { LiveSettings, ToolRun } from "../lib/types";
 import type { ConversationStore } from "../lib/store";
 import { uid } from "../lib/store";
 import type { DraftRecord } from "../lib/mail/drafts";
-import { ANSWER_RESERVE_TOKENS, buildPinnedContext, wireSize } from "../lib/attachments";
+import { ANSWER_RESERVE_TOKENS, buildPinnedContext, estTokens, wireSize } from "../lib/attachments";
 import type { MediaView } from "../lib/attachments";
+import { digestForTurn, withDigest } from "../lib/context/digest";
 import { definitionsTokens } from "../lib/density";
 import { wireTurns } from "../lib/wireTurns";
 import { getImage } from "../lib/imageStore";
@@ -415,7 +416,12 @@ export function useChatTurns({ store, announce, contextSizes, saveMailDraft }: T
       if (ctx.dropped > 0 || storedPruned !== undefined) {
         persistLive({ prunedTurns: ctx.dropped > 0 ? ctx.dropped : undefined });
       }
-      const history = ctx.wire;
+      // The facts the fit left behind that match this turn, at the head of the
+      // last user message. Off unless the switch is on, and empty when nothing
+      // was left behind: then the wire is the fit's own, byte for byte.
+      const digest = digestForTurn(currentSettings.contextDigest === true, ctx.shed, ctx.kept, all);
+      const digestRoom = digest === "" ? 0 : estTokens(digest);
+      const history = withDigest(ctx.wire, digest);
       const controller = new AbortController();
       controllers.current.set(assistantId, controller);
       setStreamingByConv((prev) => ({ ...prev, [conversationId]: assistantId }));
@@ -559,7 +565,9 @@ export function useChatTurns({ store, announce, contextSizes, saveMailDraft }: T
             known === null
               ? null
               : {
-                  budget: Math.max(0, known - ANSWER_RESERVE_TOKENS),
+                  // The digest rides beyond the fit's own room, so the room the
+                  // loop checks grows by its weight: round 0 is what was fit.
+                  budget: Math.max(0, known - ANSWER_RESERVE_TOKENS) + digestRoom,
                   size: wireSize,
                   definitions: definitionsTokens(tools),
                 },
