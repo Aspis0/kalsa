@@ -122,3 +122,21 @@ async fn a_phone_opens_over_a_page_no_conversation_holds() {
     assert!(page.url().starts_with("https://example.org"), "the phone did not open the page: {}", page.url());
     assert_eq!(holds.stamp_for_the_page().await, "phone:1", "and the page is the phone's now");
 }
+
+/// **A phone's claim of a page is one step.** A page another conversation holds is refused,
+/// and the refusal writes nothing. A page nobody holds is claimed, and the stamps it replaced
+/// come back, so a failed open can give them back.
+#[tokio::test]
+async fn a_phone_claims_a_page_only_when_no_other_conversation_holds_it() {
+    let holds = Holds::default();
+    holds.navigated_by("chat-desk").await;
+    assert!(holds.claim_for_phone("phone:1").await.is_none(), "a desktop's page was claimed by a phone");
+    assert_eq!(holds.stamp_for_the_page().await, "chat-desk", "and the refused claim wrote nothing");
+    assert_eq!(holds.stamp_for_our_call().await, "chat-desk", "not even the last actor");
+
+    let fresh = Holds::default();
+    let replaced = fresh.claim_for_phone("phone:1").await.expect("a page nobody holds can be claimed");
+    assert_eq!(replaced, (String::new(), String::new()), "the claim replaced nobody's stamps");
+    assert_eq!(fresh.stamp_for_the_page().await, "phone:1");
+    assert!(fresh.claim_for_phone("phone:1").await.is_some(), "and the phone may claim its own page again");
+}

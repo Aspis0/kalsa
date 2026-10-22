@@ -169,11 +169,8 @@ try {
     const phone = phoneTools(true, "en", "any-model", true, "2").map((tool) => tool.function.name);
     check("a named phone turn is offered the five", [...OFFERED, ...WRITES].every((name) => phone.includes(name)), phone.join(","));
     const unnamed = phoneTools(true, "en", "any-model", true, null).map((tool) => tool.function.name);
-    check(
-      "and an unnamed one no write, since no card of its could be shown anywhere",
-      !unnamed.some((name) => WRITES.includes(name)) && OFFERED.filter((name) => !WRITES.includes(name)).every((name) => unnamed.includes(name)),
-      unnamed.join(","),
-    );
+    // **An unnamed turn is offered no browser at all**: its page would be the desktop's.
+    check("and an unnamed one no browser tool at all", !unnamed.some((name) => name.startsWith("browser_")), unnamed.join(","));
   }
 
   // --- the web switch, at the offer and at the call ---------------------------

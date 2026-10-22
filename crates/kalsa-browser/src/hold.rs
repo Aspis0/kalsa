@@ -679,6 +679,23 @@ impl Holds {
         inner.calling = calling.to_owned();
     }
 
+    /// **Takes the page for a phone's open, or says whose it is — in one step.** The
+    /// owner is read and the page is stamped under the same lock, so no other call can
+    /// take the page between the check and the claim. A page another conversation holds
+    /// is refused with `None`, and nothing is written. Otherwise the page and the last
+    /// actor are the phone's, and the stamps the claim replaced come back, so an open that
+    /// never lands can give them back.
+    pub async fn claim_for_phone(&self, conversation: &str) -> Option<(String, String)> {
+        let mut inner = self.inner.lock().await;
+        if !inner.navigated.is_empty() && inner.navigated != conversation {
+            return None;
+        }
+        let replaced = (inner.navigated.clone(), inner.calling.clone());
+        inner.navigated = conversation.to_owned();
+        inner.calling = conversation.to_owned();
+        Some(replaced)
+    }
+
     /// **Says that one of our calls is driving the window right now**, and hands
     /// back the promise that it will let go.
     ///

@@ -264,6 +264,11 @@ navigation the person makes). The computer has no other release for it yet, and 
 so, so the model does not retry. An open that never lands gives
 the page back its previous owner: the page did not move.
 
+**Two limits on the browser's reach.** A turn that names no phone is offered no browser at all:
+its page would be the desktop's, and the computer keeps no page for it. And in a chat that holds
+the owner's mail or a document, nothing leaves for a website: the open, the click and the type are
+refused, and the reads of a page already on the window stay.
+
 **A phone is asked about at most eight requests at once.** The ninth is **refused** — not
 held, not drawn, never sent to the phone — and the model is told once, in one line, that it
 made too many writes at one person. A card the phone is not shown is a card nobody answers,

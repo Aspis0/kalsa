@@ -847,17 +847,22 @@ pub(crate) async fn open(sessions: &Sessions, args: OpenArgs) -> CallToolResult 
     // conversation holds the window. It is refused, as busy, only when another
     // conversation holds the page now: then it is that turn's, and the phone does not
     // take it. A page nobody holds is open to the phone.
-    let holder = holds.stamp_for_the_page().await;
-    if args.conversation.starts_with("phone:") && !holder.is_empty() && holder != args.conversation {
-        return view::failed(Stage::Busy, ANOTHER_CONVERSATIONS_PAGE);
-    }
     // The stamps before this open: an open that never lands gives both back.
-    let previous = holds.stamp_for_the_page().await;
-    let previous_call = holds.stamp_for_our_call().await;
-    // Whoever drives this window owns what it holds from here on: every write it
-    // catches carries this conversation, and a card raised in another chat is not
-    // this one's to press.
-    holds.navigated_by(&args.conversation).await;
+    let (previous, previous_call) = if args.conversation.starts_with("phone:") {
+        // **The check and the claim are one step under the lock**, so no other call can
+        // take the page between the owner being read and the phone stamping it.
+        match holds.claim_for_phone(&args.conversation).await {
+            Some(replaced) => replaced,
+            None => return view::failed(Stage::Busy, ANOTHER_CONVERSATIONS_PAGE),
+        }
+    } else {
+        let replaced = (holds.stamp_for_the_page().await, holds.stamp_for_our_call().await);
+        // Whoever drives this window owns what it holds from here on: every write it
+        // catches carries this conversation, and a card raised in another chat is not
+        // this one's to press.
+        holds.navigated_by(&args.conversation).await;
+        replaced
+    };
     // **This call is driving the window**, so the navigation it is about to make
     // is ours: the page it lands on is the conversation's. The call says when
     // it is done, and after that the window is the person's again — **and it

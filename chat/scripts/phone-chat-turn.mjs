@@ -511,14 +511,14 @@ async function phoneBrowser(app) {
   check("a phone turn is offered the browser's reads", READS.every((name) => named.includes(name)), JSON.stringify(named));
   check("and its writes, answered on the phone", WRITES.every((name) => named.includes(name)), JSON.stringify(named));
   check("and never the picture of the page", !named.includes("browser_screenshot"), JSON.stringify(named));
-  // A turn that names no phone has nobody to be shown a card: the reads, and no write.
+  // **A turn that names no phone is offered no browser at all**: it has no conversation of
+  // its own, so the page it would read is the desktop's, and the computer keeps no page for it.
   const anonymous = tools(null);
   check(
-    "a turn that names no phone is offered the reads",
-    READS.every((name) => anonymous.includes(name)),
+    "a turn that names no phone is offered no browser tool",
+    anonymous.filter(browser).length === 0,
     JSON.stringify(anonymous),
   );
-  check("and none of the writes", WRITES.every((name) => !anonymous.includes(name)), JSON.stringify(anonymous));
   check("and no picture either", !anonymous.includes("browser_screenshot"), JSON.stringify(anonymous));
   check("and it keeps no mini app either", !anonymous.includes("create_miniapp"), JSON.stringify(anonymous));
 
@@ -613,15 +613,17 @@ async function phoneBrowser(app) {
   const armedTools = app
     .phoneTools(SETTINGS.webTools, "en", SETTINGS.model, MAIL_ON, PHONE, true)
     .map((tool) => tool.function.name);
-  // An armed chat holds the owner's mail, so it is offered the reads and no write.
+  // An armed chat holds the owner's mail: nothing leaves for a website, so it is offered
+  // the reads that send nothing (read and find), and not the open, the click or the type.
+  const ARMED_READS = ["browser_read", "browser_find"];
   check(
-    "an armed phone is still offered the browser's reads",
-    READS.every((name) => armedTools.includes(name)),
+    "an armed phone is still offered the page reads",
+    ARMED_READS.every((name) => armedTools.includes(name)),
     JSON.stringify(armedTools.filter(browser)),
   );
   check(
-    "and none of its writes",
-    WRITES.every((name) => !armedTools.includes(name)),
+    "and none of the sends: no open, no click, no type",
+    ["browser_open", ...WRITES].every((name) => !armedTools.includes(name)),
     JSON.stringify(armedTools.filter(browser)),
   );
 
@@ -655,6 +657,54 @@ async function phoneBrowser(app) {
     !bridge.calls.some((c) => c.command === "brain_browser_type"),
     JSON.stringify(bridge.calls.map((c) => c.command)),
   );
+
+  // **An open is refused in the same chat.** Opening a website sends its address out, and an
+  // armed chat has nothing that may leave for one.
+  {
+    let opened = null;
+    const from = bridge.calls.length;
+    const { loop: openingLoop } = fakeLoop(async (o) => {
+      opened = await o.runTool("browser_open", { url: "https://shop.example/dp/1" }, new AbortController().signal, MAIL_TURN);
+    });
+    await app.runPhoneTurn(turnOf([USER("open the shop")], { device: PHONE }), SETTINGS, recorder(app).sink, new AbortController().signal, MAIL_ON, {
+      loop: openingLoop,
+      facts: facts(),
+    });
+    check(
+      "an open in an armed chat is refused in one plain line",
+      opened !== null && opened.ok === false && opened.text.includes("won't open a website"),
+      JSON.stringify(opened),
+    );
+    check(
+      "and the sidecar was never asked to open",
+      !bridge.calls.slice(from).some((c) => c.command === "brain_browser_open"),
+      JSON.stringify(bridge.calls.slice(from).map((c) => c.command)),
+    );
+  }
+
+  // **A browser call on a turn that names no phone is refused, and the sidecar is not asked.**
+  // The model can name a tool it was never offered: the page it would reach is the desktop's.
+  {
+    let read = null;
+    const from = bridge.calls.length;
+    const { loop: anonymousLoop } = fakeLoop(async (o) => {
+      read = await o.runTool("browser_read", {}, new AbortController().signal, undefined);
+    });
+    await app.runPhoneTurn(turnOf([USER("read the page")]), SETTINGS, recorder(app).sink, new AbortController().signal, MAIL_ON, {
+      loop: anonymousLoop,
+      facts: facts(),
+    });
+    check(
+      "a read on a turn that names no phone is refused in one plain line",
+      read !== null && read.ok === false && read.text.includes("no browser for this turn"),
+      JSON.stringify(read),
+    );
+    check(
+      "and the sidecar was not asked",
+      !bridge.calls.slice(from).some((c) => c.command.startsWith("brain_browser_")),
+      JSON.stringify(bridge.calls.slice(from).map((c) => c.command)),
+    );
+  }
 
   // **And the latch: once a mail tool has run in a turn, the turn stays armed.**
   // The conversation predicate reads the wire the loop is given, and a wire can

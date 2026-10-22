@@ -266,11 +266,11 @@ try {
     // and a write is answered on the phone. A turn that names no phone has nobody to
     // answer a write, so it is offered the reads and no write.
     const WRITES = ["browser_click", "browser_type"];
-    const READS = OFFERED.filter((name) => !WRITES.includes(name));
     const named = phoneTools(true, "en", "any-model", true, "2").map((tool) => tool.function.name);
     equal("a phone turn that names its phone is offered the five", named.filter((name) => OFFERED.includes(name)), OFFERED);
     const anonymous = phoneTools(true, "en", "any-model", true, null).map((tool) => tool.function.name);
-    equal("and a turn that names no phone is offered the reads and no write", anonymous.filter((name) => OFFERED.includes(name)), READS);
+    // **A turn that names no phone is offered no browser at all**: its page would be the desktop's.
+    equal("and a turn that names no phone is offered no browser", anonymous.filter((name) => OFFERED.includes(name)), []);
   }
 
   // --- a write is an answer, not a wait --------------------------------------

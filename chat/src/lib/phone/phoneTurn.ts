@@ -8,7 +8,7 @@ import { streamChatCompletion } from "../toolLoop";
 import { armedConversation, executeToolCall, offeredTools } from "../tools/registry";
 import type { ToolDefinition } from "../tools/definitions";
 import { MAIL_NAMES } from "../tools/definitions";
-import { BROWSER_SCREENSHOT_NAME } from "../tools/browserTools";
+import { BROWSER_NAMES, BROWSER_SCREENSHOT_NAME } from "../tools/browserTools";
 import { closeRecap, sayRuns, takeNote } from "../browser/note";
 import { recapLine } from "../browser/recap";
 import { isBrowserRun } from "../browser/runs";
@@ -41,10 +41,10 @@ const FACTS_TIMEOUT_MS = 8000;
  * that raised it. A phone whose app cannot draw one is answered on the spot by the
  * computer (`phone_chat::route_cards`), so no write waits on a press that cannot come.
  *
- * **What a phone may not have is a write nobody can answer.** Without a device there
- * is nobody to be shown a card, and in a chat that holds mail or a document a write
- * is refused in one line (`ARMED_REFUSAL`). So those turns are offered the reads
- * and no write.
+ * **A turn with no phone is offered no browser at all.** It has no conversation of
+ * its own, so the page it would read is the desktop's. And in a chat that holds mail
+ * or a document nothing leaves for a website: the open, the click and the type are
+ * refused (`BROWSER_SENDS`), and the reads stay.
  *
  * **And never the picture.** The picture is the person's own screen, and a phone
  * is not shown it. The browser's list is built without one, and the filter keeps
@@ -65,19 +65,24 @@ export function phoneTools(
    * question, asked the same way. See `armedConversation`. */
   armed = false,
 ): ToolDefinition[] {
-  const writable = device !== null && !armed;
+  // **No device, no browser at all.** A turn with no phone has no conversation of its
+  // own, so the page it would read is the desktop's: the browser is offered only to a
+  // phone that can be named, which is the only conversation the computer keeps the
+  // page for (`phone_may_touch`).
+  const named = device !== null;
   // **The browser's family, as the desktop's browser turn is offered it**: the same
   // switch, the same driver check, and no picture (`picturesAllowed` is not asked).
-  const browser = offeredTools(webTools, language, model, "browser");
+  const browser = named ? offeredTools(webTools, language, model, "browser") : [];
   return [...offeredTools(webTools, language, model, "web"), ...browser].filter(
     (tool) =>
       tool.function.name !== "create_miniapp" &&
       // **No picture of the page, said in its own words.** The browser's list above
       // has none, and this line keeps the name off a phone whatever the list said.
       tool.function.name !== BROWSER_SCREENSHOT_NAME &&
-      // The writes are what a phone may not have without a device or in a chat that
-      // holds mail: a rule that is not drawn cannot be broken.
-      (writable || !BROWSER_WRITES.has(tool.function.name)) &&
+      // **In a chat that holds mail or a document, nothing leaves the computer for a
+      // website**: no open, no click, no type. The reads stay, because a page that is
+      // read sends nothing. A rule that is not drawn cannot be broken.
+      (!armed || !BROWSER_SENDS.has(tool.function.name)) &&
       (mail || !MAIL_NAMES.has(tool.function.name)),
   );
 }
@@ -112,10 +117,18 @@ export function phoneArmed(conversation: WireMessage[] | undefined): boolean {
   return Array.isArray(conversation) && armedConversation(conversation);
 }
 
-/** The two browser tools that can send something out of the computer, and so need
-    a phone to answer for them. The reads drive the browser and are offered either
-    way: a page that is read sends nothing. */
-const BROWSER_WRITES = new Set(["browser_click", "browser_type"]);
+/** The browser tools that send something out of the computer: an open is a request
+    to a website, a click may submit, and a type may be sent. The reads drive the
+    browser and are not in this set: a page that is read sends nothing. */
+const BROWSER_SENDS = new Set(["browser_open", "browser_click", "browser_type"]);
+
+/** What a call to a website says in a chat that holds mail or a document: the open is
+    refused for the same reason the writes are. */
+const ARMED_OPEN_REFUSAL = "Kalsa won't open a website in a chat that holds your mail or documents.";
+
+/** What a browser call says on a turn that names no phone: there is no page of its own
+    for it to read, so none is run. */
+const NO_PHONE_BROWSER = "Kalsa has no browser for this turn: the turn names no phone that could answer for it.";
 
 /**
  * **Which phone chats are holding their owner's mail.** One map, on this
@@ -291,8 +304,17 @@ export async function runPhoneTurn(
         // mail — which is the usual way a chat becomes armed, one tool call after
         // the tools were fixed. A write into a chat that holds the owner's mail is
         // refused in one plain line, whoever asks and whenever it arrives.
-        if ((armed || phoneArmed(saidByLoop)) && BROWSER_WRITES.has(name)) {
-          return { text: ARMED_REFUSAL, ok: false, resultCode: "web.armed" };
+        // **A browser call on a turn with no phone is refused here as well**: a model can
+        // name a tool it was never offered, and this turn has no page of its own.
+        if (BROWSER_NAMES.has(name) && !conversation) {
+          return { text: NO_PHONE_BROWSER, ok: false, resultCode: "browser.refused" };
+        }
+        if ((armed || phoneArmed(saidByLoop)) && BROWSER_SENDS.has(name)) {
+          return {
+            text: name === "browser_open" ? ARMED_OPEN_REFUSAL : ARMED_REFUSAL,
+            ok: false,
+            resultCode: "web.armed",
+          };
         }
         const answered = executeToolCall(
           name,
