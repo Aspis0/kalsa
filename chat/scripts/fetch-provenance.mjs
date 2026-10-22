@@ -46,9 +46,12 @@ const LIT_UNSEEN = "Not run: this link has not appeared in the conversation, so 
 // The same refusal said to a browser, which is told to read the link on the
 // page in front of it rather than to search for it again. **Click first**: the
 // link is on the page with a ref that can be clicked, and an address written
-// by hand is a page nobody asked for.
+// by hand is a page nobody asked for. **And it says not to ask again**: the
+// owner's test of 21 October had a turn refused here nine times in a minute,
+// each time with a different address the model had made up, and the person
+// saw nothing but "Kalsa could not do it. Try again."
 const LIT_BROWSER_UNSEEN =
-  "Not run: this exact address has not appeared in the conversation, so it was not opened. Use browser_read or browser_find to locate the link, then click its ref. Only if the link carries no ref, copy its whole printed address, including the path and query, and open that. A shorter form opens only when it is the same http or https address, spelled the same way, with no query of its own, and with the last piece of its path already printed in a link you have read: the product's own address, for example https://shop.example/dp/B012345678.";
+  "Not run: this address has not appeared in the conversation, so it did not open the way you asked. Do not open it again, and do not try another form of it: the same address will not open the second time either. If the page in front of you carries the link, use browser_read or browser_find to find it and click its ref. Otherwise ask the person for the exact address, written out whole, and open that — or open another address they gave you. A shorter form opens only when it is the same http or https address, spelled the same way, with no query of its own, and with the last piece of its path already printed in a link you have read: the product's own address, for example https://shop.example/dp/B012345678.";
 // The same refusal said to a web_fetch made while the browser has already read
 // a page: the link is on that page, with a ref to click, so it is not told to
 // go and search for it.

@@ -28,13 +28,17 @@ pub(crate) fn open() -> Tool {
         "browser_open",
         "Open a web address in the browser window and return the page as text. The \
 address must be http or https: no other scheme is opened, and nothing on this \
-computer's own network is opened. Read-only.",
+computer's own network is opened. Build the address as a whole URL — the scheme, \
+the host, the path — with the spaces written as %20 and the other characters \
+percent-encoded. If you know only the name of a place or a service and not its \
+address, say so and ask the person for the exact address: an address you made up \
+is a page nobody asked for, and it will not open. Read-only.",
         schema(json!({
             "type": "object",
             "properties": {
                 "url": {
                     "type": "string",
-                    "description": "The address to open, with or without https://."
+                    "description": "The address to open, with or without https://. A whole URL, with the spaces written as %20."
                 }
             },
             "required": ["url"],

@@ -16,6 +16,9 @@ const {
   guideNotValidJson,
   guideProblem,
   logProvenanceFailure,
+  newLedger,
+  filed,
+  decide,
   BROWSER_TOOLS,
   TOOL_DEFINITIONS,
 } = app;
@@ -122,7 +125,7 @@ async function throughRegistry(args, gate, conversation, signal) {
 
 const USER = [{ role: "user", content: "Read https://news.example/story" }];
 const LIT_BROWSER_UNSEEN =
-  "Not run: this exact address has not appeared in the conversation, so it was not opened. Use browser_read or browser_find to locate the link, then click its ref. Only if the link carries no ref, copy its whole printed address, including the path and query, and open that. A shorter form opens only when it is the same http or https address, spelled the same way, with no query of its own, and with the last piece of its path already printed in a link you have read: the product's own address, for example https://shop.example/dp/B012345678.";
+  "Not run: this address has not appeared in the conversation, so it did not open the way you asked. Do not open it again, and do not try another form of it: the same address will not open the second time either. If the page in front of you carries the link, use browser_read or browser_find to find it and click its ref. Otherwise ask the person for the exact address, written out whole, and open that — or open another address they gave you. A shorter form opens only when it is the same http or https address, spelled the same way, with no query of its own, and with the last piece of its path already printed in a link you have read: the product's own address, for example https://shop.example/dp/B012345678.";
 
 /** A gate that asks the owner and says no. */
 const refusingGate = {
@@ -307,6 +310,53 @@ try {
       "chat.browser_failure.open_provenance",
     ]);
     check("and the rule's own code never reaches the log", !codes.some((code) => code.includes("something_new")), JSON.stringify(codes));
+  }
+
+  // --- the refusal sends the model somewhere else -----------------------------
+  //
+  // The owner's test of 21 October: a turn that named a service instead of an
+  // address was refused here nine times in a minute, each time with a
+  // different address the model had made up, and the person saw nothing but
+  // "Kalsa could not do it. Try again." **The refusal is where the model is
+  // redirected**, so it has to say three things: the address did not open as
+  // asked, the same address will not open the second time either, and the way
+  // through is the person's own address.
+  {
+    const text = LIT_BROWSER_UNSEEN;
+    check("the refusal says the address did not open as asked", text.includes("did not open the way you asked"), text);
+    check("and says not to open it again", text.includes("Do not open it again"), text);
+    check("and says not to make up another form of it", text.includes("do not try another form of it"), text);
+    check("and names the person's own address as the way through", text.includes("ask the person for the exact address"), text);
+    check("and leaves the other address they gave open", text.includes("or open another address they gave you"), text);
+  }
+
+  // **The offer says how to build an address**, so the model does not have to
+  // guess one: a whole URL, with the spaces written as %20, and the name of a
+  // place is not an address.
+  {
+    const description = OPEN.function.description;
+    check("the open's own description says to build a whole address", description.includes("whole URL"), description);
+    check("and says how the spaces are written", description.includes("%20"), description);
+    check("and says to ask the person when only a name is known", description.includes("ask the person for the exact address"), description);
+    check("and says a made-up address will not open", description.includes("will not open"), description);
+  }
+
+  // **The ledger keeps the refusal dead.** The same address a second time is
+  // refused with the reason it failed the first time — and nothing else in the
+  // turn's budget is spent on it. The unseen address is not the one call worth
+  // another try: that one is the open whose read the driver did not answer.
+  {
+    const ledger = newLedger();
+    filed(
+      ledger,
+      "browser_open",
+      { url: "https://model.example/invented" },
+      { text: LIT_BROWSER_UNSEEN, ok: false, resultCode: "web.link_unseen" },
+    );
+    const said = decide(ledger, "browser_open", { url: "https://model.example/invented" });
+    check("an unseen address is not asked a second time", said.run === false, JSON.stringify(said));
+    equal("and the refusal keeps its own reason", said.said, "web.link_unseen");
+    equal("and the refusal cost the turn one step", ledger.spent, 1);
   }
 } finally {
   await rm(dir, { recursive: true, force: true });

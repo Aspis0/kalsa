@@ -45,7 +45,7 @@ function refusedTwice(code: string, name: string, stage?: string): string {
     : code === "browser.already_run"
       ? `You already asked for that ${what} since the page last changed, and have its answer above. Do not ask again.`
       : code === LINK_UNSEEN
-        ? `You already asked for that ${what} in this turn and it failed with ${code}: that address has not appeared in the conversation. Click its ref instead: use browser_read or browser_find to find the link on the page, then click its ref.`
+        ? `You already asked for that ${what} in this turn and it failed with ${code}: that address has not appeared in the conversation, so it will not open the second time either — do not ask for it again, and do not make up another form of it. If the page in front of you carries the link, use browser_read or browser_find to find it and click its ref; otherwise ask the person for the exact address, written out whole, or open another address they gave you.`
         : stage === ledger.READ_DRIVER && (name === "browser_click" || name === "browser_type")
           ? `You already asked for that ${what} in this turn and the page did not answer it, so you do not know what it did. Read the page with browser_read to see what it says now, and do not do it again.`
           : `You already asked for that ${what} in this turn and it failed with ${code}, which will not change on a second try. Say what you will do instead, or stop.`;
