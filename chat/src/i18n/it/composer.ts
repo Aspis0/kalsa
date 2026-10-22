@@ -11,7 +11,6 @@ export const COMPOSER = {
     "thinkingOff": "Disattiva il ragionamento",
     // Il controllo del browser. Arma il messaggio successivo e solo quello.
     "browser": "Naviga per me",
-    "browserOn": "Naviga per me · solo il prossimo messaggio",
     "browserOff": "Disattiva «Naviga per me»",
     "browserTitle": "Può aprire siti, cliccare e compilare pagine per te.",
     "browserOnTitle": "«Naviga per me» è attivo: riguarda solo il prossimo messaggio. Disattivalo per annullare.",

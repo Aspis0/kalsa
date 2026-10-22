@@ -290,8 +290,19 @@ try {
     );
     equal(
       "and the armed state says it is the next message only",
-      [TABLES.en.composer.browserOn, TABLES.it.composer.browserOn],
-      ["Browse for me · next message only", "Naviga per me · solo il prossimo messaggio"],
+      [TABLES.en.composer.browserOnTitle, TABLES.it.composer.browserOnTitle],
+      [
+        "Browse for me is on: it applies to the next message only. Turn it off to cancel.",
+        "«Naviga per me» è attivo: riguarda solo il prossimo messaggio. Disattivalo per annullare.",
+      ],
+    );
+    // **The chip says one thing in both states** (BUG-1): the armed state is
+    // the accent and the tooltip, and the label does not grow a suffix — the
+    // row of controls under the words has no room for it.
+    check(
+      "and the chip has no longer label for the armed state",
+      ["en", "it", "es", "fr", "zh"].every((language) => TABLES[language].composer.browserOn === undefined),
+      JSON.stringify(["en", "it", "es", "fr", "zh"].map((language) => TABLES[language].composer.browserOn)),
     );
     equal(
       "and the tooltip says what it does",

@@ -275,7 +275,7 @@ export function Composer({
                 }
                 onClick={() => fileRef.current?.click()}
               >
-                <Icon name={attach?.icon ?? "clip"} size={19} />
+                <Icon name={attach?.icon ?? "clip"} size={16} />
                 {attach?.label ?? composer.attachAria}
               </button>
             </>
@@ -294,12 +294,15 @@ export function Composer({
               title={thinking ? composer.thinkingOnTitle : composer.thinkingOffTitle}
               onClick={() => onThinking?.(!thinking)}
             >
-              <Icon name="thought" size={18} />
+              <Icon name="thought" size={16} />
               {composer.think}
             </button>
           )}
           {/* The browser control. It arms the next message and nothing else:
-              the send disarms it, and the person can disarm it before that. */}
+              the send disarms it, and the person can disarm it before that.
+              **The chip says one thing in both states**: the accent and the
+              tooltip say it is armed, and the row keeps the room for the
+              disclaimer. */}
           {browse === null || browse === undefined ? null : (
             <button
               type="button"
@@ -309,12 +312,17 @@ export function Composer({
               title={browse ? composer.browserOnTitle : composer.browserTitle}
               onClick={() => onBrowse?.(tap({ armed: browse }))}
             >
-              <Icon name="globe" size={18} />
-              {browse ? composer.browserOn : composer.browser}
+              <Icon name="globe" size={16} />
+              {composer.browser}
             </button>
           )}
           {/* Where the chat waits on the door, the line says so in place of the disclaimer. */}
-          <span className="composer-note">{opening ? composer.hintOpening : (disclaimer ?? composer.disclaimer)}</span>
+          <span
+            className="composer-note"
+            title={opening ? undefined : (disclaimer ?? composer.disclaimer)}
+          >
+            {opening ? composer.hintOpening : (disclaimer ?? composer.disclaimer)}
+          </span>
           {ask && !streaming ? (
             <button
               type="button"
@@ -322,19 +330,19 @@ export function Composer({
               disabled={!ready || ask.disabled || held}
               onClick={askKalsa}
             >
-              {ask.icon ? <Icon name={ask.icon} size={18} /> : null}
+              {ask.icon ? <Icon name={ask.icon} size={16} /> : null}
               {ask.label}
             </button>
           ) : null}
           {streaming ? (
             <button type="button" className="composer-pill composer-stop" onClick={onStop}>
-              <Icon name="square" size={15} stroke={2.6} />
+              <Icon name="square" size={13} stroke={2.6} />
               {composer.stop}
             </button>
           ) : (
             <button type="button" className="composer-pill composer-send" onClick={send} disabled={!canSend}>
               {composer.send}
-              <Icon name="up" size={18} stroke={2.4} />
+              <Icon name="up" size={16} stroke={2.4} />
             </button>
           )}
         </div>

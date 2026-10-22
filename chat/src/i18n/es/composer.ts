@@ -11,7 +11,6 @@ export const COMPOSER = {
     "thinkingOff": "Desactivar la reflexión",
     // El control del navegador. Arma el mensaje siguiente y solo ese.
     "browser": "Navega por mí",
-    "browserOn": "Navega por mí · solo el próximo mensaje",
     "browserOff": "Desactivar «Navega por mí»",
     "browserTitle": "Puede abrir sitios web, hacer clic y rellenar páginas por ti.",
     "browserOnTitle": "«Navega por mí» está activado: se aplica solo al próximo mensaje. Desactívalo para cancelarlo.",
