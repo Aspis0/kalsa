@@ -104,5 +104,7 @@ export const TOOLS = {
     "tooManySteps": "这一轮里的浏览器操作太多了。",
     "alreadyRun": "已经做过了。",
     "readAgain": "Kalsa 已经读过页面的这一部分了。",
+    "stopped": "你在 Kalsa 完成前停止了它。",
+    "robotCheck": "该网站要求真人验证，Kalsa 无法通过。",
   },
 };

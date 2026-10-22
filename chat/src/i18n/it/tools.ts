@@ -105,5 +105,7 @@ export const TOOLS = {
     "tooManySteps": "Sono troppi passi nel browser per un turno.",
     "alreadyRun": "L'aveva già fatto.",
     "readAgain": "Kalsa aveva già letto quella parte della pagina.",
+    "stopped": "Hai fermato Kalsa prima che finisse.",
+    "robotCheck": "Il sito ha chiesto una verifica umana e Kalsa non può superarla.",
   },
 };

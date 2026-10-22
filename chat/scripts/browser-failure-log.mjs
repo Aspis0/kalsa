@@ -107,7 +107,7 @@ async function throughRunToolCall(definition, delta) {
 }
 
 /** One call through the real registry, and what it left behind. */
-async function throughRegistry(args, gate, conversation, signal) {
+async function throughRegistry(args, gate, conversation, signal, calls) {
   const at = mark();
   const outcome = await executeToolCall(
     "browser_open",
@@ -119,6 +119,8 @@ async function throughRegistry(args, gate, conversation, signal) {
     undefined,
     undefined,
     true,
+    "",
+    calls ?? null,
   );
   return { outcome, codes: since(at) };
 }
@@ -357,6 +359,44 @@ try {
     check("an unseen address is not asked a second time", said.run === false, JSON.stringify(said));
     equal("and the refusal keeps its own reason", said.said, "web.link_unseen");
     equal("and the refusal cost the turn one step", ledger.spent, 1);
+  }
+
+  // --- a human check: refused, named, and not got past ------------------------
+  //
+  // A page that asks for a person to prove they are a person is refused by the
+  // sidecar, with a code of its own. The chat keeps that code, and the ledger
+  // keeps the refusal dead: **the second attempt is where a model would try to
+  // get past the check**, so that is where the copy has to say not to.
+  {
+    const LIT_ROBOT_CHECK =
+      "This page is a human check: the site is asking the reader to prove they are a person, and you cannot do that for them. Do not try to get past it another way — not by opening the address again, not by another form of it, and not by another tool: the check is there on purpose. The person can do it themselves in the browser window on their own screen, and once they have, the request can be made again and read.";
+    const ADDRESS = { url: "https://news.example/story" };
+
+    openError = { code: "browser.robot_check", text: LIT_ROBOT_CHECK };
+    const coded = await throughRegistry(ADDRESS, null, USER);
+    openError = null;
+    equal("a human check keeps the browser's own code", coded.outcome.resultCode, "browser.robot_check");
+    check("and the model reads the sidecar's own refusal", coded.outcome.text.includes("human check"), coded.outcome.text);
+    equal("and it writes no diagnostic of its own", coded.codes, []);
+
+    // **The second attempt is refused by the ledger**, with the reason the
+    // first one failed.
+    const ledger = newLedger();
+    filed(ledger, "browser_open", ADDRESS, { text: LIT_ROBOT_CHECK, ok: false, resultCode: "browser.robot_check" });
+    const said = decide(ledger, "browser_open", ADDRESS);
+    check("a human check is not asked a second time", said.run === false, JSON.stringify(said));
+    equal("and the refusal keeps its own reason", said.said, "browser.robot_check");
+    equal("and the refusal cost the turn one step", ledger.spent, 1);
+
+    // **And the copy of that second attempt says the same thing the first one
+    // did**: the check is not to be got past, and the person is the one who does
+    // it.
+    const second = await throughRegistry(ADDRESS, null, USER, undefined, ledger);
+    check("the second attempt is refused", second.outcome.ok === false, second.outcome.text);
+    equal("and it keeps the check's own code, so the window shows its sentence", second.outcome.resultCode, "browser.robot_check");
+    check("and says not to get past it another way", second.outcome.text.includes("Do not try to get past it another way"), second.outcome.text);
+    check("and says the person does it in the browser window", second.outcome.text.includes("browser window"), second.outcome.text);
+    check("and says to ask again once they have", second.outcome.text.includes("ask again once they have"), second.outcome.text);
   }
 } finally {
   await rm(dir, { recursive: true, force: true });

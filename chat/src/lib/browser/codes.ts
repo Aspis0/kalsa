@@ -48,6 +48,9 @@ export const BROWSER_CODES = [
   "browser.already_run",
   /** The read asked for a window of the page the model has already been given. */
   "browser.read_again",
+  /** The page is a human check: the site asks for a person to prove they are
+      a person, and the model cannot do that for them. */
+  "browser.robot_check",
 ] as const;
 
 /** One of `BROWSER_CODES`, and nothing else. */
@@ -61,6 +64,14 @@ export type BrowserCode = (typeof BROWSER_CODES)[number];
  * identical open would be refused the same way.
  */
 export const LINK_UNSEEN = "web.link_unseen";
+
+/**
+ * The code a page that asks for a person to prove they are a person is refused
+ * with. **It is one of the browser's own codes** and is in `BROWSER_CODES`
+ * above; it is named here as well because the copy that answers a second
+ * attempt has to say the very same word.
+ */
+export const ROBOT_CHECK = "browser.robot_check";
 
 /**
  * A code a browser call can be refused with that the ledger keeps: the
@@ -101,7 +112,7 @@ export function isBrowserCode(code: unknown): code is BrowserCode {
  */
 export function browserCodeWords(
   code: BrowserCode,
-  t: { windowGone: string; refused: string; failed: string; noPage: string; elementGone: string; fieldGone: string; held: string; invalid: string; paused: string; busy: string; noPendingRequest: string; stopped: string; deterministic: string; tooManySteps: string; alreadyRun: string; readAgain: string },
+  t: { windowGone: string; refused: string; failed: string; noPage: string; elementGone: string; fieldGone: string; held: string; invalid: string; paused: string; busy: string; noPendingRequest: string; stopped: string; deterministic: string; tooManySteps: string; alreadyRun: string; readAgain: string; robotCheck: string },
 ): string {
   const words: Record<BrowserCode, string> = {
     "browser.window_gone": t.windowGone,
@@ -120,6 +131,7 @@ export function browserCodeWords(
     "browser.too_many_steps": t.tooManySteps,
     "browser.already_run": t.alreadyRun,
     "browser.read_again": t.readAgain,
+    "browser.robot_check": t.robotCheck,
   };
   return words[code];
 }

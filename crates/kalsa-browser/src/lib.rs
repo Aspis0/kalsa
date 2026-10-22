@@ -30,6 +30,7 @@ mod driver_env;
 mod external;
 pub(crate) mod failure;
 mod refs;
+pub mod robot;
 pub mod secret;
 #[cfg(test)]
 mod tests;

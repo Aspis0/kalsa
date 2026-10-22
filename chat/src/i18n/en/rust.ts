@@ -108,5 +108,6 @@ export const RUST: { startup: Record<string, RustSentence>; choice: Record<strin
     refused: () => "Kalsa wouldn't open that.",
     no_pending_request: () => "That request is not waiting for an answer any more.",
     read_again: () => "Kalsa had already read that part of the page.",
+    robot_check: () => "The site asked for a human check. Kalsa cannot pass it; you can, in the browser window.",
   },
 };

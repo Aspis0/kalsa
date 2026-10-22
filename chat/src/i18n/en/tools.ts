@@ -126,5 +126,7 @@ export const TOOLS = {
     tooManySteps: "That is more browser steps than a turn may take.",
     alreadyRun: "That was already done.",
     readAgain: "Kalsa had already read that part of the page.",
+    stopped: "You stopped this before Kalsa finished.",
+    robotCheck: "The site asked for a human check, and Kalsa cannot pass it.",
   },
 };

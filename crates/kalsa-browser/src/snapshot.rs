@@ -18,6 +18,20 @@ pub(crate) const SNAPSHOT_CHARS: usize = 6000;
 pub(crate) struct Read {
     /// The page as the model reads it.
     pub(crate) text: String,
+    /// **What the page says, whole.**
+    ///
+    /// **Every line the page shows**, without the header — the address and the
+    /// title are ours, and an address with the words of a challenge in it is
+    /// not a page that has them — and without the footer, which says where
+    /// the window stands.
+    ///
+    /// **A window is not the page, and a match is not the page.** A read
+    /// answers with one window of a long page and a find answers with the
+    /// lines that matched; a rule that reads a signature out of either would
+    /// miss a challenge that sits above the window or beside the match. So
+    /// the whole page is carried beside them, and only a signature is read
+    /// out of it.
+    pub(crate) whole: String,
     /// The refs of the page's own document, from that same tree.
     pub(crate) main: HashSet<String>,
     /// **Where the answer stands on the page.** A read is a window of the page,
@@ -54,6 +68,12 @@ struct Rendered {
     full: Vec<String>,
     /// The same lines with their addresses left out: what the page shows.
     visible: Vec<String>,
+    /// **What the page shows, whole** — every line of it, joined.
+    ///
+    /// **Without the addresses, and that is the point.** A link's address is
+    /// not something the page shows, and an address carrying the words of a
+    /// challenge is not a page that has them.
+    whole: String,
     /// The refs of the page's own document, from the same tree.
     main: HashSet<String>,
 }
@@ -159,10 +179,15 @@ async fn page_text(page: &Page) -> Result<Rendered, playwright_rs::Error> {
     let (out, body_cut) = within_budget(out);
     let url = page.url();
     let title = page.title().await.unwrap_or_default();
+    // **What the page shows, whole.** Joined once here, so a rule that reads a
+    // signature out of the page reads it out of every line and not out of the
+    // window a read happens to carry.
+    let whole = out.visible.join("\n");
     Ok(Rendered {
         head: header(&url, &title, raw_cut || body_cut),
         full: out.full,
         visible: out.visible,
+        whole,
         main,
     })
 }
@@ -235,6 +260,17 @@ async fn shows_text(page: &Page) -> bool {
 /// one, and a line is a place a model can say out loud.
 pub async fn read_when_ready(page: &Page, part: usize) -> Result<String, playwright_rs::Error> {
     Ok(read_when_ready_with_main(page, 0, Some(part)).await?.text)
+}
+
+/// **What the page says, whole** — every line the page shows, without the
+/// header that carries its address and its title, and without the footer that
+/// says where the window stands.
+///
+/// **A rule that reads a signature out of a page has to read it out of this.**
+/// The header is ours, and an address with the words of a challenge in it is
+/// not a page that has them.
+pub async fn whole_of(page: &Page) -> Result<String, playwright_rs::Error> {
+    Ok(read_when_ready_with_main(page, 0, None).await?.whole)
 }
 
 /// The same read, with the page's own document's refs beside it.
@@ -377,6 +413,10 @@ pub(crate) async fn snapshot_with_main(
     let text = format!("{}\n\n{}\n\n{}", rendered.head, body, window_footer(first, end, total));
     Ok(Read {
         text,
+        // **The whole page, and not the window.** The window is what the model
+        // is given; the page is what the page says, and a challenge at the top
+        // of it is a challenge whichever window is being read.
+        whole: rendered.whole,
         main: rendered.main,
         window: Some(Window { first, after: end, total, said }),
     })
@@ -400,7 +440,7 @@ pub(crate) async fn find_with_main(
     let rendered = page_text(page).await?;
     let wanted = needle.trim().to_lowercase();
     if wanted.is_empty() {
-        return Ok(Read { text: format!("{}\n\nnothing to look for — pass some text", rendered.head), main: rendered.main, window: None });
+        return Ok(Read { text: format!("{}\n\nnothing to look for — pass some text", rendered.head), whole: rendered.whole, main: rendered.main, window: None });
     }
     // URL parameters must not crowd visible matches out of the answer.
     let mut hits = matching(&rendered.visible, &wanted);
@@ -411,6 +451,10 @@ pub(crate) async fn find_with_main(
     if hits.is_empty() {
         return Ok(Read {
             text: format!("{}\n\nnothing on this page matches that text", rendered.head),
+            // **The whole page, even when nothing matched.** A find that
+            // matched nothing on a challenge page is still a find on a
+            // challenge page, and the page is what says so.
+            whole: rendered.whole,
             main: rendered.main,
             window: None,
         });
@@ -437,7 +481,10 @@ pub(crate) async fn find_with_main(
     } else {
         String::new()
     };
-    Ok(Read { text: format!("{}\n\n{kept}{more}", rendered.head), main: rendered.main, window: None })
+    // **The whole page, and not the lines that matched.** A find answers with
+    // the lines that matched, and a challenge is said by the page as a whole:
+    // a model that found nothing here is still standing on a challenge.
+    Ok(Read { text: format!("{}\n\n{kept}{more}", rendered.head), whole: rendered.whole, main: rendered.main, window: None })
 }
 
 /// The lines that mention some text, in the order the page has them.

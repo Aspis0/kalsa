@@ -24,6 +24,9 @@ pub(crate) enum Stage {
     ReadDriver,
     /// The read asked for a window the model has already been given.
     ReadAgain,
+    /// The page is a human check: the site asks for a person to prove they are
+    /// a person, and a model cannot do that for them.
+    RobotCheck,
     OpenDriver,
     OpenAddressRefused,
     Paused,
@@ -51,6 +54,7 @@ impl Stage {
             Self::ReadMoved => "read_moved",
             Self::ReadDriver => "read_driver",
             Self::ReadAgain => "read_again",
+            Self::RobotCheck => "robot_check",
             Self::OpenDriver => "open_driver",
             Self::OpenAddressRefused => "open_address_refused",
             Self::Paused => "paused",
@@ -78,6 +82,7 @@ impl Stage {
             Stage::ReadMoved,
             Stage::ReadDriver,
             Stage::ReadAgain,
+            Stage::RobotCheck,
             Stage::OpenDriver,
             Stage::OpenAddressRefused,
             Stage::Paused,

@@ -506,8 +506,31 @@ const { app } = await loadApp();
   );
   check(
     "every code has words in every table",
-    app.BROWSER_CODES.every((code) => app.browserCodeWords(code, words) !== "" && app.browserCodeWords(code, italian) !== ""),
+    app.BROWSER_CODES.every(
+      (code) => typeof app.browserCodeWords(code, words) === "string" && app.browserCodeWords(code, words).trim() !== "",
+    ) &&
+      app.BROWSER_CODES.every(
+        (code) => typeof app.browserCodeWords(code, italian) === "string" && app.browserCodeWords(code, italian).trim() !== "",
+      ),
   );
+  // **And in every language, not only the two this file happens to speak.** A
+  // code with words in English and none in Chinese is a code the person reads
+  // as a blank, so every table is asked.
+  {
+    // **A word that is not there is `undefined`, and `undefined` is not the
+    // empty string.** A table without the word would pass a check that only
+    // asked for "not the empty string", so the check asks for a word that is
+    // really there: a string, with something in it.
+    const languages = ["en", "it", "es", "fr", "zh"];
+    const missing = [];
+    for (const code of app.BROWSER_CODES) {
+      for (const tag of languages) {
+        const words = app.browserCodeWords(code, TABLES[tag].tools.recap);
+        if (typeof words !== "string" || words.trim() === "") missing.push(`${code} in ${tag}`);
+      }
+    }
+    check("every code has words in all five languages", missing.length === 0, missing.join(", "));
+  }
   check(
     "and the person's words are never the sentence the tool carried",
     app.browserCodeWords("browser.invalid", words) !== "The form would not let it go. nothing was sent",

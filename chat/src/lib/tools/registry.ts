@@ -19,7 +19,7 @@ import { isPaused } from "../browser/window";
 import { browserUsable } from "../browser/usable";
 import { browserClick, browserFind, browserOpen, browserRead, browserScreenshot, browserType, fence, shotImage, shotLine } from "./browserCall";
 import { automaticShot } from "./autoShot";
-import { browserCode, LINK_UNSEEN } from "../browser/codes";
+import { browserCode, LINK_UNSEEN, ROBOT_CHECK } from "../browser/codes";
 import { MAX_PICTURES_PER_TURN, picturesTaken } from "../pictures";
 import * as ledger from "../callLedger";
 import { mailAllowed } from "../mail/allowlist";
@@ -46,9 +46,11 @@ function refusedTwice(code: string, name: string, stage?: string): string {
       ? `You already asked for that ${what} since the page last changed, and have its answer above. Do not ask again.`
       : code === LINK_UNSEEN
         ? `You already asked for that ${what} in this turn and it failed with ${code}: that address has not appeared in the conversation, so it will not open the second time either — do not ask for it again, and do not make up another form of it. If the page in front of you carries the link, use browser_read or browser_find to find it and click its ref; otherwise ask the person for the exact address, written out whole, or open another address they gave you.`
-        : stage === ledger.READ_DRIVER && (name === "browser_click" || name === "browser_type")
-          ? `You already asked for that ${what} in this turn and the page did not answer it, so you do not know what it did. Read the page with browser_read to see what it says now, and do not do it again.`
-          : `You already asked for that ${what} in this turn and it failed with ${code}, which will not change on a second try. Say what you will do instead, or stop.`;
+        : code === ROBOT_CHECK
+          ? `You already asked for that ${what} in this turn and it failed with ${code}: the site is asking for a person to prove they are a person, and that cannot be done from here. Do not try to get past it another way — not the same address, not another form of it, and not another address for the same site. The person does it in the browser window on their own screen; say so, and ask again once they have.`
+          : stage === ledger.READ_DRIVER && (name === "browser_click" || name === "browser_type")
+            ? `You already asked for that ${what} in this turn and the page did not answer it, so you do not know what it did. Read the page with browser_read to see what it says now, and do not do it again.`
+            : `You already asked for that ${what} in this turn and it failed with ${code}, which will not change on a second try. Say what you will do instead, or stop.`;
 }
 
 /** What one held call looks like to the page: which tool, the exact string
@@ -358,7 +360,11 @@ export async function executeToolCall(
             // so it can do something else instead of asking a third time.
             text: refusedTwice(said.said, name, said.stage),
             ok: false,
-            resultCode: said.answer === null ? said.code : "browser.already_run",
+            // **A human check keeps its own code on the second try too**, so the
+            // person's window reads the check's sentence and not the generic
+            // "failed the same way" one. Other reasons keep the ledger's word.
+            resultCode:
+              said.answer !== null ? "browser.already_run" : said.said === ROBOT_CHECK ? ROBOT_CHECK : said.code,
           };
         }
       }

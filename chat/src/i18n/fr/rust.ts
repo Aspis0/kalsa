@@ -113,5 +113,6 @@ export const RUST: {
     refused: () => "Kalsa n'a pas voulu ouvrir cela.",
     no_pending_request: () => "Cette requete n’attend plus de reponse.",
     read_again: () => "Kalsa avait déjà lu cette partie de la page.",
+    robot_check: () => "Le site a demandé une vérification humaine. Kalsa ne peut pas la passer, mais tu peux, dans la fenêtre du navigateur.",
   },
 };

@@ -34,6 +34,9 @@ pub(crate) enum BrowserCode {
     Invalid,
     /// The read asked for a window of the page the model has already been given.
     ReadAgain,
+    /// The page is a human check: the site asks for a person to prove they are
+    /// a person, and the model cannot do that for them.
+    RobotCheck,
 }
 
 impl BrowserCode {
@@ -47,6 +50,7 @@ impl BrowserCode {
             Self::Held => "browser.held",
             Self::Invalid => "browser.invalid",
             Self::ReadAgain => "browser.read_again",
+            Self::RobotCheck => "browser.robot_check",
         }
     }
 
@@ -63,6 +67,7 @@ impl BrowserCode {
             "browser.held" => Self::Held,
             "browser.invalid" => Self::Invalid,
             "browser.read_again" => Self::ReadAgain,
+            "browser.robot_check" => Self::RobotCheck,
             _ => Self::Refused,
         }
     }
@@ -121,6 +126,7 @@ fn failure_of(result: &ToolResult) -> Option<(&'static str, &'static str)> {
         "read_moved" => ("read_moved", "browser_failure.read_moved"),
         "read_driver" => ("read_driver", "browser_failure.read_driver"),
         "read_again" => ("read_again", "browser_failure.read_again"),
+        "robot_check" => ("robot_check", "browser_failure.robot_check"),
         "open_driver" => ("open_driver", "browser_failure.open_driver"),
         "open_address_refused" => ("open_address_refused", "browser_failure.open_address_refused"),
         "paused" => ("paused", "browser_failure.paused"),
@@ -178,6 +184,7 @@ mod tests {
             BrowserCode::Held,
             BrowserCode::Invalid,
             BrowserCode::ReadAgain,
+            BrowserCode::RobotCheck,
         ] {
             assert!(every.as_str().starts_with("browser."), "{} is one of ours", every.as_str());
             let answer = said(Some(json!({"kalsa": {"code": every.as_str()}})));
@@ -223,6 +230,7 @@ mod tests {
             ("read_moved", "browser_failure.read_moved"),
             ("read_driver", "browser_failure.read_driver"),
             ("read_again", "browser_failure.read_again"),
+            ("robot_check", "browser_failure.robot_check"),
             ("open_driver", "browser_failure.open_driver"),
             ("open_address_refused", "browser_failure.open_address_refused"),
             ("paused", "browser_failure.paused"),

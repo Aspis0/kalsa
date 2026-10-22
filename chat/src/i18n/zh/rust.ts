@@ -113,5 +113,6 @@ export const RUST: {
     refused: () => "Kalsa 没有打开那个内容。",
     no_pending_request: () => "那个请求已经不再等待回答。",
     read_again: () => "Kalsa 已经读过页面的这一部分了。",
+    robot_check: () => "该网站要求真人验证。Kalsa 无法通过，但你可以在浏览器窗口中完成。",
   },
 };
