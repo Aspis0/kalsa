@@ -91,9 +91,12 @@ function documentsOf(message: ChatMessage, documents: DocumentTexts): string[] {
  *
  * **And only a call that answered carries a page.** The fence alone cannot
  * tell an answer from a refusal: both are fenced, and a refusal can quote
- * the page. The run's own state says it — a call that was refused, or that
- * was stopped, is the app's sentence and not the page's words, and stamping
- * it as a page's would be a lie about where the words came from.
+ * the page. The run's own state says it — **a call that did not answer
+ * arrives as `failed`**, which is what a refusal and a stop are both, and no
+ * browser path writes anything else — and that answer is the app's sentence
+ * and not the page's words, so stamping it as a page's would be a lie about
+ * where the words came from. The filter stays the wide one: everything that
+ * is not `ok` is the app's.
  */
 function pagesOf(message: ChatMessage): string[] {
   const texts: string[] = [];

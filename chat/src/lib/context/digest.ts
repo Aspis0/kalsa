@@ -1,5 +1,6 @@
 import type { WireMessage } from "../chat";
 import type { ChatMessage } from "../types";
+import { DIGEST_FENCE_CHARS, digestFence } from "../pageFence";
 import { fragmentLine, pickFragments } from "./pick";
 import { sourcesOf } from "./sources";
 import type { DocumentTexts } from "./sources";
@@ -29,6 +30,13 @@ export const DIGEST_JOIN = "\n\n";
  * documents those turns bound are all searched, each stamped as what it is.
  * **A page's words are carried fenced**: they are still a stranger's words,
  * and the block hands them over inside the fence the wire uses.
+ *
+ * **The block itself is fenced too**, with a marker drawn now: the block
+ * rides inside the last user message, and the person did not write it. The
+ * marker is what the provenance gate reads to tell the person's words from
+ * the app's, so a page's line inside the block never passes for the person's
+ * own speech.
+ *
  * Empty when the switch is off, when nothing was left behind, or when nothing
  * in what was left behind matches. The recent window is never searched: it
  * stays as the fit kept it.
@@ -43,10 +51,10 @@ export function digestForTurn(
   if (!enabled || shed.length === 0) return "";
   const query = queryOf(kept);
   if (query === "") return "";
-  const room = Math.floor(cap * CHARS_PER_TOKEN) - DIGEST_HEADER.length;
+  const room = Math.floor(cap * CHARS_PER_TOKEN) - DIGEST_HEADER.length - DIGEST_FENCE_CHARS;
   const picked = pickFragments(sourcesOf(shed, documents), query, room);
   if (picked.length === 0) return "";
-  return [DIGEST_HEADER, ...picked.map(fragmentLine)].join("\n");
+  return digestFence([DIGEST_HEADER, ...picked.map(fragmentLine)].join("\n"));
 }
 
 /**
@@ -54,6 +62,9 @@ export function digestForTurn(
  * is the end of the history: the wire's prefix up to that message does not
  * change, and the block never comes before the history. An empty block leaves
  * the wire as it was, the same array.
+ *
+ * **The block arrives fenced**, with the marker its own build drew: the
+ * message it rides in is the person's, and the block is the app's.
  */
 export function withDigest(wire: WireMessage[], block: string): WireMessage[] {
   if (block === "") return wire;

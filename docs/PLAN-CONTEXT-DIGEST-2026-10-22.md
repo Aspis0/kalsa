@@ -52,19 +52,33 @@ invariata**.
 8. **Gate di misura, prima del default**: celle A/B su conversazione lunga
    (stessa richiesta, braccio prune-only vs prune+digest): recall dei fatti
    sfrattati E tempo al primo token (il +72% di prefill è il modo in cui il
-   v42 ha perso la seconda volta).
+   v42 ha perso la seconda volta). **Il prefill si misura con il blocco
+   dentro**, non con la storia da sola: il blocco entra nel prefill di ogni
+   turno (vedi sotto).
 
 ## Effetto sulla KV cache (la domanda del proprietario)
 
-- **Stato regolare: zero costo extra.** La storia resta byte-identica tra i
-  turni (append-only) → la KV di_prefixo vale come oggi. Il digest viaggia in
-  coda come un messaggio nuovo: i suoi token si prefillano una volta per
-  turno. Con i numeri di oggi (~170-185 tok/s di prefill su Qwen 3.6 Metal),
-  un digest da 300 token ≈ **1,6-1,8 s** a turno.
+- **Stato regolare: la storia resta byte-identica, la KV no.** Il blocco non
+  viene mai persistito: al turno N+1 il messaggio utente precedente viene
+  ricostruito **senza** il blocco, quindi il prefisso condiviso finisce prima
+  di quel messaggio. Il costo extra di un turno è dunque il messaggio utente
+  precedente più il blocco, non zero. Resta vero che la storia memorizzata è
+  byte-identica (append-only) e che il blocco viaggia in coda: i suoi token si
+  prefillano una volta per turno. Con i numeri di oggi (~170-185 tok/s di
+  prefill su Qwen 3.6 Metal), un digest da 300 token ≈ **1,6-1,8 s** a turno.
 - **Quando la finestra avanza** (come già oggi col prune): un re-prefill della
   storia che segue il boundary — lo stesso costo che il prune di oggi paga
   già, non uno in più. Mitigato da `--ctx-checkpoints` (v1.1.6): il prefisso
   fino al boundary viene ripristinato dal checkpoint invece che riletto.
+
+## Un limite noto: le pagine muoiono al reload
+
+`forDisk` svuota il `result` di ogni run del browser
+(`chat/src/lib/store.ts:414-425`) e il digest legge proprio `run.result`: dopo
+un riavvio dell'app una conversazione non porta più fatti di pagina nel
+digest. È coerente con il wire — che è vuoto per lo stesso motivo — ma il
+piano non deve venderlo come se non valesse: il digest porta i fatti delle
+pagine **fino alla fine della sessione**, non oltre.
 
 ## Fette
 

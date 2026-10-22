@@ -1,5 +1,6 @@
 import type { WireMessage } from "../chat";
 import { PINNED_DOCS_MARK } from "../attachments";
+import { stripUntrusted } from "../pageFence";
 import { findSensitive } from "../webgate/sensitive";
 import { addressesIn, canonical, rememberAddresses } from "./addresses";
 import { BROWSER_NAMES } from "./browserTools";
@@ -329,7 +330,9 @@ function seenCorpus(conversation: WireMessage[]): { seen: Set<string>; userTexts
   const seen = new Set<string>();
   const userTexts: string[] = [];
   // The person's own words, and only theirs: what a page, a tool's result or
-  // the assistant wrote is no proof the person named a site.
+  // the assistant wrote is no proof the person named a site. **And the digest's
+  // block is no proof either**: it rides inside the person's own message, and
+  // the strip takes it off before the message is read as the person's.
   const userSeen = new Set<string>();
   for (const message of conversation) {
     if (message.role === "user") {
@@ -458,10 +461,26 @@ function echoForms(value: string): string[] {
   return [...forms].filter((form) => form !== "");
 }
 
+/**
+ * The person's own words, with the app's fences taken off.
+ *
+ * **The digest's block is not the person's speech.** The block rides inside
+ * the last user message, and it carries the conversation's earlier turns — the
+ * model's words, a page's words, a document's text. A page's line inside it
+ * must not excuse a credential the person never typed, and the model's line
+ * inside it must not name a site the person never named: the block comes off
+ * before the message is read as the person's own words.
+ *
+ * **A page's fence comes off as well** (defence in depth): a page's words are
+ * a stranger's words wherever they are.
+ */
 function userWords(content: WireMessage["content"]): string {
-  if (typeof content === "string") return content;
-  return content
-    .filter((part) => part.type === "text")
-    .map((part) => part.text)
-    .join("\n");
+  const text =
+    typeof content === "string"
+      ? content
+      : content
+          .filter((part) => part.type === "text")
+          .map((part) => part.text)
+          .join("\n");
+  return stripUntrusted(text);
 }
