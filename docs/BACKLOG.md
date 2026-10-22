@@ -646,7 +646,14 @@ The two P1s (cut pages/documents missing from the sources; near-duplicate senten
 
 ## Phone browser slice: review leftovers (2026-10-22, deepseek on `11492d79..b698b77d`)
 
-The review approved security and privacy (nothing leaves, nothing leaks); its two P1s (the silent immediate decline; the page lease that never releases) are being fixed. What stays open:
+The review approved security and privacy (nothing leaves, nothing leaks); its two P1s (the silent immediate decline; the page lease that never releases) were fixed in `0f00aa00`/`58550f51` and re-audited GO. From the re-audit, FIRST IN LINE before any next browser slice:
+
+- **A release with no live slot spawns a phantom sidecar.** `brain_browser_release` goes through `take_spending(|| start(..))`, so when the slot is closed (Stop mid-turn, chat closed mid-turn, or a browser tool refused by the gate before the sidecar — `droveTheBrowser` is set before `executeToolCall`) the release STARTS the process instead of giving up: an inert sidecar stays, `BrowserPause` draws, "Clear Kalsa's browser data" disables, no self-heal until close/quit (`src-tauri/src/browser/session.rs:219-233`, `host.rs:493-503`). Remedy: `take_existing`, as `preview` does (`host.rs:436-441`).
+- **A release that loses the slot race is silent and unretried.** 1500 ms of polling then `Err` with no log, swallowed by both callers (`session.rs:236-283`, `useChatTurns.ts:685`, `phoneTurn.ts:395`); the page stays claimed until the owner conversation runs another browser turn, a manual navigation, or the session ends.
+- **The claim is per conversation, not per turn.** Two overlapping turns of the SAME conversation (the phone runner's `live` is per request) let turn N's release erase turn N+1's claim mid-flight → `NOT_THE_PHONES_PAGE` refusals or a third party taking the page (`hold.rs:777-783`, `mcp.rs:935-936`). A refusal, never a leak.
+- **Protocol doc nuances.** "The phone's turn is live" contradicts NO_CARD applying "whatever the turn's state"; the promised queued outcome for a number-less NO_CARD never queues (`phone_chat.rs:619-627`); "said again on the model's next turn" carries only `{"code":"unsendable"}` — the sentence with the reason arrives at the next browser call (`docs/PHONE-CHAT-PROTOCOL.md:243-251`).
+
+What stays open:
 
 - **The armed rule has the shape of the tools, not of the fact.** In an armed chat (mail or documents) the phone refuses `browser_open` but `web_fetch`/`web_search` still carry the same address or query out, unasked (`armed(null) === false`, `chat/src/lib/tools/registry.ts:615-619`; `admitted(null) === true`, `:591`). The plan's words are "nothing leaves for a website" — closing this means fencing the web tools too, not only the browser ones.
 - **`phone_may_touch` is checked once, before the read loop.** A person's manual navigation during a phone `browser_read` clears the stamps and the retry can hand the phone the page the person just opened (`crates/kalsa-browser/src/mcp.rs:902-906`, `page_text` `:464-500`, `hold.rs:866-870`). The screenshot path got a post-capture re-check (`preview.rs:245-256`); the reads did not.
@@ -656,3 +663,7 @@ The review approved security and privacy (nothing leaves, nothing leaks); its tw
 - **Stale rule comment.** `chat/src/lib/phone/phoneRequest.ts:23-25` still says a turn without a device is offered the browser's reads; since `b698b77d` it is offered none.
 - **Test hygiene: the production configuration is the least covered.** `bridge_with_two_phones()` forces `phones_show_cards: true` (`src-tauri/src/phone_chat/tests.rs:426-431`), so the historical card tests run the non-production shape; the shipped default is covered only by the four new tests.
 - **`ran` keeps the turn's tool arguments in memory.** For `browser_type` that includes the typed value, held in RAM per phone conversation until the next turn (`chat/src/lib/phone/note.ts:28-33`); never on disk, never on the event stream — hygiene note only.
+
+## Tool-refusal: three checks already red on pushed brain (2026-10-22)
+
+`node chat/scripts/tool-refusal.mjs` fails three checks about the LAST tool result's status text ("capped round, browser: the status is on the last tool result", "the tool result keeps its whole text", "the status is one paragraph") — verified identical at `157c746b` and on the digest branch, so they predate both: they came in with the pushed five-bug batch (`36539740..1aa746fb`), most plausibly the BUG-3 window footer (`5d90f864`). Not digest's, not the phone slice's. Needs a targeted look before anyone trusts that suite green again.
