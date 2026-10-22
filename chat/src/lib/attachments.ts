@@ -758,7 +758,17 @@ function wireFor(
 export type PinnedContext =
   // `dropped` is the number of TURNS the fit left behind, never messages: it is
   // the number the person is shown, so `dropped > 0` means a whole turn went.
-  | { status: "ok"; wire: WireMessage[]; dropped: number; docTokens: number; historyTokens: number }
+  // `shed` and `kept` are the stored messages the fit cut and kept, in order:
+  // the digest reads what went, and nothing else reads them.
+  | {
+      status: "ok";
+      wire: WireMessage[];
+      dropped: number;
+      docTokens: number;
+      historyTokens: number;
+      shed: ChatMessage[];
+      kept: ChatMessage[];
+    }
   | { status: "refused"; need: number; have: number; docTokens: number; historyTokens: number };
 
 /**
@@ -813,9 +823,11 @@ export function buildPinnedContext(
   const turns = [...messages];
   let histTokens = wireTokens(turns, media?.vision ?? false, media?.think ?? false, media?.phone ?? false);
   let dropped = 0;
+  const shedMessages: ChatMessage[] = [];
   const shedOne = (): void => {
     const shed = turns.shift();
     if (shed) {
+      shedMessages.push(shed);
       histTokens -= messageTokens(shed);
       // `dropped` counts TURNS, because the person reads it as a number of
       // exchanges. A user message and the answer it carries are one turn, so
@@ -845,5 +857,13 @@ export function buildPinnedContext(
   }
   const wire = turns.flatMap((message) => wireFor(message, media, byId));
   wire.unshift(systemMessage(pinned, media?.vision ?? false, media?.think ?? false, media?.phone ?? false));
-  return { status: "ok", wire, dropped, docTokens, historyTokens: histTokens };
+  return {
+    status: "ok",
+    wire,
+    dropped,
+    docTokens,
+    historyTokens: histTokens,
+    shed: shedMessages,
+    kept: [...turns],
+  };
 }

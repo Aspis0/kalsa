@@ -28,7 +28,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 export function loadSettings(): ChatSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
-    if (!raw) return { model: "", webTools: true, browserVision: false };
+    if (!raw) return { model: "", webTools: true, browserVision: false, contextDigest: false };
     const parsed: unknown = JSON.parse(raw);
     if (!isRecord(parsed)) {
       // A record in a shape nothing can read cannot be partially cleaned:
@@ -38,7 +38,7 @@ export function loadSettings(): ChatSettings {
       } catch {
         // Private mode etc: there is nothing left to come back to.
       }
-      return { model: "", webTools: true, browserVision: false };
+      return { model: "", webTools: true, browserVision: false, contextDigest: false };
     }
     // Only these two keys go; everything else — including keys this version
     // does not know — comes back as it was: a whitelist rewrite would
@@ -58,6 +58,9 @@ export function loadSettings(): ChatSettings {
       // true turns it on, so a build that has not been asked for it never
       // offers a picture — the lever is a decision, not a default.
       browserVision: parsed.browserVision === true,
+      // The same rule as the picture switch: only an explicit true turns the
+      // digest on. A record from before the feature has nothing to say about it.
+      contextDigest: parsed.contextDigest === true,
     };
     if ("endpoint" in parsed || "token" in parsed) {
       try {
@@ -74,7 +77,7 @@ export function loadSettings(): ChatSettings {
     } catch {
       // Private mode etc: there is nothing left to come back to.
     }
-    return { model: "", webTools: true, browserVision: false };
+    return { model: "", webTools: true, browserVision: false, contextDigest: false };
   }
 }
 
