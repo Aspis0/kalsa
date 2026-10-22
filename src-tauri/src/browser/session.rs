@@ -169,7 +169,7 @@ pub(crate) async fn brain_browser_pause(
     // window, not the end of it — and the pause goes in as soon as the slot is
     // free.
     state.inner().browser().interrupt();
-    match push_to_the_sidecar(&app, &state, "browser_pause").await {
+    match push_to_the_sidecar(&app, &state, "browser_pause", Map::new()).await {
         Ok(_) => Ok(()),
         Err(refused) => {
             // **A pause the sidecar would not take must not stand.** Either the
@@ -195,13 +195,41 @@ pub(crate) async fn brain_browser_resume(
     if !state.inner().pause(&app, false) {
         return Err(BrowserError::SlotBusy.into());
     }
-    match push_to_the_sidecar(&app, &state, "browser_resume").await {
+    match push_to_the_sidecar(&app, &state, "browser_resume", Map::new()).await {
         Ok(reading) => Ok(reading),
         Err(refused) => {
             state.inner().end(&app);
             Err(refused)
         }
     }
+}
+
+/// **The turn that was driving the page has ended; its claim on the page goes.**
+///
+/// The claim belongs to a turn, not to a conversation for life: while the turn
+/// that opened the page is running, a second driver — a phone's turn and a
+/// desktop's turn alike — is refused as busy, and when the turn ends, however it
+/// ended, the page is left belonging to nobody and the next turn may take it.
+/// The sidecar's release is the app's to ask for, because the stamps are the
+/// sidecar's.
+///
+/// **Best-effort, and bounded.** The chat is not waiting on this — the turn is
+/// over — but the next turn's open is, in the sense that a release that never
+/// lands leaves the page claimed by a turn that no longer exists. So a slot
+/// that is merely busy — another conversation's call in flight — is waited for
+/// briefly, the way a Pausa is, and a sidecar that cannot be reached at all is
+/// answered as the refusal it is: the caller's turn still ends, and the
+/// stamps die with the session.
+#[tauri::command]
+pub(crate) async fn brain_browser_release(
+    app: AppHandle,
+    state: State<'_, BrowserState>,
+    conversation: String,
+) -> Result<(), super::error::CommandFailure> {
+    let mut args = Map::new();
+    args.insert("conversation".to_owned(), Value::from(conversation));
+    push_to_the_sidecar(&app, &state, "browser_release", args).await?;
+    Ok(())
 }
 
 /// How many times, and how long between them, the app waits for a slot that a
@@ -215,15 +243,16 @@ const SLOT_GAP: Duration = Duration::from_millis(25);
 /// ends the session rather than leaving a pause the sidecar does not hold.
 const PRESS_DEADLINE: Duration = Duration::from_millis(1500);
 
-/// A pause or a resume as the sidecar is told, **once the slot is free**. Only a
-/// slot that is merely busy is waited for: anything else refused this call is the
-/// sidecar's answer, and is passed on as it is.
+/// A pause, a resume or a release as the sidecar is told, **once the slot is
+/// free**. Only a slot that is merely busy is waited for: anything else refused
+/// this call is the sidecar's answer, and is passed on as it is.
 async fn push_to_the_sidecar(
     app: &AppHandle,
     state: &State<'_, BrowserState>,
     tool: &str,
+    args: Map<String, Value>,
 ) -> Result<String, super::error::CommandFailure> {
-    let pushed = tokio::time::timeout(PRESS_DEADLINE, retry_while_busy(app, state, tool)).await;
+    let pushed = tokio::time::timeout(PRESS_DEADLINE, retry_while_busy(app, state, tool, args)).await;
     match pushed {
         Ok(said) => said,
         Err(_elapsed) => Err(BrowserError::SlotBusy.into()),
@@ -237,9 +266,10 @@ async fn retry_while_busy(
     app: &AppHandle,
     state: &State<'_, BrowserState>,
     tool: &str,
+    args: Map<String, Value>,
 ) -> Result<String, super::error::CommandFailure> {
     for _ in 0..SLOT_TRIES {
-        let said = state.inner().call_host(app, tool, Map::new()).await.map_err(Into::into);
+        let said = state.inner().call_host(app, tool, args.clone()).await.map_err(Into::into);
         if said.is_ok() || !state.inner().browser().is_busy() {
             return said;
         }

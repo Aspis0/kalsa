@@ -59,6 +59,7 @@ const HOST_ONLY: &[&str] = &[
     "browser_confirm",
     "browser_decline",
     "browser_preview",
+    "browser_release",
 ];
 
 /// What is true of the browser right now.

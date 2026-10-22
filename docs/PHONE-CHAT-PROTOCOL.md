@@ -256,19 +256,23 @@ cannot be read is declined with the first reason as well.
 
 **A phone reads and drives only its own page.** The browser is one window, and a desktop
 conversation reads whatever page is on it, as it always has. A phone's read, find, click or type
-is refused, unless the page's stamp is that phone's conversation: the conversation that last
-opened the page. The refusal is one plain sentence: `The page on the screen was not opened by this
-phone's conversation, so nothing was read or done on it.` A page the phone opened stays the
-phone's, and a page the person moved by hand is nobody's.
+is refused, unless the page's stamp is that phone's conversation: the conversation whose turn
+last opened the page, for as long as that turn runs. The refusal is one plain sentence: `The page
+on the screen was not opened by this phone's conversation, so nothing was read or done on it.` A
+page the phone's turn opened stays the phone's until that turn ends, and a page the person moved
+by hand is nobody's.
 
-**One page, one turn.** The window is one. A phone may open a page and drive it while no other
-conversation holds the page on the window: a page nobody holds, or one the phone itself opened, is
-open to it. When another conversation holds the page, the phone's open is refused as busy, with
-the sentence `the browser is busy: another conversation is driving the page on the window, so
-nothing was opened over it`, and the page's owner does not change. The refusal lasts as long as
-that conversation holds the page: a phone is not let in until the page is left by hand (a
-navigation the person makes). The computer has no other release for it yet, and the phone is told
-so, so the model does not retry. An open that never lands gives
+**One page, one turn.** The window is one. A turn — a phone's and a desktop's alike — may open
+a page and drive it while no other conversation holds the page on the window: a page nobody
+holds, or one the turn itself opened, is open to it. While the turn runs, any other
+conversation's open is refused as busy, with the sentence `the browser is busy: another
+conversation is driving the page on the window, so nothing was opened over it`, and the page's
+owner does not change. **The claim belongs to the turn, not to the conversation for life**: the
+turn's end — the answer it gave, the error it hit, the Stop the person pressed — is what lets
+the page go, and a page whose driving turn has ended is open to whoever drives it next. A
+release never takes a page away from the turn that holds it now: it lets go only where the
+stamps are still its own. A page the person moved by hand is nobody's, as it always was. An
+open that never lands gives
 the page back its previous owner: the page did not move.
 
 **Two limits on the browser's reach.** A turn that names no phone is offered no browser at all:

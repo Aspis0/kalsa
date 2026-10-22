@@ -200,6 +200,20 @@ impl BrowserServer {
                     async move { crate::preview::answer(&sessions, &args.conversation).await }
                 }
             }))
+            // Host-only, and **not wrapped in `guarded` for two reasons**: the
+            // turn that calls it has already had its last call answered, so the
+            // one call a window allows may be somebody else's — and a release
+            // refused over that would leave a dead claim on the page. And
+            // `guarded` prefixes its answer with the conversation's own
+            // outcomes, which the release would then swallow: the model would
+            // never be told what became of its writes.
+            .with_route(ToolRoute::new(tools::release(), {
+                let sessions = sessions.clone();
+                move |Parameters(args): Parameters<ConversationArgs>| {
+                    let sessions = sessions.clone();
+                    async move { release(&sessions, args).await }
+                }
+            }))
             // **The model's picture of the page it is driving.** Listed, so a
             // model may be offered it, and answered like the preview is — the
             // answer is JSON the app reads, so `guarded` stays off it — but by
@@ -230,6 +244,14 @@ impl BrowserServer {
         if name == "browser_preview" {
             let args: ConversationArgs = from(args)?;
             return Ok(said(crate::preview::answer(&sessions, &args.conversation).await));
+        }
+        // **And neither is the release**, for the same two reasons the route
+        // gives: a release the one-call gate refuses is a claim left on a page
+        // whose turn is over, and a release that drained the outcomes would
+        // silence them.
+        if name == "browser_release" {
+            let args: ConversationArgs = from(args)?;
+            return Ok(said(release(&sessions, args).await));
         }
         // **And the model's picture is not either**, for the same reason: its
         // answer is JSON the app reads too, and it is the model's own answer.
@@ -743,6 +765,24 @@ async fn give_up(sessions: &Sessions, args: IdArgs, yes: bool) -> CallToolResult
     }
 }
 
+/// **The turn that opened the page has ended; the page is nobody's again.**
+///
+/// This is the other half of `open`'s claim: a claim that belonged to a turn for
+/// its whole life would keep the window to itself for ever — the reviewer's dead
+/// page — so the host tells the window when the driving turn is over, however it
+/// ended. The release is the store's own and conditional on the name, so a turn
+/// that ended late lets go of nothing but its own page, and a page the person
+/// moved by hand is nobody's either way.
+async fn release(sessions: &Sessions, args: ConversationArgs) -> CallToolResult {
+    if sessions.holds().await.forget_owner(&args.conversation).await {
+        view::answered(
+            "The page was this conversation's, and it is nobody's now: the next turn may open it.".to_owned(),
+        )
+    } else {
+        view::answered("Nothing was let go: the page on the window is not this conversation's.".to_owned())
+    }
+}
+
 /// **The page as the model reads it.** A page that has nothing on it yet is
 /// given a moment to have something: a site that answers a stranger with a
 /// challenge serves the page a moment later, and the model should get the page
@@ -843,25 +883,18 @@ pub(crate) async fn open(sessions: &Sessions, args: OpenArgs) -> CallToolResult 
         Ok(found) => found,
         Err(refused) => return refused,
     };
-    // **One page, one turn.** A phone may open and drive a page while no other
-    // conversation holds the window. It is refused, as busy, only when another
-    // conversation holds the page now: then it is that turn's, and the phone does not
-    // take it. A page nobody holds is open to the phone.
+    // **One page, one turn.** A turn may open and drive a page while no other
+    // conversation holds the window — a phone's turn and a desktop's turn alike.
+    // It is refused, as busy, when another conversation holds the page now: then
+    // it is that turn's, and this one does not take it. A page nobody holds — the
+    // person's own, or one whose driving turn has ended — is open to anybody.
     // The stamps before this open: an open that never lands gives both back.
-    let (previous, previous_call) = if args.conversation.starts_with("phone:") {
-        // **The check and the claim are one step under the lock**, so no other call can
-        // take the page between the owner being read and the phone stamping it.
-        match holds.claim_for_phone(&args.conversation).await {
-            Some(replaced) => replaced,
-            None => return view::failed(Stage::Busy, ANOTHER_CONVERSATIONS_PAGE),
-        }
-    } else {
-        let replaced = (holds.stamp_for_the_page().await, holds.stamp_for_our_call().await);
-        // Whoever drives this window owns what it holds from here on: every write it
-        // catches carries this conversation, and a card raised in another chat is not
-        // this one's to press.
-        holds.navigated_by(&args.conversation).await;
-        replaced
+    //
+    // **The check and the claim are one step under the lock**, so no other call can
+    // take the page between the owner being read and the turn stamping it.
+    let (previous, previous_call) = match holds.claim_for_turn(&args.conversation).await {
+        Some(replaced) => replaced,
+        None => return view::failed(Stage::Busy, ANOTHER_CONVERSATIONS_PAGE),
     };
     // **This call is driving the window**, so the navigation it is about to make
     // is ours: the page it lands on is the conversation's. The call says when

@@ -658,34 +658,23 @@ impl Holds {
         self.inner.lock().await.calling = conversation.to_owned();
     }
 
-    /// **Records the conversation that navigated this page**, for a request the
-    /// page makes on its own afterwards. This is captured per navigation rather
-    /// than read from whoever is calling, because a card belongs to the turn
-    /// that caused the request: a timer A's page set, firing while some other
-    /// chat happens to be reading, is still A's request.
-    pub async fn navigated_by(&self, conversation: &str) {
-        let mut inner = self.inner.lock().await;
-        inner.navigated = conversation.to_owned();
-        inner.calling = conversation.to_owned();
-    }
-
-    /// **Puts back both stamps a navigation overwrote and then never made.** An open
-    /// that failed did not move the window: the page keeps the owner it had, and the
-    /// last actor goes back to whoever it was. `navigated_by` writes both, so this
-    /// writes both.
+    /// **Puts back both stamps a claim overwrote and then never made.** An open
+    /// that failed did not move the window: the page keeps the owner it had, and
+    /// the last actor goes back to whoever it was. [`Holds::claim_for_turn`]
+    /// writes both, so this writes both.
     pub async fn restore_stamps(&self, navigated: &str, calling: &str) {
         let mut inner = self.inner.lock().await;
         inner.navigated = navigated.to_owned();
         inner.calling = calling.to_owned();
     }
 
-    /// **Takes the page for a phone's open, or says whose it is — in one step.** The
-    /// owner is read and the page is stamped under the same lock, so no other call can
-    /// take the page between the check and the claim. A page another conversation holds
-    /// is refused with `None`, and nothing is written. Otherwise the page and the last
-    /// actor are the phone's, and the stamps the claim replaced come back, so an open that
-    /// never lands can give them back.
-    pub async fn claim_for_phone(&self, conversation: &str) -> Option<(String, String)> {
+    /// **Takes the page for a turn's open, or says whose it is — in one step.**
+    /// The owner is read and the page is stamped under the same lock, so no other
+    /// call can take the page between the check and the claim. A page another
+    /// conversation holds is refused with `None`, and nothing is written.
+    /// Otherwise the page and the last actor are the caller's, and the stamps the
+    /// claim replaced come back, so an open that never lands can give them back.
+    pub async fn claim_for_turn(&self, conversation: &str) -> Option<(String, String)> {
         let mut inner = self.inner.lock().await;
         if !inner.navigated.is_empty() && inner.navigated != conversation {
             return None;
@@ -769,16 +758,30 @@ impl Holds {
             .map(|driver| driver.token)
     }
 
-    /// **Leaves the page belonging to nobody.** Both stamps go: the
-    /// conversation that opened the page, and the one acting on it.
+    /// **Lets a turn's claim on the page go — when the claim is still its own.**
+    /// Both stamps go: the conversation that opened the page, and the one acting
+    /// on it, so the page is left belonging to nobody and the next turn may take
+    /// it.
     ///
-    /// A page the person opened by hand is nobody's, and only an open of our
-    /// own makes a page ours again — a click on a page we do not own is not
+    /// **The name is what makes the release safe.** The claim belongs to the turn
+    /// that opened the page, and it is the turn's end that lets it go — but a
+    /// turn's end is not always in order with the claims around it: a release
+    /// that arrives after another conversation has taken the page must leave that
+    /// page exactly as it is. So the stamps are let go only where they are still
+    /// the caller's, and **whether they were is what comes back**: a release that
+    /// found nothing of its own let nothing go.
+    ///
+    /// A page the person moved by hand is nobody's already, and only an open of
+    /// our own makes a page ours again — a click on a page we do not own is not
     /// owning it.
-    pub async fn forget_owner(&self) {
+    pub async fn forget_owner(&self, conversation: &str) -> bool {
         let mut inner = self.inner.lock().await;
+        if inner.navigated != conversation {
+            return false;
+        }
         inner.navigated.clear();
         inner.calling.clear();
+        true
     }
 
     /// What a request **we** caused is stamped with: the call in flight.
@@ -2595,7 +2598,7 @@ mod tests {
     #[tokio::test]
     async fn a_request_the_page_makes_later_belongs_to_the_navigation_not_to_the_caller() {
         let holds = holds_in(CHAT).await;
-        holds.navigated_by(CHAT).await;
+        holds.claim_for_turn(CHAT).await.expect("the page was free to take");
 
         // B is calling when the page's own request arrives.
         holds.in_conversation("chat-b").await;
@@ -2603,8 +2606,11 @@ mod tests {
         assert_eq!(holds.stamp_for_the_page().await, CHAT, "but what the page does is still A's");
 
         // And B navigating is what moves it: a navigation destroys the document
-        // that could have made that request.
-        holds.navigated_by("chat-b").await;
+        // that could have made that request. The owner moves the way the product
+        // moves it now — A's turn ends and B's takes the page — so B is what the
+        // page's own requests are stamped with from here on.
+        assert!(holds.forget_owner(CHAT).await, "A's claim did not let go");
+        holds.claim_for_turn("chat-b").await.expect("the page was free to take");
         assert_eq!(holds.stamp_for_the_page().await, "chat-b");
     }
 
@@ -2644,7 +2650,7 @@ mod tests {
     #[tokio::test]
     async fn the_page_the_person_opens_after_a_panic_is_nobody_s() {
         let holds = holds_in(CHAT).await;
-        holds.navigated_by(CHAT).await;
+        holds.claim_for_turn(CHAT).await.expect("the page was free to take");
         assert_eq!(holds.stamp_for_the_page().await, CHAT, "the page is ours to begin with");
 
         let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -2776,7 +2782,7 @@ mod tests {
         // **And the receipt of the second submission is still its own.** A
         // navigation while the second submission is driving is ours, and the
         // page stays the conversation's.
-        holds.navigated_by(CHAT).await;
+        holds.claim_for_turn(CHAT).await.expect("the page was free to take");
         holds.a_main_frame_navigation().await;
         assert_eq!(holds.stamp_for_the_page().await, CHAT, "the receipt belongs to the conversation");
 
@@ -2875,7 +2881,7 @@ mod tests {
     async fn a_release_cannot_get_between_the_count_and_the_judgment() {
         let holds = holds_in(CHAT).await;
         let _driving = holds.drive(CHAT);
-        holds.navigated_by(CHAT).await;
+        holds.claim_for_turn(CHAT).await.expect("the page was free to take");
         let token = holds.driving_owner().expect("the window is being driven");
 
         // **The release, at the gate between the count and the judgment.**

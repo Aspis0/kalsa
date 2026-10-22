@@ -328,6 +328,35 @@ that is not this conversation's is refused. Host-only.",
     .with_annotations(read_only())
 }
 
+/// **The end of the turn that was driving the page.** The claim on the page
+/// belongs to the turn that opened it, and it is that turn's end — however it
+/// ended — that lets it go, so a page whose turn is over is open to the next
+/// one.
+///
+/// **Host-only, and named by the host**: a model has no turn to end, and a
+/// model that could release another conversation's page would take the window
+/// away from the turn that holds it.
+pub(crate) fn release() -> Tool {
+    Tool::new(
+        "browser_release",
+        "Let this conversation's claim on the page go: the turn that opened it has ended, and the \
+page is left belonging to nobody, open to whoever drives it next. A page that is not this \
+conversation's is left exactly as it is. Host-only.",
+        schema(json!({
+            "type": "object",
+            "properties": {
+                "conversation": {
+                    "type": "string",
+                    "description": "The conversation whose turn has ended."
+                }
+            },
+            "required": ["conversation"],
+            "additionalProperties": false
+        })),
+    )
+    .with_annotations(read_only())
+}
+
 #[cfg(test)]
 mod tests {
     use rmcp::model::Tool;

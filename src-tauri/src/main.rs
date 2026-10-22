@@ -2777,6 +2777,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             browser::session::brain_browser_screenshot,
             browser::session::brain_browser_pause,
             browser::session::brain_browser_resume,
+            browser::session::brain_browser_release,
             browser::session::brain_browser_confirm,
             browser::session::brain_browser_decline,
             browser::session::brain_browser_close,

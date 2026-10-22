@@ -9,7 +9,7 @@ use crate::mcp::phone_may_touch;
 #[tokio::test]
 async fn a_phone_may_not_touch_a_page_a_desktop_conversation_opened() {
     let holds = Holds::default();
-    holds.navigated_by("chat-desk").await;
+    holds.claim_for_turn("chat-desk").await.expect("the page was free to take");
     assert!(!phone_may_touch(&holds, "phone:1").await, "a desktop's page was let through to a phone");
     assert!(phone_may_touch(&holds, "chat-desk").await, "a desktop reads what is on the window, as before");
 }
@@ -18,7 +18,7 @@ async fn a_phone_may_not_touch_a_page_a_desktop_conversation_opened() {
 #[tokio::test]
 async fn a_phone_touches_only_the_page_its_own_conversation_opened() {
     let holds = Holds::default();
-    holds.navigated_by("phone:1").await;
+    holds.claim_for_turn("phone:1").await.expect("the page was free to take");
     assert!(phone_may_touch(&holds, "phone:1").await, "the page the phone opened is its own");
     assert!(!phone_may_touch(&holds, "phone:2").await, "and another phone's conversation is refused it");
 }
@@ -66,7 +66,7 @@ fn said(answer: &rmcp::model::CallToolResult) -> String {
 async fn a_phone_does_not_open_over_a_page_that_is_not_its_own() {
     let (_playwright, _context, page, sessions) = window().await;
     let holds = sessions.holds().await;
-    holds.navigated_by("chat-desk").await;
+    holds.claim_for_turn("chat-desk").await.expect("the page was free to take");
     let driving = holds.drive("chat-desk");
     page.goto("https://example.com/", None).await.expect("the desktop's page loads");
     driving.release();
@@ -123,20 +123,82 @@ async fn a_phone_opens_over_a_page_no_conversation_holds() {
     assert_eq!(holds.stamp_for_the_page().await, "phone:1", "and the page is the phone's now");
 }
 
+/// **A desktop turn does not open over a page a phone's turn holds.** One page is
+/// driven by one turn, and the rule is the same both ways: while the phone's turn
+/// runs, the desktop's open is refused as busy, the phone's page stays where it
+/// was, and its owner stays the phone's.
+#[tokio::test]
+async fn a_desktop_does_not_open_over_a_page_a_phone_holds() {
+    let (_playwright, _context, page, sessions) = window().await;
+    let holds = sessions.holds().await;
+    holds.claim_for_turn("phone:1").await.expect("the page was free to take");
+    let driving = holds.drive("phone:1");
+    page.goto("https://example.com/", None).await.expect("the phone's page loads");
+    driving.release();
+
+    let args =
+        serde_json::from_value(serde_json::json!({"url": "https://example.org/", "conversation": "chat-desk"}))
+            .expect("the open's arguments");
+    let answer = crate::mcp::open(&sessions, args).await;
+
+    assert!(said(&answer).contains("busy"), "the desktop was let open over the phone's page: {}", said(&answer));
+    assert!(said(&answer).contains("nothing was opened over it"), "and nothing was opened: {}", said(&answer));
+    assert!(page.url().starts_with("https://example.com"), "the phone's page was replaced: {}", page.url());
+    assert_eq!(holds.stamp_for_the_page().await, "phone:1", "and the page's owner changed");
+}
+
+/// **A page's claim belongs to a turn, and the turn's end lets it go.** While the
+/// turn runs, a second driver is refused; when the turn ends, the page is nobody's
+/// and the next turn may take it. A release that is not the claim's own lets
+/// nothing go: a turn that ended late must not take the page away from the one
+/// that holds it now.
+#[tokio::test]
+async fn the_claim_is_released_when_the_turn_ends() {
+    let holds = Holds::default();
+    assert!(holds.claim_for_turn("phone:1").await.is_some(), "the phone took the page nobody held");
+
+    // A release in another conversation's name leaves the page exactly as it is.
+    assert!(!holds.forget_owner("chat-desk").await, "another conversation's release was obeyed");
+    assert_eq!(holds.stamp_for_the_page().await, "phone:1", "the page changed hands");
+
+    // The turn's own release, and the page is open to the next turn.
+    assert!(holds.forget_owner("phone:1").await, "the turn's own release was refused");
+    assert_eq!(holds.stamp_for_the_page().await, "", "the page is still the phone's");
+    assert!(holds.claim_for_turn("chat-desk").await.is_some(), "the next turn was refused a page nobody holds");
+    // And releasing twice says so the second time: there was nothing left to let go.
+    assert!(!holds.forget_owner("phone:1").await, "a release that found nothing let something go");
+}
+
+/// **A page the person moves by hand is nobody's, even one a phone's turn
+/// opened.** The person has the window; the turn's claim does not outlive the
+/// page they actually left behind — and the next turn may open over it.
+#[tokio::test]
+async fn a_manual_navigation_ends_a_phones_claim() {
+    let holds = Holds::default();
+    holds.claim_for_turn("phone:1").await.expect("the page was free to take");
+    assert_eq!(holds.stamp_for_the_page().await, "phone:1");
+
+    // The person's own navigation: nobody is driving the window.
+    holds.a_main_frame_navigation().await;
+
+    assert_eq!(holds.stamp_for_the_page().await, "", "the phone's claim outlived the page it was about");
+    assert!(holds.claim_for_turn("chat-desk").await.is_some(), "the next turn was refused a page nobody holds");
+}
+
 /// **A phone's claim of a page is one step.** A page another conversation holds is refused,
 /// and the refusal writes nothing. A page nobody holds is claimed, and the stamps it replaced
 /// come back, so a failed open can give them back.
 #[tokio::test]
 async fn a_phone_claims_a_page_only_when_no_other_conversation_holds_it() {
     let holds = Holds::default();
-    holds.navigated_by("chat-desk").await;
-    assert!(holds.claim_for_phone("phone:1").await.is_none(), "a desktop's page was claimed by a phone");
+    holds.claim_for_turn("chat-desk").await.expect("the page was free to take");
+    assert!(holds.claim_for_turn("phone:1").await.is_none(), "a desktop's page was claimed by a phone");
     assert_eq!(holds.stamp_for_the_page().await, "chat-desk", "and the refused claim wrote nothing");
     assert_eq!(holds.stamp_for_our_call().await, "chat-desk", "not even the last actor");
 
     let fresh = Holds::default();
-    let replaced = fresh.claim_for_phone("phone:1").await.expect("a page nobody holds can be claimed");
+    let replaced = fresh.claim_for_turn("phone:1").await.expect("a page nobody holds can be claimed");
     assert_eq!(replaced, (String::new(), String::new()), "the claim replaced nobody's stamps");
     assert_eq!(fresh.stamp_for_the_page().await, "phone:1");
-    assert!(fresh.claim_for_phone("phone:1").await.is_some(), "and the phone may claim its own page again");
+    assert!(fresh.claim_for_turn("phone:1").await.is_some(), "and the phone may claim its own page again");
 }

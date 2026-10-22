@@ -272,6 +272,20 @@ export async function browserResume(signal?: AbortSignal): Promise<string> {
 }
 
 /**
+ * The claim on the page goes: the turn that opened it has ended.
+ *
+ * **Not fenced and not a browser call**: there is no page in the answer, and the
+ * release is the window's own bookkeeping. The page belongs to a turn only while
+ * that turn runs — while it does, a second driver is refused as busy — so a turn
+ * that drove the browser says at its end, however it ended, that the page is
+ * nobody's again. The conversation rides along: a page that is not this
+ * conversation's is left exactly as it is.
+ */
+export function browserRelease(conversation: ConversationId): Promise<void> {
+  return invoke("brain_browser_release", { conversation }).then(() => undefined);
+}
+
+/**
  * Ends the session. Called when the chat closes and when the person presses
  * Stop: a browser left running after its window is gone is a window nobody can
  * see and nothing can stop.

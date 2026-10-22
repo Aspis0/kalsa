@@ -29,6 +29,7 @@ import { modeOf } from "../lib/browseArm";
 import { filed, newLedger } from "../lib/callLedger";
 import { closeRecap, sayRuns } from "../lib/browser/note";
 import { isBrowserRun } from "../lib/browser/runs";
+import { browserRelease } from "../lib/tools/browserCall";
 import type { GateCheck } from "../lib/tools/registry";
 import { covered, remember } from "../lib/webgate/allowance";
 import type { Allowances } from "../lib/webgate/allowance";
@@ -433,6 +434,11 @@ export function useChatTurns({ store, announce, contextSizes, saveMailDraft }: T
       let firstToken = true;
       let thoughtStartedAt: number | null = null;
       let answerStartedAt: number | null = null;
+      // **Whether this turn drove the browser at all.** One page is driven by one
+      // turn: the claim on the page belongs to the turn that opened it, and it is
+      // this turn's end — here, in the one path every ending passes — that lets
+      // it go. A turn that never touched the browser has nothing to release.
+      let droveTheBrowser = false;
 
       function persistLive(extra?: { stopped?: boolean; reasoningMs?: number; failed?: ChatErrorKind | undefined; closedForSpace?: boolean; prunedTurns?: number | undefined }): void {
         const b = bufs.current.get(assistantId);
@@ -582,6 +588,9 @@ export function useChatTurns({ store, announce, contextSizes, saveMailDraft }: T
           // A's attachment must not put a question into B's turn — noise is
           // what teaches the owner to click through.
           runTool: (name, args, runSignal, conversation) => {
+            // **A browser call is the turn driving the window**, whatever it came
+            // back as: this is the turn whose end has to let the page go.
+            if (isBrowserRun(name)) droveTheBrowser = true;
             const answered = executeToolCall(
               name,
               args,
@@ -667,6 +676,13 @@ export function useChatTurns({ store, announce, contextSizes, saveMailDraft }: T
           announce(kind === "oversize" ? shell.readTooMuch : shell.stoppedBeforeFinishing);
         }
       } finally {
+        // **The page goes before the turn is called done.** The next turn of this
+        // chat — or of a phone's — may open over it, and an open that raced a
+        // release still in flight would be refused busy by a page nobody is
+        // driving. A release that cannot be asked for is not the turn's failure:
+        // the stamps die with the session, and a page the person moved by hand
+        // was nobody's already.
+        if (droveTheBrowser) await browserRelease(conversationId).catch(() => {});
         dropLive();
         controllers.current.delete(assistantId);
         setStreamingByConv((prev) => {

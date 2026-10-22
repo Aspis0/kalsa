@@ -580,7 +580,7 @@ pub async fn window_for(
     let (page, _landings, holds) = sessions.page().await.expect("the installed browser starts");
     // A window is bound to the chat driving it, and every card it raises carries
     // that: these tests answer in the same conversation they drove from.
-    holds.navigated_by(CHAT).await;
+    holds.claim_for_turn(CHAT).await.expect("the page was free to take");
     // **The call that opens the page is driving it**, exactly as the product's
     // own open does: the navigation it causes is ours, and the page it lands on
     // is the conversation's. **The fixture is that call, for as long as the test

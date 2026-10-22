@@ -1257,7 +1257,7 @@ async fn a_named_submit_button_is_sent_once_and_not_twice() {
 async fn a_delayed_request_belongs_to_the_navigation_that_made_the_page() {
     let (base, _arrived) = common::serve(&[common::page(LEAKY)]).await;
     let (_sessions, page, holds) = common::confirming_window("confirm-delayed", &base).await;
-    holds.navigated_by("chat-a").await;
+    holds.claim_for_turn("chat-a").await.expect("the page was free to take");
 
     // A different chat is calling when the page's own request arrives.
     holds.in_conversation("chat-b").await;

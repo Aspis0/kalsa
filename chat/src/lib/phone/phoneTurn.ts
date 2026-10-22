@@ -9,6 +9,7 @@ import { armedConversation, executeToolCall, offeredTools } from "../tools/regis
 import type { ToolDefinition } from "../tools/definitions";
 import { MAIL_NAMES } from "../tools/definitions";
 import { BROWSER_NAMES, BROWSER_SCREENSHOT_NAME } from "../tools/browserTools";
+import { browserRelease } from "../tools/browserCall";
 import { closeRecap, sayRuns, takeNote } from "../browser/note";
 import { recapLine } from "../browser/recap";
 import { isBrowserRun } from "../browser/runs";
@@ -271,6 +272,11 @@ export async function runPhoneTurn(
   // the flag is set and stays set for the rest of the turn, and a write into a
   // chat that has read the owner's mail is refused whatever the wire now says.
   let armed = armedChat || phoneArmed(said) || turn.replyFor !== null;
+  // **Whether this turn drove the browser at all.** The claim on the page
+  // belongs to the turn that opened it, and it is the turn's end that lets it
+  // go — so a turn that never touched the browser has nothing to release, and
+  // a sidecar is not asked for nothing.
+  let droveTheBrowser = false;
   try {
     await deps.loop({
       endpoint: settings.endpoint,
@@ -316,6 +322,9 @@ export async function runPhoneTurn(
             resultCode: "web.armed",
           };
         }
+        // **A browser call is the turn driving the window**, whatever it came
+        // back as: this is the turn whose end has to let the page go.
+        if (BROWSER_NAMES.has(name)) droveTheBrowser = true;
         const answered = executeToolCall(
           name,
           args,
@@ -361,10 +370,29 @@ export async function runPhoneTurn(
     });
   } catch (error) {
     closeTurn();
+    await letThePageGo(conversation, droveTheBrowser);
     return sink.fail(failureCode(error, signal));
   }
   closeTurn();
+  await letThePageGo(conversation, droveTheBrowser);
   return signal.aborted ? sink.fail("cancelled") : sink.done();
+}
+
+/**
+ * **The turn is over, however it ended; the page is nobody's again.**
+ *
+ * One page is driven by one turn, and the claim on the page belongs to the turn
+ * that opened it — so a turn that drove the browser says at its end that it is
+ * done, on every way out: the answer it gave, the error it hit, the Stop the
+ * person pressed. A claim left behind after a turn that died would refuse every
+ * later open as busy for the life of the window, which is the one failure this
+ * exists to end. **Awaited, not fired and forgotten**: the phone's next turn
+ * starts after this turn is done, and an open that races a release still in
+ * flight would be refused busy by a page nobody is driving.
+ */
+async function letThePageGo(conversation: string, droveTheBrowser: boolean): Promise<void> {
+  if (!droveTheBrowser || conversation === "") return;
+  await browserRelease(conversation).catch(() => {});
 }
 
 /**

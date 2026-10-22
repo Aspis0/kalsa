@@ -320,7 +320,7 @@ mod tests {
     #[tokio::test]
     async fn a_page_is_yours_only_when_both_stamps_are_you() {
         let holds = Holds::default();
-        holds.navigated_by("phone:1").await;
+        holds.claim_for_turn("phone:1").await.expect("the page was free to take");
         assert!(ours(&holds, "phone:1").await, "the conversation that opened the page owns it");
         assert!(!ours(&holds, "phone:2").await, "and nobody else does");
     }
@@ -331,7 +331,7 @@ mod tests {
     #[tokio::test]
     async fn reading_a_page_does_not_take_it() {
         let holds = Holds::default();
-        holds.navigated_by("phone:1").await;
+        holds.claim_for_turn("phone:1").await.expect("the page was free to take");
         assert!(ours(&holds, "phone:1").await, "the opener owns it while it is the last actor");
         holds.in_conversation("phone:2").await;
         assert!(!ours(&holds, "phone:2").await, "acting on a page is not owning it");

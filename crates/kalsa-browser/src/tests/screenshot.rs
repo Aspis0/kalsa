@@ -53,7 +53,7 @@ async fn window() -> (Playwright, BrowserContext, Page, Sessions) {
 /// opens it is driving the window, so the navigation it causes is ours.
 async fn opened(sessions: &Sessions, page: &Page, to: &str) {
     let holds = sessions.holds().await;
-    holds.navigated_by(MODEL).await;
+    holds.claim_for_turn(MODEL).await.expect("the page was free to take");
     let driving = holds.drive(MODEL);
     page.goto(to, None).await.expect("the page loads");
     driving.release();

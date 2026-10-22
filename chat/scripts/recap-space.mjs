@@ -72,6 +72,11 @@ const PAGE = "Prezzo 129 euro. Disponibilità: consegna in 3 giorni. ".repeat(70
     first turn cannot hold a page at all, and the second one can. */
 let pageText = PAGE;
 
+/** The releases the turn asked for, with the conversation each named. The
+    claim on the page belongs to the turn that opened it, so the turn's own
+    end — however it ends — is where the page is let go. */
+const releases = [];
+
 globalThis.window = {
   setTimeout,
   clearTimeout,
@@ -81,6 +86,10 @@ globalThis.window = {
       invoke: async (command, args) => {
         if (command === "brain_browser_open") return pageText;
         if (command === "brain_browser_read") return pageText;
+        if (command === "brain_browser_release") {
+          releases.push(args.conversation);
+          return null;
+        }
         return null;
       },
     },
@@ -252,6 +261,10 @@ console.log("1. the turn ran out of room, and said so");
 check(answer !== undefined, "the turn left an answer in the store");
 equal(answer?.failed, undefined, "the turn did not fail");
 equal(answer?.closedForSpace, true, "the turn says it closed for space");
+// **And the page went with the turn.** The turn drove the browser and then ran
+// out of room — an ending like any other — so its claim on the page is let go
+// before the turn is called done.
+equal(JSON.stringify(releases), JSON.stringify([CONVERSATION]), "the turn let the page go, once, in its own name");
 check(
   requests.length >= 2,
   "the turn sent more than one request",

@@ -53,7 +53,7 @@ async fn window(name: &str) -> (common::Profile, Playwright, playwright_rs::prot
 /// opened it is stamped first, so the page belongs to it, and the call that
 /// opens it is driving the window, so the navigation it causes is ours.
 async fn opened(page: &Page, holds: &Holds, conversation: &str) {
-    holds.navigated_by(conversation).await;
+    holds.claim_for_turn(conversation).await.expect("the page was free to take");
     let driving = holds.drive(conversation);
     page.goto(PAGE, None).await.expect("the page loads");
     driving.release();

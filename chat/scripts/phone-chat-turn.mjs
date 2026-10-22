@@ -546,6 +546,16 @@ async function phoneBrowser(app) {
     JSON.stringify(clicked.map((c) => c.args.conversation)),
   );
 
+  // **The turn that drove the browser lets the page go at its end.** One page is
+  // driven by one turn: while this turn ran, a second driver was refused as
+  // busy, so the page's claim must not outlive the turn — on any ending.
+  const released = bridge.calls.filter((c) => c.command === "brain_browser_release");
+  check(
+    "the turn's end lets the page go, in this phone's name",
+    released.length === 1 && released[0].args.conversation === conversation,
+    JSON.stringify(released.map((c) => c.args)),
+  );
+
   // **The outcome reaches the model in this phone's next turn.** It is queued
   // under the phone's conversation and drained into the browser note, and the
   // note rides the last user message like the desktop's own.
@@ -572,6 +582,25 @@ async function phoneBrowser(app) {
     "without repeating the card, or any field of it",
     !last.content.includes(BROWSER_CARD.card_id) && !last.content.includes("hunter2"),
     JSON.stringify(last.content),
+  );
+  // **A turn that never touched the browser has nothing to let go**, and no
+  // sidecar is asked for nothing: that note turn released nothing more.
+  const releases = bridge.calls.filter((c) => c.command === "brain_browser_release").length;
+  equal("a turn that ran no browser tool asks for no release", releases, 1);
+  // **And the release is on the way out of a turn that failed too.** A turn the
+  // engine cut short is still the turn that was driving the page.
+  await app.runPhoneTurn(turnOf([USER("read it anyway")], { device: PHONE }), SETTINGS, recorder(app).sink, new AbortController().signal, MAIL_ON, {
+    loop: fakeLoop(async (o) => {
+      await o.runTool("browser_find", { text: "price" }, new AbortController().signal, undefined);
+      throw new Error("the engine went down mid-turn");
+    }).loop,
+    facts: facts(),
+  });
+  const afterFailure = bridge.calls.filter((c) => c.command === "brain_browser_release");
+  equal(
+    "a failed turn still lets the page go",
+    [afterFailure.length, afterFailure[afterFailure.length - 1].args.conversation],
+    [2, conversation],
   );
   // And it is told once: drained, not repeated on every turn afterwards.
   let wire3 = null;
