@@ -236,10 +236,17 @@ card, because there is nothing left to answer.
 the computer never puts one on a phone's stream. It declines the card on the spot, the browser
 is asked to let the held request go without sending it, and the model is told in the
 computer's own sentence, `No request was sent: <reason>, so the person was never asked about
-it.` The reasons are three: `this phone cannot be shown the confirm card yet` (the phone's
+it.` — prefixed to the conversation's next browser call, and said again on the model's next
+turn, so a model is never left waiting on an "awaiting confirm" that will never be answered.
+The reasons are three: `this
+phone cannot be shown the confirm card yet` (the phone's
 turn is live and the app cannot draw it), `the turn that raised this had already ended before
 the card could be shown` (no turn to carry it), and `the phone that raised this was unpaired
-before anybody could answer it` (no pairing). A card a browser call raises is declined at once, so
+before anybody could answer it` (no pairing). The phone's conversation is handed the same
+outcome as a `browser_outcome` — on the turn's stream while the turn that raised the request
+is live, and in the outcome queue it reads at its next turn when it is not — where it applies
+the ones it knows and drops the rest. An unpaired phone is handed nothing: a pairing that is
+gone has no next turn to hear an outcome on. A card a browser call raises is declined at once, so
 nobody waits out the five minutes for it, and the phone is handed nothing to press. The one hold
 that is not routed at once is a hold with no browser call to carry it: it waits for the computer's
 five minutes, and §3.1 names that limit here rather than hide it. A desktop's card never takes this

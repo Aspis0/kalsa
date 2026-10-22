@@ -231,22 +231,26 @@ fn host_only(host: &str) -> Option<&str> {
 /// — which is the fail-closed end of a request nobody could answer in time.
 /// Spending it here anyway would leave two verdicts about one request: this
 /// app's "the person said no" and the sidecar's "nobody answered it".
+///
+/// **Returns the code the sidecar settled the request with, and `None` when it
+/// settled nothing.** A decline that never reached the hold — the slot was busy,
+/// the sidecar is gone, the card was already answered — has said nothing about
+/// the request, so the caller has nothing to pass on: the five minutes that end
+/// the hold are still the ones that speak for it.
 pub(crate) async fn decline_one(
     app: &AppHandle,
     state: &State<'_, BrowserState>,
     id: &str,
     conversation: &str,
     why: &'static str,
-) {
-    let Ok(app_data) = app.path().app_data_dir() else {
-        return;
-    };
+) -> Option<String> {
+    let app_data = app.path().app_data_dir().ok()?;
     let mut args = two(id, conversation);
     args.insert("why".to_owned(), Value::from(why));
     let pending = state.inner().pending().clone();
     let spending = id.to_owned();
     let talking = conversation.to_owned();
-    let _ = state
+    let said = state
         .inner()
         .browser()
         .call_host_spending(&app_data, "browser_decline", args, move || {
@@ -255,13 +259,15 @@ pub(crate) async fn decline_one(
             // a second one would be a second opinion about a settled request.
             pending.spend_in(&spending, &talking).is_some()
         })
-        .await;
+        .await
+        .ok()?;
     // **No refresh here, on purpose.** The card is already spent in this app's
     // store, so the window and the phone stop showing it whatever the sidecar
     // says. A refresh would re-read the whole list and call back into
     // `phone_chat::route_cards`, which decides on declines of its own — the two
     // are callers of each other, and a refresh inside a decline is how that
     // becomes a loop rather than a pass.
+    Some(outcome_of(&said).0)
 }
 
 /// **How a dispatch ended, or that nobody ever said.**

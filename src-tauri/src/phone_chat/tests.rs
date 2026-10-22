@@ -808,9 +808,14 @@ fn a_phone_is_never_asked_about_more_than_eight_requests_at_once() {
     sent.clear();
     assert!(sent.is_empty());
 
-    // The ninth is not shown, and not kept either.
+    // The ninth is not shown, and not kept either. **And its refusal is not
+    // silent**: the turn's stream carries the outcome of the write nobody was
+    // asked about, so the model is not left waiting on its "awaiting confirm".
     bridge.route_cards(vec![routed(1, "req", &format!("{NINTH:032x}"))]);
-    assert!(events.try_recv().is_err(), "the ninth card was put in front of the person");
+    let said = events.try_recv().expect("the ninth write said nothing at all");
+    assert_eq!(said.name, "browser_outcome", "the ninth card was put in front of the person");
+    assert_eq!(said.data["card_id"], format!("{NINTH:032x}"), "and about the write that was refused");
+    assert!(events.try_recv().is_err(), "and it was said twice");
     assert_eq!(
         lock(&bridge.cards).held_in(&cards::conversation_of(DeviceId::new(1))),
         8,
@@ -1149,12 +1154,20 @@ async fn refusing_a_write_from_inside_a_runtime_does_not_block() {
     let took = before.elapsed();
 
     assert!(took < std::time::Duration::from_millis(500), "routing blocked for {took:?} waiting on the sidecar");
-    // And it still did the work: the eighth is on the phone's stream and the
-    // ninth is not, without anything having been waited for.
-    let mut sent: Vec<ChatEvent> = events.try_iter().collect();
-    assert_eq!(sent.len(), 8, "every card up to the cap is shown");
-    sent.clear();
-    assert!(sent.is_empty());
+    // And it still did the work: the eighth is on the phone's stream, the ninth
+    // is not — its refusal is what is there instead — without anything having
+    // been waited for.
+    let sent: Vec<ChatEvent> = events.try_iter().collect();
+    assert_eq!(
+        sent.iter().filter(|event| event.name == "browser_card").count(),
+        8,
+        "every card up to the cap is shown"
+    );
+    assert_eq!(
+        sent.iter().filter(|event| event.name == "browser_outcome").count(),
+        1,
+        "and the write over the cap was said, once"
+    );
     assert_eq!(lock(&bridge.cards).held_in(&cards::conversation_of(DeviceId::new(1))), 8);
 
     // **And the other branch: a phone that is unpaired under its card.** The card
@@ -1266,6 +1279,10 @@ const DESKTOP: &str = "3f0a1c2e-9b7d-4f21-8a55-6c1e2b3d4f50";
 /// can answer, and the person would wait the whole five minutes for it. So the card is
 /// declined on the spot with its reason, nothing is held for it, and the phone is handed
 /// nothing it could press.
+///
+/// **And the decline is not silent.** The model's own write is still "awaiting
+/// confirm" to it, so the outcome reaches the model's path, and the phone's live
+/// turn is handed the outcome too — the same two words the expiry speaks.
 #[test]
 fn a_card_a_phone_cannot_be_shown_is_declined_at_once_and_never_shown() {
     let bridge = Bridge::default();
@@ -1274,17 +1291,43 @@ fn a_card_a_phone_cannot_be_shown_is_declined_at_once_and_never_shown() {
 
     bridge.route_cards(vec![routed(1, "req", ID)]);
 
-    assert!(events.try_iter().all(|event| event.name != "browser_card"), "a card reached a phone that cannot draw one");
+    let on_the_wire: Vec<ChatEvent> = events.try_iter().collect();
+    assert!(
+        on_the_wire.iter().all(|event| event.name != "browser_card"),
+        "a card reached a phone that cannot draw one"
+    );
     assert_eq!(
         lock(&bridge.declined).as_slice(),
         &[(ID.to_string(), NO_CARD)],
         "the card was declined at once, with the reason the model is told"
     );
-    assert!(!lock(&bridge.cards).shows("req", &(DeviceId::new(1), digest("cred-a")), ID), "and nothing was held for it");
+    assert!(
+        !lock(&bridge.cards).shows("req", &(DeviceId::new(1), digest("cred-a")), ID),
+        "and nothing was held for it"
+    );
+    // **The model is told, in the conversation that raised the card**, with the
+    // word the sidecar settles such a decline with — the note its next turn
+    // reads, and the sentence its next browser call is prefixed with.
+    assert_eq!(
+        lock(&bridge.told).as_slice(),
+        &[(ID.to_string(), cards::conversation_of(DeviceId::new(1)), "unsendable".to_owned())],
+        "the model was not told the request was let go"
+    );
+    // **The phone's live turn is handed the outcome**, so its screen can settle
+    // a request it was never asked about.
+    let said: Vec<&ChatEvent> = on_the_wire.iter().filter(|event| event.name == "browser_outcome").collect();
+    assert_eq!(said.len(), 1, "the phone was told {} times", said.len());
+    assert_eq!(
+        said[0].data,
+        json!({"card_id": ID, "code": "unsendable"}),
+        "the outcome the phone was handed"
+    );
 }
 
 /// **A card whose turn has ended is declined at once too.** No turn means no socket, and
-/// the card would otherwise sit at the sidecar for the rest of its five minutes.
+/// the card would otherwise sit at the sidecar for the rest of its five minutes. The
+/// model is told all the same — its write did not go — and the outcome waits in the
+/// queue the phone reads at its next turn.
 #[test]
 fn a_card_whose_turn_has_ended_is_declined_at_once() {
     let bridge = bridge_with_two_phones();
@@ -1292,11 +1335,22 @@ fn a_card_whose_turn_has_ended_is_declined_at_once() {
     bridge.route_cards(vec![routed(1, "req", ID)]);
 
     assert_eq!(lock(&bridge.declined).as_slice(), &[(ID.to_string(), TURN_ENDED)]);
+    assert_eq!(
+        lock(&bridge.told).as_slice(),
+        &[(ID.to_string(), cards::conversation_of(DeviceId::new(1)), "unsendable".to_owned())],
+        "the model was not told the request was let go"
+    );
+    assert_eq!(
+        lock(&bridge.waiting)[&DeviceId::new(1)],
+        vec![json!({"card_id": ID, "code": "unsendable"})],
+        "the outcome waits for the phone's next turn"
+    );
 }
 
-/// **A phone that is not paired gets no card, and its card is declined for the reason
-/// an unpair gives.** A card for a phone the owner removed was raised by a turn that no
-/// longer has anybody to answer it.
+/// **A card for a phone that is not paired is declined as an unpair would decline it.**
+/// A card for a phone the owner removed was raised by a turn that no longer has anybody
+/// to answer it. The model is told — its write did not go — and the phone nothing:
+/// a pairing that is gone has no next turn to hear an outcome on.
 #[test]
 fn a_card_for_a_phone_that_is_not_paired_is_declined_as_an_unpair_would_decline_it() {
     let bridge = Bridge { phones_show_cards: true, ..Bridge::default() };
@@ -1305,6 +1359,12 @@ fn a_card_for_a_phone_that_is_not_paired_is_declined_as_an_unpair_would_decline_
     bridge.route_cards(vec![routed(2, "req", ID)]);
 
     assert_eq!(lock(&bridge.declined).as_slice(), &[(ID.to_string(), UNPAIRED)]);
+    assert_eq!(
+        lock(&bridge.told).as_slice(),
+        &[(ID.to_string(), cards::conversation_of(DeviceId::new(2)), "unsendable".to_owned())],
+        "the model was not told the request was let go"
+    );
+    assert!(lock(&bridge.waiting).is_empty(), "an outcome was queued for a phone that is no longer paired");
 }
 
 /// **A phone's card whose conversation names no usable number is declined at once.**
