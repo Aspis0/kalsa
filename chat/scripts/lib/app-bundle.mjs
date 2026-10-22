@@ -107,7 +107,7 @@ export async function loadApp({ compileOut } = {}) {
         export { createAttachGate, NEW_CHAT } from "../src/lib/attachGate.ts";
         export { buildPinnedContext, estTokens, turnDocBlock, systemPrompt, wireSize, ANSWER_RESERVE_TOKENS, IMAGE_TOKENS } from "../src/lib/attachments.ts";
         export { pruneNotice } from "../src/lib/pruneNotice.ts";
-        export { digestForTurn, withDigest, DIGEST_CAP_TOKENS, DIGEST_HEADER } from "../src/lib/context/digest.ts";
+        export { digestForTurn, withDigest, DIGEST_CAP_TOKENS, DIGEST_HEADER, DIGEST_JOIN } from "../src/lib/context/digest.ts";
         export { loadSettings } from "../src/lib/settings.ts";
         export { definitionsTokens, denseTokens, HOUSE_CHARS_PER_TOKEN, DENSE_CHARS_PER_TOKEN, DENSE_MARGIN } from "../src/lib/density.ts";
         export { FINAL_STATUS } from "../src/lib/toolLoop.ts";

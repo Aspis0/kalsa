@@ -2,11 +2,12 @@ import { scoreUnits } from "./bm25";
 import { foldWords, grams } from "./grams";
 import { sentencesOf } from "./sentences";
 
-/** Whose words a piece of text is: the person's or the model's. Tool results
-    and documents are not searched, so they have no role here. */
-export type Role = "user" | "assistant";
+/** Whose words a piece of text is: the person's, the model's, a page the
+    browser read, or a document the person attached. The stamp says which, so
+    the model reads a stranger's words as a stranger's. */
+export type Role = "user" | "assistant" | "tool" | "document";
 
-/** One message's text, as the turn it belonged to said it. */
+/** One text of a turn, as that turn carried it. */
 export interface Source {
   turn: number;
   role: Role;
@@ -65,7 +66,9 @@ export function fragmentLine(fragment: Fragment): string {
  * the query. The candidates are ranked by BM25 over character grams, with
  * their neighbours beside them, kept when they score near the best, and
  * skipped when they say what one already picked says or do not fit the room
- * left. The picks come back in the order the conversation said them.
+ * left. Two sentences that say the same thing are carried once, and the
+ * **newer** of the two is the one that is carried: an update supersedes what
+ * it restates. The picks come back in the order the conversation said them.
  */
 export function pickFragments(sources: Source[], query: string, budgetChars: number): Fragment[] {
   const units = unitsOf(sources);
@@ -90,7 +93,19 @@ export function pickFragments(sources: Source[], query: string, budgetChars: num
     const cost = fragmentLine(unit).length + 1;
     if (used + cost > budgetChars) continue;
     const shape = new Set(grams(unit.text));
-    if (shapes.some((other) => overlap(other, shape) >= SIMILAR)) continue;
+    const twins = shapes.flatMap((other, at) => (overlap(other, shape) >= SIMILAR ? [at] : []));
+    if (twins.length > 0) {
+      // **The newer twin wins.** A sentence said again later is the one that
+      // is true now, and the older one gives its room back: a price updated
+      // from 99 to 149 must not be carried as the 99.
+      const said = twins.map((at) => picked[at]).filter((one): one is Unit => one !== undefined);
+      if (said.some((other) => newerThan(other, unit))) continue;
+      used -= said.reduce((sum, other) => sum + fragmentLine(other).length + 1, 0);
+      for (const at of [...twins].sort((a, b) => b - a)) {
+        picked.splice(at, 1);
+        shapes.splice(at, 1);
+      }
+    }
     picked.push(unit);
     shapes.push(shape);
     used += cost;
@@ -98,6 +113,15 @@ export function pickFragments(sources: Source[], query: string, budgetChars: num
   return picked
     .sort((a, b) => a.order - b.order)
     .map(({ turn, role, text }) => ({ turn, role, text }));
+}
+
+/**
+ * Which of two sentences is the newer: the later turn wins, and inside one
+ * turn the later sentence does. An update is said after what it updates.
+ */
+function newerThan(candidate: Unit, older: Unit): boolean {
+  if (candidate.turn !== older.turn) return candidate.turn > older.turn;
+  return candidate.order > older.order;
 }
 
 function keyWords(query: string): string[] {

@@ -17,7 +17,7 @@ import { uid } from "../lib/store";
 import type { DraftRecord } from "../lib/mail/drafts";
 import { ANSWER_RESERVE_TOKENS, buildPinnedContext, estTokens, wireSize } from "../lib/attachments";
 import type { MediaView } from "../lib/attachments";
-import { digestForTurn, withDigest } from "../lib/context/digest";
+import { digestForTurn, withDigest, DIGEST_CAP_TOKENS, DIGEST_JOIN } from "../lib/context/digest";
 import { definitionsTokens } from "../lib/density";
 import { wireTurns } from "../lib/wireTurns";
 import { getImage } from "../lib/imageStore";
@@ -419,8 +419,25 @@ export function useChatTurns({ store, announce, contextSizes, saveMailDraft }: T
       // The facts the fit left behind that match this turn, at the head of the
       // last user message. Off unless the switch is on, and empty when nothing
       // was left behind: then the wire is the fit's own, byte for byte.
-      const digest = digestForTurn(currentSettings.contextDigest === true, ctx.shed, ctx.kept);
-      const digestRoom = digest === "" ? 0 : estTokens(digest);
+      // The documents a cut turn bound are sources too, and only the ones
+      // that left the window with it: a pinned document rides in the system
+      // message, so its text is still in the window and must not be said twice.
+      const docTexts = new Map(
+        all
+          .filter((doc) => !(doc.active && (doc.pinned ?? true)))
+          .map((doc) => [doc.id, doc.text] as const),
+      );
+      const digest = digestForTurn(
+        currentSettings.contextDigest === true,
+        ctx.shed,
+        ctx.kept,
+        DIGEST_CAP_TOKENS,
+        docTexts,
+      );
+      // The block rides joined to the last user message, so the room the tool
+      // loop checks grows by the block's weight **and by the join's**: two
+      // characters can be one more token.
+      const digestRoom = digest === "" ? 0 : estTokens(digest) + estTokens(DIGEST_JOIN);
       const history = withDigest(ctx.wire, digest);
       const controller = new AbortController();
       controllers.current.set(assistantId, controller);

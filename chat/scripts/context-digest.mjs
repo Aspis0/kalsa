@@ -7,10 +7,13 @@
 // block), the cases the plan names (a price the window cut, found by the query
 // that names it; accents both ways; a typo; a short follow-up; a generic query
 // that must not pull half the conversation; adjacent and repeated sentences
-// said once), what is never searched (tool results, documents, and any turn
-// that ran mail), the budget, the stamps, and the wire: with nothing cut the
-// wire is byte-identical with the switch on and off, and when something was cut
-// the two differ in the tail block alone.
+// said once; an update that beats what it restates), what the cut carried
+// besides the conversation's own words (a page the browser read and a document
+// the turn bound are sources, stamped as what they are, and any turn that ran
+// mail is not searched at all), the budget, the stamps, the room the block
+// costs the window, and the wire: with nothing cut the wire is byte-identical
+// with the switch on and off, and when something was cut the two differ in the
+// tail block alone.
 //
 // Run: node scripts/context-digest.mjs   (from chat/)
 
@@ -53,8 +56,10 @@ try {
     withDigest,
     DIGEST_CAP_TOKENS,
     DIGEST_HEADER,
+    DIGEST_JOIN,
     buildPinnedContext,
     ANSWER_RESERVE_TOKENS,
+    estTokens,
     loadSettings,
   } = main.app;
 
@@ -142,6 +147,23 @@ try {
     check("the same price in adjacent and repeated sentences is carried once", copies === 1, `${copies} copies`);
   }
 
+  console.log("\n7b. an update beats what it restates");
+  {
+    // The old price and the new one say the same thing in almost the same
+    // words: the near-duplicate is the one that repeats, and of the two the
+    // newer is the one that is true now.
+    const SAID = [
+      m("v1", "user", "Quanto costa il Kindle Paperwhite?"),
+      m("v2", "assistant", "Il Kindle Paperwhite costa 99 euro."),
+      m("v3", "user", "E ora?"),
+      m("v4", "assistant", "Il Kindle Paperwhite costa 149 euro."),
+    ];
+    const block = digestForTurn(true, SAID, askWith("Quanto costa il Kindle Paperwhite adesso?"));
+    check("the block carries the new price", block.includes("149 euro"), block);
+    check("and not the old one", !block.includes("99 euro"), block);
+    check("the new price is stamped with the turn that said it", isPicked(block, "[turn 2, assistant] Il Kindle Paperwhite costa 149 euro."), block);
+  }
+
   console.log("\n8. the cap holds");
   {
     // Sixty sentences, each with its own made-up model name, and a question that
@@ -161,26 +183,37 @@ try {
     check("and the default block is held to the cap too", Math.ceil(roomy.length / 3.5) <= DIGEST_CAP_TOKENS, `${Math.ceil(roomy.length / 3.5)} tokens`);
   }
 
-  console.log("\n9. tool results, documents and mail are never searched");
+  console.log("\n9. the page and the document are sources, stamped as what they are");
   {
-    // A browser turn: the page's own text is a tool result, and it stays out.
-    // The model's words about the same product are the conversation's, and they ride.
-    const page = "Kindle Paperwhite 16 GB: 119,99 euro, spedizione gratuita.";
+    // A browser turn: the page's own text is a tool result, and it is carried
+    // as the tool's words — the stamp says whose they are.
+    const page = "Disponibilità: immediata. Consegna in due giorni.";
     const run = { id: "t1", name: "browser_read", arguments: "{}", result: page, state: "done" };
     const browsed = [
       m("p1", "user", "Apri la pagina del Kindle."),
-      m("p2", "assistant", "Il Kindle Paperwhite 16 GB è a 119,99 euro, con spedizione gratuita.", { toolRuns: [run] }),
+      m("p2", "assistant", "Ho letto la pagina.", { toolRuns: [run] }),
     ];
-    const fromPage = digestForTurn(true, browsed, askWith("quanto costa il Kindle Paperwhite 16 GB?"));
-    check("the page's own words are not carried", !fromPage.includes(page) && !fromPage.includes("[turn 1, tool]"), fromPage);
-    check("the model's words about the page are, stamped as its own", isPicked(fromPage, "[turn 1, assistant] Il Kindle Paperwhite 16 GB è a 119,99 euro, con spedizione gratuita."), fromPage);
+    const fromPage = digestForTurn(true, browsed, askWith("disponibilità Kindle"));
+    check("the page's own words are carried, stamped as the tool's", isPicked(fromPage, "[turn 1, tool] Disponibilità: immediata."), fromPage);
+    check("and never as the person's or the model's words", !fromPage.includes("[turn 1, user] Disponibilità") && !fromPage.includes("[turn 1, assistant] Disponibilità"), fromPage);
 
-    // A document the turn carried: its text is not in the message's words, and
-    // the digest reads only the words, so the document's sentence cannot ride.
+    // The model's own words about the same page are the conversation's, and
+    // they ride as its own.
+    const answered = [
+      m("p3", "user", "Apri la pagina del Kindle."),
+      m("p4", "assistant", "Il Kindle Paperwhite 16 GB costa 119,99 euro, con spedizione gratuita.", { toolRuns: [run] }),
+    ];
+    const fromAnswer = digestForTurn(true, answered, askWith("quanto costa il Kindle Paperwhite 16 GB?"));
+    check("the model's words about the page are, stamped as its own", isPicked(fromAnswer, "[turn 1, assistant] Il Kindle Paperwhite 16 GB costa 119,99 euro, con spedizione gratuita."), fromAnswer);
+
+    // A document the turn carried: its text is a source too, and the stamp
+    // says the words are the document's.
     const doc = { id: "d1", name: "offerta.txt", kind: "txt", chars: 40, tokens: 12, text: "Offerta valida fino al 30 novembre.", attachedAt: 0, active: false };
     const withDoc = [m("q1", "user", "Ecco l'offerta.", { docs: [doc.id] }), m("q2", "assistant", "Letto.")];
-    const fromDoc = digestForTurn(true, withDoc, askWith("fino a quando vale l'offerta valida?"));
-    check("a document's text is not carried", !fromDoc.includes("Offerta valida") && !fromDoc.includes("30 novembre"), fromDoc);
+    const fromDoc = digestForTurn(true, withDoc, askWith("fino a quando vale l'offerta valida?"), DIGEST_CAP_TOKENS, new Map([[doc.id, doc.text]]));
+    check("a document's text is carried, stamped as the document's", isPicked(fromDoc, "[turn 1, document] Offerta valida fino al 30 novembre."), fromDoc);
+    const withoutText = digestForTurn(true, withDoc, askWith("fino a quando vale l'offerta valida?"));
+    check("a document the store no longer holds rides as nothing", !withoutText.includes("Offerta valida") && !withoutText.includes("[turn 1, document]"), withoutText);
 
     // A mail turn: the mail read is a tool call, and the model's words about the
     // mail are the owner's too. The whole turn is skipped.
@@ -237,6 +270,19 @@ try {
     check("an explicit true: on", loadSettings().contextDigest === true);
     storage.set("crescent-chat.settings.v1", JSON.stringify({ model: "x", webTools: true, contextDigest: "yes" }));
     check("anything but true: off", loadSettings().contextDigest === false);
+
+    // The cleanup that drops the stale endpoint/token pair is about that pair
+    // and nothing else: the switch this version added is not written there,
+    // so a record from before it existed stays a record from before it existed.
+    storage.set("crescent-chat.settings.v1", JSON.stringify({ model: "x", webTools: true, endpoint: "http://old" }));
+    loadSettings();
+    const cleaned = JSON.parse(storage.get("crescent-chat.settings.v1"));
+    check("the cleanup writes no contextDigest key of its own", !("contextDigest" in cleaned), JSON.stringify(cleaned));
+    check("and the stale pair is gone", !("endpoint" in cleaned) && !("token" in cleaned), JSON.stringify(cleaned));
+    storage.set("crescent-chat.settings.v1", JSON.stringify({ model: "x", webTools: true, contextDigest: true, endpoint: "http://old" }));
+    loadSettings();
+    const kept = JSON.parse(storage.get("crescent-chat.settings.v1"));
+    check("a record that had the switch keeps it through the cleanup", kept.contextDigest === true, JSON.stringify(kept));
     storage.clear();
   }
 
@@ -251,6 +297,18 @@ try {
     const totalChars = big.reduce((sum, message) => sum + message.content.length, 0);
     const pickedLines = block === "" ? 0 : block.split("\n").length - 1;
     check("a large cut (20 pages of text) is searched in under a second", ms < 1000, `${totalChars} chars, ${ms} ms, ${pickedLines} fragments`);
+  }
+
+  console.log("\n13. the room the block costs the window pays for the join too");
+  {
+    // The block rides joined to the last user message, so the room the tool
+    // loop checks grows by the block's weight **and by the join's**: two
+    // characters can be one more token.
+    const block40 = "x".repeat(40);
+    const content40 = "y".repeat(40);
+    const growth = estTokens(`${block40}${DIGEST_JOIN}${content40}`) - estTokens(content40);
+    check("a 40-character block joined to a 40-character message costs one token more than the block alone", growth === estTokens(block40) + 1, `${growth} vs ${estTokens(block40)}`);
+    check("and the room the tool loop budgets covers it", estTokens(block40) + estTokens(DIGEST_JOIN) >= growth, `${estTokens(block40) + estTokens(DIGEST_JOIN)} vs ${growth}`);
   }
 
   console.log(failures === 0 ? "\ncontext-digest: all checks passed" : `\ncontext-digest: ${failures} FAILED`);

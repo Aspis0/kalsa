@@ -63,8 +63,20 @@ export function loadSettings(): ChatSettings {
       contextDigest: parsed.contextDigest === true,
     };
     if ("endpoint" in parsed || "token" in parsed) {
+      // The cleanup writes the record without the stale pair and nothing else:
+      // **the switch this version added is not written here**, so a record
+      // from before it existed stays a record from before it existed. What the
+      // owner chose, if the record carries it, rides as it is.
       try {
-        localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+        localStorage.setItem(
+          SETTINGS_KEY,
+          JSON.stringify({
+            ...rest,
+            model: settings.model,
+            webTools: settings.webTools,
+            browserVision: settings.browserVision,
+          }),
+        );
       } catch {
         // Private mode again: the stale fields wait for the next load.
       }
