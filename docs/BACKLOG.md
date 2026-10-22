@@ -603,6 +603,11 @@ Report: 0 P0, 2 P1, 8 P2. The engine-key P1 (llama-server answered any Origin, n
 - `browser_screenshot` with no session open starts the visible browser and then refuses `not_yours` (the same as `browser_read`), while the DESCRIPTION says "a look, not a step" — either accept it in writing or add "if no page is open, nothing is opened".
 - `chat/scripts/rust-codes.mjs` is permanently red on 17 pre-existing codes, so it will not tell a new missing code from an old one.
 
+## Browse mode against a named service (maps cell, 2026-10-21)
+- A request that names a service and no host («Apri Google Maps») cannot open anything: `browser_open` needs an address already printed in the conversation (`chat/src/lib/tools/fetchProvenance.ts`), and in an armed turn no web tool is offered, so the model has no way to discover one. Measured live: 20 opens, 19 `open_unseen` + 1 `browser.deterministic`, the page never opened (report `dev/lab-real/maps-control-2026-10-21.md`, untracked). The natural way a person asks is exactly this shape — a design question, not a bug: the gate is deliberate.
+- Every `browser_open` is a MOVE and clears the turn's failed ledger (`chat/src/lib/callLedger.ts` `openedNextRound`), so the "ask differently" guidance only arrives when the SAME address is repeated; a model cycling variants spent 20 of its 24 calls before an explanation (`/tmp/kalsa-maps-control-20261021/ledger-probe.json`, untracked).
+- The `open_unseen` refusal copy says to use web_search while an armed turn offers no web tool — guidance the model cannot follow (same family as the read-driver contradiction fixed in f115a193; copy in `chat/src/lib/tools/fetchProvenance.ts`).
+
 ## Read driver: retry, probe and the ledger (2026-10-21)
 - **D2** The round is not invalidated for a refusal that never reached the browser (`browser.busy`, `browser.paused`, `browser.stopped`): a refusal does not always mean the page moved, so the round those answers belong to may still be the current one (`chat/src/lib/callLedger.ts` `filed`).
 - **D5** No fixture proves the retry through `page_text`: a page this crate can open in a test is on this computer's own network, and the guard refuses that before anything is read, so the branch is proved at the helper and not through a page (`crates/kalsa-browser/src/mcp.rs` `take_twice_within`).
