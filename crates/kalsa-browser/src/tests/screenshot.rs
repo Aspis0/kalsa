@@ -17,7 +17,7 @@
 use super::headless;
 use crate::hold::Holds;
 use crate::landing::Landings;
-use crate::preview;
+use crate::preview::{self, Refusal};
 use crate::session::Sessions;
 use playwright_rs::protocol::{BrowserContext, Page, Playwright};
 
@@ -133,4 +133,29 @@ async fn another_conversation_gets_no_picture_of_the_page() {
     let answer = answered(&sessions, "browser:another").await;
     assert_eq!(answer["ok"], serde_json::Value::Bool(false), "no picture was taken: {answer}");
     assert_eq!(answer["error"], "not_yours", "and the reason is the page's own");
+}
+
+/// **The person takes the window between the judgement and the picture.** The
+/// page was ours when the picture was asked for, and the person moved it by hand
+/// before the address was read: the picture would carry example.org's bytes
+/// while the ownership was judged on example.com. The model is refused, and no
+/// picture of a page nobody owns leaves the window.
+#[tokio::test]
+async fn a_window_moved_between_the_judgement_and_the_picture_is_refused() {
+    let (_playwright, _context, page, sessions) = window().await;
+    opened(&sessions, &page, PAGE).await;
+    let (shot_page, landings, holds) = sessions.page_if_started().await.expect("the page is open");
+
+    let hand = page.clone();
+    let refused = preview::shot_then(&shot_page, &landings, &holds, MODEL, move || async move {
+        // The person's own navigation, made after the judgement and before the address.
+        let _ = hand.evaluate::<(), ()>(&format!("location.href = '{ELSEWHERE}'"), None).await;
+        hand.wait_for_url(ELSEWHERE, None).await.expect("the page lands where the person sent it");
+    })
+    .await
+    .err()
+    .expect("no picture");
+
+    assert_eq!(refused.refusal, Refusal::NotYours, "the window moved, so the page is not the model's");
+    assert_eq!(holds.stamp_for_the_page().await, "", "and the page belongs to nobody");
 }

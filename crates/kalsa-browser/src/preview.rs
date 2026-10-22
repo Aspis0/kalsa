@@ -196,6 +196,24 @@ pub async fn shot(
     holds: &Holds,
     conversation: &str,
 ) -> Result<Captured, Failed> {
+    shot_then(page, landings, holds, conversation, || async {}).await
+}
+
+/// [`shot`], with a point where the window may be moved between the judgement
+/// and the address: `between` runs after the ownership and the pause are judged,
+/// and before the address is read. Production passes nothing there; the race
+/// test passes the person's own navigation.
+pub(crate) async fn shot_then<Between, Pause>(
+    page: &Page,
+    landings: &Landings,
+    holds: &Holds,
+    conversation: &str,
+    between: Between,
+) -> Result<Captured, Failed>
+where
+    Between: FnOnce() -> Pause,
+    Pause: std::future::Future<Output = ()>,
+{
     if !ours(holds, conversation).await {
         return Err(Failed { refusal: Refusal::NotYours, driver: None });
     }
@@ -204,6 +222,7 @@ pub async fn shot(
     if holds.paused() {
         return Err(Failed { refusal: Refusal::Busy, driver: None });
     }
+    between().await;
     let before = page.url();
     // The address and the landing are judged before the picture and again
     // after it: a page that moved while the picture was taken is a picture of a
@@ -223,6 +242,15 @@ pub async fn shot(
         return Err(Failed { refusal: Refusal::TooLarge, driver: None });
     }
     let after = page.url();
+    // Ownership and the pause are judged again after the picture too: the person
+    // may have taken the window between the first judgement and the address, and
+    // a picture of a page that is theirs now is not the conversation's to have.
+    if !ours(holds, conversation).await {
+        return Err(Failed { refusal: Refusal::NotYours, driver: None });
+    }
+    if holds.paused() {
+        return Err(Failed { refusal: Refusal::Busy, driver: None });
+    }
     if may_not_show(landings, &after).await || !unmoved(&before, &after, navigations, landings.navigations().await) {
         return Err(Failed { refusal: Refusal::Unavailable, driver: None });
     }

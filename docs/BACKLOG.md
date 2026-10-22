@@ -597,7 +597,6 @@ Report: 0 P0, 2 P1, 8 P2. The engine-key P1 (llama-server answered any Origin, n
 - Prompt cache: arming the browser mode changes the tools array (`chat/src/lib/tools/registry.ts:107`), so every toggle costs one re-prefill — to measure in the chip slice.
 
 ## Screenshot of the page (`browser_screenshot`, 2026-10-21)
-- TOCTOU between `ours()` and `before = page.url()` (`crates/kalsa-browser/src/preview.rs:199-232`): the person navigates in between, and the shot carries the new page's bytes while the ownership was checked on the old one. Closing it is about three lines — re-check `ours()` and the pause after `after`.
 - `browser_screenshot` is missing from `WEB_NAMES` (`chat/src/lib/toolLoop.ts:794`), so the text-to-tool-call recovery stays on after a turn whose only outside source was a screenshot (risk ~nil, restricted alphabet).
 - The fallback `picturesTaken` (`chat/src/lib/pictures.ts:96-110`) walks the whole wire, previous turns included, while its own doc says "this turn"; not load-bearing today.
 - `browser_screenshot` with no session open starts the visible browser and then refuses `not_yours` (the same as `browser_read`), while the DESCRIPTION says "a look, not a step" — either accept it in writing or add "if no page is open, nothing is opened".
