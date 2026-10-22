@@ -24,16 +24,25 @@ pub(crate) async fn brain_browser_open(
 }
 
 /// The page as text, with the refs to act on.
+///
+/// **A page may be longer than the answer**: `from` is the line to start at,
+/// and `page` is the old way of naming the same place, a window counting from
+/// one. Both are optional, and both are the sidecar's business to answer.
 #[tauri::command]
 pub(crate) async fn brain_browser_read(
     app: AppHandle,
     state: State<'_, BrowserState>,
+    from: Option<u64>,
     page: Option<u64>,
 ) -> Result<String, super::error::CommandFailure> {
-    match page {
-        Some(page) => call(&app, &state, "browser_read", one("page", Value::from(page))).await,
-        None => call(&app, &state, "browser_read", Map::new()).await,
+    let mut arguments = Map::new();
+    if let Some(from) = from {
+        arguments.insert("from".to_owned(), Value::from(from));
     }
+    if let Some(page) = page {
+        arguments.insert("page".to_owned(), Value::from(page));
+    }
+    call(&app, &state, "browser_read", arguments).await
 }
 
 /// Text on the page, matched where it appears.

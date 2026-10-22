@@ -112,5 +112,6 @@ export const RUST: {
     failed: () => "Kalsa 无法连接到浏览器。请重试。",
     refused: () => "Kalsa 没有打开那个内容。",
     no_pending_request: () => "那个请求已经不再等待回答。",
+    read_again: () => "Kalsa 已经读过页面的这一部分了。",
   },
 };

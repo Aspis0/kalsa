@@ -104,5 +104,6 @@ export const TOOLS = {
     "deterministic": "Cela a déjà échoué comme ça une fois.",
     "tooManySteps": "C'est trop d'étapes dans le navigateur pour un tour.",
     "alreadyRun": "C'était déjà fait.",
+    "readAgain": "Kalsa avait déjà lu cette partie de la page.",
   },
 };

@@ -264,6 +264,11 @@ pub struct Said {
     /// **Where the call stopped**, in one word out of a closed set: the wire's
     /// `structuredContent.kalsa.failure`, read here without parsing JSON.
     pub failure: Option<String>,
+    /// **The code the refusal names for the person**, one word of ours: the
+    /// wire's `structuredContent.kalsa.code`, read here without parsing JSON.
+    /// It is what the host shows the page, and it is the same word the app's
+    /// own words are written for.
+    pub code: Option<String>,
 }
 
 impl Said {
@@ -291,6 +296,13 @@ fn said(result: CallToolResult) -> Said {
         .and_then(|kalsa| kalsa.get("failure"))
         .and_then(serde_json::Value::as_str)
         .map(|stage| stage.to_owned());
+    let code = result
+        .structured_content
+        .as_ref()
+        .and_then(|mark| mark.get("kalsa"))
+        .and_then(|kalsa| kalsa.get("code"))
+        .and_then(serde_json::Value::as_str)
+        .map(|code| code.to_owned());
     let mut text = String::new();
     for part in &result.content {
         if let rmcp::model::ContentBlock::Text(written) = part {
@@ -300,7 +312,7 @@ fn said(result: CallToolResult) -> Said {
             text.push_str(written.text.as_str());
         }
     }
-    Said { refused: result.is_error.unwrap_or(false), text, gone, failure }
+    Said { refused: result.is_error.unwrap_or(false), text, gone, failure, code }
 }
 
 /// The same shape the router builds its `Parameters` from, so an argument that
@@ -318,6 +330,10 @@ struct OpenArgs {
 
 #[derive(Deserialize)]
 struct ReadArgs {
+    /// **The line to start from.** Zero is the first line of the page: a page
+    /// longer than one answer is read in windows, and this says which one.
+    from: Option<usize>,
+    /// The old way of naming a place on the page: the window counting from one.
     page: Option<usize>,
 }
 
@@ -634,7 +650,7 @@ their answer is still waiting.".to_owned())
 async fn resume(sessions: &Sessions) -> CallToolResult {
     sessions.set_paused(false);
     match page_of(sessions).await {
-        Ok((page, landings, _holds)) => read(sessions, &page, &landings, 1).await,
+        Ok((page, landings, _holds)) => read(sessions, &page, &landings, 0, None).await,
         Err(refused) => refused,
     }
 }
@@ -672,29 +688,60 @@ async fn give_up(sessions: &Sessions, args: IdArgs, yes: bool) -> CallToolResult
 /// given a moment to have something: a site that answers a stranger with a
 /// challenge serves the page a moment later, and the model should get the page
 /// rather than the challenge.
+///
+/// The window the text came from comes back with it: the answer says where it
+/// stands on the page, and the sidecar keeps it to know a read the model has
+/// already made.
 async fn read_text(
     sessions: &Sessions,
     page: &Page,
     landings: &Landings,
-    part: usize,
-) -> Result<String, CallToolResult> {
-    let read = page_text(sessions, page, landings, || snapshot::read_when_ready_with_main(page, part)).await?;
-    if snapshot::has_content(page, &read.text).await {
-        return Ok(read.text);
+    from: usize,
+    part: Option<usize>,
+) -> Result<(String, Option<snapshot::Window>), CallToolResult> {
+    let read =
+        page_text(sessions, page, landings, || snapshot::read_when_ready_with_main(page, from, part)).await?;
+    if snapshot::has_content(page, &read).await {
+        return Ok((read.text, read.window));
     }
-    Ok(snapshot::nothing_to_read(&read.text, settled(page).await))
+    Ok((snapshot::nothing_to_read(&read.text, settled(page).await), read.window))
 }
 
 async fn read(
     sessions: &Sessions,
     page: &Page,
     landings: &Landings,
-    part: usize,
+    from: usize,
+    part: Option<usize>,
 ) -> CallToolResult {
-    match read_text(sessions, page, landings, part).await {
-        Ok(text) => view::answered(text),
+    match read_text(sessions, page, landings, from, part).await {
+        Ok((text, _window)) => view::answered(text),
         Err(refused) => refused,
     }
+}
+
+/// **Said when a read asks for a window the model has already been given.**
+///
+/// **And it says the way on.** The owner's test of 21 October: a turn that read
+/// a long page eight times in a row, every read the same lines, the page never
+/// moving, and the turn spent on it. A read that says "you have read this" and
+/// stops there is a read the model may well make again; a read that names the
+/// next window, and the find that searches the whole page, is a read the model
+/// can act on.
+fn read_again(given: &session::Given) -> String {
+    if given.total == 0 {
+        return "This is the same text you already read. Do not read it again: pass from=N for the lines that follow, \
+                or use browser_find, which searches the whole page."
+            .to_string();
+    }
+    format!(
+        "This is the same text you already read: lines {}\u{2013}{} of {}. Do not read it again: pass from={} for the \
+         lines that follow, or use browser_find, which searches the whole page.",
+        given.first + 1,
+        given.after,
+        given.total,
+        given.after
+    )
 }
 
 /// Preserve the refusal kind without parsing its model-facing sentence.
@@ -754,7 +801,7 @@ async fn open(sessions: &Sessions, args: OpenArgs) -> CallToolResult {
     let answer = match page.goto(&url, None).await {
         Ok(_) => {
             // Where this landed is judged by the read below, which is the one gate.
-            read(sessions, &page, &landings, 1).await
+            read(sessions, &page, &landings, 0, None).await
         }
         Err(error) => failed(sessions, &page, &error, Stage::OpenDriver).await,
     };
@@ -773,7 +820,32 @@ async fn read_page(sessions: &Sessions, args: ReadArgs) -> CallToolResult {
         Ok(found) => found,
         Err(refused) => return refused,
     };
-    read(sessions, &page, &landings, args.page.unwrap_or(1)).await
+    let from = args.from.unwrap_or(0);
+    let part = args.page;
+    // **The same window of the same page is not read twice.** The window the
+    // model was last given is remembered, with the page it was made of: a read
+    // that asks for it again is a read the model has already made, and the
+    // answer says so and names the way on.
+    let document = landings.navigations().await;
+    if let Some(given) = sessions.read_given(document, from, part).await {
+        return view::failed_named("browser.read_again", Stage::ReadAgain, read_again(&given));
+    }
+    match read_text(sessions, &page, &landings, from, part).await {
+        Ok((text, window)) => {
+            if let Some(window) = window {
+                sessions
+                    .remember_read(
+                        document,
+                        from,
+                        part,
+                        session::Given { first: window.first, after: window.after, total: window.total },
+                    )
+                    .await;
+            }
+            view::answered(text)
+        }
+        Err(refused) => refused,
+    }
 }
 
 async fn find(sessions: &Sessions, args: FindArgs) -> CallToolResult {
@@ -850,7 +922,7 @@ async fn clicking(
         return view::answered(hold::awaiting(&id));
     }
     // A click can navigate, so the page it lands on is judged like any other.
-    read(sessions, page, landings, 1).await
+    read(sessions, page, landings, 0, None).await
 }
 
 async fn type_into(sessions: &Sessions, args: TypeArgs) -> CallToolResult {
@@ -904,9 +976,9 @@ async fn typing(
     if let Some(id) = held {
         return view::answered(hold::awaiting(&id));
     }
-    match read_text(sessions, page, landings, 1).await {
-        Ok(text) if entered => view::answered(format!("{text}{}", enter_was_pressed())),
-        Ok(text) => view::answered(text),
+    match read_text(sessions, page, landings, 0, None).await {
+        Ok((text, _window)) if entered => view::answered(format!("{text}{}", enter_was_pressed())),
+        Ok((text, _window)) => view::answered(text),
         Err(refused) => refused,
     }
 }
@@ -1215,10 +1287,35 @@ impl ServerHandler for BrowserServer {
 
 #[cfg(test)]
 mod tests {
-    use super::{address_of, failure_answer, refused_action, said, BrowserServer};
+    use super::{address_of, failure_answer, read_again, refused_action, said, BrowserServer};
     use crate::failure::Stage;
     use crate::hold;
     use crate::input;
+    use crate::session;
+
+    /// **The refusal of a window the model already has names the way on.**
+    ///
+    /// The owner's test of 21 October: a turn that read one page eight times in
+    /// a row, every read the same lines, the page never moving. A refusal that
+    /// only says "you have read this" is a refusal the model may well make
+    /// again; one that names the line to go on from, and the find that
+    /// searches the whole page, is a refusal the model can act on.
+    #[test]
+    fn the_refusal_of_a_window_already_given_names_the_way_on() {
+        let given = session::Given { first: 0, after: 200, total: 1340 };
+        let said = read_again(&given);
+        assert!(said.contains("the same text you already read"), "{said}");
+        assert!(said.contains("lines 1\u{2013}200 of 1340"), "{said}");
+        assert!(said.contains("from=200"), "{said}");
+        assert!(said.contains("browser_find"), "{said}");
+
+        // **And a window of a page with no lines says the same thing**, without
+        // inventing a line for it.
+        let empty = read_again(&session::Given { first: 0, after: 0, total: 0 });
+        assert!(empty.contains("the same text you already read"), "{empty}");
+        assert!(empty.contains("from=N"), "{empty}");
+        assert!(!empty.contains("lines 1"), "and invents no line for it: {empty}");
+    }
 
     /// The stage the answer carries, read the way the host reads it.
     fn stage_of(answer: &rmcp::model::CallToolResult) -> Option<String> {
@@ -1483,6 +1580,7 @@ mod tests {
                     Ok(crate::snapshot::Read {
                         text: "url: a.example\n\nthe page as the model reads it".to_owned(),
                         main: std::collections::HashSet::new(),
+                        window: None,
                     })
                 }
             }
@@ -1573,6 +1671,7 @@ mod tests {
                     Ok(crate::snapshot::Read {
                         text: "url: a.example\n\nnever reached".to_owned(),
                         main: std::collections::HashSet::new(),
+                        window: None,
                     })
                 }
             }

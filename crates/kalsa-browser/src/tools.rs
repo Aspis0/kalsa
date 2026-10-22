@@ -52,15 +52,23 @@ pub(crate) fn read() -> Tool {
     Tool::new(
         "browser_read",
         "Read the page as text: one line per element, each with the ref to act on \
-it. A long page arrives in parts — pass the next part's number to carry on. \
-Read-only.",
+it. **A page may be longer than the answer**: the answer says which lines it \
+carries and how many lines the page has, and to go on read the lines that \
+follow with from — the number the answer ends at. Reading the same lines \
+again is refused: the text is already yours. Use browser_find to search the \
+whole page rather than reading it line by line. Read-only.",
         schema(json!({
             "type": "object",
             "properties": {
+                "from": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "The line to start from. Zero is the first line of the page."
+                },
                 "page": {
                     "type": "integer",
                     "minimum": 1,
-                    "description": "Which part of a long page to return. Defaults to 1."
+                    "description": "Which window of a long page to return, counting from 1. The answer names the lines it carries; from is the way to go on."
                 }
             },
             "additionalProperties": false
@@ -366,7 +374,7 @@ mod tests {
     #[test]
     fn no_tool_offers_a_submit_and_no_tool_is_given_a_free_text_it_does_not_use() {
         assert_eq!(properties(&super::open()), ["url"]);
-        assert_eq!(properties(&super::read()), ["page"]);
+        assert_eq!(properties(&super::read()), ["from", "page"]);
         assert_eq!(properties(&super::find()), ["text"]);
         assert_eq!(properties(&super::click()), ["ref"]);
         assert_eq!(properties(&super::type_into()).len(), 2);

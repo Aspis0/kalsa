@@ -32,6 +32,8 @@ pub(crate) enum BrowserCode {
     /// A native rule would not let the form go: a required control is empty or
     /// not what it must be. Nothing was sent.
     Invalid,
+    /// The read asked for a window of the page the model has already been given.
+    ReadAgain,
 }
 
 impl BrowserCode {
@@ -44,6 +46,7 @@ impl BrowserCode {
             Self::FieldGone => "browser.field_gone",
             Self::Held => "browser.held",
             Self::Invalid => "browser.invalid",
+            Self::ReadAgain => "browser.read_again",
         }
     }
 
@@ -59,6 +62,7 @@ impl BrowserCode {
             "browser.field_gone" => Self::FieldGone,
             "browser.held" => Self::Held,
             "browser.invalid" => Self::Invalid,
+            "browser.read_again" => Self::ReadAgain,
             _ => Self::Refused,
         }
     }
@@ -116,6 +120,7 @@ fn failure_of(result: &ToolResult) -> Option<(&'static str, &'static str)> {
         "read_address_refused" => ("read_address_refused", "browser_failure.read_address_refused"),
         "read_moved" => ("read_moved", "browser_failure.read_moved"),
         "read_driver" => ("read_driver", "browser_failure.read_driver"),
+        "read_again" => ("read_again", "browser_failure.read_again"),
         "open_driver" => ("open_driver", "browser_failure.open_driver"),
         "open_address_refused" => ("open_address_refused", "browser_failure.open_address_refused"),
         "paused" => ("paused", "browser_failure.paused"),
@@ -172,6 +177,7 @@ mod tests {
             BrowserCode::FieldGone,
             BrowserCode::Held,
             BrowserCode::Invalid,
+            BrowserCode::ReadAgain,
         ] {
             assert!(every.as_str().starts_with("browser."), "{} is one of ours", every.as_str());
             let answer = said(Some(json!({"kalsa": {"code": every.as_str()}})));
@@ -216,6 +222,7 @@ mod tests {
             ("read_address_refused", "browser_failure.read_address_refused"),
             ("read_moved", "browser_failure.read_moved"),
             ("read_driver", "browser_failure.read_driver"),
+            ("read_again", "browser_failure.read_again"),
             ("open_driver", "browser_failure.open_driver"),
             ("open_address_refused", "browser_failure.open_address_refused"),
             ("paused", "browser_failure.paused"),

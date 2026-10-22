@@ -59,6 +59,9 @@ const OPENED = [];
     holding one back is about the call not happening and not about the wording. */
 const ACTED = [];
 const READS = [];
+/** The line every read started at, so a proof can see which window was asked
+    for: the line is how a long page is read further down. */
+const LINES = [];
 const FINDS = [];
 const CLOSED = [];
 
@@ -82,6 +85,7 @@ globalThis.window = {
         }
         if (command === "brain_browser_read") {
           READS.push(args.page ?? 1);
+          LINES.push(args.from ?? 0);
           if (SLOW) {
             // **A slow call**: a page that has not answered yet, and it answers
             // only when the session ends. That is what makes "the Stop cut it
@@ -402,6 +406,36 @@ try {
     check("find runs with trimmed words", found.ok === true && FINDS.at(-1) === "latte", found.text);
     const empty = await attempt("browser_find", { text: "  " }, []);
     check("find with no words is refused", empty.ok === false, empty.text);
+  }
+
+  // --- the line a read starts at ----------------------------------------------
+  //
+  // The owner's test of 21 October: a turn that read a long page eight times in
+  // a row, every read the same lines, the page never moving, and the model
+  // never getting further down it. **The read is addressed by a line**, so the
+  // model can go on, and the answer says where it stands.
+  {
+    pageBody = "PAGE TEXT";
+    const read = await attempt("browser_read", { from: 200 }, []);
+    check("a read with a line runs", read.ok === true, read.text);
+    equal("and the line is the one the model asked for", LINES.at(-1), 200);
+    const first = await attempt("browser_read", {}, []);
+    check("a read with no line starts at the first", first.ok === true && LINES.at(-1) === 0, first.text);
+    const bad = await attempt("browser_read", { from: "two hundred" }, []);
+    check("a line that is not a number is refused", bad.ok === false, bad.text);
+    const negative = await attempt("browser_read", { from: -1 }, []);
+    check("a line before the first is refused", negative.ok === false, negative.text);
+  }
+
+  // --- the offer says the page may be longer ---------------------------------
+  {
+    const offered = offeredTools(true, "en", "any-model", "browser");
+    const read = offered.find((tool) => tool.function.name === "browser_read");
+    check("the read offers the line to start at", read !== undefined && read.function.parameters.properties.from !== undefined, JSON.stringify(read));
+    const description = read?.function.description ?? "";
+    check("and says the page may be longer than the answer", description.includes("longer than the answer"), description);
+    check("and says how to go on", description.includes("from"), description);
+    check("and says the same lines are not read again", description.includes("already"), description);
   }
 
   // --- a reload keeps a stub, not the page -----------------------------------

@@ -20,6 +20,29 @@ pub(crate) struct Read {
     pub(crate) text: String,
     /// The refs of the page's own document, from that same tree.
     pub(crate) main: HashSet<String>,
+    /// **Where the answer stands on the page.** A read is a window of the page,
+    /// and the window says which lines it carries and how many the page has: a
+    /// model that knows where it is does not read the same lines again. A find
+    /// is not a window of the page — it is the lines that match — and has none.
+    pub(crate) window: Option<Window>,
+}
+
+/// **The window of the page a read returned.** The lines it carries, counted
+/// from zero, and how many the page has.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) struct Window {
+    /// The first line of the window, counted from zero.
+    pub(crate) first: usize,
+    /// The line after the last one of the window, counted from zero: the line
+    /// the next window starts at.
+    pub(crate) after: usize,
+    /// How many lines the page has.
+    pub(crate) total: usize,
+    /// **Whether the window carries a line with something in it.** A tree of
+    /// empty lines is a page that says nothing, and a read that took it for
+    /// content would hand the model an empty page instead of waiting for the
+    /// one that has something on it.
+    pub(crate) said: bool,
 }
 
 /// The driver's tree as we read it: the head, the lines, the same lines
@@ -186,16 +209,17 @@ fn is_whole(url: &str) -> bool {
 /// **Whether a page holds anything a model could work with.** The tree's own
 /// lines, or the text the document shows: a title alone is a page that says
 /// nothing, and a page that answers a stranger has that for a moment.
-pub async fn has_content(page: &Page, text: &str) -> bool {
-    if !body_of(text).trim().is_empty() {
-        return true;
+///
+/// **The window's own lines, and not the text of the answer**: the header and
+/// the line that says where the window stands are ours, and a page with
+/// nothing on it must not be taken for one with something.
+pub(crate) async fn has_content(page: &Page, read: &Read) -> bool {
+    if let Some(window) = read.window {
+        if window.said {
+            return true;
+        }
     }
     shows_text(page).await
-}
-
-/// The part of a read that is the page's own content: everything under the address.
-fn body_of(text: &str) -> &str {
-    text.split_once("\n\n").map(|(_, body)| body).unwrap_or(text)
 }
 
 /// Whether the document shows any text at all, asked of the document itself.
@@ -206,16 +230,23 @@ async fn shows_text(page: &Page) -> bool {
 /// **The page as the model reads it, waiting for a page that has nothing on it
 /// yet.** A site that answers a stranger with a challenge serves the page a
 /// moment later, and the model should get the page rather than the challenge.
+///
+/// The part is the old way of naming a place on the page; `from` is the new
+/// one, and a line is a place a model can say out loud.
 pub async fn read_when_ready(page: &Page, part: usize) -> Result<String, playwright_rs::Error> {
-    Ok(read_when_ready_with_main(page, part).await?.text)
+    Ok(read_when_ready_with_main(page, 0, Some(part)).await?.text)
 }
 
 /// The same read, with the page's own document's refs beside it.
-pub(crate) async fn read_when_ready_with_main(page: &Page, part: usize) -> Result<Read, playwright_rs::Error> {
+pub(crate) async fn read_when_ready_with_main(
+    page: &Page,
+    from: usize,
+    part: Option<usize>,
+) -> Result<Read, playwright_rs::Error> {
     let deadline = std::time::Instant::now() + CONTENT_WAIT;
     loop {
-        let read = snapshot_with_main(page, part).await?;
-        if has_content(page, &read.text).await {
+        let read = snapshot_with_main(page, from, part).await?;
+        if has_content(page, &read).await {
             return Ok(read);
         }
         if std::time::Instant::now() >= deadline {
@@ -242,66 +273,113 @@ pub fn nothing_to_read(text: &str, loaded: bool) -> String {
     format!("{text}\n\nThere is nothing to read: {why}.")
 }
 
-/// Address lines stay whole so a part never invents a truncated destination.
-/// Other cuts retain character boundaries, including in accented text.
-fn parts(body: &str, chars: usize) -> Vec<&str> {
-    let wanted = chars.max(1);
-    let mut out = Vec::new();
-    let mut rest = body;
-    while rest.chars().count() > wanted {
-        let cut = boundary_at_or_below(rest, head_of(rest, wanted).len());
-        let at = rest[..cut].rfind('\n').filter(|at| *at > 0);
-        match at {
-            Some(at) => {
-                out.push(&rest[..at]);
-                rest = &rest[at + 1..];
-            }
-            None => {
-                let end = rest.find('\n').unwrap_or(rest.len());
-                if tree::carries_address(&rest[..end]) {
-                    out.push(&rest[..end]);
-                    rest = rest[end..].strip_prefix('\n').unwrap_or("");
-                    if rest.is_empty() {
-                        return out;
-                    }
-                } else {
-                    out.push(&rest[..cut]);
-                    rest = &rest[cut..];
-                }
-            }
-        }
-    }
-    out.push(rest);
-    out
-}
-
-/// A long page comes in parts rather than being cut: the model asks for part 2
-/// and nothing on the page is lost. Each part names the next.
+/// A long page comes in windows rather than being cut: the model asks for the
+/// lines that follow and nothing on the page is lost. Each window names the
+/// next.
 pub async fn snapshot(page: &Page, part: usize) -> Result<String, playwright_rs::Error> {
-    Ok(snapshot_with_main(page, part).await?.text)
+    Ok(snapshot_with_main(page, 0, Some(part)).await?.text)
 }
 
-/// The same read in parts, with the page's own document's refs beside it.
-pub(crate) async fn snapshot_with_main(page: &Page, part: usize) -> Result<Read, playwright_rs::Error> {
-    let rendered = page_text(page).await?;
-    let text = format!("{}\n\n{}", rendered.head, rendered.full.join("\n"));
-    let shown = {
-        let (head, body) = text.split_once("\n\n").unwrap_or(("", text.as_str()));
-        let room = SNAPSHOT_CHARS.saturating_sub(head.len() + 2).max(200);
-        let chunks = parts(body, room);
-        if chunks.len() == 1 {
-            None
-        } else {
-            let at = part.clamp(1, chunks.len());
-            let footer = if at < chunks.len() {
-                format!("Part {at} of {} — call browser_read with page {} for more.", chunks.len(), at + 1)
-            } else {
-                format!("Part {at} of {} — this is the last part.", chunks.len())
-            };
-            Some(format!("{head}\n\n{}\n\n{footer}", chunks[at - 1]))
+/// **The page as the model reads it, from a line.** The line to start at: zero
+/// is the first line of the page. The answer says which lines it carries and
+/// how many lines the page has, so the next one is a line the model can name.
+pub async fn snapshot_from(page: &Page, from: usize) -> Result<String, playwright_rs::Error> {
+    Ok(snapshot_with_main(page, from, None).await?.text)
+}
+
+/// **The window of the page a read returns.** The lines from `start` that fit
+/// the room, and the line after them: the next window starts there.
+///
+/// **Whole lines, as a part has always been whole lines.** A line that carries
+/// an address is never cut, so a window cannot invent a truncated destination;
+/// a line longer than the whole room and carrying no address is cut at a
+/// character boundary, and the window ends there.
+fn window_of(lines: &[String], start: usize, room: usize) -> (String, usize, usize, bool) {
+    let start = start.min(lines.len());
+    let mut kept: Vec<&str> = Vec::new();
+    let mut used = 0usize;
+    let mut end = start;
+    while end < lines.len() {
+        let line = lines[end].as_str();
+        let cost = line.chars().count() + 1;
+        if !kept.is_empty() && used + cost > room {
+            break;
         }
+        if kept.is_empty() && cost > room && !tree::carries_address(line) {
+            kept.push(head_of(line, room));
+            end += 1;
+            break;
+        }
+        kept.push(line);
+        used += cost;
+        end += 1;
+    }
+    let said = kept.iter().any(|line| !line.trim().is_empty());
+    (kept.join("\n"), start, end, said)
+}
+
+/// **The window the Nth part of the page is**, counting from one. The parts are
+/// the windows the page is made of: the first is the head of the page, and each
+/// one starts where the last one ended. A part past the last window is the last
+/// window, as it has always been.
+fn part_window(lines: &[String], part: usize, room: usize) -> (String, usize, usize, bool) {
+    let mut start = 0usize;
+    let mut at = 1usize;
+    loop {
+        let (text, first, end, said) = window_of(lines, start, room);
+        if at >= part.max(1) || end >= lines.len() {
+            return (text, first, end, said);
+        }
+        start = end;
+        at += 1;
+    }
+}
+
+/// **Where the answer stands on the page.** The lines it carries and how many
+/// the page has, and the line the next one starts at: a model that knows this
+/// does not read the same lines again, and a page longer than one answer is
+/// only reachable if the answer says where the next one begins.
+fn window_footer(first: usize, end: usize, total: usize) -> String {
+    if total == 0 || end == 0 {
+        return "The page has no lines to read.".to_string();
+    }
+    if end < total {
+        format!(
+            "lines {}–{} of {} — call browser_read with from={} for the lines that follow.",
+            first + 1,
+            end,
+            total,
+            end
+        )
+    } else {
+        format!("lines {}–{} of {} — this is the last line of the page.", first + 1, end, total)
+    }
+}
+
+/// The same read in windows, with the page's own document's refs beside it.
+///
+/// **`from` is the line to start at** — zero is the first line of the page —
+/// and `part` is the old way of naming the same place, kept so that a client
+/// that asks for parts still gets them.
+pub(crate) async fn snapshot_with_main(
+    page: &Page,
+    from: usize,
+    part: Option<usize>,
+) -> Result<Read, playwright_rs::Error> {
+    let rendered = page_text(page).await?;
+    let lines = &rendered.full;
+    let total = lines.len();
+    let room = SNAPSHOT_CHARS.saturating_sub(rendered.head.len() + 2).max(200);
+    let (body, first, end, said) = match part {
+        Some(part) => part_window(lines, part, room),
+        None => window_of(lines, from, room),
     };
-    Ok(Read { text: shown.unwrap_or(text), main: rendered.main })
+    let text = format!("{}\n\n{}\n\n{}", rendered.head, body, window_footer(first, end, total));
+    Ok(Read {
+        text,
+        main: rendered.main,
+        window: Some(Window { first, after: end, total, said }),
+    })
 }
 
 /// The lines that mention some text, with a little around them and their refs
@@ -322,7 +400,7 @@ pub(crate) async fn find_with_main(
     let rendered = page_text(page).await?;
     let wanted = needle.trim().to_lowercase();
     if wanted.is_empty() {
-        return Ok(Read { text: format!("{}\n\nnothing to look for — pass some text", rendered.head), main: rendered.main });
+        return Ok(Read { text: format!("{}\n\nnothing to look for — pass some text", rendered.head), main: rendered.main, window: None });
     }
     // URL parameters must not crowd visible matches out of the answer.
     let mut hits = matching(&rendered.visible, &wanted);
@@ -334,6 +412,7 @@ pub(crate) async fn find_with_main(
         return Ok(Read {
             text: format!("{}\n\nnothing on this page matches that text", rendered.head),
             main: rendered.main,
+            window: None,
         });
     }
     let mut out: Vec<String> = Vec::new();
@@ -358,7 +437,7 @@ pub(crate) async fn find_with_main(
     } else {
         String::new()
     };
-    Ok(Read { text: format!("{}\n\n{kept}{more}", rendered.head), main: rendered.main })
+    Ok(Read { text: format!("{}\n\n{kept}{more}", rendered.head), main: rendered.main, window: None })
 }
 
 /// The lines that mention some text, in the order the page has them.
@@ -373,59 +452,71 @@ fn matching(lines: &[String], needle: &str) -> Vec<usize> {
 
 #[cfg(test)]
 mod tests {
-    use super::{boundary_at_or_below, capped, header, parts, within_budget, PARTIAL_NOTE, TREE_CHARS};
+    use super::{boundary_at_or_below, capped, header, window_of, within_budget, PARTIAL_NOTE, TREE_CHARS};
     use crate::tree;
 
-    /// A ref cut in half is worse than a long part: the model reads `textbo` as
+    /// A ref cut in half is worse than a long window: the model reads `textbo` as
     /// a control it cannot act on, or presses nothing at all.
     #[test]
-    fn a_part_never_ends_in_the_middle_of_a_line() {
-        let body = (1..=40).map(|n| format!("- [e{n}] link \"line {n}\"\n")).collect::<String>();
-        for part in parts(&body, 120) {
-            let lines: Vec<&str> = part.split('\n').collect();
-            for line in lines.iter().take(lines.len().saturating_sub(1)) {
-                assert!(!line.is_empty(), "a part holds whole lines only");
-                assert!(!line.starts_with('-') || line.contains('"'), "{line}");
-            }
+    fn a_window_never_ends_in_the_middle_of_a_line() {
+        let lines: Vec<String> = (1..=40).map(|n| format!("- [e{n}] link \"line {n}\"")).collect();
+        let (text, _, after, _) = window_of(&lines, 0, 120);
+        for line in text.lines() {
+            assert!(!line.is_empty(), "a window holds whole lines only");
+            assert!(!line.starts_with('-') || line.contains('"'), "{line}");
         }
+        assert!(after > 0 && after < lines.len(), "the window is a part of the page: {after}");
+    }
+
+    /// **Every line is in exactly one window, and the windows follow one
+    /// another.** A page longer than an answer is only reachable if nothing is
+    /// lost and nothing is read twice.
+    #[test]
+    fn every_line_survives_the_windows() {
+        let lines: Vec<String> = (1..=200).map(|n| format!("line {n}")).collect();
+        let mut start = 0usize;
+        let mut read: Vec<String> = Vec::new();
+        loop {
+            let (text, first, after, _) = window_of(&lines, start, 50);
+            assert_eq!(first, start, "a window starts where the last one ended");
+            read.extend(text.lines().map(|line| line.to_owned()));
+            if after >= lines.len() {
+                break;
+            }
+            assert!(after > start, "a window always moves: {start} -> {after}");
+            start = after;
+        }
+        assert_eq!(read, lines, "nothing is lost and nothing is read twice");
     }
 
     #[test]
-    fn every_line_survives_the_split() {
-        let body = (1..=200).map(|n| format!("line {n}")).collect::<Vec<String>>().join("\n");
-        let chunks = parts(&body, 50);
-        let rejoined = chunks.join("\n");
-        assert_eq!(rejoined, body);
-        assert!(chunks.len() > 1, "200 lines do not fit in 50 characters");
+    fn a_page_that_fits_is_one_window_and_a_line_with_no_end_is_cut_hard() {
+        let short = vec!["short".to_string()];
+        let (text, first, after, _) = window_of(&short, 0, 100);
+        assert_eq!(text, "short");
+        assert_eq!((first, after), (0, 1));
+
+        let long = vec!["x".repeat(250)];
+        let (text, _, after, _) = window_of(&long, 0, 100);
+        assert_eq!(text.chars().count(), 100, "the line is cut at the room");
+        assert_eq!(after, 1, "and the window ends there");
     }
 
     #[test]
-    fn a_body_that_fits_is_one_part_and_a_body_with_no_newline_is_cut_hard() {
-        assert_eq!(parts("short", 100), ["short"]);
-        let long = "x".repeat(250);
-        let cut = parts(&long, 100);
-        assert_eq!(cut.len(), 3);
-        assert_eq!(cut.iter().map(|c| c.len()).sum::<usize>(), 250);
-    }
-
-    #[test]
-    fn a_limit_of_zero_does_not_loop_forever() {
-        assert_eq!(parts("abc", 0).len(), 3);
-        assert_eq!(parts("", 0), [""]);
+    fn a_room_of_zero_does_not_loop_forever() {
+        let lines = vec!["abc".to_string()];
+        let (_, _, after, _) = window_of(&lines, 0, 0);
+        assert_eq!(after, 1, "the window still moves");
     }
 
     /// Every character in these is four bytes and every boundary is four apart,
     /// so cutting at byte 120 would land in the middle of one and panic.
     #[test]
-    fn a_part_of_accented_text_is_split_rather_than_fatal() {
-        let body = "caffè al limone\n".repeat(200);
-        let chunks = parts(&body, 120);
-        assert!(chunks.len() > 1);
-        // The newline is the cut, so putting it back is what makes the whole.
-        assert_eq!(chunks.join("\n"), body, "nothing is lost and nothing is cut");
-        for chunk in &chunks {
-            assert!(chunk.chars().count() <= 120, "a part is within the budget: {chunk:?}");
-        }
+    fn a_window_of_accented_text_is_cut_rather_than_fatal() {
+        let lines: Vec<String> = vec!["caffè".repeat(40), "the line after it".to_string()];
+        let (text, _, after, _) = window_of(&lines, 0, 120);
+        assert!(text.chars().count() <= 120, "a window is within the budget: {text:?}");
+        assert_eq!(after, 1, "the long line is cut and the window ends there");
     }
 
     #[test]
@@ -437,7 +528,7 @@ mod tests {
         }
     }
 
-    /// A part that cuts a link line in half prints an address that is not
+    /// A window that cuts a link line in half prints an address that is not
     /// there, so a line with an address is kept whole even over the budget.
     #[test]
     fn a_link_line_over_the_budget_is_kept_whole() {
@@ -446,11 +537,9 @@ mod tests {
         let nodes = tree::tree_of(&raw);
         let mut out = tree::Lines::default();
         tree::render(&nodes, 0, &mut out);
-        let body = out.full.join("\n");
-        let chunks = parts(&body, 120);
-        let all = chunks.join("\n");
-        assert!(all.contains(&href), "the address is whole: {all}");
-        assert!(all.contains("\"Ordinary\""), "the link after it is there: {all}");
+        let (text, _, after, _) = window_of(&out.full, 0, 120);
+        assert!(text.contains(&href), "the address is whole: {text}");
+        assert!(after < out.full.len(), "and the window ends there: {after}");
     }
 
     /// A tree too long to read is cut at a line end, and the fact is reported

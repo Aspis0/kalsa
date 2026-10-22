@@ -60,11 +60,33 @@ pub fn reason_of(error: &playwright_rs::Error) -> Option<Reason> {
     classify(&error.to_string())
 }
 
+/// **The window the model was given on a page.** The lines it carried and how
+/// many the page has: a read that asks for it again is a read the model has
+/// already made, and the refusal says which lines it already has.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) struct Given {
+    /// The first line of the window, counted from zero.
+    pub(crate) first: usize,
+    /// The line after the last one of the window: where the next one starts.
+    pub(crate) after: usize,
+    /// How many lines the page has.
+    pub(crate) total: usize,
+}
+
 pub struct Sessions {
     profile: String,
     started: Mutex<Option<Started>>,
     printed: Mutex<refs::Refs>,
     busy: Mutex<()>,
+    /// **The windows the model was given on the page it is on.** One cell, and
+    /// it is what makes a second read of a window a refusal instead of the same
+    /// text again: the owner's test of 21 October had a turn read one page
+    /// eight times in a row, every read the same lines, the page never moving.
+    ///
+    /// The key is the page, the line and the part; the value is the lines the
+    /// window carried. **A new page is a new set of windows**, and the old ones
+    /// are dropped with it.
+    last_read: Mutex<std::collections::HashMap<(u64, usize, Option<usize>), Given>>,
     /// **Pausa is about the window, so it lives on the window.** A person can
     /// press it before the browser has opened anything, and the page that opens
     /// afterwards has to find the window already paused. One cell, handed to
@@ -109,6 +131,7 @@ impl Sessions {
             started: Mutex::new(Some(Started { _playwright: playwright, _context: context, page, landings, holds })),
             printed: Mutex::new(refs::Refs::default()),
             busy: Mutex::new(()),
+            last_read: Mutex::new(std::collections::HashMap::new()),
             paused: Arc::new(std::sync::atomic::AtomicBool::new(false)),
         }
     }
@@ -121,8 +144,23 @@ impl Sessions {
             started: Mutex::new(None),
             printed: Mutex::new(refs::Refs::default()),
             busy: Mutex::new(()),
+            last_read: Mutex::new(std::collections::HashMap::new()),
             paused: Arc::new(std::sync::atomic::AtomicBool::new(false)),
         }
+    }
+
+    /// **The window the model was given for this read**, if it was given one:
+    /// the same page, the same line, the same part.
+    pub(crate) async fn read_given(&self, document: u64, from: usize, part: Option<usize>) -> Option<Given> {
+        self.last_read.lock().await.get(&(document, from, part)).copied()
+    }
+
+    /// **Remembers the window the model was given.** The next read of the same
+    /// window of the same page is a refusal, and this is what makes it one.
+    pub(crate) async fn remember_read(&self, document: u64, from: usize, part: Option<usize>, given: Given) {
+        let mut windows = self.last_read.lock().await;
+        windows.retain(|(page, _, _), _| *page == document);
+        windows.insert((document, from, part), given);
     }
 
     /// Whether the person has this window. A window that has not started is
@@ -260,7 +298,7 @@ pub fn explain(error: &playwright_rs::Error) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{classify, Reason, Sessions, BUSY};
+    use super::{classify, Given, Reason, Sessions, BUSY};
     use crate::refs;
 
     #[test]
@@ -340,6 +378,23 @@ mod tests {
         assert_eq!(sessions.ref_kind_of("E12").await.err(), Some(refs::Refused::NotARef));
         assert_eq!(sessions.ref_kind_of("e12 >> nth=0").await.err(), Some(refs::Refused::NotARef));
         assert_eq!(sessions.ref_kind_of("e12").await.err(), Some(refs::Refused::NotOnPage));
+    }
+
+    /// **The windows the model was given are remembered, and a new page forgets
+    /// the old ones.** A read of a window the model already has is the loop the
+    /// owner's turn made on 21 October; a read of a window it does not have is
+    /// a new text, and is answered.
+    #[tokio::test]
+    async fn the_windows_the_model_was_given_are_remembered_and_a_new_page_forgets_them() {
+        let sessions = Sessions::new("/tmp/a-profile-nobody-uses".to_string());
+        let given = Given { first: 0, after: 200, total: 1340 };
+        assert!(sessions.read_given(1, 0, None).await.is_none(), "nothing was given yet");
+        sessions.remember_read(1, 0, None, given).await;
+        assert_eq!(sessions.read_given(1, 0, None).await, Some(given), "the same window is found again");
+        assert!(sessions.read_given(1, 200, None).await.is_none(), "another window is not it");
+        assert!(sessions.read_given(2, 0, None).await.is_none(), "another page is not it");
+        sessions.remember_read(2, 0, None, given).await;
+        assert!(sessions.read_given(1, 0, None).await.is_none(), "and the new page forgets the old windows");
     }
 
     /// **The public wrapper still says the words the model reads**, and says the

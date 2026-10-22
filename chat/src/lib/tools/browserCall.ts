@@ -100,9 +100,19 @@ export function browserOpen(url: string, conversation: ConversationId, signal?: 
   return throughBrowser("brain_browser_open", { url, conversation }, signal);
 }
 
-/// Reads the open page. `page` omitted is the first page.
-export function browserRead(page: number | undefined, conversation: ConversationId, signal?: AbortSignal): Promise<string> {
-  return throughBrowser("brain_browser_read", page === undefined ? { conversation } : { page, conversation }, signal);
+/** Reads the open page. **`from` is the line to start at**, and `page` is the
+ * old way of naming the same place, a window counting from one. Both omitted
+ * is the first line of the page. */
+export function browserRead(
+  from: number | undefined,
+  page: number | undefined,
+  conversation: ConversationId,
+  signal?: AbortSignal,
+): Promise<string> {
+  const arguments_: Record<string, unknown> = { conversation };
+  if (from !== undefined) arguments_.from = from;
+  if (page !== undefined) arguments_.page = page;
+  return throughBrowser("brain_browser_read", arguments_, signal);
 }
 
 /// Finds text on the open page.

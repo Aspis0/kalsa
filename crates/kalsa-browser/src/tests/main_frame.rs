@@ -80,9 +80,12 @@ async fn the_page_s_own_ref_survives_another_part_and_is_filled() {
     navigate(&sessions, &page, &format!("{base}/other")).await;
     let document = navigate(&sessions, &page, &base).await;
 
-    let first = snapshot::snapshot_with_main(&page, 1).await.expect("the page reads");
-    let second = snapshot::snapshot_with_main(&page, 2).await.expect("the page reads in parts");
-    assert!(second.text.contains("Part 2 of"), "the page is long enough to come in parts:\n{}", second.text);
+    let first = snapshot::snapshot_with_main(&page, 0, Some(1)).await.expect("the page reads");
+    let second = snapshot::snapshot_with_main(&page, 0, Some(2)).await.expect("the page reads in windows");
+    assert!(
+        second.window.expect("the read has a window").first > first.window.expect("the read has a window").first,
+        "the page is long enough to come in windows:\n{}", second.text
+    );
 
     sessions.remember_classified(&first.text, document, &first.main).await;
     sessions.remember_classified(&second.text, document, &second.main).await;
@@ -111,9 +114,9 @@ async fn a_ref_a_find_printed_survives_the_next_read_and_is_filled() {
     navigate(&sessions, &page, &format!("{base}/other")).await;
     let document = navigate(&sessions, &page, &base).await;
 
-    let first = snapshot::snapshot_with_main(&page, 1).await.expect("the page reads");
+    let first = snapshot::snapshot_with_main(&page, 0, Some(1)).await.expect("the page reads");
     let found = snapshot::find_with_main(&page, "a middle answer 399", 1, 40).await.expect("the page finds");
-    let again = snapshot::snapshot_with_main(&page, 1).await.expect("the page reads again");
+    let again = snapshot::snapshot_with_main(&page, 0, Some(1)).await.expect("the page reads again");
 
     sessions.remember_classified(&first.text, document, &first.main).await;
     let late = ref_of(&found.text, "a middle answer 399");
@@ -146,8 +149,8 @@ async fn a_frames_ref_does_not_survive_a_read_that_omits_it() {
     navigate(&sessions, &page, &format!("{base}/other")).await;
     let document = navigate(&sessions, &page, &base).await;
 
-    let first = snapshot::snapshot_with_main(&page, 1).await.expect("the page reads");
-    let second = snapshot::snapshot_with_main(&page, 2).await.expect("the page reads in parts");
+    let first = snapshot::snapshot_with_main(&page, 0, Some(1)).await.expect("the page reads");
+    let second = snapshot::snapshot_with_main(&page, 0, Some(2)).await.expect("the page reads in windows");
 
     sessions.remember_classified(&first.text, document, &first.main).await;
     let frame = ref_of(&first.text, "inside the frame");
@@ -173,13 +176,13 @@ async fn a_ref_of_the_document_before_a_navigation_is_refused() {
     let (_playwright, _context, page, sessions) = window(&base).await;
     let document = navigate(&sessions, &page, &base).await;
 
-    let first = snapshot::snapshot_with_main(&page, 1).await.expect("the page reads");
+    let first = snapshot::snapshot_with_main(&page, 0, Some(1)).await.expect("the page reads");
     sessions.remember_classified(&first.text, document, &first.main).await;
     let early = ref_of(&first.text, "the first answer");
     assert_eq!(sessions.ref_of(&early).await.expect("printed"), early);
 
     let moved = navigate(&sessions, &page, &format!("{base}/other")).await;
-    let read = snapshot::snapshot_with_main(&page, 1).await.expect("the page reads");
+    let read = snapshot::snapshot_with_main(&page, 0, Some(1)).await.expect("the page reads");
     sessions.remember_classified(&read.text, moved, &read.main).await;
 
     assert!(

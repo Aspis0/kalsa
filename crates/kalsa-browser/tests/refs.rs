@@ -110,8 +110,13 @@ async fn a_ref_printed_in_one_part_is_still_acted_on_after_another_part_is_read(
 
     let document = landings.navigations().await;
     let first = snapshot::snapshot(&page, 1).await.expect("the page reads");
-    let second = snapshot::snapshot(&page, 2).await.expect("the page reads in parts");
-    assert!(second.contains("Part 2 of"), "the page is long enough to come in parts:\n{second}");
+    let second = snapshot::snapshot(&page, 2).await.expect("the page reads in windows");
+    let (first_line, first_after, total) = common::window_of(&first);
+    let (second_line, _, _) = common::window_of(&second);
+    assert!(
+        second_line >= first_after && total > first_after,
+        "the page is long enough to come in windows, and the answer says where it stands:\n{second}"
+    );
     sessions.remember(&first, document).await;
     sessions.remember(&second, document).await;
 

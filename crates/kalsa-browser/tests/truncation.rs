@@ -42,15 +42,10 @@ fn long_page(headings: usize) -> String {
     page
 }
 
-/// How many parts the page came in, as the footer of a part says it.
-fn parts_of(text: &str) -> usize {
-    let footer = text.lines().last().expect("a footer line");
-    footer
-        .split(" of ")
-        .nth(1)
-        .and_then(|rest| rest.split(' ').next())
-        .and_then(|count| count.parse().ok())
-        .unwrap_or_else(|| panic!("the footer says how many parts there are: {footer}"))
+/// The body of a window: everything between the header and the footer.
+fn body_of(text: &str) -> &str {
+    let rest = text.split_once("\n\n").map(|(_, rest)| rest).unwrap_or(text);
+    rest.rsplit_once("\n\n").map(|(body, _)| body).unwrap_or(rest)
 }
 
 /// The address a printed line carries, if it carries one.
@@ -106,10 +101,10 @@ async fn a_link_past_the_old_budget_is_found_with_its_ref_and_its_address() {
     assert!(whole_refs(line).is_some_and(|count| count > 0), "the line carries a whole ref: {line}");
 }
 
-/// **A page over the budget is bounded, and every part says so.** The notice is
+/// **A page over the budget is bounded, and every window says so.** The notice is
 /// in the header: a cut mentioned only at the end is a cut read past.
 #[tokio::test]
-async fn a_page_over_the_budget_is_bounded_and_says_so_in_every_part() {
+async fn a_page_over_the_budget_is_bounded_and_says_so_in_every_window() {
     let (base, _arrived) = common::serve(&[common::page(&long_page(6_400))]).await;
     let (_playwright, _context, page) = common::browser_on("truncation-over", &base).await;
     page.goto(&format!("{base}/"), None).await.expect("the page loads");
@@ -119,15 +114,17 @@ async fn a_page_over_the_budget_is_bounded_and_says_so_in_every_part() {
     assert!(chars > TREE_BUDGET, "the fixture is over the budget: {chars}");
 
     let first = snapshot::snapshot(&page, 1).await.expect("the page reads");
-    assert!(first.contains(NOTE), "the first part says so: {first}");
-    let total = parts_of(&first);
+    assert!(first.contains(NOTE), "the first window says so: {first}");
+    let (_, _, total) = common::window_of(&first);
+    assert!(total > 1, "the page is longer than one window: {total} lines");
     assert!(
-        total * PART_CHARS < TREE_BUDGET,
-        "the page as it was printed was inside the budget, so the notice is about the tree: {total} parts"
+        body_of(&first).chars().count() <= PART_CHARS,
+        "the window is within the budget: {}",
+        body_of(&first).chars().count()
     );
 
-    let last = snapshot::snapshot(&page, total).await.expect("the last part reads");
-    assert!(last.contains(NOTE), "and so does the last part: {last}");
+    let last = snapshot::snapshot_from(&page, total - 1).await.expect("the last window reads");
+    assert!(last.contains(NOTE), "and so does the last window: {last}");
 
     for part in [&first, &last] {
         let head = header_of(part);

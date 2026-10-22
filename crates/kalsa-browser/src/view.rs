@@ -23,6 +23,17 @@ pub(crate) fn failed(stage: Stage, reason: impl Into<String>) -> CallToolResult 
     result
 }
 
+/// **A refusal that names its own code**, so the person reads what happened
+/// instead of one line for every refusal. The code is one word of ours, and the
+/// host matches it against the words this build knows: a word it does not know
+/// is a plain refusal, never a stranger's name in the window.
+pub(crate) fn failed_named(code: &str, stage: Stage, reason: impl Into<String>) -> CallToolResult {
+    let mut result = refused(reason);
+    result.structured_content =
+        Some(serde_json::json!({ "kalsa": { "failure": stage.as_str(), "code": code } }));
+    result
+}
+
 /// Only an ended session carries the gone mark; the host uses it to drop the sidecar.
 pub(crate) fn gone(stage: Stage, reason: impl Into<String>) -> CallToolResult {
     let mut result = refused(reason);

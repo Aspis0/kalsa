@@ -107,5 +107,6 @@ export const RUST: { startup: Record<string, RustSentence>; choice: Record<strin
     failed: () => "Kalsa couldn't reach the browser. Try again.",
     refused: () => "Kalsa wouldn't open that.",
     no_pending_request: () => "That request is not waiting for an answer any more.",
+    read_again: () => "Kalsa had already read that part of the page.",
   },
 };

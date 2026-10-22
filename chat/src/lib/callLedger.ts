@@ -86,7 +86,13 @@ export function actionKey(name: string, args: Record<string, unknown>): string {
     if (typeof args.text === "string") parts.text = args.text;
   }
   if (name === "browser_find" && typeof args.text === "string") parts.text = args.text.trim();
-  if (name === "browser_read") parts.page = String(args.page === undefined ? 1 : args.page);
+  // **The line, and the window.** A read of the first line is not a read of the
+  // two hundredth: the two are different texts, and the ledger must not call
+  // them the same action.
+  if (name === "browser_read") {
+    parts.from = String(args.from === undefined ? 0 : args.from);
+    parts.page = String(args.page === undefined ? 1 : args.page);
+  }
   const sorted = Object.keys(parts)
     .sort()
     .map((key) => `${key}=${parts[key]}`)

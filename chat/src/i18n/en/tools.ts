@@ -125,5 +125,6 @@ export const TOOLS = {
     deterministic: "That failed the same way once already.",
     tooManySteps: "That is more browser steps than a turn may take.",
     alreadyRun: "That was already done.",
+    readAgain: "Kalsa had already read that part of the page.",
   },
 };

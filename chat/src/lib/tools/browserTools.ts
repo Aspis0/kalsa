@@ -23,11 +23,12 @@ export const BROWSER_TOOLS: ToolDefinition[] = [
     function: {
       name: "browser_read",
       description:
-        "Reads the open page as text, one element per line, with a ref for each thing you can act on. A long page comes in parts, one at a time: use browser_find to jump to what you are after rather than reading every part.",
+        "Reads the open page as text, one element per line, with a ref for each thing you can act on. **The page may be longer than the answer**: the answer says which lines it carries and how many lines the page has, and to go on you read the lines that follow with from — the number the answer ends at. Reading the same lines again is refused, because the text is already yours: read on with from, or use browser_find, which searches the whole page.",
       parameters: {
         type: "object",
         properties: {
-          page: { type: "number", description: "Which page of a long result to read. Omit for the first." },
+          from: { type: "number", description: "The line to start from. Omit for the first line of the page." },
+          page: { type: "number", description: "Which window of a long page to read, counting from 1. The answer names the lines it carries; from is the way to go on." },
         },
         required: [],
       },

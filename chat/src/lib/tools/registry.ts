@@ -408,11 +408,17 @@ export async function executeToolCall(
           : { text: opened, ok: true, image: picture };
       }
       if (name === "browser_read") {
-        // No page number is the first page, which is what the model means by
-        // leaving it out; a number that is not a whole one is a different thing.
-        const page = record.page === undefined ? 1 : wholePage(record.page);
-        if (page === null) return { text: "No page was read: the page number was not a whole number.", ok: false };
-        return { text: await browserRead(page === 1 ? undefined : page, conversationId, signal), ok: true };
+        // **The line to start at.** No line is the first line of the page, which
+        // is what the model means by leaving it out; a number that is not a
+        // whole one is a different thing. The page is the old way of naming the
+        // same place, a window counting from one, and it is still answered.
+        const from = record.from === undefined ? 0 : wholeLine(record.from);
+        if (from === null) return { text: "No line was read: the line number was not a whole number.", ok: false };
+        const page = record.page === undefined ? undefined : wholePage(record.page);
+        if (record.page !== undefined && page === null) {
+          return { text: "No line was read: the page number was not a whole number.", ok: false };
+        }
+        return { text: await browserRead(from, page ?? undefined, conversationId, signal), ok: true };
       }
       if (name === "browser_click") {
         const ref = typeof record.ref === "string" ? record.ref.trim() : "";
@@ -525,6 +531,13 @@ export async function executeToolCall(
 function wholePage(value: unknown): number | null {
   const number = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
   return Number.isInteger(number) && number > 0 ? number : null;
+}
+
+/** **The line the model asked to start from**, a whole number and nothing else:
+ * zero is the first line of the page, and a line before it is not a line. */
+function wholeLine(value: unknown): number | null {
+  const number = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
+  return Number.isInteger(number) && number >= 0 ? number : null;
 }
 
 /**

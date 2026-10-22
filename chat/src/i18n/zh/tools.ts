@@ -103,5 +103,6 @@ export const TOOLS = {
     "deterministic": "同样的操作已经失败过一次。",
     "tooManySteps": "这一轮里的浏览器操作太多了。",
     "alreadyRun": "已经做过了。",
+    "readAgain": "Kalsa 已经读过页面的这一部分了。",
   },
 };

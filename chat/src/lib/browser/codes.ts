@@ -46,6 +46,8 @@ export const BROWSER_CODES = [
   "browser.too_many_steps",
   /** Kalsa has already run this exact action in this round. */
   "browser.already_run",
+  /** The read asked for a window of the page the model has already been given. */
+  "browser.read_again",
 ] as const;
 
 /** One of `BROWSER_CODES`, and nothing else. */
@@ -99,7 +101,7 @@ export function isBrowserCode(code: unknown): code is BrowserCode {
  */
 export function browserCodeWords(
   code: BrowserCode,
-  t: { windowGone: string; refused: string; failed: string; noPage: string; elementGone: string; fieldGone: string; held: string; invalid: string; paused: string; busy: string; noPendingRequest: string; stopped: string; deterministic: string; tooManySteps: string; alreadyRun: string },
+  t: { windowGone: string; refused: string; failed: string; noPage: string; elementGone: string; fieldGone: string; held: string; invalid: string; paused: string; busy: string; noPendingRequest: string; stopped: string; deterministic: string; tooManySteps: string; alreadyRun: string; readAgain: string },
 ): string {
   const words: Record<BrowserCode, string> = {
     "browser.window_gone": t.windowGone,
@@ -117,6 +119,7 @@ export function browserCodeWords(
     "browser.deterministic": t.deterministic,
     "browser.too_many_steps": t.tooManySteps,
     "browser.already_run": t.alreadyRun,
+    "browser.read_again": t.readAgain,
   };
   return words[code];
 }

@@ -13,6 +13,30 @@ use tokio::net::TcpListener;
 /// The helpers a proof about a write needs.
 pub mod write;
 
+/// **The window a read returned, as the answer says it**: the first line it
+/// carries, the line after the last one, and how many lines the page has.
+///
+/// **The footer is the contract.** A read that does not say where it stands on
+/// the page is a read a model cannot go on from, so the words are read back
+/// here rather than assumed.
+pub fn window_of(text: &str) -> (usize, usize, usize) {
+    let footer = text.lines().last().expect("a footer line");
+    let rest = footer
+        .strip_prefix("lines ")
+        .unwrap_or_else(|| panic!("the footer says which lines it carries: {footer}"));
+    let (range, total) = rest
+        .split_once(" of ")
+        .unwrap_or_else(|| panic!("the footer says how many lines the page has: {footer}"));
+    let (first, after) = range
+        .split_once('\u{2013}')
+        .unwrap_or_else(|| panic!("the footer says the range it carries: {footer}"));
+    (
+        first.trim().parse().expect("a line number"),
+        after.trim().parse().expect("a line number"),
+        total.split_whitespace().next().unwrap_or("0").parse().expect("a line count"),
+    )
+}
+
 /// One thing the site serves.
 pub struct File {
     path: &'static str,

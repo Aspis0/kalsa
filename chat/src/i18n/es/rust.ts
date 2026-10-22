@@ -112,5 +112,6 @@ export const RUST: {
     failed: () => "Kalsa no ha podido llegar al navegador. Prueba de nuevo.",
     refused: () => "Kalsa no ha querido abrir eso.",
     no_pending_request: () => "Esa peticion ya no esta esperando respuesta.",
+    read_again: () => "Kalsa ya había leído esa parte de la página.",
   },
 };
