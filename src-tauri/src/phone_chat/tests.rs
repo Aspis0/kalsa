@@ -15,7 +15,7 @@ use super::events;
 
 use super::cards::{self, Held};
 use super::drafts::Owner;
-use super::{digest, lock, Bridge, Live, SendOutcome, MAX_EVENT_BYTES};
+use super::{digest, lock, Bridge, Live, SendOutcome, MAX_EVENT_BYTES, NO_CARD, TURN_ENDED, UNPAIRED};
 
 const ID: &str = "0123456789abcdef0123456789abcdef";
 
@@ -424,7 +424,10 @@ fn open_for(
 
 /// A bridge that has paired two phones.
 fn bridge_with_two_phones() -> Bridge {
-    let bridge = Bridge::default();
+    // **These phones can be shown a card**, which is what the routing proofs below are
+    // about. The production default is that they cannot, and the proofs that say so
+    // build their bridge with `Bridge::default()`.
+    let bridge = Bridge { phones_show_cards: true, ..Bridge::default() };
     bridge.pair(&[
         (DeviceId::new(1), "cred-a".to_string()),
         (DeviceId::new(2), "cred-b".to_string()),
@@ -1251,4 +1254,100 @@ fn a_paired_phone_gets_its_picture() {
     let said = bridge.preview_guarded(DeviceId::new(1), || Ok(picture.clone()));
     assert_eq!(said, Ok(picture));
     assert!(lock(&bridge.answering).is_empty(), "the mark is taken down when the preview ends");
+}
+
+/// The desktop's own conversation, as a card of the window carries it: a UUID, which
+/// can never begin with the phone's prefix.
+const DESKTOP: &str = "3f0a1c2e-9b7d-4f21-8a55-6c1e2b3d4f50";
+
+/// **A card a phone cannot be shown is declined at once, and it is never shown.**
+///
+/// The phone's app draws no card yet. A card that goes to it anyway is a card nobody
+/// can answer, and the person would wait the whole five minutes for it. So the card is
+/// declined on the spot with its reason, nothing is held for it, and the phone is handed
+/// nothing it could press.
+#[test]
+fn a_card_a_phone_cannot_be_shown_is_declined_at_once_and_never_shown() {
+    let bridge = Bridge::default();
+    bridge.pair(&[(DeviceId::new(1), "cred-a".to_string())]);
+    let events = open_for(&bridge, DeviceId::new(1), "req", "turn");
+
+    bridge.route_cards(vec![routed(1, "req", ID)]);
+
+    assert!(events.try_iter().all(|event| event.name != "browser_card"), "a card reached a phone that cannot draw one");
+    assert_eq!(
+        lock(&bridge.declined).as_slice(),
+        &[(ID.to_string(), NO_CARD)],
+        "the card was declined at once, with the reason the model is told"
+    );
+    assert!(!lock(&bridge.cards).shows("req", &(DeviceId::new(1), digest("cred-a")), ID), "and nothing was held for it");
+}
+
+/// **A card whose turn has ended is declined at once too.** No turn means no socket, and
+/// the card would otherwise sit at the sidecar for the rest of its five minutes.
+#[test]
+fn a_card_whose_turn_has_ended_is_declined_at_once() {
+    let bridge = bridge_with_two_phones();
+
+    bridge.route_cards(vec![routed(1, "req", ID)]);
+
+    assert_eq!(lock(&bridge.declined).as_slice(), &[(ID.to_string(), TURN_ENDED)]);
+}
+
+/// **A phone that is not paired gets no card, and its card is declined for the reason
+/// an unpair gives.** A card for a phone the owner removed was raised by a turn that no
+/// longer has anybody to answer it.
+#[test]
+fn a_card_for_a_phone_that_is_not_paired_is_declined_as_an_unpair_would_decline_it() {
+    let bridge = Bridge { phones_show_cards: true, ..Bridge::default() };
+    bridge.pair(&[(DeviceId::new(1), "cred-a".to_string())]);
+
+    bridge.route_cards(vec![routed(2, "req", ID)]);
+
+    assert_eq!(lock(&bridge.declined).as_slice(), &[(ID.to_string(), UNPAIRED)]);
+}
+
+/// **A phone's card whose conversation names no usable number is declined at once.**
+///
+/// The prefix says it is a phone's, but there is no number to find the phone by, so the
+/// card is no phone's to be shown. It used to be skipped, and the sidecar's five minutes
+/// were the only thing that ever ended it.
+#[test]
+fn a_phone_card_with_no_usable_number_is_declined_at_once() {
+    let bridge = bridge_with_two_phones();
+    let malformed = pending::card_of(
+        ID,
+        "POST",
+        "https://shop.example/order",
+        "phone:abc",
+        vec![],
+        Some(pending::Destination { host: "shop.example".to_owned(), port: None, secure: true }),
+    );
+
+    bridge.route_cards(vec![malformed]);
+
+    assert_eq!(lock(&bridge.declined).as_slice(), &[(ID.to_string(), NO_CARD)]);
+}
+
+/// **A desktop turn never raises a card for a phone.** A desktop's card is the window's
+/// to draw and answer: the phone's path does not decline it, does not send it, and does
+/// not count it.
+#[test]
+fn a_desktop_turns_card_is_never_routed_to_a_phone() {
+    let bridge = Bridge::default();
+    bridge.pair(&[(DeviceId::new(1), "cred-a".to_string())]);
+    let events = open_for(&bridge, DeviceId::new(1), "req", "turn");
+    let desktop = pending::card_of(
+        ID,
+        "POST",
+        "https://shop.example/order",
+        DESKTOP,
+        vec![],
+        Some(pending::Destination { host: "shop.example".to_owned(), port: None, secure: true }),
+    );
+
+    bridge.route_cards(vec![desktop]);
+
+    assert!(events.try_iter().next().is_none(), "a desktop's card reached a phone");
+    assert!(lock(&bridge.declined).is_empty(), "and the phone's path declined a card that is not a phone's");
 }

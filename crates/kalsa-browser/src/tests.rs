@@ -2,6 +2,7 @@
 
 mod find;
 mod main_frame;
+mod phone_page;
 mod screenshot;
 
 use crate::hold::Holds;

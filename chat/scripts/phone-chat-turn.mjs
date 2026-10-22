@@ -500,28 +500,26 @@ async function phoneBrowser(app) {
       .phoneTools(SETTINGS.webTools, "en", SETTINGS.model, MAIL_ON, device)
       .map((tool) => tool.function.name);
 
-  // **A phone is offered no browser tool at all, and this is a change on
-  // purpose.** The browser turn is armed by a person at the screen, one message
-  // at a time, by a control that says so; a phone has no control to arm it
-  // with, so a phone turn is never a browser turn and the phone stays in
-  // web-only mode until it has a control of its own. What the phone's *calls*
-  // do is proved below all the same: the machinery is the desktop's, and it
-  // stamps the phone's own conversation.
+  // **A phone is offered the browser's reads and writes, and never the picture.**
+  // The phone drives the same computer's browser on the desktop's terms. A write
+  // leaves only under a card, and the card goes to this phone. The phone has no
+  // control to arm a browser turn with, and it does not need one: its turn is
+  // the browser's tools, and nothing more.
+  const READS = ["browser_open", "browser_read", "browser_find"];
+  const WRITES = ["browser_click", "browser_type"];
   const named = tools(PHONE);
-  check("a phone turn is offered no browser tool", named.filter(browser).length === 0, JSON.stringify(named));
-  check(
-    "and the writes are not among them either",
-    ["browser_click", "browser_type"].every((name) => !named.includes(name)),
-    JSON.stringify(named),
-  );
-  // A turn that does not get the reads and nothing that could raise a card
-  // nobody would be shown — and now not the browser either.
+  check("a phone turn is offered the browser's reads", READS.every((name) => named.includes(name)), JSON.stringify(named));
+  check("and its writes, answered on the phone", WRITES.every((name) => named.includes(name)), JSON.stringify(named));
+  check("and never the picture of the page", !named.includes("browser_screenshot"), JSON.stringify(named));
+  // A turn that names no phone has nobody to be shown a card: the reads, and no write.
   const anonymous = tools(null);
   check(
-    "a turn that names no phone is offered no browser tool either",
-    anonymous.filter(browser).length === 0,
+    "a turn that names no phone is offered the reads",
+    READS.every((name) => anonymous.includes(name)),
     JSON.stringify(anonymous),
   );
+  check("and none of the writes", WRITES.every((name) => !anonymous.includes(name)), JSON.stringify(anonymous));
+  check("and no picture either", !anonymous.includes("browser_screenshot"), JSON.stringify(anonymous));
   check("and it keeps no mini app either", !anonymous.includes("create_miniapp"), JSON.stringify(anonymous));
 
   // The conversation is the phone's, one per device, and never a desktop's: a
@@ -615,9 +613,15 @@ async function phoneBrowser(app) {
   const armedTools = app
     .phoneTools(SETTINGS.webTools, "en", SETTINGS.model, MAIL_ON, PHONE, true)
     .map((tool) => tool.function.name);
+  // An armed chat holds the owner's mail, so it is offered the reads and no write.
   check(
-    "so an armed phone is offered no browser tool either",
-    armedTools.filter(browser).length === 0,
+    "an armed phone is still offered the browser's reads",
+    READS.every((name) => armedTools.includes(name)),
+    JSON.stringify(armedTools.filter(browser)),
+  );
+  check(
+    "and none of its writes",
+    WRITES.every((name) => !armedTools.includes(name)),
     JSON.stringify(armedTools.filter(browser)),
   );
 
@@ -814,11 +818,17 @@ async function roundCap(app) {
     const { log, sink } = recorder(app);
     await app.runPhoneTurn(turnOf([USER(`buy this: ${PAGE}`)], { device: PHONE }), { ...SETTINGS, endpoint: await brain.listen() }, sink, new AbortController().signal, MAIL_ON, { loop: app.streamChatCompletion, facts: facts() });
     const ran = (command) => bridge.calls.slice(from).filter((c) => c.command === command);
-    // **The phone's turn is web-only, so not one of these calls reaches the
-    // browser.** The model is told the tool is not available and the turn ends
-    // on its own round cap: this is the phone without a control of its own.
-    equal("no field is filled and no click is pressed: the phone has no browser", [ran("brain_browser_type").length, ran("brain_browser_click").length], [0, 0]);
-    check("and the engine was asked five times: four rounds, then the answer", brain.rounds() === 5, String(brain.rounds()));
+    // **The phone's own turn drives the page**: each field is typed and the form is
+    // clicked, one call each, and every one reaches the browser under this phone's
+    // conversation. The write that would send the form is held by the computer, not
+    // by this proof: the sidecar's own proofs cover that.
+    equal("each field is typed and the form is clicked, once each", [ran("brain_browser_type").length, ran("brain_browser_click").length], [4, 1]);
+    check(
+      "under this phone's own conversation",
+      [...ran("brain_browser_type"), ...ran("brain_browser_click")].every((c) => c.args.conversation === app.phoneConversation(PHONE)),
+      JSON.stringify(ran("brain_browser_click").map((c) => c.args.conversation)),
+    );
+    check("and the engine was asked eight times: each scripted step, then the answer", brain.rounds() === 8, String(brain.rounds()));
     equal("the turn's own line goes out once, before the frame that ends it", [log.filter(([event]) => event === "recap").length, log.slice(-2).map(([event]) => event)], [1, ["recap", "done"]]);
     brain.close();
   }

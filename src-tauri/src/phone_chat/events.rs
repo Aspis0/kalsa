@@ -243,6 +243,11 @@ fn field(one: &Value) -> bool {
 /// where a request went** — the same rule the desktop keeps, so a decline, an
 /// expiry and a window that closed never put an address on a phone.
 fn browser_outcome(data: &Value) -> bool {
+    // An outcome names the card it is about (docs §3.1), and an outcome that names none is
+    // not one a phone can apply.
+    if text(data, "card_id", ID_BYTES).is_none() {
+        return false;
+    }
     let Some(code) = text(data, "code", CODE_BYTES) else {
         return false;
     };
@@ -370,6 +375,30 @@ mod tests {
         assert_eq!(check("turn", None, "browser_card", &card_with(not_words)), Err(BAD_EVENT), "not a string");
         let too_long = json!({"name": "city", "value": "Bologna", "secret": false, "label": "x".repeat(LABEL_BYTES + 1)});
         assert_eq!(check("turn", None, "browser_card", &card_with(too_long)), Err(BAD_EVENT), "over the cap");
+    }
+
+    /// **An outcome is a known code, and a host only when the request went.** The phone
+    /// is told what became of its own card: the code must be one of ours, the card must
+    /// be named, and a host is a bare host and only on `sent`. A path or a query in a
+    /// stranger's address is refused, not trimmed.
+    #[test]
+    fn a_browser_outcome_is_a_known_code_on_a_named_card_and_a_bare_host_only_when_sent() {
+        let card = "0123456789abcdef0123456789abcdef";
+        let outcome = |data: Value| check("turn", None, "browser_outcome", &data);
+        assert!(outcome(json!({"card_id": card, "code": "declined"})).is_ok(), "a decline names no host");
+        assert!(outcome(json!({"card_id": card, "code": "sent", "host": "shop.example"})).is_ok(), "a sent request names its host");
+        assert_eq!(outcome(json!({"card_id": card, "code": "fine, thanks"})), Err(BAD_EVENT), "a code that is not ours");
+        assert_eq!(
+            outcome(json!({"card_id": card, "code": "declined", "host": "shop.example"})),
+            Err(BAD_EVENT),
+            "a host on a request that did not go"
+        );
+        assert_eq!(
+            outcome(json!({"card_id": card, "code": "sent", "host": "shop.example/order?token=x"})),
+            Err(BAD_EVENT),
+            "a path and a query are not a host"
+        );
+        assert_eq!(outcome(json!({"code": "sent"})), Err(BAD_EVENT), "an outcome that names no card");
     }
 
     /// **The destination is checked here, on this road, because the page is the

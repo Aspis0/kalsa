@@ -7,7 +7,8 @@
 // more than enough: an address the model coined is refused for browser_open and
 // for web_fetch alike, and never reaches the sidecar. A page is fenced with a
 // marker drawn per call, its text is a stranger's words and does not survive a
-// reload, and a phone turn is offered no browser tool at all.
+// reload, and a phone turn is offered the browser's tools with its writes only
+// where a phone can answer them.
 //
 // Pure: no server, no browser, no network.
 //
@@ -162,16 +163,15 @@ try {
     // Click and type arrived with step 4 and are proved in browser-confirm.mjs.
     // What matters here is that adding them did not widen the phone: see below.
 
-    // **A phone has no browser, and this is a change on purpose.** The browser
-    // turn is armed by a person at the screen, one message at a time, by a
-    // control that says so; a phone has no control to arm it with, so a phone
-    // turn is never a browser turn.
+    // **A phone drives the browser on the desktop's terms**: a named phone is offered
+    // the five, and its writes are answered on that phone. An unnamed turn has nobody
+    // to answer a write, so it is offered the reads and no write.
     const phone = phoneTools(true, "en", "any-model", true, "2").map((tool) => tool.function.name);
-    check("a named phone turn is offered no browser tool", !phone.some((name) => name.startsWith("browser_")), phone.join(","));
+    check("a named phone turn is offered the five", [...OFFERED, ...WRITES].every((name) => phone.includes(name)), phone.join(","));
     const unnamed = phoneTools(true, "en", "any-model", true, null).map((tool) => tool.function.name);
     check(
       "and an unnamed one no write, since no card of its could be shown anywhere",
-      !unnamed.some((name) => WRITES.includes(name)),
+      !unnamed.some((name) => WRITES.includes(name)) && OFFERED.filter((name) => !WRITES.includes(name)).every((name) => unnamed.includes(name)),
       unnamed.join(","),
     );
   }

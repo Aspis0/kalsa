@@ -262,17 +262,15 @@ try {
     const names = offeredTools(true, "en", "any-model", "browser").map((tool) => tool.function.name);
     equal("a driver offers the three reads and the two writes", names.filter((name) => OFFERED.includes(name)), OFFERED);
 
-    // **A phone has no browser, and this is a change on purpose.** The browser
-    // turn is armed by a person at the screen, and a phone has no control to
-    // arm it with: the phone stays in web-only mode until it has one.
+    // **A phone drives the browser on the desktop's terms.** It is offered the five,
+    // and a write is answered on the phone. A turn that names no phone has nobody to
+    // answer a write, so it is offered the reads and no write.
+    const WRITES = ["browser_click", "browser_type"];
+    const READS = OFFERED.filter((name) => !WRITES.includes(name));
     const named = phoneTools(true, "en", "any-model", true, "2").map((tool) => tool.function.name);
-    equal("a phone turn that names its phone is offered no browser tool", named.filter((name) => OFFERED.includes(name)), []);
+    equal("a phone turn that names its phone is offered the five", named.filter((name) => OFFERED.includes(name)), OFFERED);
     const anonymous = phoneTools(true, "en", "any-model", true, null).map((tool) => tool.function.name);
-    check(
-      "and a turn that names no phone is offered no browser tool either",
-      !anonymous.some((name) => OFFERED.includes(name)),
-      anonymous.join(","),
-    );
+    equal("and a turn that names no phone is offered the reads and no write", anonymous.filter((name) => OFFERED.includes(name)), READS);
   }
 
   // --- a write is an answer, not a wait --------------------------------------

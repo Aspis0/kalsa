@@ -9,10 +9,11 @@
 //! inside the sidecar before anything is dispatched, so the window cannot send a
 //! request twice even by being asked to twice.
 //!
-//! **Desktop turns only.** The chat offers these tools on a desktop and not on a
-//! phone, so a phone turn has no browser write to confirm — until the phone gets
-//! the card too, this is the whole of the boundary rather than a rule someone
-//! has to remember at the call site.
+//! **A phone's write is held here like a desktop's, and it is declined at once
+//! until the phone can draw the card.** A phone's turn may drive the browser, so
+//! its writes come through this file too. The card goes to the phone that raised
+//! it (`phone_chat::route_cards`), and a phone that cannot draw one is answered
+//! with the reason on the spot, so nobody waits out the five minutes for it.
 
 use std::time::Instant;
 

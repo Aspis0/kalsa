@@ -326,7 +326,7 @@ fn from<T: serde::de::DeserializeOwned>(args: serde_json::Value) -> Result<T, St
 }
 
 #[derive(Deserialize)]
-struct OpenArgs {
+pub(crate) struct OpenArgs {
     url: String,
     #[serde(default)]
     conversation: String,
@@ -339,11 +339,16 @@ struct ReadArgs {
     from: Option<usize>,
     /// The old way of naming a place on the page: the window counting from one.
     page: Option<usize>,
+    /// The conversation reading: a phone's read is judged by it (`phone_may_touch`).
+    #[serde(default)]
+    conversation: String,
 }
 
 #[derive(Deserialize)]
 struct FindArgs {
     text: String,
+    #[serde(default)]
+    conversation: String,
 }
 
 #[derive(Deserialize)]
@@ -403,6 +408,26 @@ fn address_of(written: &str) -> String {
 /// says there is none.
 async fn page_of(sessions: &Sessions) -> Result<(Page, Landings, Holds), CallToolResult> {
     sessions.page().await.map_err(|unavailable| view::failed(Stage::Unavailable, unavailable.message()))
+}
+
+/// What a phone is told when another conversation holds the page on the window.
+const ANOTHER_CONVERSATIONS_PAGE: &str = "the browser is busy: another conversation is driving the page on the \
+window, so nothing was opened over it. The page is that conversation's until it leaves the page, so asking again now will \
+be refused the same way";
+
+/// What a phone is told when the page on the screen is not one its conversation opened.
+const NOT_THE_PHONES_PAGE: &str =
+    "The page on the screen was not opened by this phone's conversation, so nothing was read or done on it.";
+
+/// **A phone's turn touches only the page its own conversation opened.**
+///
+/// The browser is one window. A desktop conversation reads whatever page is on it, as
+/// it always has. A phone is not that owner: a read or a find on a page another
+/// conversation opened would hand the phone that page's words, and a click or a type
+/// on it would raise the card on the desktop. So a phone conversation is let through
+/// only where the page is stamped with it.
+pub(crate) async fn phone_may_touch(holds: &Holds, conversation: &str) -> bool {
+    !conversation.starts_with("phone:") || holds.stamp_for_the_page().await == conversation
 }
 
 /// **The one gate every answer carrying page text goes through.**
@@ -804,7 +829,7 @@ fn failure_answer(stage: Stage, reason: impl Into<String>, ended: bool) -> CallT
     }
 }
 
-async fn open(sessions: &Sessions, args: OpenArgs) -> CallToolResult {
+pub(crate) async fn open(sessions: &Sessions, args: OpenArgs) -> CallToolResult {
     if sessions.paused() {
         return view::failed(Stage::Paused, PAUSED);
     }
@@ -818,6 +843,17 @@ async fn open(sessions: &Sessions, args: OpenArgs) -> CallToolResult {
         Ok(found) => found,
         Err(refused) => return refused,
     };
+    // **One page, one turn.** A phone may open and drive a page while no other
+    // conversation holds the window. It is refused, as busy, only when another
+    // conversation holds the page now: then it is that turn's, and the phone does not
+    // take it. A page nobody holds is open to the phone.
+    let holder = holds.stamp_for_the_page().await;
+    if args.conversation.starts_with("phone:") && !holder.is_empty() && holder != args.conversation {
+        return view::failed(Stage::Busy, ANOTHER_CONVERSATIONS_PAGE);
+    }
+    // The stamps before this open: an open that never lands gives both back.
+    let previous = holds.stamp_for_the_page().await;
+    let previous_call = holds.stamp_for_our_call().await;
     // Whoever drives this window owns what it holds from here on: every write it
     // catches carries this conversation, and a card raised in another chat is not
     // this one's to press.
@@ -837,7 +873,11 @@ async fn open(sessions: &Sessions, args: OpenArgs) -> CallToolResult {
             // Where this landed is judged by the read below, which is the one gate.
             read(sessions, &page, &landings, 0, None).await
         }
-        Err(error) => failed(sessions, &page, &error, Stage::OpenDriver).await,
+        Err(error) => {
+            // The window did not move, so the page keeps the owner it had.
+            holds.restore_stamps(&previous, &previous_call).await;
+            failed(sessions, &page, &error, Stage::OpenDriver).await
+        }
     };
     driving.release();
     answer
@@ -850,10 +890,13 @@ async fn read_page(sessions: &Sessions, args: ReadArgs) -> CallToolResult {
     if sessions.paused() {
         return view::failed(Stage::Paused, PAUSED);
     }
-    let (page, landings, _holds) = match page_of(sessions).await {
+    let (page, landings, holds) = match page_of(sessions).await {
         Ok(found) => found,
         Err(refused) => return refused,
     };
+    if !phone_may_touch(&holds, &args.conversation).await {
+        return view::failed(Stage::Unavailable, NOT_THE_PHONES_PAGE);
+    }
     let from = args.from.unwrap_or(0);
     let part = args.page;
     // **The same window of the same page is not read twice.** The window the
@@ -886,10 +929,13 @@ async fn find(sessions: &Sessions, args: FindArgs) -> CallToolResult {
     if sessions.paused() {
         return view::failed(Stage::Paused, PAUSED);
     }
-    let (page, landings, _holds) = match page_of(sessions).await {
+    let (page, landings, holds) = match page_of(sessions).await {
         Ok(found) => found,
         Err(refused) => return refused,
     };
+    if !phone_may_touch(&holds, &args.conversation).await {
+        return view::failed(Stage::Unavailable, NOT_THE_PHONES_PAGE);
+    }
     // A find is a read too: its refs are as good as any other's, and it goes
     // through the same gate for the same reason.
     let wanted = args.text;
@@ -917,6 +963,9 @@ async fn click(sessions: &Sessions, args: RefArgs) -> CallToolResult {
         Ok(found) => found,
         Err(refused) => return refused,
     };
+    if !phone_may_touch(&holds, &args.conversation).await {
+        return view::failed(Stage::Unavailable, NOT_THE_PHONES_PAGE);
+    }
     // Whoever drove this step owns what it holds: see `open`.
     holds.in_conversation(&args.conversation).await;
     // **This call is driving the window**, so the navigation a click causes is
@@ -975,6 +1024,9 @@ async fn type_into(sessions: &Sessions, args: TypeArgs) -> CallToolResult {
         Ok(found) => found,
         Err(refused) => return refused,
     };
+    if !phone_may_touch(&holds, &args.conversation).await {
+        return view::failed(Stage::Unavailable, NOT_THE_PHONES_PAGE);
+    }
     // Whoever drove this step owns what it holds: see `open`.
     holds.in_conversation(&args.conversation).await;
     // **This call is driving the window**, so the navigation Enter causes is

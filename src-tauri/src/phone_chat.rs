@@ -59,7 +59,8 @@ const ENDING: &[&str] = &["read", "error", "done"];
 /// caller, sent by [`Bridge::send_declines`]** — see there for why nothing here
 /// waits.
 struct Decline {
-    card: Held,
+    id: String,
+    conversation: String,
     why: &'static str,
 }
 
@@ -89,6 +90,12 @@ one was never put to them";
 const UNPAIRED: &str = "the phone that raised this was unpaired before anybody could answer it";
 /// The person's five minutes were up before the press arrived.
 const LATE: &str = "the person's five minutes for this request were already up when they answered";
+/// The phone that raised this has no card it can draw, so nobody was asked. Read
+/// in the sidecar's own sentence: "No request was sent: …, so the person was never
+/// asked about it."
+const NO_CARD: &str = "this phone cannot be shown the confirm card yet";
+/// The turn that raised the card had ended before the card could reach its phone.
+const TURN_ENDED: &str = "the turn that raised this had already ended before the card could be shown";
 
 /// What the model is told about a card nobody answered. The same word the
 /// desktop's own expiry uses, so one model reads one set of sentences.
@@ -153,6 +160,15 @@ pub(crate) struct Bridge {
     pause: std::sync::Condvar,
     #[cfg(test)]
     paused: Mutex<(bool, bool)>,
+    /// **Whether a phone can be shown a browser card.** Off until the phone's app
+    /// draws one: a card that nobody is shown is a card nobody answers, and the
+    /// person would wait the whole five minutes for it. Until this is on, every
+    /// card a phone's turn raises is declined at once, with the reason, and the
+    /// browser is never asked to send it.
+    phones_show_cards: bool,
+    /// The declines a proof can read: a unit test has no app to send them through.
+    #[cfg(test)]
+    declined: Mutex<Vec<(String, &'static str)>>,
 }
 
 impl Bridge {
@@ -197,8 +213,10 @@ impl Bridge {
         // conversation that raised it — **but it is collected here and sent after
         // the table has been set**, because asking the sidecar is an async call and
         // this function is called from inside async contexts.
-        let declining: Vec<Decline> =
-            dropped.into_iter().map(|card| Decline { card, why: UNPAIRED }).collect();
+        let declining: Vec<Decline> = dropped
+            .into_iter()
+            .map(|card| Decline { id: card.id, conversation: card.conversation, why: UNPAIRED })
+            .collect();
         // What was queued for a phone that is no longer paired goes with it.
         lock(&self.waiting).retain(|device, _| !forgotten.iter().any(|(paired, _)| paired == device));
         // **And so does anything that phone is answering this instant.** The card
@@ -251,7 +269,7 @@ impl Bridge {
     /// Best-effort: a sidecar that is gone cannot be asked, and the card was
     /// held and nothing was let through either way, which is the truth.
     fn decline_at_the_sidecar(&self, card: &Held, why: &'static str) {
-        self.send_declines(vec![Decline { card: card.clone(), why }]);
+        self.send_declines(vec![Decline { id: card.id.clone(), conversation: card.conversation.clone(), why }]);
     }
 
     /// **Sends the declines, without waiting for any of them.**
@@ -271,6 +289,9 @@ impl Bridge {
     /// callers of each other, and a refresh inside a decline is how that becomes a
     /// loop.
     fn send_declines(&self, declining: Vec<Decline>) {
+        // What a proof can read: a unit test has no app to send a decline through.
+        #[cfg(test)]
+        lock(&self.declined).extend(declining.iter().map(|decline| (decline.id.clone(), decline.why)));
         let Some(app) = self.app.get() else {
             return;
         };
@@ -278,7 +299,7 @@ impl Bridge {
             let app = app.clone();
             tauri::async_runtime::spawn(async move {
                 let state = app.state::<BrowserState>();
-                crate::browser::confirm::decline_one(&app, &state, &decline.card.id, &decline.card.conversation, decline.why).await
+                crate::browser::confirm::decline_one(&app, &state, &decline.id, &decline.conversation, decline.why).await
             });
         }
     }
@@ -509,17 +530,30 @@ impl Bridge {
         let mut declining: Vec<Decline> = Vec::new();
         for card in cards {
             let Some(device) = device_of(&card.conversation) else {
+                // A phone's conversation with no usable number names no phone that could be
+                // shown the card: declined at once, not left to the sidecar's five minutes.
+                if is_phone_conversation(&card.conversation) {
+                    declining.push(Decline { id: card.id, conversation: card.conversation, why: NO_CARD });
+                }
                 continue;
             };
+            // **A card a phone cannot answer is declined at once.** Nobody is asked and
+            // nothing is sent, and the model is told why in the sidecar's own sentence.
+            // The person is never made to wait out the five minutes for a card that
+            // nobody can draw. An unpaired phone's card is declined the way `pair`
+            // declines the cards of a phone it forgets.
             let Some(owner) = self.paired_owner(device) else {
+                declining.push(Decline { id: card.id, conversation: card.conversation, why: UNPAIRED });
                 continue;
             };
-            // The card goes to the turn that raised it. A turn that has ended has
-            // no socket left to carry it, and the sidecar's own five minutes will
-            // decline it: **no phone means no card, and no card means nothing is
-            // sent.** The model is told, so it is not left believing the write is
-            // still waiting.
+            if !self.phones_show_cards {
+                declining.push(Decline { id: card.id, conversation: card.conversation, why: NO_CARD });
+                continue;
+            }
+            // The card goes to the turn that raised it. **No turn means no socket, and
+            // no socket means no card:** the card is declined here, and nothing is sent.
             let Some(request) = self.request_of(owner, &card.conversation) else {
+                declining.push(Decline { id: card.id, conversation: card.conversation, why: TURN_ENDED });
                 continue;
             };
             // **Eight is as many as one phone is ever asked about at once.**
@@ -530,23 +564,12 @@ impl Bridge {
             // the model is told once, in one line, why. It never reaches the
             // phone, because a card nobody is shown is a card nobody answers.
             if lock(&self.cards).held_in(&card.conversation) >= MAX_HELD {
-                let held = Held {
-                    owner,
-                    conversation: card.conversation,
-                    request,
-                    id: card.id,
-                    method: card.method,
-                    url: card.url,
-                    destination: card.destination,
-                    fields: card.fields,
-                    created: now,
-                };
                 // **Collected, not sent here**: `route_cards` runs inside a tauri
                 // command, which is an async context, and the sidecar is a pipe
                 // across a process. The decline goes out after every lock is let
                 // go, so nothing here blocks and nothing is asked while a table is
                 // half-read.
-                declining.push(Decline { card: held, why: TOO_MANY });
+                declining.push(Decline { id: card.id, conversation: card.conversation, why: TOO_MANY });
                 continue;
             }
             let held = Held {

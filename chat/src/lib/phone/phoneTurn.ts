@@ -8,7 +8,7 @@ import { streamChatCompletion } from "../toolLoop";
 import { armedConversation, executeToolCall, offeredTools } from "../tools/registry";
 import type { ToolDefinition } from "../tools/definitions";
 import { MAIL_NAMES } from "../tools/definitions";
-import { BROWSER_NAMES, BROWSER_SCREENSHOT_NAME } from "../tools/browserTools";
+import { BROWSER_SCREENSHOT_NAME } from "../tools/browserTools";
 import { closeRecap, sayRuns, takeNote } from "../browser/note";
 import { recapLine } from "../browser/recap";
 import { isBrowserRun } from "../browser/runs";
@@ -35,18 +35,22 @@ const FACTS_TIMEOUT_MS = 8000;
 /**
  * The tools a phone turn may call.
  *
- * **The browser is not one of them, and this is a change on purpose.** The
- * desktop's browser turn is armed by a person at the screen, one message at a
- * time, by a control that says so; a phone has no such control, so a phone
- * turn is never a browser turn — and a turn that cannot be armed is a turn
- * that cannot be finished: the browser's tools raise cards, and a card needs
- * somebody to answer it. **The phone stays in web-only mode** until it has a
- * control of its own.
+ * **The browser is one of them, on the desktop's own terms.** A phone turn drives
+ * the same computer's browser: it may open, read, find, and click or type. A write
+ * that would send something leaves only under a card, and the card goes to the phone
+ * that raised it. A phone whose app cannot draw one is answered on the spot by the
+ * computer (`phone_chat::route_cards`), so no write waits on a press that cannot come.
  *
- * What a phone may not have is a card it cannot be shown: without a device
- * there is nobody who could answer, so an unidentified turn is offered the
- * reads and nothing that could hold a request. Better no write than a write
- * nobody is ever asked about.
+ * **What a phone may not have is a write nobody can answer.** Without a device there
+ * is nobody to be shown a card, and in a chat that holds mail or a document a write
+ * is refused in one line (`ARMED_REFUSAL`). So those turns are offered the reads
+ * and no write.
+ *
+ * **And never the picture.** The picture is the person's own screen, and a phone
+ * is not shown it. The browser's list is built without one, and the filter keeps
+ * the picture's name off the list anyway. **A phone reads and drives only the page
+ * its own conversation opened**: the computer refuses any other page to a phone
+ * (`phone_may_touch`), so the words of a desktop's page do not reach the phone.
  *
  * A stranger's phone cannot reach this window at all: the bridge binds a request
  * to a paired device and a credential before the page is told a request exists.
@@ -62,21 +66,17 @@ export function phoneTools(
   armed = false,
 ): ToolDefinition[] {
   const writable = device !== null && !armed;
-  return offeredTools(webTools, language, model, "web").filter(
+  // **The browser's family, as the desktop's browser turn is offered it**: the same
+  // switch, the same driver check, and no picture (`picturesAllowed` is not asked).
+  const browser = offeredTools(webTools, language, model, "browser");
+  return [...offeredTools(webTools, language, model, "web"), ...browser].filter(
     (tool) =>
       tool.function.name !== "create_miniapp" &&
-      // **No browser on a phone.** The rule is here as well as in the mode the
-      // offer is built with, so it survives a change to that offer: the
-      // filter below is what a phone may not have, and the browser's tools
-      // are not on the list at all.
-      !BROWSER_NAMES.has(tool.function.name) &&
-      // **And no picture of the page, said in its own words.** The picture is
-      // one of the browser's names, so the line above already keeps it off a
-      // phone; this one says why, because a picture of the owner's page is
-      // the one thing a phone must never be able to ask for.
+      // **No picture of the page, said in its own words.** The browser's list above
+      // has none, and this line keeps the name off a phone whatever the list said.
       tool.function.name !== BROWSER_SCREENSHOT_NAME &&
-      // The second line, kept as it was: it is what a phone may not have
-      // without a device, and a rule that is not drawn cannot be broken.
+      // The writes are what a phone may not have without a device or in a chat that
+      // holds mail: a rule that is not drawn cannot be broken.
       (writable || !BROWSER_WRITES.has(tool.function.name)) &&
       (mail || !MAIL_NAMES.has(tool.function.name)),
   );
@@ -112,9 +112,9 @@ export function phoneArmed(conversation: WireMessage[] | undefined): boolean {
   return Array.isArray(conversation) && armedConversation(conversation);
 }
 
-/** The three browser tools that can put something in front of a person and so
-    need a phone to put it in front of. The reads drive the browser and are
-    offered either way: without a card to answer, reading is harmless. */
+/** The two browser tools that can send something out of the computer, and so need
+    a phone to answer for them. The reads drive the browser and are offered either
+    way: a page that is read sends nothing. */
 const BROWSER_WRITES = new Set(["browser_click", "browser_type"]);
 
 /**
@@ -206,9 +206,9 @@ export async function runPhoneTurn(
   // **The offer this turn makes, built before the wire.** The definitions
   // travel with every request and the engine counts them into the prompt, so
   // the fit weighs them beside the conversation — and it weighs the exact
-  // list the loop will send: a phone is never offered the browser's tools,
-  // and those are the only ones arming takes away, so the phone's list is
-  // the same armed or not.
+  // list the loop will send: arming takes the two writes away, so the phone's
+  // list is not the same armed or not, and the fit must weigh the one it will
+  // send.
   const offered = phoneTools(settings.webTools, turn.language, settings.model, mail, turn.device, armedChat);
   const wire = phoneWire(
     turn,

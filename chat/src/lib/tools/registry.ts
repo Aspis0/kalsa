@@ -183,7 +183,8 @@ export function offeredTools(
   //
   // **And the browser's tools are not in this list at all.** A turn that was not
   // armed for the browser is a web turn; the two families are exclusive, and
-  // the control in the composer is what arms the browser's.
+  // the control in the composer is what arms the browser's. (A phone turn is the
+  // one list that holds both: `phoneTools` in phone/phoneTurn.ts.)
   return [...web, ...mail];
 }
 

@@ -12,8 +12,13 @@ a phone paired from 2026-10-17 and on for a phone paired before it (2026-10-17).
 
 **A phone turn drives the browser too, and the device that started the turn confirms** (added
 2026-10-18, §3.1 and §7). A phone's write is held on the same card the desktop uses, the card
-is drawn on that phone and on no desktop, and the answer goes to §3.1's route. §3's two events
-are the only additions to the wire; everything before this reads exactly as it did. **The phone
+is drawn on that phone and on no desktop, and the answer goes to §3.1's route. **Until the
+phone's app draws that card, every write a phone's turn raises through a browser call is declined
+at once** (§3.1). A hold the browser raises with no call to carry it (a page's own request, with no
+click or type behind it) is not routed at once, and waits for the computer's five minutes, as §3.1
+says. A phone may open a page while no other conversation holds the window, and it reads and drives
+**only the page its own conversation opened** (§3.1). §3's two
+events are the only additions to the wire; everything before this reads exactly as it did. **The phone
 sends no device number and never could**: the pairing seal hands back the credential and nothing
 else (§1), so a phone does not know its own number, and the computer knows who is asking from
 the credential the request authenticated with. The turn body is the three fields below and a
@@ -223,9 +228,41 @@ answer it. Like a draft, and like a mail card, it is a stranger's words — see 
 **A card arrives on the turn that raised it, once.** It is written onto that turn's stream,
 which is the stream the phone is already reading, and nowhere else — the window does not
 relay it, so there is no second copy of a card on the phone's screen. If that turn's stream
-has closed, the card is not re-sent: the computer's five minutes end it as `expired`, the
-model is told, and nothing was sent. A phone that reconnects sees no card, because there is
-nothing left to answer.
+has closed, the card is not re-sent, and it is declined at once with the reason that the turn
+had ended (below): the model is told, and nothing was sent. A phone that reconnects sees no
+card, because there is nothing left to answer.
+
+**A card the phone cannot draw is declined at once.** Until the phone's app draws a card,
+the computer never puts one on a phone's stream. It declines the card on the spot, the browser
+is asked to let the held request go without sending it, and the model is told in the
+computer's own sentence, `No request was sent: <reason>, so the person was never asked about
+it.` The reasons are three: `this phone cannot be shown the confirm card yet` (the phone's
+turn is live and the app cannot draw it), `the turn that raised this had already ended before
+the card could be shown` (no turn to carry it), and `the phone that raised this was unpaired
+before anybody could answer it` (no pairing). A card a browser call raises is declined at once, so
+nobody waits out the five minutes for it, and the phone is handed nothing to press. The one hold
+that is not routed at once is a hold with no browser call to carry it: it waits for the computer's
+five minutes, and §3.1 names that limit here rather than hide it. A desktop's card never takes this
+road. While the phone cannot draw a card, the first reason is the one given, whatever the turn's
+state: `TURN_ENDED` is given only once a phone can draw one. A phone's conversation whose number
+cannot be read is declined with the first reason as well.
+
+**A phone reads and drives only its own page.** The browser is one window, and a desktop
+conversation reads whatever page is on it, as it always has. A phone's read, find, click or type
+is refused, unless the page's stamp is that phone's conversation: the conversation that last
+opened the page. The refusal is one plain sentence: `The page on the screen was not opened by this
+phone's conversation, so nothing was read or done on it.` A page the phone opened stays the
+phone's, and a page the person moved by hand is nobody's.
+
+**One page, one turn.** The window is one. A phone may open a page and drive it while no other
+conversation holds the page on the window: a page nobody holds, or one the phone itself opened, is
+open to it. When another conversation holds the page, the phone's open is refused as busy, with
+the sentence `the browser is busy: another conversation is driving the page on the window, so
+nothing was opened over it`, and the page's owner does not change. The refusal lasts as long as
+that conversation holds the page: a phone is not let in until the page is left by hand (a
+navigation the person makes). The computer has no other release for it yet, and the phone is told
+so, so the model does not retry. An open that never lands gives
+the page back its previous owner: the page did not move.
 
 **A phone is asked about at most eight requests at once.** The ninth is **refused** — not
 held, not drawn, never sent to the phone — and the model is told once, in one line, that it
@@ -269,7 +306,7 @@ is told `card_expired` — the card was owed nothing.
 | `{"code":"declined"}` | the person said no |
 | `{"code":"expired"}` | past the deadline; nothing was sent |
 | `{"code":"gone"}` | the browser is no longer there |
-| `{"code":"unsendable"}` | sent as far as the browser could, not reaching the host |
+| `{"code":"unsendable"}` | nothing was sent: the body could not be shown to the person, or the phone cannot draw the card (above) |
 | `{"code":"unclear"}` | the card was spent and nobody can say what happened |
 | `{"error":"card_unknown"}` | not yours, already answered, or never held |
 | `{"error":"card_expired"}` | the person's five minutes were already up when the answer arrived |

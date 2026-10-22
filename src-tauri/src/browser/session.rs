@@ -20,7 +20,13 @@ pub(crate) async fn brain_browser_open(
     url: String,
     conversation: String,
 ) -> Result<String, super::error::CommandFailure> {
-    call(&app, &state, "browser_open", two("url", Value::from(url), &conversation)).await
+    let said = call(&app, &state, "browser_open", two("url", Value::from(url), &conversation)).await?;
+    // **A card the open raised is routed now.** The refresh runs when the open returns,
+    // so a write the page makes while it loads is seen here. A write the page makes later
+    // is seen only by the next call that refreshes (open, click or type, not read or find),
+    // and until then the hold's five minutes are the limit (docs/PHONE-CHAT-PROTOCOL.md §3.1).
+    confirm::refresh(&app, &state).await;
+    Ok(said)
 }
 
 /// The page as text, with the refs to act on.
@@ -34,8 +40,12 @@ pub(crate) async fn brain_browser_read(
     state: State<'_, BrowserState>,
     from: Option<u64>,
     page: Option<u64>,
+    conversation: String,
 ) -> Result<String, super::error::CommandFailure> {
+    // **The conversation is what the sidecar judges a phone's read by**: a phone may
+    // read only the page its own conversation opened (`mcp::phone_may_touch`).
     let mut arguments = Map::new();
+    arguments.insert("conversation".to_owned(), Value::from(conversation));
     if let Some(from) = from {
         arguments.insert("from".to_owned(), Value::from(from));
     }
@@ -51,13 +61,15 @@ pub(crate) async fn brain_browser_find(
     app: AppHandle,
     state: State<'_, BrowserState>,
     text: String,
+    conversation: String,
 ) -> Result<String, super::error::CommandFailure> {
-    call(&app, &state, "browser_find", one("text", Value::from(text))).await
+    call(&app, &state, "browser_find", two("text", Value::from(text), &conversation)).await
 }
 
 /// Clicks one element. **A write this causes is held, not sent**: the card comes
-/// back through `browser_cards` and the person decides, on a desktop turn only —
-/// the chat offers this tool on a desktop and not on a phone.
+/// back through `browser_cards` and the person decides. A desktop's card goes to
+/// the window; a phone's goes to that phone, or is declined at once when the phone
+/// cannot draw it (`phone_chat::route_cards`).
 #[tauri::command]
 pub(crate) async fn brain_browser_click(
     app: AppHandle,

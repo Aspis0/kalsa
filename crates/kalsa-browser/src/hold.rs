@@ -669,6 +669,16 @@ impl Holds {
         inner.calling = conversation.to_owned();
     }
 
+    /// **Puts back both stamps a navigation overwrote and then never made.** An open
+    /// that failed did not move the window: the page keeps the owner it had, and the
+    /// last actor goes back to whoever it was. `navigated_by` writes both, so this
+    /// writes both.
+    pub async fn restore_stamps(&self, navigated: &str, calling: &str) {
+        let mut inner = self.inner.lock().await;
+        inner.navigated = navigated.to_owned();
+        inner.calling = calling.to_owned();
+    }
+
     /// **Says that one of our calls is driving the window right now**, and hands
     /// back the promise that it will let go.
     ///

@@ -21,8 +21,8 @@ export interface PhoneTurn {
    * **This is what the browser writes of this turn are stamped with**, and so
    * what decides where a card is drawn: a card raised by a phone's turn goes to
    * that phone and to no desktop. A turn with no device has nobody who could
-   * answer a card, so it is offered no browser tool at all rather than raising
-   * cards nobody will ever be shown.
+   * answer a card, so it is offered the browser's reads and no browser write
+   * at all, rather than raising cards nobody will ever be shown.
    */
   device: string | null;
 }

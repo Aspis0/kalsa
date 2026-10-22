@@ -99,7 +99,9 @@ try {
     check("and the two lists share no tool at all", !armed.some((name) => web.includes(name)), armed.join(","));
 
     const phone = phoneTools(true, "en", "any-model", true, "2").map((tool) => tool.function.name);
-    check("a phone turn is offered no browser tool", !phone.some((name) => name.startsWith("browser_")), phone.join(","));
+    // **A phone drives the browser on the same terms**: the browser's five, and
+    // its writes are answered on the phone (`phoneTools`, with the device).
+    check("a phone turn is offered the browser's five", THE_BROWSER.every((name) => phone.includes(name)), phone.join(","));
 
     // --- the picture of the page ------------------------------------------------
     // **The sixth tool, and the one the owner switches on.** A picture is
