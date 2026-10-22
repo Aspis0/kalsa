@@ -2,6 +2,7 @@ import { ChatRequestError } from "./chat";
 import type { ToolImage, ToolOutcome, ToolPhrases, WireMessage } from "./chat";
 import { readArguments, wireArguments } from "./toolCalls";
 import { exceedsCodePoints, firstCodePoints } from "./text";
+import { CUT_MARK, KEPT_RESULT_CHARS } from "./toolCut";
 import type { ToolCall } from "./toolCalls";
 import { repairToolCall } from "./repairToolCall";
 import { guideCut, guideNotValidJson, guideProblem } from "./guideRetry";
@@ -160,9 +161,6 @@ export async function runToolCall(
   };
 }
 
-/** What the transcript keeps of a tool's answer. */
-const KEPT_RESULT_CHARS = 1_200;
-
 /**
  * The turn that ran the tool reads all of it. The record that outlives the
  * turn keeps the beginning: a page's text should not sit in browser storage
@@ -177,9 +175,7 @@ function kept(result: string, image: ToolImage | undefined): string {
   // By code points, not by UTF-16 units: this text is replayed to the engine on
   // every later turn, and a slice that ends mid-character would send a lone
   // surrogate in every one of them.
-  const text = exceedsCodePoints(result, KEPT_RESULT_CHARS)
-    ? `${firstCodePoints(result, KEPT_RESULT_CHARS)}\n\n[The rest of this result was not kept after the turn.]`
-    : result;
+  const text = exceedsCodePoints(result, KEPT_RESULT_CHARS) ? `${firstCodePoints(result, KEPT_RESULT_CHARS)}${CUT_MARK}` : result;
   const line = image?.line;
   return line === undefined ? text : `${text}\n${line}`;
 }

@@ -19,8 +19,17 @@ export function foldWords(text: string): string[] {
  * a few grams instead of the whole word.
  */
 export function grams(text: string): string[] {
+  return gramsOf(foldWords(text));
+}
+
+/**
+ * The grams of words that are already folded: the same grams, without folding
+ * them again. A unit's words are folded once and read by the matcher, by the
+ * shape and by the score, and a fold per read is a fold per unit.
+ */
+export function gramsOf(words: string[]): string[] {
   const out: string[] = [];
-  for (const word of foldWords(text)) {
+  for (const word of words) {
     const padded = ` ${word} `;
     for (let size = 3; size <= 4; size++) {
       for (let at = 0; at + size <= padded.length; at++) {

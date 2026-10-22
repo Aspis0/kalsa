@@ -1,6 +1,5 @@
-import { isBrowserRun } from "../browser/runs";
+import { pageText } from "../pageFence";
 import { isMailRun } from "../mail/runs";
-import { TOOL_STOPPED } from "../types";
 import type { ChatMessage } from "../types";
 import type { Source } from "./pick";
 
@@ -33,6 +32,10 @@ export function sourcesOf(shed: ChatMessage[], documents: DocumentTexts): Source
       // The order is the wire's order: a turn's documents ride before its
       // words, and a turn's tool answers ride before the model's own reply.
       if (message.role === "user") {
+        // **A document's words ride as they are.** The wire already sent them
+        // as plain user text — the attached documents are a block of the
+        // person's own message — so the digest carries them the same way, and
+        // a fence around them would fence the person's words.
         for (const text of documentsOf(message, documents)) {
           sources.push({ turn: number, role: "document", text });
         }
@@ -75,18 +78,22 @@ function documentsOf(message: ChatMessage, documents: DocumentTexts): string[] {
 }
 
 /**
- * The pages the browser read, as the model read them: a run's own answer. A
- * run that answered nothing carries nothing, a run that died mid-way carries
- * its code, not a page, and a run the app refused never went to the model at
- * all — so its answer is not one the model read.
+ * The pages the browser read, as the model read them: **the fenced payload of
+ * a run's answer.**
+ *
+ * **The fence is the mark, not the name of the call.** The app fences a
+ * page's words — and a refusal too, because a refusal can carry the page's
+ * own words — so what lies between the markers is the page's text and
+ * nothing else is: a picture's line, a sentence the app wrote, a mail's own
+ * fence. A call that did not fence its answer carried no page text, and a
+ * call that did is read for the page however it was made.
  */
 function pagesOf(message: ChatMessage): string[] {
   const texts: string[] = [];
   for (const run of message.toolRuns ?? []) {
-    if (!isBrowserRun(run.name)) continue;
-    if (run.state === "refused") continue;
-    if (run.result === "" || run.result === TOOL_STOPPED) continue;
-    texts.push(run.result);
+    const page = pageText(run.result);
+    if (page === null || page === "") continue;
+    texts.push(page);
   }
   return texts;
 }

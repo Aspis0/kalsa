@@ -1,5 +1,6 @@
+import { fence } from "../pageFence";
 import { scoreUnits } from "./bm25";
-import { foldWords, grams } from "./grams";
+import { foldWords, gramsOf } from "./grams";
 import { sentencesOf } from "./sentences";
 
 /** Whose words a piece of text is: the person's, the model's, a page the
@@ -22,7 +23,21 @@ export type Fragment = Source;
     finds the sentence it refers to; only the sentence itself is ever carried. */
 interface Unit extends Fragment {
   order: number;
-  around: string;
+  /** The sentence's own words, folded once. */
+  words: string[];
+  /** The words of the sentence and of its neighbours, which are searched with it. */
+  around: string[];
+}
+
+/** A fragment the digest carries, with the text and the line it takes. */
+interface Carried {
+  unit: Unit;
+  /** The text it carries: the sentence, or the sentence fenced. */
+  text: string;
+  /** The line it takes in the block. */
+  line: string;
+  /** Its shape, for the twin test. */
+  shape: Set<string>;
 }
 
 /** The shortest word that can make a sentence a match: shorter ones («ci», «il»)
@@ -79,40 +94,54 @@ export function pickFragments(sources: Source[], query: string, budgetChars: num
   const scores = scoreUnits(units.map((unit) => unit.around), query);
   const candidates = units
     .map((_, i) => i)
-    .filter((i) => (scores[i] ?? 0) > 0 && foldWords(units[i]?.text ?? "").some(matches));
+    .filter((i) => (scores[i] ?? 0) > 0 && (units[i]?.words ?? []).some(matches));
   const best = candidates.reduce((top, i) => Math.max(top, scores[i] ?? 0), 0);
   const ranked = candidates
     .filter((i) => (scores[i] ?? 0) >= best * RELATIVE)
     .sort((a, b) => (scores[b] ?? 0) - (scores[a] ?? 0) || a - b);
-  const picked: Unit[] = [];
-  const shapes: Set<string>[] = [];
+  const picked: Carried[] = [];
   let used = 0;
   for (const i of ranked) {
     const unit = units[i];
     if (unit === undefined) continue;
-    const cost = fragmentLine(unit).length + 1;
-    if (used + cost > budgetChars) continue;
-    const shape = new Set(grams(unit.text));
-    const twins = shapes.flatMap((other, at) => (overlap(other, shape) >= SIMILAR ? [at] : []));
-    if (twins.length > 0) {
-      // **The newer twin wins.** A sentence said again later is the one that
-      // is true now, and the older one gives its room back: a price updated
-      // from 99 to 149 must not be carried as the 99.
-      const said = twins.map((at) => picked[at]).filter((one): one is Unit => one !== undefined);
-      if (said.some((other) => newerThan(other, unit))) continue;
-      used -= said.reduce((sum, other) => sum + fragmentLine(other).length + 1, 0);
-      for (const at of [...twins].sort((a, b) => b - a)) {
-        picked.splice(at, 1);
-        shapes.splice(at, 1);
-      }
-    }
-    picked.push(unit);
-    shapes.push(shape);
+    const shape = new Set(gramsOf(unit.words));
+    const twins = picked.flatMap((other, at) => (overlap(other.shape, shape) >= SIMILAR ? [at] : []));
+    const said = twins.map((at) => picked[at]?.unit).filter((one): one is Unit => one !== undefined);
+    // **The newer twin wins.** A sentence said again later is the one that is
+    // true now, and the older one gives its room back: a price updated from 99
+    // to 149 must not be carried as the 99.
+    if (said.some((other) => newerThan(other, unit))) continue;
+    const freed = twins.reduce((sum, at) => sum + (picked[at]?.line.length ?? 0) + 1, 0);
+    const text = carriedText(unit);
+    const line = fragmentLine({ turn: unit.turn, role: unit.role, text });
+    const cost = line.length + 1;
+    // **The budget is read after the room the old twin gives back.** An update
+    // that only fits once the sentence it replaces is gone is still the
+    // sentence that is true now, and a cap read before the eviction would keep
+    // the obsolete one.
+    if (used - freed + cost > budgetChars) continue;
+    for (const at of [...twins].sort((a, b) => b - a)) picked.splice(at, 1);
+    used -= freed;
+    picked.push({ unit, text, line, shape });
     used += cost;
   }
   return picked
-    .sort((a, b) => a.order - b.order)
-    .map(({ turn, role, text }) => ({ turn, role, text }));
+    .sort((a, b) => a.unit.order - b.unit.order)
+    .map(({ unit, text }) => ({ turn: unit.turn, role: unit.role, text }));
+}
+
+/**
+ * The text a fragment carries: its sentence, or **the same sentence fenced**
+ * when it came from a page.
+ *
+ * **A page's words stay data.** The digest hands them to the model inside the
+ * fence the wire uses, with a marker drawn now: the page cannot know it, and
+ * a page that guesses it has only ended its own fence. A sentence the model
+ * wrote, and a document the person attached, are the conversation's own words
+ * and ride as they are.
+ */
+function carriedText(unit: Unit): string {
+  return unit.role === "tool" ? fence(unit.text) : unit.text;
 }
 
 /**
@@ -134,12 +163,12 @@ function keyWords(query: string): string[] {
  * judged once, so a long source costs one comparison per word it uses.
  */
 function wordMatcher(queryWords: string[]): (word: string) => boolean {
-  const queryGrams = queryWords.map((word) => new Set(grams(word)));
+  const queryGrams = queryWords.map((word) => new Set(gramsOf([word])));
   const memo = new Map<string, boolean>();
   return (word) => {
     const known = memo.get(word);
     if (known !== undefined) return known;
-    const own = new Set(grams(word));
+    const own = new Set(gramsOf([word]));
     const hit = queryWords.some((query, i) => query === word || dice(queryGrams[i] ?? new Set(), own) >= WORD_SIMILAR);
     memo.set(word, hit);
     return hit;
@@ -150,11 +179,21 @@ function unitsOf(sources: Source[]): Unit[] {
   const units: Unit[] = [];
   for (const source of sources) {
     const sentences = sentencesOf(source.text);
-    sentences.forEach((text, i) => {
-      const before = i > 0 ? sentences[i - 1] : undefined;
-      const after = sentences[i + 1];
-      const around = [before, text, after].filter((part) => part !== undefined).join(" ");
-      units.push({ turn: source.turn, role: source.role, text, order: units.length, around });
+    // **The words of every sentence, folded once.** A unit is searched with
+    // its own and with its neighbours', and a fold per reading is a fold per
+    // unit of a cut that can hold thousands of them.
+    const folded = sentences.map((sentence) => foldWords(sentence));
+    folded.forEach((words, i) => {
+      const before = i > 0 ? folded[i - 1] ?? [] : [];
+      const after = i + 1 < folded.length ? folded[i + 1] ?? [] : [];
+      units.push({
+        turn: source.turn,
+        role: source.role,
+        text: sentences[i] ?? "",
+        order: units.length,
+        words,
+        around: [...before, ...words, ...after],
+      });
     });
   }
   return units;

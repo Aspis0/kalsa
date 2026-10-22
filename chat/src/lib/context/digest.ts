@@ -27,6 +27,8 @@ export const DIGEST_JOIN = "\n\n";
  * behind (`shed`) that match what this turn asks, verbatim and stamped. The
  * person's words, the model's words, the pages the browser read and the
  * documents those turns bound are all searched, each stamped as what it is.
+ * **A page's words are carried fenced**: they are still a stranger's words,
+ * and the block hands them over inside the fence the wire uses.
  * Empty when the switch is off, when nothing was left behind, or when nothing
  * in what was left behind matches. The recent window is never searched: it
  * stays as the fit kept it.
