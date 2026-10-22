@@ -65,11 +65,30 @@ export function fences(text: string): string[] {
  * and nothing else carries it.
  */
 export function pageText(answer: string): string | null {
-  const open = answer.match(/<kalsa-page-[0-9a-f]+>\n/);
+  const open = answer.match(/<kalsa-page-([0-9a-f]+)>\n/);
   if (open === null || open.index === undefined) return null;
   const after = answer.slice(open.index + open[0].length);
-  const close = after.indexOf("\n</kalsa-page-");
-  const page = close === -1 ? after : after.slice(0, close);
-  // **The record's cut is the app's sentence, not the page's words.**
+  // **The close is the whole marker, the one this fence was drawn with.** A
+  // page that writes `</kalsa-page-` and junk of its own ends nothing: only
+  // the exact marker closes the fence, and a prefix of it is a page's words.
+  const close = after.indexOf(`\n</kalsa-page-${open[1]}>`);
+  // **A fence that closed is a whole answer, and a whole answer was never
+  // cut** — the cut takes the tail of the answer, and the close marker is in
+  // that tail. What is inside is the page's words, all of them.
+  if (close !== -1) return after.slice(0, close);
+  // **A fence that never closed is an answer the record cut**, and the cut's
+  // own sentence is the app's, not the page's: it leaves.
+  return withoutCut(after);
+}
+
+/**
+ * The record's cut, off the end of a page's words.
+ *
+ * **The mark is stripped as the trailing whole line, and only there.** The
+ * record puts its sentence on a line of its own at the end of the answer it
+ * kept; a page that ends with the same words is keeping its own, and they
+ * stay.
+ */
+function withoutCut(page: string): string {
   return page.endsWith(CUT_MARK) ? page.slice(0, -CUT_MARK.length) : page;
 }

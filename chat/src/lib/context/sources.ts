@@ -81,16 +81,24 @@ function documentsOf(message: ChatMessage, documents: DocumentTexts): string[] {
  * The pages the browser read, as the model read them: **the fenced payload of
  * a run's answer.**
  *
- * **The fence is the mark, not the name of the call.** The app fences a
- * page's words — and a refusal too, because a refusal can carry the page's
- * own words — so what lies between the markers is the page's text and
- * nothing else is: a picture's line, a sentence the app wrote, a mail's own
- * fence. A call that did not fence its answer carried no page text, and a
- * call that did is read for the page however it was made.
+ * **The fence is the mark, not the name of the call.** The app fences what it
+ * brings back from the browser — a page's words, and a refusal too, because
+ * a refusal can carry the page's own words — so what lies between the
+ * markers is never anything else: not a picture's line, not a sentence the
+ * app wrote, not a mail's own fence. A call that did not fence its answer
+ * carried no page text, and a call that did is read for the page however it
+ * was made.
+ *
+ * **And only a call that answered carries a page.** The fence alone cannot
+ * tell an answer from a refusal: both are fenced, and a refusal can quote
+ * the page. The run's own state says it — a call that was refused, or that
+ * was stopped, is the app's sentence and not the page's words, and stamping
+ * it as a page's would be a lie about where the words came from.
  */
 function pagesOf(message: ChatMessage): string[] {
   const texts: string[] = [];
   for (const run of message.toolRuns ?? []) {
+    if (run.state !== "ok") continue;
     const page = pageText(run.result);
     if (page === null || page === "") continue;
     texts.push(page);

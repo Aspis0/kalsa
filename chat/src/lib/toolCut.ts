@@ -5,7 +5,9 @@
  * **The mark is the app's sentence, not the answer's words.** Whoever reads a
  * page's words out of a fence takes the mark off: it is what the app said
  * about the page, and a page's text that carries it would say something the
- * page never said.
+ * page never said. **It comes off where the record put it** — at the end of
+ * an answer it cut, and a cut answer is one whose fence was never closed. A
+ * page that ends with the same words is keeping its own, and they stay.
  */
 
 /** The characters a stored answer keeps. */

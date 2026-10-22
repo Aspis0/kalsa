@@ -44,7 +44,8 @@ export async function loadApp({ compileOut } = {}) {
         export { canonicalToolName, repairToolCall } from "../src/lib/repairToolCall.ts";
         export { recoverToolCall } from "../src/lib/recoverToolCall.ts";
         export { phoneTools, phoneConversation, runPhoneTurn } from "../src/lib/phone/phoneTurn.ts";
-        export { fence, fences } from "../src/lib/pageFence.ts";
+        export { fence, fences, pageText } from "../src/lib/pageFence.ts";
+        export { CUT_MARK } from "../src/lib/toolCut.ts";
         export { browserOpen, browserClose } from "../src/lib/tools/browserCall.ts";
         export { noteBrowserStatus, browserUsable } from "../src/lib/browser/usable.ts";
         export { refreshBrowserStatus } from "../src/lib/browser/useStatus.ts";
