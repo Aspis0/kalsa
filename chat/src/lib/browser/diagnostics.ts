@@ -6,6 +6,7 @@ export type BrowserFailure =
   | "arguments_cut"
   | "arguments_json"
   | "arguments_schema"
+  | "auto_shot"
   | "open_empty"
   | "open_unseen"
   | "open_userinfo"
@@ -18,6 +19,7 @@ const CODES: Record<BrowserFailure, string> = {
   arguments_cut: "chat.browser_failure.arguments_cut",
   arguments_json: "chat.browser_failure.arguments_json",
   arguments_schema: "chat.browser_failure.arguments_schema",
+  auto_shot: "chat.browser_failure.auto_shot",
   open_empty: "chat.browser_failure.open_empty",
   open_unseen: "chat.browser_failure.open_unseen",
   open_userinfo: "chat.browser_failure.open_userinfo",

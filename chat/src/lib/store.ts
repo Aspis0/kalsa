@@ -310,6 +310,9 @@ function cleanToolRuns(value: unknown[]): { toolRuns?: ToolRun[] } {
       // How many pages a search read is a fact about the turn, not its text: the
       // kept result is a prefix, and the card must still say what was read.
       ...(typeof r.pagesRead === "number" && r.pagesRead > 0 ? { pagesRead: Math.round(r.pagesRead) } : {}),
+      // A picture came with this call: the flag is a fact about the turn, and it
+      // is what lets the record say the model read the page.
+      ...(r.picture === true ? { picture: true } : {}),
       // The refusal's code is how the screen words a failure; dropping it here
       // would make a notice vanish on the next store write. **Judged against
       // the closed set first**: this field is a string in `localStorage`, so

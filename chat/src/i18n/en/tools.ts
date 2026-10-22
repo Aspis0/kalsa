@@ -97,6 +97,7 @@ export const TOOLS = {
     joiner: " · ",
     openedSome: "opened a page",
     askedFor: (host: string) => `asked for ${host}`,
+    read: (n: number) => `read the page ${n} ${n === 1 ? "time" : "times"}`,
     typed: (n: number) => `written into ${n} ${n === 1 ? "field" : "fields"}`,
     clicked: (n: number) => `clicked ${n} ${n === 1 ? "time" : "times"}`,
     clickInterrupted: "click interrupted",

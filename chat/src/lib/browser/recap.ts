@@ -98,9 +98,12 @@ function counted(runs: ToolRun[], outcomes: Outcome[], waiting: number): Recap {
   // model saw the page, so a turn that only took a picture has read
   // something, and a record that said it had read nothing would be wrong in
   // the one way that matters — the model would answer that it had seen
-  // nothing.
+  // nothing. **A picture that came with the open counts here too**: the run
+  // that brought it is an open, and the flag says what it carried.
   const read = runs.filter(
-    (run) => (run.name === "browser_read" || run.name === "browser_screenshot") && run.state === "ok",
+    (run) =>
+      (run.name === "browser_read" || run.name === "browser_screenshot" || run.picture === true) &&
+      run.state === "ok",
   );
   const typed = distinctRefs(runs.filter((run) => run.name === "browser_type" && run.state === "ok"));
   const clicked = runs.filter((run) => run.name === "browser_click" && run.state === "ok");
@@ -203,6 +206,7 @@ function hostsOf(hosts: string[]): string {
 export function nothingSaid(recap: Recap): boolean {
   return (
     recap.opened === 0 &&
+    recap.read === 0 &&
     recap.typed === 0 &&
     recap.clicked === 0 &&
     !recap.tried &&
@@ -229,6 +233,10 @@ export function nothingSaid(recap: Recap): boolean {
 export function recapLine(recap: Recap, t: RecapWords): string {
   const said: string[] = [];
   if (recap.opened > 0) said.push(recap.asked === "" ? t.openedSome : t.askedFor(recap.asked));
+  // **What the model read is a fact the owner cannot see.** The page was opened
+  // and the page was read — a read, a picture of it, or both — and a line that
+  // says only "opened a page" leaves out the half the owner is asking about.
+  if (recap.read > 0) said.push(t.read(recap.read));
   if (recap.typed > 0) said.push(t.typed(recap.typed));
   if (recap.clicked > 0) said.push(t.clicked(recap.clicked));
   else if (recap.clickInterrupted) said.push(t.clickInterrupted);

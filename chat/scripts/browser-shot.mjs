@@ -24,7 +24,9 @@
 //     the page may have moved;
 //   - the budget: six pictures a turn, and the body's own road;
 //   - the status: the closing round's status survives a tool message that
-//     carries parts.
+//     carries parts;
+//   - the picture that comes by itself: an open that succeeded brings the page
+//     with it, and it is counted like any other picture the turn took.
 //
 // Run: node scripts/browser-shot.mjs   (from chat/)
 
@@ -72,13 +74,28 @@ Object.defineProperty(globalThis, "navigator", {
 
 /** The picture the browser answers with. **A big one**, so the body's own
  *  budget is something the turn has to answer for: six of these are more than
- *  a turn's pictures may weigh. */
+ *  a turn's pictures may weigh.
+ *
+ *  **A stress, not a size.** The real picture the sidecar takes is at most
+ *  256 KiB (q55), and this one is five times that on purpose: the budget, the
+ *  demotion and the fit are all things the turn has to answer for, and a
+ *  picture small enough never to test them would not. */
 const DATA = "A".repeat(1_200_000);
 /** The page the picture was of. */
 const HOST = "shop.example";
 const TAKEN_AT = 1760000000000;
 /** The line the record keeps: the host and the moment. */
 const PLACEHOLDER = `screenshot of ${HOST} at ${new Date(TAKEN_AT).toISOString()}`;
+/** The address the model opens, and the page it finds there. */
+const OPEN_URL = "https://shop.example/dp/B012345678";
+const PAGE = "Price: 129 euro.\nThe blue one is in stock.";
+
+/** How many times the browser was asked for a picture. */
+let shots = 0;
+/** Whether the browser refuses to take one. */
+let shotRefused = false;
+/** Whether the browser's command fails outright. */
+let shotThrows = false;
 
 /** The browser's own answers. The picture is JSON: the bytes, the host and the
  *  moment, and the app reads them as they are. */
@@ -90,6 +107,15 @@ globalThis.window = {
     core: {
       invoke: async (command) => {
         if (command === "brain_browser_screenshot") {
+          shots += 1;
+          if (shotThrows) throw new Error("the browser's command failed");
+          if (shotRefused) {
+            return JSON.stringify({
+              ok: false,
+              error: "not_yours",
+              message: "The page on the screen is not this conversation's, so no picture was taken.",
+            });
+          }
           return JSON.stringify({
             ok: true,
             image: DATA,
@@ -98,6 +124,7 @@ globalThis.window = {
             taken_at: TAKEN_AT,
           });
         }
+        if (command === "brain_browser_open") return PAGE;
         return null;
       },
     },
@@ -124,6 +151,8 @@ const {
   PICTURE_BYTES_PER_TURN,
   WIRE_BODY_BUDGET,
   IMAGE_TOKENS,
+  wireSize,
+  buildPinnedContext,
 } = app;
 
 /** The browser is there. */
@@ -159,6 +188,9 @@ function engineTokens(messages, tools) {
 const requests = [];
 /** How many times the model asks for a picture before it says something. */
 const ASKS = 7;
+/** What the model asks for, and how many times: the turn that takes pictures
+ *  and the turn that opens a page are two different rounds. */
+let plan = { name: "browser_screenshot", asks: ASKS };
 globalThis.fetch = async (_url, init) => {
   const body = JSON.parse(init.body);
   requests.push(body);
@@ -178,20 +210,27 @@ globalThis.fetch = async (_url, init) => {
     // The closing round: the calls are over, the answer is in words.
     frames.push({ choices: [{ index: 0, delta: { content: "The page costs 129 euro." } }] });
     frames.push({ choices: [{ index: 0, delta: {}, finish_reason: "stop" }] });
-  } else if (done < ASKS) {
+  } else if (done < plan.asks) {
+    const call =
+      plan.name === "browser_open"
+        ? {
+            index: 0,
+            id: `call-${requests.length}`,
+            type: "function",
+            function: { name: "browser_open", arguments: JSON.stringify({ url: OPEN_URL }) },
+          }
+        : {
+            index: 0,
+            id: `call-${requests.length}`,
+            type: "function",
+            function: { name: "browser_screenshot", arguments: "{}" },
+          };
     frames.push({
       choices: [
         {
           index: 0,
           delta: {
-            tool_calls: [
-              {
-                index: 0,
-                id: `call-${requests.length}`,
-                type: "function",
-                function: { name: "browser_screenshot", arguments: "{}" },
-              },
-            ],
+            tool_calls: [call],
           },
         },
       ],
@@ -505,6 +544,279 @@ console.log("\nThe status.\n");
     toolMessages.some((message) => Array.isArray(message.content)),
     "and the one that carries a picture is still parts",
   );
+}
+
+// ------------------------------------------------ the picture that comes by itself
+
+console.log("\nThe picture that comes by itself.\n");
+{
+  /** The gate the registry asks about, and the calls that never touch it. */
+  const gate = { documents: () => [], confirm: async () => {}, firstSearch: async () => {} };
+  /** The conversation that carries the address: the rule asks for the person's
+   *  own words before a page may be opened. */
+  const said = [{ role: "user", content: `Open ${OPEN_URL} and tell me the price.` }];
+  /** The open, called the way the registry calls it. */
+  const open = (calls, pictures) =>
+    executeToolCall(
+      "browser_open",
+      { url: OPEN_URL },
+      undefined,
+      gate,
+      said,
+      "any-model",
+      undefined,
+      undefined,
+      true,
+      "conv-open",
+      calls,
+      pictures,
+    );
+
+  // **A turn where the model opens a page.** The open's own answer carries the
+  // picture: the model sees the page it opened, without having asked to see it.
+  const OPEN = "conv-open";
+  const OPEN_ASSISTANT = "msg-open-assistant";
+  store.put({
+    id: OPEN,
+    title: "The page",
+    createdAt: now,
+    updatedAt: now,
+    messages: [
+      {
+        id: "msg-open-user",
+        role: "user",
+        content: `Open ${OPEN_URL} and tell me the price.`,
+        createdAt: now,
+        browserMode: true,
+      },
+      { id: OPEN_ASSISTANT, role: "assistant", content: "", createdAt: now },
+    ],
+  });
+  plan = { name: "browser_open", asks: 1 };
+  const openAt = requests.length;
+  await engine.runAssistant(
+    OPEN,
+    OPEN_ASSISTANT,
+    // **The three conditions, all of them**, as in the turn above.
+    { endpoint: ENDPOINT, token: "", model: "test-model", webTools: true, browserVision: true },
+    true,
+    false,
+  );
+  plan = { name: "browser_screenshot", asks: ASKS };
+
+  // **The wire.** The open's answer rides as two parts: the page's own words
+  // and the picture of the page.
+  const openWire = requests.slice(openAt).flatMap((request) => request.messages);
+  const carried = openWire.find((message) => message.role === "tool" && Array.isArray(message.content));
+  check(carried !== undefined, "the open's answer rides as parts");
+  if (carried !== undefined) {
+    equal(carried.content.length, 2, "two parts: the open's own words and the picture");
+    check(
+      carried.content[0].text.includes("129 euro"),
+      "the first part is the open's own answer",
+      carried.content[0].text,
+    );
+    check(
+      carried.content[0].text.includes(HOST),
+      "and the line names the host the page was on",
+      carried.content[0].text,
+    );
+    check(carried.content[0].text.includes("screenshot of"), "and says what it is");
+    equal(carried.content[1].type, "image_url", "the second part is the picture");
+    equal(
+      carried.content[1].image_url.url,
+      `data:image/jpeg;base64,${DATA}`,
+      "and it rides as a data URI, with no prefix of its own",
+    );
+  }
+
+  // **The window's own estimate weighs the open's picture like any other.** A
+  // picture part costs IMAGE_TOKENS whoever's message it is, and the tool
+  // loop's fit check reads this estimate between rounds.
+  if (carried !== undefined) {
+    const withPicture = wireSize([{ role: "tool", content: carried.content }]);
+    const withoutPicture = wireSize([
+      { role: "tool", content: [{ type: "text", text: carried.content[0].text }] },
+    ]);
+    equal(withPicture - withoutPicture, IMAGE_TOKENS, "the open's picture weighs as an image on the wire");
+  }
+
+  // **The memory.** The record keeps the line in words and never a byte, and it
+  // says the call brought a picture — which is what the turn's own record
+  // counts as a read of the page.
+  const stored = store.get(OPEN);
+  const assistant = stored.messages.find((message) => message.id === OPEN_ASSISTANT);
+  const runs = assistant.toolRuns ?? [];
+  const opened = runs.find((run) => run.name === "browser_open");
+  check(opened !== undefined, "the turn kept a record of the open");
+  if (opened !== undefined) {
+    equal(opened.state, "ok", "and the open succeeded");
+    check(opened.result.includes(PLACEHOLDER), "the record keeps the line in words", opened.result);
+    check(
+      !opened.result.includes("base64") && !opened.result.includes(DATA),
+      "and never a byte of the picture",
+      opened.result,
+    );
+    equal(opened.picture, true, "and says the call brought a picture");
+    equal(opened.recap?.read, 1, "and the turn's record counts the picture as a read of the page");
+  }
+  check(
+    stored.messages.every((message) => JSON.stringify(message).indexOf(DATA) === -1),
+    "and nothing in the store carries the picture's bytes",
+  );
+
+  // **The disk keeps the fact, the wire says it.** The browser's runs lose
+  // their result on the way to localStorage — a page is a stranger's words —
+  // so the trace of the picture would go with it and a later turn would
+  // forget it. The reloaded turn says it in one fixed sentence: no host, no
+  // page, no byte.
+  const reloaded = createStore().get(OPEN);
+  const reloadedRun = (reloaded.messages.find((message) => message.id === OPEN_ASSISTANT)?.toolRuns ?? []).find(
+    (run) => run.name === "browser_open",
+  );
+  check(reloadedRun !== undefined, "the reloaded turn kept the run");
+  if (reloadedRun !== undefined) {
+    equal(reloadedRun.result, "", "the disk keeps no page and no line");
+    equal(reloadedRun.picture, true, "but it keeps the fact that a picture came");
+  }
+  const rebuilt = buildPinnedContext(reloaded.messages, [], null, { vision: true });
+  const replayed = rebuilt.wire
+    .filter((message) => message.role === "tool")
+    .map((message) => message.content)
+    .filter((content) => typeof content === "string");
+  check(
+    replayed.some((content) => content.includes("brought a picture")),
+    "and the wire says the call brought a picture",
+    JSON.stringify(replayed),
+  );
+  check(
+    replayed.every((content) => !content.includes(HOST) && !content.includes("base64")),
+    "with no host, no page and no byte in it",
+    JSON.stringify(replayed),
+  );
+
+  // **The ledger.** A picture that came with an open is a picture the turn
+  // took, and the turn's ceiling counts it like any other.
+  const ledger = newLedger();
+  filed(ledger, "browser_open", { url: OPEN_URL }, { text: PAGE, ok: true, image: { data: DATA, mediaType: "image/jpeg", text: PLACEHOLDER } });
+  equal(ledger.pictures, 1, "the ledger counts the picture that came with the open");
+
+  // **Without the flag, no picture at all.** The open is answered by the page's
+  // own words, and the browser is never asked for a picture: the negative is
+  // proved by the port, not by the shape of the answer.
+  let asked = shots;
+  const withoutFlag = await open(newLedger(), { armed: true, flag: false, vision: true });
+  check(withoutFlag.ok, "the open itself still succeeds without the flag");
+  check(withoutFlag.image === undefined, "and brings no picture");
+  equal(shots - asked, 0, "and the browser was never asked for one");
+
+  // **The ceiling is the turn's own.** Six opens that brought a picture have
+  // filled it: the next open is answered without one, and a picture asked for
+  // by hand is refused as well.
+  const full = newLedger();
+  for (let at = 0; at < MAX_PICTURES_PER_TURN; at += 1) {
+    filed(full, "browser_open", { url: `https://shop.example/dp/${at}` }, { text: PAGE, ok: true, image: { data: DATA, mediaType: "image/jpeg", text: PLACEHOLDER } });
+  }
+  equal(full.pictures, MAX_PICTURES_PER_TURN, "six opens have taken the turn's six pictures");
+  asked = shots;
+  const overCap = await open(full, { armed: true, flag: true, vision: true });
+  check(overCap.ok, "the open still succeeds when the turn has had its pictures");
+  check(overCap.image === undefined, "and brings no picture");
+  equal(shots - asked, 0, "and the browser was never asked for one");
+  const byHand = await executeToolCall(
+    "browser_screenshot",
+    {},
+    undefined,
+    gate,
+    said,
+    "any-model",
+    undefined,
+    undefined,
+    true,
+    "conv-open",
+    full,
+    { armed: true, flag: true, vision: true },
+  );
+  check(!byHand.ok, "and a picture asked for by hand is refused as well");
+
+  // **Without the ledger there is no picture.** The count of a turn's pictures
+  // is the ledger's, and a caller with no ledger cannot know it: the answers
+  // enter the wire only when the round is over, so a batch of opens would each
+  // see the same count and spend the ceiling twice. A ceiling that cannot be
+  // counted is no ceiling, so the picture is not taken at all.
+  asked = shots;
+  const noLedger = await executeToolCall(
+    "browser_open",
+    { url: OPEN_URL },
+    undefined,
+    gate,
+    said,
+    "any-model",
+    undefined,
+    undefined,
+    true,
+    "conv-open",
+    null,
+    { armed: true, flag: true, vision: true },
+  );
+  check(noLedger.ok, "an open without a ledger still succeeds");
+  check(noLedger.image === undefined, "and brings no picture");
+  equal(shots - asked, 0, "and the browser was never asked for one");
+
+  // **A picture the browser refuses is not a failure of the open.** The open
+  // stands on its own answer and the model is told nothing.
+  shotRefused = true;
+  asked = shots;
+  const refused = await open(newLedger(), { armed: true, flag: true, vision: true });
+  shotRefused = false;
+  check(refused.ok, "an open whose picture was refused still succeeds");
+  check(refused.image === undefined, "and brings no picture");
+  check(refused.text.includes("129 euro"), "and keeps the page's own words", refused.text);
+  equal(shots - asked, 1, "and the browser was asked exactly once");
+
+  // **A command that fails outright is the same case.** The open stands on its
+  // own answer: a picture that could not be taken is never a failed open.
+  shotThrows = true;
+  asked = shots;
+  const broke = await open(newLedger(), { armed: true, flag: true, vision: true });
+  shotThrows = false;
+  check(broke.ok, "an open whose picture command failed still succeeds");
+  check(broke.image === undefined, "and brings no picture");
+  check(broke.text.includes("129 euro"), "and keeps the page's own words", broke.text);
+
+  // **The control.** The same build with the automatic gate REMOVED, and the
+  // flag-off case run again: the mutant takes the picture. That is what proves
+  // the refusal above was the gate's doing and not the browser's — the
+  // negative control has to make the picture appear, not merely hide it.
+  const off = await loadApp({
+    compileOut: {
+      file: "src/lib/tools/autoShot.ts",
+      from: "if (!picturesAllowed(pictures)) return null;",
+      to: "",
+    },
+  });
+  try {
+    asked = shots;
+    const answered = await off.app.executeToolCall(
+      "browser_open",
+      { url: OPEN_URL },
+      undefined,
+      gate,
+      said,
+      "any-model",
+      undefined,
+      undefined,
+      true,
+      "conv-open",
+      newLedger(),
+      { armed: true, flag: false, vision: true },
+    );
+    check(answered.ok, "without the gate the open still succeeds", JSON.stringify(answered.text));
+    check(answered.image !== undefined, "and the flag-off case takes the picture");
+    equal(shots - asked, 1, "and the browser is asked for one");
+  } finally {
+    await rm(off.dir, { recursive: true, force: true });
+  }
 }
 
 // ---------------------------------------------------------------- the control

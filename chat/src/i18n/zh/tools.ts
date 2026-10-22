@@ -75,6 +75,7 @@ export const TOOLS = {
     "joiner": " · ",
     "openedSome": "打开了一个页面",
     "askedFor": (host: string) => `请求了 ${host}`,
+    "read": (n: number) => `读取了页面 ${n} 次`,
     "typed": (n: number) => `填写了 ${n} 个字段`,
     "clicked": (n: number) => `点击了 ${n} 次`,
     "clickInterrupted": "点击被中断",

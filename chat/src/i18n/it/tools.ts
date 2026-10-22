@@ -76,6 +76,7 @@ export const TOOLS = {
     "joiner": " · ",
     "openedSome": "aperto una pagina",
     "askedFor": (host: string) => `richiesto ${host}`,
+    "read": (n: number) => `letto la pagina ${n} ${n === 1 ? "volta" : "volte"}`,
     "typed": (n: number) => `scritto in ${n} ${n === 1 ? "campo" : "campi"}`,
     "clicked": (n: number) => `cliccato ${n} ${n === 1 ? "volta" : "volte"}`,
     "clickInterrupted": "clic interrotto",

@@ -18,6 +18,7 @@ import { logBrowserFailure, logProvenanceFailure } from "../browser/diagnostics"
 import { isPaused } from "../browser/window";
 import { browserUsable } from "../browser/usable";
 import { browserClick, browserFind, browserOpen, browserRead, browserScreenshot, browserType, fence, shotImage, shotLine } from "./browserCall";
+import { automaticShot } from "./autoShot";
 import { browserCode, LINK_UNSEEN } from "../browser/codes";
 import { MAX_PICTURES_PER_TURN, picturesTaken } from "../pictures";
 import * as ledger from "../callLedger";
@@ -396,7 +397,15 @@ export async function executeToolCall(
         // function — asking first is what made this window exist, and it is why
         // the abort is read here rather than left to `throughBrowser`.
         if (signal?.aborted) return stopped(stoppedText);
-        return { text: await browserOpen(entry.url, conversationId, signal), ok: true };
+        const opened = await browserOpen(entry.url, conversationId, signal);
+        // **The picture comes with the open.** A model that opens a page sees
+        // the page: the picture is taken here, once, and it rides the open's
+        // own answer. A turn that may not see pictures is given none, and an
+        // open that has no picture to give is still an open.
+        const picture = await automaticShot(opened, conversationId, calls, pictures, signal);
+        return picture === null
+          ? { text: opened, ok: true }
+          : { text: opened, ok: true, image: picture };
       }
       if (name === "browser_read") {
         // No page number is the first page, which is what the model means by

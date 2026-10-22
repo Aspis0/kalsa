@@ -61,6 +61,15 @@ export const IMAGE_TOKENS = 560;
     to a model that cannot see them. */
 export const IMAGE_PLACEHOLDER = "[an image the current AI cannot see]";
 
+/** The one sentence a reloaded turn says about a picture it cannot carry.
+ *
+ * **The disk keeps no picture and no page**, so a browser run's result is
+ * emptied on the way to localStorage — and the trace of a picture that came
+ * with an open would go with it. This is what is left: the fact, in one fixed
+ * sentence, with no host, no page and no byte. */
+export const PICTURE_NOT_CARRIED =
+  "The call brought a picture of the page it opened; the picture itself is not carried into later turns.";
+
 /** The short line that tells a seeing model what the stills beside it are:
     a video, how many frames of it, how long it runs. */
 export function videoMarker(durationMs: number, frames: number): string {
@@ -620,7 +629,12 @@ function wireResultFor(run: ToolRun): string {
   // the generic English sentence stands in.
   const unreadable = run.state === "failed" && isMalformedArguments(run.arguments, storedAsCut(run.arguments));
   const text = unreadable ? notValidGuide(run.name) : wireResult(run.result);
-  return lines.length > 0 ? `${text}\n${lines.join("\n")}` : text;
+  // **A picture the disk did not keep is still a fact about the turn.** The
+  // browser's runs lose their result on the way to localStorage — a page is a
+  // stranger's words — so a reloaded turn would forget that the call brought a
+  // picture. The fixed sentence says it, and says nothing else.
+  const carried = run.picture === true && run.result === "" ? PICTURE_NOT_CARRIED : text;
+  return lines.length > 0 ? `${carried}\n${lines.join("\n")}` : carried;
 }
 
 /** The guide for a stored call whose arguments never parsed: the tool's own

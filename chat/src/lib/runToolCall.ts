@@ -145,12 +145,13 @@ export async function runToolCall(
   }
   ctx.onToolRun?.({
     ...started,
-    result: kept(result),
+    result: kept(result, image),
     resultCode,
     state,
     ...(miniapp ? { miniapp } : {}),
     ...(mail ? { mail } : {}),
     ...(pagesRead ? { pagesRead } : {}),
+    ...(image !== undefined ? { picture: true } : {}),
   });
   return {
     result,
@@ -167,13 +168,20 @@ const KEPT_RESULT_CHARS = 1_200;
  * turn keeps the beginning: a page's text should not sit in browser storage
  * for the life of the conversation, and it should not be sent again on every
  * later turn either.
+ *
+ * **The line a picture left is kept after the cut.** The picture itself is
+ * never kept, but the later turns read this record and must know a picture was
+ * taken: the line says which page it was of and when.
  */
-function kept(result: string): string {
-  if (!exceedsCodePoints(result, KEPT_RESULT_CHARS)) return result;
+function kept(result: string, image: ToolImage | undefined): string {
   // By code points, not by UTF-16 units: this text is replayed to the engine on
   // every later turn, and a slice that ends mid-character would send a lone
   // surrogate in every one of them.
-  return `${firstCodePoints(result, KEPT_RESULT_CHARS)}\n\n[The rest of this result was not kept after the turn.]`;
+  const text = exceedsCodePoints(result, KEPT_RESULT_CHARS)
+    ? `${firstCodePoints(result, KEPT_RESULT_CHARS)}\n\n[The rest of this result was not kept after the turn.]`
+    : result;
+  const line = image?.line;
+  return line === undefined ? text : `${text}\n${line}`;
 }
 
 /**

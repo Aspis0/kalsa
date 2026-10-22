@@ -160,14 +160,16 @@ export function filed(
   ledger: Ledger,
   name: string,
   args: Record<string, unknown>,
-  outcome: { text: string; ok: boolean; resultCode?: string; stage?: string },
+  outcome: { text: string; ok: boolean; resultCode?: string; stage?: string; image?: unknown },
 ): void {
   if (!BROWSER_NAMES.has(name)) return;
   if (outcome.ok) {
     ledger.spent += 1;
     // **A picture is counted as a picture.** The turn's ceiling is on how many
-    // it took, and a body that let the bytes go does not un-take it.
-    if (name === BROWSER_SCREENSHOT_NAME) ledger.pictures += 1;
+    // it took, and a body that let the bytes go does not un-take it. A picture
+    // that came with another call — the open's own — is a picture the turn
+    // took all the same.
+    if (name === BROWSER_SCREENSHOT_NAME || outcome.image !== undefined) ledger.pictures += 1;
     record(ledger, name, args, outcome.text);
     return;
   }

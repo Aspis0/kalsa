@@ -46,6 +46,12 @@ export interface ToolRun {
   /** How many mail cards that turn drew, and the only part of them that is
       kept: a reloaded chat has the count and not the cards. */
   mailShown?: number;
+  /** **This call brought a picture of the page.** A picture is a read of the
+      page, and the record counts it as one: the model saw the page, so a turn
+      that only had a picture has read something, and a record that said it had
+      read nothing would be wrong in the one way that matters. The bytes are
+      never kept — only the line that says what the picture was of. */
+  picture?: boolean;
   /** How many pages a search read before it answered, so the card can say so
       honestly instead of claiming the model did. Nothing when it read none. */
   pagesRead?: number;

@@ -195,6 +195,14 @@ export interface ToolImage {
   mediaType: string;
   /** The text that goes beside the picture on the wire. */
   text: string;
+  /** The line the record keeps **beside** the answer, in words and never in
+   *  bytes: what the picture was of, and when it was taken.
+   *
+   *  **Absent when the answer was the line itself.** The manual picture's
+   *  answer is that line, so there is nothing extra to keep; the picture that
+   *  came with an open is beside the open's own words, and the record keeps
+   *  the line so the later turns know a picture was taken. */
+  line?: string;
 }
 
 export interface ToolOutcome {

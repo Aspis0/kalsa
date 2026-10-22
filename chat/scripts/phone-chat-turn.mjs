@@ -146,6 +146,40 @@ async function turns(app) {
     equal("a finished turn ends with one done", log.at(-1), ["done", {}]);
   }
   {
+    // **The phone never takes a picture.** The phone's turn carries no gate, so
+    // a picture asked for by hand is refused at the call, and the open that
+    // would bring one brings none: the browser is never asked for a picture on
+    // a phone, by either road.
+    const { loop, seen } = fakeLoop(async (o) => {
+      o.shot = await o.runTool("browser_screenshot", {}, o.signal, o.messages);
+      o.opened = await o.runTool("browser_open", { url: "https://shop.example/dp/1" }, o.signal, o.messages);
+    });
+    const { sink } = recorder(app);
+    await app.runPhoneTurn(
+      turnOf([USER("apri https://shop.example/dp/1 e fai una foto")]),
+      SETTINGS,
+      sink,
+      abortable(),
+      MAIL_ON,
+      { loop, facts: facts() },
+    );
+    check(
+      "a picture asked for by hand is refused on a phone",
+      seen.options.shot?.ok === false,
+      JSON.stringify(seen.options.shot),
+    );
+    check(
+      "and the open brings no picture",
+      seen.options.opened?.image === undefined,
+      JSON.stringify(seen.options.opened),
+    );
+    check(
+      "and the browser was never asked for one",
+      !bridge.calls.some((call) => call.command === "brain_browser_screenshot"),
+      bridge.calls.map((call) => call.command).join(", "),
+    );
+  }
+  {
     const { loop, seen } = fakeLoop(async () => {});
     const { sink } = recorder(app);
     await app.runPhoneTurn(turnOf([USER("x")]), SETTINGS, sink, abortable(), MAIL_ON, { loop, facts: facts() });

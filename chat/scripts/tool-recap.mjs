@@ -141,6 +141,35 @@ const { app } = await loadApp();
   const stopped = line(runs(run("browser_open", { url: "https://httpbin.org/" }, { result: "run-stopped", state: "failed" })));
   check("a stopped turn says it was interrupted", stopped.includes("interrupted"), stopped);
 
+  // **A picture is a read of the page, and the line says the page was read.**
+  // The open brought the page with it and the model read the page afterwards:
+  // two reads of one page, and the line says two — in the words the owner
+  // reads and in the words the model reads.
+  const readTwice = runs(
+    run("browser_open", { url: "https://shop.example/dp/1" }, { picture: true }),
+    run("browser_read", { page: 1 }),
+  );
+  check(
+    "the line says the page was read, and how many times",
+    line(readTwice).includes("read the page 2 times"),
+    line(readTwice),
+  );
+  check(
+    "and the model's record says the same number",
+    app.turnRecord(readTwice).includes("read 2 times"),
+    app.turnRecord(readTwice),
+  );
+  check(
+    "and the line says it in Italian too",
+    line(readTwice, [], 0, italian).includes("letto la pagina 2 volte"),
+    line(readTwice, [], 0, italian),
+  );
+  check(
+    "a turn that only read the page still says something",
+    line(runs(run("browser_read", { page: 1 }))).includes("read the page 1 time"),
+    line(runs(run("browser_read", { page: 1 }))),
+  );
+
   check("a turn that used no browser tool says nothing", line([]) === "");
 
   // --- what became of the requests ------------------------------------------
