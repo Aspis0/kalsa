@@ -634,3 +634,12 @@ Report: 0 P0, 2 P1, 8 P2. The engine-key P1 (llama-server answered any Origin, n
 - **No test joins the detector and the chat halves.** `browser-failure-log.mjs` fabricates the sidecar's answer, and the Rust tests stop at the refusal; nothing checks that a real challenge produces the code the chat shows.
 - **The integration fixtures are all on 127.0.0.1**, so the provider branch (`served_by_a_provider` true) is only proved as a unit, never as a page.
 - **The gate is not tested through `page_text` for a loopback page.** The guard refuses every loopback address, so the tool-path test (`mcp.rs` `the_tool_path_refuses_a_challenge_and_answers_an_ordinary_page`) uses a public literal address answered by a route; the loopback path itself is not covered.
+
+## Context digest: audit leftovers (2026-10-22, on `digest-mvp`)
+
+The two P1s (cut pages/documents missing from the sources; near-duplicate sentences dropping the newer fact) are being fixed on the branch. What stays open:
+
+- **Generic matches from stopwords and fold.** `più` folds to `piu`, is not in the hand-written stopword list, and can anchor irrelevant sentences ("Ci sono più?" recovered sentences about the sky and music); the fold also strips every Unicode diacritic (`ñ` → `n`), beyond Italian accents (`chat/src/lib/context/grams.ts`, `chat/src/lib/context/pick.ts`).
+- **The 529 ms benchmark is not the worst case.** BM25 walks every query gram for every unit and the matcher compares every distinct word against the query's words, so cost grows as units × query — quadratic behavior when both grow (`chat/src/lib/context/bm25.ts`, `chat/src/lib/context/pick.ts`).
+- **No integration coverage of the flag or the budget.** The suite composes `digestForTurn` and `withDigest` by hand; it never goes through the `contextDigest` flag in the hook, nor checks the tool-loop budget that carries the block (`chat/scripts/context-digest.mjs`).
+- **By design, to remember:** the query includes the last assistant answer, so a cut hallucination the assistant once restated can be dredged back as if it were fact — mechanism confirmed by the audit, accepted with the plan.
