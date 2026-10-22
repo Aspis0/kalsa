@@ -44,7 +44,9 @@ export async function loadApp({ compileOut } = {}) {
         export { canonicalToolName, repairToolCall } from "../src/lib/repairToolCall.ts";
         export { recoverToolCall } from "../src/lib/recoverToolCall.ts";
         export { phoneTools, phoneConversation, runPhoneTurn } from "../src/lib/phone/phoneTurn.ts";
-        export { fences, browserOpen, browserClose } from "../src/lib/tools/browserCall.ts";
+        export { fence, fences, pageText, stripUntrusted, DIGEST_FENCE_CHARS } from "../src/lib/pageFence.ts";
+        export { CUT_MARK, KEPT_RESULT_CHARS } from "../src/lib/toolCut.ts";
+        export { browserOpen, browserClose } from "../src/lib/tools/browserCall.ts";
         export { noteBrowserStatus, browserUsable } from "../src/lib/browser/usable.ts";
         export { refreshBrowserStatus } from "../src/lib/browser/useStatus.ts";
         export { isBrowserRun } from "../src/lib/browser/runs.ts";
@@ -107,12 +109,14 @@ export async function loadApp({ compileOut } = {}) {
         export { createAttachGate, NEW_CHAT } from "../src/lib/attachGate.ts";
         export { buildPinnedContext, estTokens, turnDocBlock, systemPrompt, wireSize, ANSWER_RESERVE_TOKENS, IMAGE_TOKENS } from "../src/lib/attachments.ts";
         export { pruneNotice } from "../src/lib/pruneNotice.ts";
+        export { digestForTurn, withDigest, DIGEST_CAP_TOKENS, DIGEST_HEADER, DIGEST_JOIN } from "../src/lib/context/digest.ts";
+        export { loadSettings } from "../src/lib/settings.ts";
         export { definitionsTokens, denseTokens, HOUSE_CHARS_PER_TOKEN, DENSE_CHARS_PER_TOKEN, DENSE_MARGIN } from "../src/lib/density.ts";
         export { FINAL_STATUS } from "../src/lib/toolLoop.ts";
         export { DISARMED, tap, spend, modeOf } from "../src/lib/browseArm.ts";
         export { subscribeBrowserUsable, browserUsableSnapshot } from "../src/lib/browser/usable.ts";
         export { LINK_UNSEEN, isRefusalCode } from "../src/lib/browser/codes.ts";
-        export { neverRan, fetchProvenanceRefusal } from "../src/lib/tools/fetchProvenance.ts";
+        export { neverRan, fetchProvenanceRefusal, browserEntry } from "../src/lib/tools/fetchProvenance.ts";
         export { BROWSER_NAMES } from "../src/lib/tools/browserTools.ts";
         export { sentDatePhrase } from "../src/lib/sentDate.ts";
         export { newUserTurn } from "../src/lib/userTurn.ts";

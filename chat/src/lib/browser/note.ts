@@ -1,6 +1,6 @@
 import { currentCards, pendingOutcomes, takeOutcomes } from "./confirm";
 import type { Outcome } from "./confirm";
-import { fence } from "../tools/browserCall";
+import { fence } from "../pageFence";
 import type { Recap, RecapWords } from "./recap";
 import { recapLine, recapOf } from "./recap";
 import type { ToolRun } from "../types";

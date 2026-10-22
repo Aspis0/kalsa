@@ -206,6 +206,17 @@ export interface ChatSettings {
    * been asked for this feature never offers it, whatever else is true.
    */
   browserVision: boolean;
+  /**
+   * Whether the facts an earlier exchange carried out of the window ride
+   * back in, beside the turn that asked for them. Only the turns the fit
+   * leaves behind are searched, and the picks go in verbatim, stamped with
+   * their turn and role; the recent window is never touched.
+   *
+   * **Off by default, and hidden on purpose,** like the picture switch: a build
+   * that has not been asked for this never adds the block, whatever else is
+   * true.
+   */
+  contextDigest: boolean;
 }
 
 /** The stored settings plus this computer's own door — the only endpoint
