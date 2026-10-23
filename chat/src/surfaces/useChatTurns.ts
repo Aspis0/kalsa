@@ -418,8 +418,9 @@ export function useChatTurns({ store, announce, contextSizes, saveMailDraft }: T
         persistLive({ prunedTurns: ctx.dropped > 0 ? ctx.dropped : undefined });
       }
       // The facts the fit left behind that match this turn, at the head of the
-      // last user message. Off unless the switch is on, and empty when nothing
-      // was left behind: then the wire is the fit's own, byte for byte.
+      // last user message. The switch has already said so — on unless the
+      // record says false — and the block is empty when nothing was left
+      // behind: then the wire is the fit's own, byte for byte.
       // The documents a cut turn bound are sources too, and only the ones
       // that left the window with it: a pinned document rides in the system
       // message, so its text is still in the window and must not be said twice.
@@ -429,7 +430,7 @@ export function useChatTurns({ store, announce, contextSizes, saveMailDraft }: T
           .map((doc) => [doc.id, doc.text] as const),
       );
       const digest = digestForTurn(
-        currentSettings.contextDigest === true,
+        currentSettings.contextDigest,
         ctx.shed,
         ctx.kept,
         DIGEST_CAP_TOKENS,

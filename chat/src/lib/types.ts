@@ -212,9 +212,9 @@ export interface ChatSettings {
    * leaves behind are searched, and the picks go in verbatim, stamped with
    * their turn and role; the recent window is never touched.
    *
-   * **Off by default, and hidden on purpose,** like the picture switch: a build
-   * that has not been asked for this never adds the block, whatever else is
-   * true.
+   * **On by default, and hidden on purpose:** a record that says nothing
+   * about it gets the block, and only an explicit `false` in the record
+   * takes it away.
    */
   contextDigest: boolean;
 }

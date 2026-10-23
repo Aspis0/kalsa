@@ -19,7 +19,9 @@
 // keeps its words, and the record's cut leaves them), the budget, the stamps,
 // the room the block costs the window, and the wire: with nothing cut the wire
 // is byte-identical with the switch on and off, and when something was cut the
-// two differ in the tail block alone.
+// two differ in the tail block alone. **And the settings that decide it**: the
+// digest rides unless the record says false, and the cleanup that drops the
+// stale pair leaves the record otherwise as it was.
 //
 // Run: node scripts/context-digest.mjs   (from chat/)
 
@@ -408,16 +410,35 @@ try {
     console.log(`   cost on this case: block ${block.length} chars ≈ ${weighed} tokens (chars ÷ 3.5), history fitted ${historyTokens} tokens`);
   }
 
-  console.log("\n11. the settings: off unless explicitly on, and the old record reads off");
+  console.log("\n11. the settings: on unless the record says false, and the old record reads on");
   {
+    // The flag the record gives, driving the real digest: the block rides
+    // when something was shed, and with an explicit false the wire is the
+    // fit's own, byte for byte.
+    const LIVE = [...CONVERSATION, m("uq", "user", "Quanto costava il Kindle Paperwhite su Amazon?")];
+    const room = ANSWER_RESERVE_TOKENS + buildPinnedContext(LIVE.slice(8), [], null).historyTokens + 5;
+    const cut = buildPinnedContext(LIVE, [], room);
+    const wireWith = (flag) => withDigest(cut.wire, digestForTurn(flag, cut.shed, cut.kept));
+
     storage.clear();
-    check("no stored record: off", loadSettings().contextDigest === false);
+    const noRecord = loadSettings().contextDigest;
+    check("no stored record: on", noRecord === true);
+    check("and the key absent gives a block", digestForTurn(noRecord, cut.shed, cut.kept) !== "");
+    check("and the wire carries it", JSON.stringify(wireWith(noRecord)) !== JSON.stringify(cut.wire));
+
     storage.set("crescent-chat.settings.v1", JSON.stringify({ model: "x", webTools: true }));
-    check("an old record without the key: off", loadSettings().contextDigest === false);
+    const oldRecord = loadSettings().contextDigest;
+    check("an old record without the key: on", oldRecord === true);
+    check("and its wire carries the block too", JSON.stringify(wireWith(oldRecord)) !== JSON.stringify(cut.wire));
+
     storage.set("crescent-chat.settings.v1", JSON.stringify({ model: "x", webTools: true, contextDigest: true }));
     check("an explicit true: on", loadSettings().contextDigest === true);
+    storage.set("crescent-chat.settings.v1", JSON.stringify({ model: "x", webTools: true, contextDigest: false }));
+    const saidFalse = loadSettings().contextDigest;
+    check("an explicit false: off", saidFalse === false);
+    check("and the wire is the fit's own, byte for byte", JSON.stringify(wireWith(saidFalse)) === JSON.stringify(cut.wire));
     storage.set("crescent-chat.settings.v1", JSON.stringify({ model: "x", webTools: true, contextDigest: "yes" }));
-    check("anything but true: off", loadSettings().contextDigest === false);
+    check("anything but false: on", loadSettings().contextDigest === true);
 
     // The cleanup that drops the stale endpoint/token pair is about that pair
     // and nothing else: the switch this version added is not written there,
@@ -431,6 +452,10 @@ try {
     loadSettings();
     const kept = JSON.parse(storage.get("crescent-chat.settings.v1"));
     check("a record that had the switch keeps it through the cleanup", kept.contextDigest === true, JSON.stringify(kept));
+    storage.set("crescent-chat.settings.v1", JSON.stringify({ model: "x", webTools: true, contextDigest: false, endpoint: "http://old" }));
+    loadSettings();
+    const keptOff = JSON.parse(storage.get("crescent-chat.settings.v1"));
+    check("and a record that said false keeps that too", keptOff.contextDigest === false, JSON.stringify(keptOff));
     storage.clear();
   }
 

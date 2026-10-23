@@ -3,6 +3,17 @@ import type { ChatSettings } from "./types";
 const SETTINGS_KEY = "crescent-chat.settings.v1";
 const THEME_KEY = "crescent-chat.theme.v1";
 
+/** The settings a machine with nothing readable stored has: the tools on,
+ *  the picture off, **the digest on**. The digest is the default now — the
+ *  A/B gave the block to the recall — so what turns it off is the owner's
+ *  decision and not a lever a build has to be asked for. */
+const DEFAULTS: ChatSettings = {
+  model: "",
+  webTools: true,
+  browserVision: false,
+  contextDigest: true,
+};
+
 // This session's own choice outranks storage, so Automatic keeps following
 // the system even when the stored choice cannot be read or removed.
 let sessionChoice: "auto" | "light" | "dark" | null = null;
@@ -28,7 +39,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 export function loadSettings(): ChatSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
-    if (!raw) return { model: "", webTools: true, browserVision: false, contextDigest: false };
+    if (!raw) return { ...DEFAULTS };
     const parsed: unknown = JSON.parse(raw);
     if (!isRecord(parsed)) {
       // A record in a shape nothing can read cannot be partially cleaned:
@@ -38,7 +49,7 @@ export function loadSettings(): ChatSettings {
       } catch {
         // Private mode etc: there is nothing left to come back to.
       }
-      return { model: "", webTools: true, browserVision: false, contextDigest: false };
+      return { ...DEFAULTS };
     }
     // Only these two keys go; everything else — including keys this version
     // does not know — comes back as it was: a whitelist rewrite would
@@ -58,9 +69,11 @@ export function loadSettings(): ChatSettings {
       // true turns it on, so a build that has not been asked for it never
       // offers a picture — the lever is a decision, not a default.
       browserVision: parsed.browserVision === true,
-      // The same rule as the picture switch: only an explicit true turns the
-      // digest on. A record from before the feature has nothing to say about it.
-      contextDigest: parsed.contextDigest === true,
+      // **The digest rides unless the record says no.** A record from before
+      // the feature has nothing to say about it, and what it says is
+      // nothing: the default — the same one a new install gets — is on.
+      // Only an explicit `false` turns it off.
+      contextDigest: parsed.contextDigest !== false,
     };
     if ("endpoint" in parsed || "token" in parsed) {
       // The cleanup writes the record without the stale pair and nothing else:
@@ -89,7 +102,7 @@ export function loadSettings(): ChatSettings {
     } catch {
       // Private mode etc: there is nothing left to come back to.
     }
-    return { model: "", webTools: true, browserVision: false, contextDigest: false };
+    return { ...DEFAULTS };
   }
 }
 
