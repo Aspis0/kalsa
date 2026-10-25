@@ -681,3 +681,7 @@ What stays open:
 - **The card capability lives in two crates** (`kalsa-door` `chat::body`, `phone_chat`); the claim's shape lives only in `hold.rs`.
 - **An unpair's release can be lost.** `forgetClaims` fires the releases without waiting and swallows a give-up (`chat/src/lib/phone/phoneClaims.ts`), and a re-paired phone has another pairing, so it cannot take the old claim over: the page stays claimed until a manual navigation or the session end. A refusal, never a leak.
 - **The pairing tag is 64 bits** (`src-tauri/src/phone_chat.rs` `pairing_of`): enough against accidental collisions of app-minted credentials, not an authentication secret. `Card`'s Debug prints the claim (`crates/kalsa-browser/src/hold.rs`); no log formats it today.
+
+## Chat slot files on disk (found 2026-10-25)
+
+- **The saved chat slots have no cap.** `ai.kalsa.brain/slots` reached 24 GB in four days on the Mac (83 files, 50 MB to 800 MB each). A file goes only when its chat is erased, its device is revoked, or it is a dead `.staging` (`crates/kalsa-door/src/paging.rs` erase, `paging/sweep.rs`). A chat the user keeps, or a chat the door never hears erased, keeps its file forever. The model's hash is in the name, so a model switch or a removed model leaves every file of the old model behind. A cap is needed: oldest-first by size or count, and the files of models no longer installed go first.
