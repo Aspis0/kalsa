@@ -17,12 +17,41 @@
 use std::collections::HashMap;
 use std::time::Instant;
 
-use kalsa_browser::hold::{is_phone, phone_claim, phone_conversation};
 use kalsa_door::DeviceId;
 
 use crate::browser::pending::{Destination, Field, ASKED_FOR};
 
 use super::drafts::Owner;
+
+/// **The prefix a phone's claim carries.** A desktop's conversation is a plain
+/// name and never carries it, and that is what tells the two apart.
+const PHONE: &str = "phone:";
+
+/// **The claim a phone's turn makes on the page**, in the browser's own shape.
+///
+/// **A mirror of `kalsa_browser::hold::phone_claim`** — the same name, the same
+/// three parts, the same format — kept here rather than shared because the
+/// sidecar is built and launched as its own program and this binary does not
+/// link it. `kalsa-browser` is a dev-dependency and nothing more, so a claim
+/// built here has to be built here: this app must not link the sidecar's
+/// playwright to stamp a name. **The shape cannot drift silently**: the test at
+/// the end of this file asks both sides for the same claim and compares them.
+fn phone_claim(device: &str, pairing: &str, turn: &str) -> String {
+    format!("{PHONE}{device}:{pairing}:{turn}")
+}
+
+/// **The name of a phone's conversation: the phone alone.** A mirror of
+/// `kalsa_browser::hold::phone_conversation`, and held to the same proof.
+fn phone_conversation(device: &str) -> String {
+    format!("{PHONE}{device}")
+}
+
+/// **Whether a name belongs to a phone.** A mirror of
+/// `kalsa_browser::hold::is_phone`, and held to the same proof: a desktop's
+/// conversation never carries the prefix, and that is what tells the two apart.
+fn is_phone(name: &str) -> bool {
+    name.starts_with(PHONE)
+}
 
 /// A card, and everything an answer needs to spend it correctly.
 #[derive(Clone)]
@@ -168,9 +197,11 @@ impl Cards {
 /// conversation is a UUID and never carries this prefix, so the two can never be
 /// confused for one another.
 ///
-/// **The name itself is the browser's.** `kalsa-browser` owns the shape of a
-/// phone's claim and the rule that reads it, so the two crates cannot go on
-/// reading the same string two ways.
+/// **The shape of the name is the browser's, and this file mirrors it.**
+/// `kalsa-browser` owns a phone's claim and the rule that reads it; the sidecar is
+/// a program of its own and this binary does not link it, so the name is built
+/// here in the same shape — and the test at the end of this file holds the two to
+/// it, so the two crates cannot go on reading the same string two ways.
 pub(super) fn conversation_of(device: DeviceId) -> String {
     phone_conversation(&device.value().to_string())
 }
@@ -202,7 +233,45 @@ pub(crate) fn is_phone_conversation(conversation: &str) -> bool {
 /// saying the same thing; the bridge builds it and the window is given it, so
 /// they cannot drift apart. **And the shape of it is the browser's**, which is
 /// where the rule that reads a claim lives: the phone's number, the pairing it
-/// belongs to, and the turn's own id.
+/// belongs to, and the turn's own id — mirrored here, and held to the browser's
+/// own by the test at the end of this file.
 pub(super) fn stamp_of(device: DeviceId, pairing: &str, request: &str) -> String {
     phone_claim(&device.value().to_string(), pairing, request)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{is_phone, phone_claim, phone_conversation};
+
+    /// **The claim this app builds is the claim the sidecar reads.**
+    ///
+    /// The sidecar is a program of its own and this binary does not link it, so
+    /// the name is mirrored here rather than shared — and a mirror that drifts
+    /// is a claim the sidecar cannot read and a phone that cannot have its
+    /// page. This is what keeps the two honest: the browser's own functions are
+    /// asked for the same claim, and the two answers have to be the same string.
+    #[test]
+    fn the_claim_this_app_builds_is_the_claim_the_sidecar_reads() {
+        let (device, pairing, turn) = ("2", "0123456789abcdef", "turn-1");
+
+        assert_eq!(
+            phone_claim(device, pairing, turn),
+            kalsa_browser::hold::phone_claim(device, pairing, turn),
+            "the two sides built different claims"
+        );
+        assert_eq!(
+            phone_conversation(device),
+            kalsa_browser::hold::phone_conversation(device),
+            "the two sides named a phone's conversation differently"
+        );
+        assert_eq!(
+            is_phone(&phone_claim(device, pairing, turn)),
+            kalsa_browser::hold::is_phone(&kalsa_browser::hold::phone_claim(device, pairing, turn)),
+            "the two sides disagree about a claim"
+        );
+        assert!(
+            !is_phone("chat-a") && !kalsa_browser::hold::is_phone("chat-a"),
+            "a desktop's conversation is nobody's phone, and both sides say so"
+        );
+    }
 }
