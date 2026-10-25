@@ -17,20 +17,14 @@
  * **One press, ever.** The card is spent before the computer dispatches
  * anything, so a second press could only be a second message to a stranger's
  * server — a failure sentence with the buttons gone is the honest end of it.
+ *
+ * **The card draws; it does not decide.** The budget, the press and the answer
+ * live in `useBrowserCardPress`, and this file reads them.
  */
-import { useCallback, useEffect, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { useLocale } from "../../i18n";
-import {
-  isBrowserCardExpired,
-  monotonicNowMs,
-  SECRET_DOTS,
-  type BrowserAnswer,
-  type BrowserCard,
-  type BrowserCardEntry,
-} from "../../domain/browserCardPayload";
-import type { BrowserAnswerVerb } from "../../engine/remote/browserApi";
+import { SECRET_DOTS, type BrowserCard, type BrowserCardEntry } from "../../domain/browserCardPayload";
 import {
   answerLeftNothingSent,
   humanBrowserAnswerFailure,
@@ -38,23 +32,7 @@ import {
 } from "../../engine/remote/browserOutcomeText";
 import { elevation, radius, spacing, type, type DesignColors } from "../../theme/design";
 import { MIN_TOUCH_TARGET } from "./shellGeometry";
-import { useBrowserActions } from "./browserActions";
-
-/** How often the budget is re-read, on the phone's own monotonic clock:
- *  the deadline is this phone's, counted down from the card's arrival. */
-const TICK_MS = 1000;
-
-/** What an answer that blew up looks like: the road died, and nothing can be
- *  said about whether the request reached the computer — the failure the answer
- *  route itself returns for a request that never got there. */
-const ROAD_FAILURE: BrowserAnswer = { ok: false, errorCode: "remote_brain_network" };
-
-/** The card as it was the moment it was pressed: the destination and the fields
- *  it drew, kept only until the answer comes back. */
-type FrozenCard = {
-  destination: BrowserCard["destination"];
-  fields: BrowserCard["fields"];
-};
+import { useBrowserCardPress } from "./useBrowserCardPress";
 
 export function BrowserConfirmCard({
   entry,
@@ -64,96 +42,10 @@ export function BrowserConfirmCard({
   colors: DesignColors;
 }) {
   const { t } = useLocale();
-  const browser = useBrowserActions();
   const { card, outcome } = entry;
-  const [now, setNow] = useState(monotonicNowMs);
-  const [frozen, setFrozen] = useState<FrozenCard | null>(null);
-  const [answer, setAnswer] = useState<BrowserAnswer | null>(null);
-  /** One flag per secret field: what the person has chosen to look at, held here
-   *  and nowhere else. */
-  const [shown, setShown] = useState<ReadonlySet<string>>(() => new Set());
-  /** A pressed card is one whose answer is on the road: it cannot be pressed
-   *  again, and it keeps drawing its card until it settles. */
-  const pressed = frozen !== null;
-
-  const expired = isBrowserCardExpired(card, now);
-  // An absent outcome is not an outcome: a card nobody answered is still open,
-  // and `!== null` against `undefined` would call every card spent on arrival.
-  const settled = answer !== null || outcome !== undefined;
-  const live = !expired && !settled;
-
-  /** Every way a card stops being answerable ends here. §6 is about the value
-   *  GOING, not about a card that keeps it and draws dots — so the message is
-   *  told, and the message drops it. Idempotent at both ends, so a press, an
-   *  outcome and a deadline landing together strip once. */
-  const spend = useCallback(() => {
-    browser?.spentBrowserCard(card.cardId);
-  }, [browser, card.cardId]);
-
-  // An outcome settles the card from under us, with no press of ours.
-  useEffect(() => {
-    if (settled) spend();
-  }, [settled, spend]);
-
-  // The deadline passes while the card is drawn, and nobody presses anything.
-  useEffect(() => {
-    if (expired) spend();
-  }, [expired, spend]);
-
-  // The deadline passes while the card is drawn, so the card watches it — and
-  // stops watching the moment nobody can answer, because a timer that outlives
-  // the question is a timer keeping a stranger's value alive for nothing.
-  useEffect(() => {
-    if (!live) return;
-    const timer = setInterval(() => setNow(monotonicNowMs()), TICK_MS);
-    return () => clearInterval(timer);
-  }, [live, card.cardId]);
-
-  // Expired or answered: the values go, and the flags with them (§6).
-  useEffect(() => {
-    if (live || shown.size === 0) return;
-    setShown(new Set());
-  }, [live, shown.size]);
-
-  // The backstop for the paths where no answer of ours ever comes: a card that
-  // expires or is settled from under us drops its frozen copy (§6).
-  useEffect(() => {
-    if (live) return;
-    setFrozen(null);
-  }, [live]);
-
-  const toggle = useCallback((key: string) => {
-    setShown((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  }, []);
-
-  const press = useCallback(
-    async (verb: BrowserAnswerVerb) => {
-      // Re-checked at the press and not only on the tick: a card that expired
-      // between two renders must not put a request on the road.
-      // No host, no send: a card with no destination can be declined and never sent (§3.1).
-      // No host, no press: the buttons are not drawn at all (see browserActions).
-      const sendable = verb === "decline" || card.destination !== null;
-      if (browser === null || !sendable || pressed || isBrowserCardExpired(card, monotonicNowMs())) return;
-      // Frozen before the spend: the strip takes the host and the values back at
-      // once, and the card must not blink while its answer travels.
-      setFrozen({ destination: card.destination, fields: card.fields });
-      // A revealed value stops being readable the moment the card is spent.
-      setShown(new Set());
-      // Spent before the answer is even asked: the card is the one thing that
-      // knows nobody may answer this any more.
-      spend();
-      const answer = await browser.answerCard(card.cardId, verb).catch(() => ROAD_FAILURE);
-      // The answer is in: the frozen copy goes now, not one render later.
-      setAnswer(answer);
-      setFrozen(null);
-    },
-    [browser, card, pressed, spend],
-  );
+  const {
+    expired, settled, live, pressed, reachable, answer, now, frozen, shown, toggle, press,
+  } = useBrowserCardPress(entry);
 
   // Settled or past its budget, the card is what became of it, and nothing else.
   if (expired || settled) {
@@ -231,7 +123,7 @@ export function BrowserConfirmCard({
       <Text style={[type.caption, { color: colors.silence }]} testID="transcript.browserCard.deadline">
         {t("chat.browser.answerWithin", { time: remaining(card, now) })}
       </Text>
-      {live && browser !== null ? (
+      {live && reachable ? (
         <View style={styles.buttons}>
           {destination !== null ? <Pressable
             testID="transcript.browserCard.send"

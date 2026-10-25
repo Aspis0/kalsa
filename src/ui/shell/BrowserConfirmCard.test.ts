@@ -1,11 +1,10 @@
 /**
- * The browser card, driven through the rendered tree (PHONE-CHAT-PROTOCOL
- * §3.1). What it must do: show every field as it would really be sent, keep a
- * secret behind a Show button, take one press and only one, and go quiet at
- * the deadline.
+ * A request the computer held for the person, as it is drawn (PHONE-CHAT-PROTOCOL
+ * §3.1): the host it goes to, each field as it would really be sent, a secret
+ * behind a Show button, and the one line it becomes once it is settled.
  *
- * The press reaches the real route client, which is mocked here: what is under
- * test is the card's own discipline, not the road to the computer.
+ * The press is elsewhere (`useBrowserCardPress.test.ts`): what this suite
+ * checks is what the card says, not what it does when it is answered.
  */
 const mockAnswer = jest.fn();
 const mockSpent = jest.fn();
@@ -180,103 +179,6 @@ describe("a request held for the person", () => {
     expect(textOf(renderer, "transcript.browserCard.field.2")).toBe(SECRET_DOTS);
   });
 
-  it("one press sends, and the outcome is what the card says next", async () => {
-    const renderer = await render(entry());
-    await press(renderer, "transcript.browserCard.send");
-    expect(mockAnswer).toHaveBeenCalledWith(CARD_ID, "send");
-    expect(textOf(renderer, "transcript.browserCard.outcome")).toBe(
-      'chat.browser.sentTo:{"to":"shop.example"}',
-    );
-  });
-
-  it("Cancel is the other answer and is spent exactly like Send", async () => {
-    mockAnswer.mockResolvedValue({ ok: true, outcome: { code: "declined", host: "" } });
-    const renderer = await render(entry());
-    await press(renderer, "transcript.browserCard.decline");
-    expect(mockAnswer).toHaveBeenCalledWith(CARD_ID, "decline");
-    expect(textOf(renderer, "transcript.browserCard.outcome")).toBe("chat.browser.declined");
-  });
-
-  it("a spent card cannot be pressed again: the buttons are gone, not greyed", async () => {
-    const renderer = await render(entry());
-    await press(renderer, "transcript.browserCard.send");
-    expect(has(renderer, "transcript.browserCard.send")).toBe(false);
-    expect(has(renderer, "transcript.browserCard.decline")).toBe(false);
-    expect(mockAnswer).toHaveBeenCalledTimes(1);
-  });
-
-  it("a refused answer says so in plain words and is still spent", async () => {
-    mockAnswer.mockResolvedValue({ ok: false, errorCode: "card_unknown" });
-    const renderer = await render(entry());
-    await press(renderer, "transcript.browserCard.send");
-    expect(textOf(renderer, "transcript.browserCard.failed")).toBe("chat.browser.failSpent");
-    expect(has(renderer, "transcript.browserCard.send")).toBe(false);
-  });
-
-  it("an answer that blows up settles the card and leaves no value drawn", async () => {
-    mockAnswer.mockRejectedValue(new Error("boom"));
-    const renderer = await render(entry());
-    await press(renderer, "transcript.browserCard.send");
-    // The road died: the card says what it cannot know, and none of the
-    // request is left on the screen.
-    expect(textOf(renderer, "transcript.browserCard.outcome")).toBe("chat.browser.failUncertain");
-    expect(has(renderer, "transcript.browserCard.title")).toBe(false);
-    expect(has(renderer, "transcript.browserCard.field.1")).toBe(false);
-    expect(texts(renderer).join(" ")).not.toContain("hunter2");
-  });
-
-  it("a failure that proves nothing was sent SAYS nothing was sent", async () => {
-    for (const code of ["card_expired", "card_unknown"]) {
-      mockAnswer.mockResolvedValue({ ok: false, errorCode: code });
-      const renderer = await render(entry());
-      await press(renderer, "transcript.browserCard.send");
-      expect(textOf(renderer, "transcript.browserCard.outcome")).toBe(
-        `chat.browser.${code === "card_expired" ? "failExpired" : "failSpent"}`,
-      );
-    }
-  });
-
-  it("a failure that proves NOTHING is silent about what happened", async () => {
-    // The request may already have been in the browser's hands: saying "nothing
-    // was sent" here would have a person buy the same thing twice.
-    for (const code of ["remote_brain_network", "browser_unreadable", "card_wat"]) {
-      mockAnswer.mockResolvedValue({ ok: false, errorCode: code });
-      const renderer = await render(entry());
-      await press(renderer, "transcript.browserCard.send");
-      expect(textOf(renderer, "transcript.browserCard.outcome")).toBe("chat.browser.failUncertain");
-      expect(texts(renderer).join(" ")).not.toContain("Nothing was sent");
-      expect(texts(renderer).join(" ")).not.toContain("Non è stato inviato");
-    }
-  });
-
-  it("a later outcome from the computer wins over the local failure", async () => {
-    mockAnswer.mockResolvedValue({ ok: false, errorCode: "remote_brain_network" });
-    const renderer = await render(entry());
-    await press(renderer, "transcript.browserCard.send");
-    expect(textOf(renderer, "transcript.browserCard.outcome")).toBe("chat.browser.failUncertain");
-
-    // The computer's own word about the same card arrives afterwards.
-    await act(async () => {
-      renderer.update(
-        React.createElement(BrowserConfirmCard, {
-          entry: entry({ outcome: { code: "declined", host: "" } }),
-          colors: modes.light,
-        }),
-      );
-    });
-
-    expect(textOf(renderer, "transcript.browserCard.outcome")).toBe("chat.browser.declined");
-    // One story per card: the raw refusal is not left underneath it.
-    expect(has(renderer, "transcript.browserCard.failed")).toBe(false);
-  });
-
-  it("a road failure never echoes a code the contract does not name", async () => {
-    mockAnswer.mockResolvedValue({ ok: false, errorCode: "remote_brain_network" });
-    const renderer = await render(entry());
-    await press(renderer, "transcript.browserCard.send");
-    expect(texts(renderer).join(" ")).not.toContain("remote_brain_network");
-  });
-
   it("past the deadline the card asks nothing of anybody", async () => {
     // Same card, five minutes later: the deadline is the computer's own number
     // and the phone's clock is what compares it.
@@ -285,38 +187,6 @@ describe("a request held for the person", () => {
     expect(textOf(renderer, "transcript.browserCard.expired")).toBe("chat.browser.expired");
     expect(has(renderer, "transcript.browserCard.send")).toBe(false);
     expect(has(renderer, "transcript.browserCard.decline")).toBe(false);
-  });
-
-  it("a revealed value dies with the card that revealed it", async () => {
-    const renderer = await render(entry());
-    await press(renderer, "transcript.browserCard.toggle.1");
-    expect(texts(renderer).join(" ")).toContain("hunter2");
-    // Answered: §6 says the value goes, and it goes with the flags that drew it.
-    await press(renderer, "transcript.browserCard.send");
-    expect(texts(renderer).join(" ")).not.toContain("hunter2");
-    expect(has(renderer, "transcript.browserCard.field.1")).toBe(false);
-  });
-
-  it("answering tells the message to give the value back", async () => {
-    const renderer = await render(entry());
-    await press(renderer, "transcript.browserCard.send");
-    expect(mockSpent).toHaveBeenCalledWith(CARD_ID);
-  });
-
-  it("a card already settled by an outcome spends itself on mount", async () => {
-    await render(entry({ outcome: { code: "gone", host: "" } }));
-    expect(mockSpent).toHaveBeenCalledWith(CARD_ID);
-  });
-
-  it("a card past its deadline spends itself, with nothing pressed", async () => {
-    (performance.now as jest.Mock).mockReturnValue(BY);
-    await render(entry());
-    expect(mockSpent).toHaveBeenCalledWith(CARD_ID);
-  });
-
-  it("a live card spends nothing: it may still be answered", async () => {
-    await render(entry());
-    expect(mockSpent).not.toHaveBeenCalled();
   });
 
   it("a settled card is one line: no host, no fields, no dots", async () => {
@@ -340,13 +210,5 @@ describe("a request held for the person", () => {
     expect(has(renderer, "transcript.browserCard.field.1")).toBe(false);
     expect(has(renderer, "transcript.browserCard.toggle.1")).toBe(false);
     expect(textOf(renderer, "transcript.browserCard.outcome")).toBe("chat.browser.gone");
-  });
-
-  it("an outcome the phone did not ask for is drawn on the card it belongs to", async () => {
-    const renderer = await render(
-      entry({ outcome: { code: "declined", host: "" } }),
-    );
-    expect(textOf(renderer, "transcript.browserCard.outcome")).toBe("chat.browser.declined");
-    expect(has(renderer, "transcript.browserCard.send")).toBe(false);
   });
 });
