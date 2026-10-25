@@ -40,7 +40,7 @@ import { act, create, type ReactTestRenderer } from "react-test-renderer";
   .IS_REACT_ACT_ENVIRONMENT = true;
 
 import { BrowserConfirmCard } from "./BrowserConfirmCard";
-import { SECRET_DOTS, type BrowserCardEntry } from "../../domain/browserCardPayload";
+import { SECRET_DOTS, stripCardValues, type BrowserCardEntry } from "../../domain/browserCardPayload";
 import { modes } from "../../theme/design";
 
 const CARD_ID = "3f9c1a77e2b04d5681aa90c3b7e4412d";
@@ -150,5 +150,48 @@ describe("where the request goes", () => {
     // It can still be declined, which needs no destination at all.
     await press(renderer, "transcript.browserCard.decline");
     expect(mockAnswer).toHaveBeenCalledWith(CARD_ID, "decline");
+  });
+
+  it("the host is still named while the answer is on the road", async () => {
+    // The answer does not come back straight away.
+    mockAnswer.mockReturnValue(new Promise(() => {}));
+    const renderer = await render(entry());
+    await press(renderer, "transcript.browserCard.send");
+
+    // The card is spent at the press, so the message takes the host and the
+    // values back in the same breath: the card must not blink while it waits.
+    await act(async () => {
+      renderer.update(
+        React.createElement(BrowserConfirmCard, {
+          entry: { card: stripCardValues(entry().card) },
+          colors: modes.light,
+        }),
+      );
+    });
+
+    expect(textOf(renderer, "transcript.browserCard.title")).toBe(
+      'chat.browser.wantsToSend:{"host":"shop.example"}',
+    );
+    expect(textOf(renderer, "transcript.browserCard.field.0")).toBe("L");
+    expect(textOf(renderer, "transcript.browserCard.field.1")).toBe(SECRET_DOTS);
+  });
+
+  it("a card that never had a destination still says so while the answer is on the road", async () => {
+    mockAnswer.mockReturnValue(new Promise(() => {}));
+    const nowhere = entry();
+    nowhere.card.destination = null;
+    const renderer = await render(nowhere);
+    await press(renderer, "transcript.browserCard.decline");
+
+    await act(async () => {
+      renderer.update(
+        React.createElement(BrowserConfirmCard, {
+          entry: { card: stripCardValues(nowhere.card) },
+          colors: modes.light,
+        }),
+      );
+    });
+
+    expect(textOf(renderer, "transcript.browserCard.title")).toBe("chat.browser.noDestination");
   });
 });

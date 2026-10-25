@@ -189,12 +189,13 @@ describe("the turn route through RemoteEngine", () => {
     expect(seen.cards).toHaveLength(1);
     expect(seen.drafts).toHaveLength(1);
     expect(text(turn.writes[0])).toContain("POST /kalsa/chat/turn HTTP/1.1\r\n");
-    // The wire carries the conversation and the phone's language, and no
-    // system prompt: the computer brings its own.
+    // The wire carries the conversation, the phone's language and what this
+    // phone can draw, and no system prompt: the computer brings its own.
     const body = text(turn.writes[0]).split("\r\n\r\n")[1] ?? "";
     expect(JSON.parse(body)).toEqual({
       messages: [{ role: "user", content: "quali mail ho?" }],
       language: "it",
+      capabilities: ["browser_card"],
     });
   });
 

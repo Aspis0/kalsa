@@ -152,6 +152,13 @@ describe("a request held for the person", () => {
     expect(textOf(renderer, "transcript.browserCard.field.1")).toBe("hunter2");
     // What is not a secret was never dotted.
     expect(textOf(renderer, "transcript.browserCard.field.0")).toBe("L");
+
+    // Revealed and then pressed: while the answer travels the value is nobody's
+    // business, so the secret is dots again.
+    mockAnswer.mockReturnValue(new Promise(() => {}));
+    await press(renderer, "transcript.browserCard.send");
+    expect(textOf(renderer, "transcript.browserCard.field.1")).toBe(SECRET_DOTS);
+    expect(texts(renderer).join(" ")).not.toContain("hunter2");
   });
 
   it("a field with no value is not asked about", async () => {
@@ -204,6 +211,18 @@ describe("a request held for the person", () => {
     await press(renderer, "transcript.browserCard.send");
     expect(textOf(renderer, "transcript.browserCard.failed")).toBe("chat.browser.failSpent");
     expect(has(renderer, "transcript.browserCard.send")).toBe(false);
+  });
+
+  it("an answer that blows up settles the card and leaves no value drawn", async () => {
+    mockAnswer.mockRejectedValue(new Error("boom"));
+    const renderer = await render(entry());
+    await press(renderer, "transcript.browserCard.send");
+    // The road died: the card says what it cannot know, and none of the
+    // request is left on the screen.
+    expect(textOf(renderer, "transcript.browserCard.outcome")).toBe("chat.browser.failUncertain");
+    expect(has(renderer, "transcript.browserCard.title")).toBe(false);
+    expect(has(renderer, "transcript.browserCard.field.1")).toBe(false);
+    expect(texts(renderer).join(" ")).not.toContain("hunter2");
   });
 
   it("a failure that proves nothing was sent SAYS nothing was sent", async () => {

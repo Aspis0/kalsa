@@ -15,7 +15,7 @@ import {
 import { planRemoteTurn, remoteChatBodyJson, type RemoteImageRefusal } from "./openaiMessages";
 import { buildRemoteSystemPrompt } from "./remotePrompt";
 import { streamOpenAiChat, type RemoteChatRequest } from "./openaiTransport";
-import { TURN_ROUTE_PATH, toTurnMessages, turnBodyJson } from "./turnBody";
+import { TURN_CAPABILITIES, TURN_ROUTE_PATH, toTurnMessages, turnBodyJson } from "./turnBody";
 import {
   forgetTurnRouteVerdict,
   isTurnRouteRefusal,
@@ -829,6 +829,7 @@ export async function streamRemoteAssistantTurn(
                   messages: toTurnMessages(turnMessages),
                   replyFor: options.mailReplyFor,
                   language: locale,
+                  capabilities: TURN_CAPABILITIES,
                 }),
                 token: doorToken,
                 signal,

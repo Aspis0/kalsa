@@ -44,6 +44,18 @@ import { useBrowserActions } from "./browserActions";
  *  the deadline is this phone's, counted down from the card's arrival. */
 const TICK_MS = 1000;
 
+/** What an answer that blew up looks like: the road died, and nothing can be
+ *  said about whether the request reached the computer — the failure the answer
+ *  route itself returns for a request that never got there. */
+const ROAD_FAILURE: BrowserAnswer = { ok: false, errorCode: "remote_brain_network" };
+
+/** The card as it was the moment it was pressed: the destination and the fields
+ *  it drew, kept only until the answer comes back. */
+type FrozenCard = {
+  destination: BrowserCard["destination"];
+  fields: BrowserCard["fields"];
+};
+
 export function BrowserConfirmCard({
   entry,
   colors,
@@ -55,11 +67,14 @@ export function BrowserConfirmCard({
   const browser = useBrowserActions();
   const { card, outcome } = entry;
   const [now, setNow] = useState(monotonicNowMs);
-  const [pressed, setPressed] = useState(false);
+  const [frozen, setFrozen] = useState<FrozenCard | null>(null);
   const [answer, setAnswer] = useState<BrowserAnswer | null>(null);
   /** One flag per secret field: what the person has chosen to look at, held here
    *  and nowhere else. */
   const [shown, setShown] = useState<ReadonlySet<string>>(() => new Set());
+  /** A pressed card is one whose answer is on the road: it cannot be pressed
+   *  again, and it keeps drawing its card until it settles. */
+  const pressed = frozen !== null;
 
   const expired = isBrowserCardExpired(card, now);
   // An absent outcome is not an outcome: a card nobody answered is still open,
@@ -100,6 +115,13 @@ export function BrowserConfirmCard({
     setShown(new Set());
   }, [live, shown.size]);
 
+  // The backstop for the paths where no answer of ours ever comes: a card that
+  // expires or is settled from under us drops its frozen copy (§6).
+  useEffect(() => {
+    if (live) return;
+    setFrozen(null);
+  }, [live]);
+
   const toggle = useCallback((key: string) => {
     setShown((prev) => {
       const next = new Set(prev);
@@ -117,11 +139,18 @@ export function BrowserConfirmCard({
       // No host, no press: the buttons are not drawn at all (see browserActions).
       const sendable = verb === "decline" || card.destination !== null;
       if (browser === null || !sendable || pressed || isBrowserCardExpired(card, monotonicNowMs())) return;
-      setPressed(true);
+      // Frozen before the spend: the strip takes the host and the values back at
+      // once, and the card must not blink while its answer travels.
+      setFrozen({ destination: card.destination, fields: card.fields });
+      // A revealed value stops being readable the moment the card is spent.
+      setShown(new Set());
       // Spent before the answer is even asked: the card is the one thing that
       // knows nobody may answer this any more.
       spend();
-      setAnswer(await browser.answerCard(card.cardId, verb));
+      const answer = await browser.answerCard(card.cardId, verb).catch(() => ROAD_FAILURE);
+      // The answer is in: the frozen copy goes now, not one render later.
+      setAnswer(answer);
+      setFrozen(null);
     },
     [browser, card, pressed, spend],
   );
@@ -153,12 +182,13 @@ export function BrowserConfirmCard({
 
   // Only the fields that have a value are asked about, and a secret one is dots until
   // the person asks to read it.
-  const filled = card.fields.flatMap((field, index) =>
+  const fields = frozen !== null ? frozen.fields : card.fields;
+  const filled = fields.flatMap((field, index) =>
     field.value === null || field.value === "" ? [] : [{ field, index }],
   );
   // Where it goes, as the computer parsed it: the host as it arrives, and a port only
   // when there is one. With no destination there is no host to name at all.
-  const destination = card.destination;
+  const destination = frozen !== null ? frozen.destination : card.destination;
   const where = destination === null
     ? null
     : destination.port === null ? destination.host : `${destination.host}:${destination.port}`;
