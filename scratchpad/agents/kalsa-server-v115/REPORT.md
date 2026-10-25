@@ -16,6 +16,80 @@ for the runtime proofs is `~/Projects/kalsallama-v115/proof-stage/kalsa-server-v
 | `e8f279d25` | 5 — dead `b11010-merge` push trigger removed |
 | `2a803734f` | 6 — cross-device MTP alias refused before graph reserve |
 | `e636ee126` | 4 — slot file model identity trailer |
+| `df7b761da` | audit B1 — drop `grep -q` from piped verify gates under pipefail |
+| `aa779173e` | audit — remove the tautological rename gate (presence loop guards the name) |
+| `c1a238f37` | audit — refuse a slot file whose identity trailer has an unknown version |
+| `d6d1f5ee5` | audit — correct the cross-device alias check comments |
+
+## Audit-fix pass (post-pi audit, 2026-10-01)
+
+Four commits on top of `e636ee126` (`61c909481..d6d1f5ee5`), one per audit
+item. No push, no tag, no CI.
+
+**B1 — the verify gate killed the release on a good archive.** All three
+`producer | grep -q` gates now drain the producer instead of exiting at the
+first match (`grep -Fx/-x/-E … >/dev/null`): the `strings | grep -Fqx
+'x-kalsa-slot'` macOS gate (`:662`, `strings` on a multi-MB dylib died of
+SIGPIPE under `pipefail` → 141 → step failed 5/5), the `tar -tzf | grep -qx`
+manifest leg (`:1073`), and the `7z l -slt | tr | grep -Eq` Windows leg
+(`:2434`). `file -b` (single line), `printf` producers and herestring greps
+are single-write / no-pipe and stay as they were.
+
+Proof of the fixed block, extracted verbatim from the workflow into a
+`/tmp` script running `/bin/bash` 3.2.57 with `set -euo pipefail`:
+
+```
+run1 EXIT=0
+run2 EXIT=0
+run3 EXIT=0
+run4 EXIT=0
+run5 EXIT=0
+stripped EXIT=1
+libllama-server-impl.dylib does not carry the x-kalsa-slot inlet tag
+```
+
+against `proof-stage/kalsa-server-v1.1.5-local` (tag present ×1); the stripped
+case is the same dylib with the tag's first byte flipped in place (valid
+Mach-O, exact-line match gone).
+
+**Unknown trailer version → clean 400.** `check_slot_identity` used to fold
+KSID-with-unknown-version into the legacy path; now no-`KSID`-magic loads as
+legacy and a `KSID` magic under any other version throws, mirroring
+`load_slot_checkpoints`' refusal of an unknown appendix version.
+
+**Server smoke** (rebuilt `build-macvariants/bin/llama-server`, `-j 4`,
+`SERVER_BUILD_EXIT=0`; dummy models from the test fixture, CPU, port 8093;
+transcript `proof-logs/auditfix-smoke-out.txt`):
+
+| request | HTTP | note |
+|---|---|---|
+| save slot (gemma3-dense) | 200 | file = 124 bytes (state + 80-byte trailer) |
+| restore, same model | **200** | |
+| restore, KSID version patched 1→2 | **400** | `unsupported model identity trailer version 2, this server understands version 1` |
+| restore, trailer stripped (legacy) | **200** | backward compat intact |
+| restore, saved by gemma3 on an lfm2 server | **400** | `slot file was saved by a different model: saved gemma3 (…), this server loaded lfm2 (…)` |
+| `/health` after all of the above | 200 | server kept serving |
+
+(The gemma3/lfm2 dummy pair differs only in the arch string — same geometry —
+which is also a live demonstration of the limit stated in item 4 above.)
+
+**Targeted test** (`build-test`, `test-save-load-state` rebuilt `-j 4`,
+`TEST_BUILD_EXIT=0`; `ctest -R 'test-generate-models|test-save-load-state'`):
+fixture PASS, `test-save-load-state` **FAILED** — 127/128 PASS, one arch
+failing the `rf` (restore-failure) column:
+
+```
+minimax-m3-moe.gguf  rf: E test_state_restore_failure: truncated: sequence not empty after failed restore
+```
+
+**Pre-existing, not from this pass**: the entire `src/` delta since
+`e636ee126` is comments in `src/llama-kv-cache.cpp` (zero non-comment line
+changes — the preprocessed translation unit is unchanged), and the test does
+not link `tools/server`, so its binary is behaviorally identical to the
+pre-audit-fix branch. The failure is item 2's `truncated` cleanup hole on that
+arch, invisible until now because the earlier runs swept only 6 archs
+(single-model repro: `proof-logs/auditfix-minimax-single.log`, `EXIT=1`).
+Flagged to the coordinator; **not fixed here** (out of the brief).
 
 ## Item 1 — SIGILL blocker (macos arm64 native libggml-cpu)
 
@@ -33,9 +107,14 @@ The Verify artifacts step now fails when any of `libggml-cpu-apple_m1.so`,
 `libllama.dylib`, `libllama-common.dylib`, `libmtmd.dylib`, `libggml.dylib`,
 `libggml-base.dylib`, `libllama-server-impl.dylib` is missing, when a plain
 `libggml-cpu` sneaks in (variants mode never produces one), and when
-`libllama-server-impl.dylib` is renamed or loses the `x-kalsa-slot` tag
-(exact-line `strings | grep -Fqx`, per the desktop app's probe at
-`crates/kalsa-runtime/src/inlet.rs:29`).
+`libllama-server-impl.dylib` loses the `x-kalsa-slot` tag (exact-line
+`strings | grep`, drained with an explicit `>/dev/null` — a `grep -q` there
+kills `strings` with SIGPIPE under `pipefail` and fails the step 5/5 on a
+correct archive; fixed in `df7b761da`). A missing/renamed
+`libllama-server-impl.dylib` is caught by the presence loop above the gate
+(the tautological `basename` check that claimed to guard the name was removed
+in `aa779173e`), per the desktop app's probe at
+`crates/kalsa-runtime/src/inlet.rs:29`.
 
 ### Local proof (this Mac IS the M1 Max, clang 21)
 
@@ -148,10 +227,15 @@ the sched's `ggml_backend_sched_backend_from_buffer` hard-aborts
 Fix, at the aliasing site (`src/llama-kv-cache.cpp`, `share && other` branch,
 before any tensor is wired): for each shared K/V tensor with an allocated
 buffer, the scheduler must be able to keep it where it is — allowed iff the
-buffer type is host-visible (the CPU backend claims host buffers; that is why
-a CPU drafter over Metal-shared K/V works on Apple silicon) or one of this
-model's devices supports the buffer type (`ggml_backend_dev_supports_buft`,
-which also answers correctly for the split machinery's meta device). Otherwise
+buffer type is host-visible (host memory is readable from any backend in
+place; note this never applies to GPU memory — all three Metal buffer types
+report `is_host == false`, and a CPU drafter over Metal-shared K/V works
+because device selection does not depend on `-ngl`, so the drafter's device
+list still contains the owning Metal device) or one of this model's devices
+supports the buffer type (`ggml_backend_dev_supports_buft`; a meta device
+accepts only its own buffer type with an identical wrapped device set, which
+is exactly the tensor-split case — `model.devices` holds the one meta device
+and the shared K/V buffers use its buffer type). Otherwise
 throw with both device names before graph reserve. The evidence scenario hits
 the check because the drafter was pinned with `--spec-draft-device` (= the
 drRTX runs): a single-device drafter gets no meta wrapper
@@ -189,19 +273,52 @@ generates (`proof-logs/final-proofs-result.log`).
 appendix: magic `KSID`, version 1, `general.architecture` (48 bytes, NUL
 padded), then `n_embd`, `n_layer`, `n_head_kv`, `n_vocab`, `n_ctx_train`, one
 reserved u32. Chosen because it is free at save/restore time (all values read
-from the already-loaded model — no hashing) and it catches every cross-model
-restore that matters: different arch, different geometry, different vocab,
-different ctx-train. It does NOT catch another quant of the same model
-(identical fingerprint, dimension-compatible anyway) and it is not a payload
-checksum (bit-flips stay undetected — out of scope per the brief).
+from the already-loaded model — no hashing) and it catches every cross-geometry
+restore: different arch, different geometry, different vocab, different
+ctx-train.
+
+**What it does NOT catch — the identity check's limit, stated plainly.** The
+fingerprint is shape-only, so anything with the same arch and the same five
+numbers still restores silently:
+
+- a **fine-tune** of the same model (same shape, different weights);
+- an **IT vs base sibling** (same repo, different weights);
+- **another quant of the same model** (identical fingerprint,
+  dimension-compatible anyway);
+- a **different `--lora` adapter** active at save vs restore;
+- a **bit-flipped / corrupted payload** under a valid matching trailer — the
+  audit measured 100 zeroed payload bytes restoring with HTTP 200 and a
+  fluent-but-wrong answer, health 200, 0 aborts.
+
+The trailer refuses cross-*geometry* swaps and nothing else. It is not a
+payload checksum (bit-flips stay undetected — out of scope per the brief).
+Also, `n_head_kv` does not discriminate MQA: it is 0 for MQA architectures
+(measured 0 for LFM2.5), so for those the effective fingerprint is
+arch + n_embd + n_layer + n_vocab + n_ctx_train — one of the five numbers is
+inert there. It does catch every cross-model restore that matters for
+same-family swaps of different sizes, which is the case that used to load
+silently.
 
 Backward compatibility, concretely: on restore the trailer check runs before
-anything is read; if the last 80 bytes do not carry `KSID` v1 (legacy save) or
-the file is shorter than 80 bytes, the file loads exactly as before.
+anything is read; if the last 80 bytes do not start with `KSID` (legacy save)
+or the file is shorter than 80 bytes, the file loads exactly as before. A file
+that does carry `KSID` under an unknown version is refused with a clean 400
+(`unsupported model identity trailer version`, same policy as
+`load_slot_checkpoints` for an unknown appendix version), so a file from a
+future release never half-loads as a legacy save.
 `load_slot_checkpoints` accepts the trailer both after an appendix and as the
 only trailer when a save carried no checkpoints. On save the trailer is
 appended after the appendix and before the atomic rename, so a failed write
 leaves no committed file.
+
+**Forward compatibility (fine for the app, worth a release note):** a v1.1.5
+slot file is refused by a v1.1.4 server — the old loader only knows `SCKP`
+there, so the restore 400s with a message about a checkpoint appendix the
+v1.1.4 user never heard of ("unknown data after the state payload", or
+"trailing bytes after the context checkpoint appendix" when the save carried
+checkpoints). No crash, no silent misread; the desktop app ships engine and
+models together, so this only bites a manual app rollback with slots saved by
+the newer engine.
 
 Proof results (`proof-logs/final-proofs-result.log`, `byte-id*.log`):
 
@@ -231,3 +348,40 @@ Targeted only: `cmake --build` for the server + the two test targets,
 `ctest`-registered `test-save-load-state` run directly over 6 dummy archs,
 server-level curls for everything else. No full suite, no CI. All commands
 logged with real exit codes under `proof-logs/`.
+
+## Follow-up: the exception half of the seq-restore cleanup (commit 63a51b6d6)
+
+The b6f994fc3 truncation refusal left a hole on the throwing path, exposed by
+the new test-suite run: on minimax-m3-moe the `truncated` case of test 9
+failed with `state_read_data: mismatched value type (1 != 256, layer 1)` ->
+`failed to restore kv cache` -> `truncated: sequence not empty after failed
+restore` (127/128). Root cause: multi-cache memories restore their caches one
+after another and only the failing cache undoes itself — `llama_kv_cache_msa::
+state_read` restores `kv_base` then `kv_idx` with no undo, so when the indexer
+cache threw, `kv_base` kept the cells it had already restored for the target
+sequence (`seq_pos_max` is checked on `kv_base`). `llama_kv_cache_iswa` and
+`llama_memory_hybrid_iswa::state_read` have the same shape; only
+`llama_memory_hybrid` undoes its attention part on a recurrent failure.
+
+Fixed in one place (`src/llama-context.cpp`, `state_seq_read_data` — the
+shared funnel of `state_seq_set_data`, backing `llama_state_seq_set_data` and
+`..._set_data_ext`, and `state_seq_load_file`, backing
+`llama_state_seq_load_file`): the catch drops the target sequence with
+`memory->seq_rm(seq_id, -1, -1)` — same cleanup as the b6f994fc3 truncation
+branch — before rethrowing. Full-range `seq_rm` is non-throwing and
+assert-safe on kv-cache, msa, iswa, recurrent (`set_rs_idx` asserts bounds
+already guaranteed by the restore itself) and hybrid memories. Whole-context
+restores go through `state_read_data`, which does not share this helper —
+untouched. The whole-context path is unaffected by the change.
+
+Verified (logs under `proof-logs/`, prefix `fix-seqrm-`):
+
+- `cmake --build build-test --target test-save-load-state -j 4` EXIT=0;
+  `ctest -R 'test-generate-models|test-save-load-state'` EXIT=0 (2/2), and the
+  binary directly: `main: summary: 128 passed, 0 failed (of 128)`,
+  minimax-m3-moe row all PASS including `rf`;
+- `cmake --build build-macvariants --target llama-server -j 4` EXIT=0, restaged
+  into `proof-stage/kalsa-server-v1.1.5-local/`, trunc-proof2.sh rerun: restore
+  of the payload-cut slot file **400**, `/v1/models` **200**, SERVER_EXIT=0,
+  0 GGML_ASSERT, same engine line `state_seq_load_file: truncated sequence
+  state file: state size 26943118, read 29936840`. No push, no tag, one commit.

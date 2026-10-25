@@ -1,0 +1,334 @@
+diff --git a/ggml/src/ggml-opencl/ggml-opencl.cpp b/ggml/src/ggml-opencl/ggml-opencl.cpp
+index 97ebf0d18..1debeec10 100644
+--- a/ggml/src/ggml-opencl/ggml-opencl.cpp
++++ b/ggml/src/ggml-opencl/ggml-opencl.cpp
+@@ -51,6 +51,7 @@ typedef const void * (*get_adreno_bin_kernel_func_t)(
+ #include <mutex>
+ #include <regex>
+ #include <set>
++#include <stdexcept>
+ #include <unordered_set>
+ 
+ #undef MIN
+@@ -10905,6 +10906,14 @@ static cl_mem ggml_cl_create_temp_upload_buffer(
+     return buf;
+ }
+ 
++// A failed weight upload must fail the model load (the app retries on CPU)
++// instead of aborting the process.
++[[noreturn]] static void throw_set_tensor_upload_error(const char * what, const char * tensor_name) {
++    throw std::runtime_error(
++        std::string("ggml_opencl: set_tensor: ") + what + " failed for tensor '" +
++        (tensor_name ? tensor_name : "?") + "'");
++}
++
+ // Allocate a temporary download buffer of `nbytes`. The caller runs a kernel
+ // that writes into it, then reads it back to host via clEnqueueReadBuffer (or
+ // equivalent). Mirrors ggml_cl_create_temp_upload_buffer; the host-pinned
+@@ -10972,10 +10981,15 @@ static void ggml_backend_opencl_buffer_set_tensor(ggml_backend_buffer_t buffer,
+         cl_int err;
+         cl_mem data_device = clCreateBuffer(context, CL_MEM_READ_WRITE,
+             ggml_nbytes(tensor), NULL, &err);
+-        CL_CHECK(err);
+-        CL_CHECK(clEnqueueWriteBuffer(
++        if (err != CL_SUCCESS) {
++            throw_set_tensor_upload_error("staging clCreateBuffer", tensor->name);
++        }
++        if (clEnqueueWriteBuffer(
+             queue, data_device, CL_TRUE, 0,
+-            ggml_nbytes(tensor), data, 0, NULL, NULL));
++            ggml_nbytes(tensor), data, 0, NULL, NULL) != CL_SUCCESS) {
++            clReleaseMemObject(data_device);
++            throw_set_tensor_upload_error("staging clEnqueueWriteBuffer", tensor->name);
++        }
+ 
+         // The original tensor memory is divided into scales and quants, i.e.,
+         // we first store scales, then quants.
+@@ -11058,7 +11072,9 @@ static void ggml_backend_opencl_buffer_set_tensor(ggml_backend_buffer_t buffer,
+ 
+         cl_int err;
+         cl_mem data_device = ggml_cl_create_temp_upload_buffer(context, queue, ggml_nbytes(tensor), data, tensor->name);
+-        GGML_ASSERT(data_device != NULL && "set_tensor: temp upload buffer alloc failed");
++        if (!data_device) {
++            throw_set_tensor_upload_error("temp upload buffer alloc", tensor->name);
++        }
+ 
+         // We consider the specified offset arg as always, although For weights
+         // the offset arg should be 0 (we do not assert this).
+@@ -11174,8 +11190,14 @@ static void ggml_backend_opencl_buffer_set_tensor(ggml_backend_buffer_t buffer,
+                         }
+                     }
+                 }
+-                CL_CHECK(clEnqueueWriteBuffer(queue, extra->d, CL_TRUE, 0, hd.size()*sizeof(uint16_t), hd.data(), 0, NULL, NULL));
+-                CL_CHECK(clEnqueueWriteBuffer(queue, extra->q, CL_TRUE, 0, hq.size()*sizeof(uint32_t), hq.data(), 0, NULL, NULL));
++                if (clEnqueueWriteBuffer(queue, extra->d, CL_TRUE, 0, hd.size()*sizeof(uint16_t), hd.data(), 0, NULL, NULL) != CL_SUCCESS) {
++                    clReleaseMemObject(data_device);
++                    throw_set_tensor_upload_error("clEnqueueWriteBuffer d", tensor->name);
++                }
++                if (clEnqueueWriteBuffer(queue, extra->q, CL_TRUE, 0, hq.size()*sizeof(uint32_t), hq.data(), 0, NULL, NULL) != CL_SUCCESS) {
++                    clReleaseMemObject(data_device);
++                    throw_set_tensor_upload_error("clEnqueueWriteBuffer q", tensor->name);
++                }
+                 GGML_LOG_INFO("ggml_opencl: KALSA host repack for q4_0 MoE tensor %dx%dx%d\n", ne00, ne01, ne02);
+                 CL_CHECK(clReleaseMemObject(data_device));
+             } else {
+@@ -11336,14 +11358,20 @@ static void ggml_backend_opencl_buffer_set_tensor(ggml_backend_buffer_t buffer,
+                 wimg_desc.image_type  = CL_MEM_OBJECT_IMAGE1D_BUFFER;
+                 wimg_desc.image_width = (size_t)M * K / 8;
+                 wimg_desc.buffer      = extra->q;
+-                CL_CHECK((extra->q_img = clCreateImage(context, CL_MEM_READ_ONLY, &wimg_fmt, &wimg_desc, NULL, &err), err));
++                extra->q_img = clCreateImage(context, CL_MEM_READ_ONLY, &wimg_fmt, &wimg_desc, NULL, &err);
++                if (err != CL_SUCCESS) {
++                    throw_set_tensor_upload_error("weight clCreateImage", tensor->name);
++                }
+ 
+                 wimg_fmt = { CL_R, CL_HALF_FLOAT };
+                 memset(&wimg_desc, 0, sizeof(wimg_desc));
+                 wimg_desc.image_type  = CL_MEM_OBJECT_IMAGE1D_BUFFER;
+                 wimg_desc.image_width = (size_t)M * K / 32;
+                 wimg_desc.buffer      = extra->d;
+-                CL_CHECK((extra->d_img = clCreateImage(context, CL_MEM_READ_ONLY, &wimg_fmt, &wimg_desc, NULL, &err), err));
++                extra->d_img = clCreateImage(context, CL_MEM_READ_ONLY, &wimg_fmt, &wimg_desc, NULL, &err);
++                if (err != CL_SUCCESS) {
++                    throw_set_tensor_upload_error("weight clCreateImage", tensor->name);
++                }
+             } else {
+                 // Transpose q and d as ushort
+                 transpose_2d_as_16b(backend_ctx, extra->q, extra->q, size_q, K/4, M);
+@@ -11368,7 +11396,9 @@ static void ggml_backend_opencl_buffer_set_tensor(ggml_backend_buffer_t buffer,
+ 
+         cl_int err;
+         cl_mem data_device = ggml_cl_create_temp_upload_buffer(context, queue, ggml_nbytes(tensor), data, tensor->name);
+-        GGML_ASSERT(data_device != NULL && "set_tensor: temp upload buffer alloc failed");
++        if (!data_device) {
++            throw_set_tensor_upload_error("temp upload buffer alloc", tensor->name);
++        }
+ 
+         cl_buffer_region region;
+ 
+@@ -11498,7 +11528,9 @@ static void ggml_backend_opencl_buffer_set_tensor(ggml_backend_buffer_t buffer,
+ 
+         cl_int err;
+         cl_mem data_device = ggml_cl_create_temp_upload_buffer(context, queue, ggml_nbytes(tensor), data, tensor->name);
+-        GGML_ASSERT(data_device != NULL && "set_tensor: temp upload buffer alloc failed");
++        if (!data_device) {
++            throw_set_tensor_upload_error("temp upload buffer alloc", tensor->name);
++        }
+ 
+         cl_buffer_region region;
+ 
+@@ -11573,8 +11605,14 @@ static void ggml_backend_opencl_buffer_set_tensor(ggml_backend_buffer_t buffer,
+                     size_t nb32 = (size_t)ne00 / 32;
+                     size_t sc_elems = (size_t)ne02 * ne01 * nb32 * 2;
+                     size_t mn_elems = (size_t)ne02 * ne01 * nb32;
+-                    extra->scale = clCreateBuffer(context, CL_MEM_READ_WRITE, sc_elems * sizeof(cl_half), NULL, &err); CL_CHECK(err);
+-                    extra->min   = clCreateBuffer(context, CL_MEM_READ_WRITE, mn_elems * sizeof(cl_half), NULL, &err); CL_CHECK(err);
++                    extra->scale = clCreateBuffer(context, CL_MEM_READ_WRITE, sc_elems * sizeof(cl_half), NULL, &err);
++                    if (err != CL_SUCCESS) {
++                        throw_set_tensor_upload_error("scale clCreateBuffer", tensor->name);
++                    }
++                    extra->min   = clCreateBuffer(context, CL_MEM_READ_WRITE, mn_elems * sizeof(cl_half), NULL, &err);
++                    if (err != CL_SUCCESS) {
++                        throw_set_tensor_upload_error("min clCreateBuffer", tensor->name);
++                    }
+                     cl_kernel ek = backend_ctx->kernel_moe_expand_scale_q5_0;
+                     CL_CHECK(clSetKernelArg(ek, 0, sizeof(cl_mem), &extra->d));
+                     CL_CHECK(clSetKernelArg(ek, 1, sizeof(cl_mem), &extra->scale));
+@@ -11660,7 +11698,9 @@ static void ggml_backend_opencl_buffer_set_tensor(ggml_backend_buffer_t buffer,
+ 
+         cl_int err;
+         cl_mem data_device = ggml_cl_create_temp_upload_buffer(context, queue, ggml_nbytes(tensor), data, tensor->name);
+-        GGML_ASSERT(data_device != NULL && "set_tensor: temp upload buffer alloc failed");
++        if (!data_device) {
++            throw_set_tensor_upload_error("temp upload buffer alloc", tensor->name);
++        }
+ 
+         cl_buffer_region region;
+ 
+@@ -11811,7 +11851,9 @@ static void ggml_backend_opencl_buffer_set_tensor(ggml_backend_buffer_t buffer,
+ 
+         cl_int err;
+         cl_mem data_device = ggml_cl_create_temp_upload_buffer(context, queue, ggml_nbytes(tensor), data, tensor->name);
+-        GGML_ASSERT(data_device != NULL && "set_tensor: temp upload buffer alloc failed");
++        if (!data_device) {
++            throw_set_tensor_upload_error("temp upload buffer alloc", tensor->name);
++        }
+ 
+         // The original tensor memory is divided into scales and quants, i.e.,
+         // we first store scales, then quants.
+@@ -11920,7 +11962,9 @@ static void ggml_backend_opencl_buffer_set_tensor(ggml_backend_buffer_t buffer,
+ 
+         cl_int err;
+         cl_mem data_device = ggml_cl_create_temp_upload_buffer(context, queue, ggml_nbytes(tensor), data, tensor->name);
+-        GGML_ASSERT(data_device != NULL && "set_tensor: temp upload buffer alloc failed");
++        if (!data_device) {
++            throw_set_tensor_upload_error("temp upload buffer alloc", tensor->name);
++        }
+ 
+         // The original tensor memory is divided into scales and quants, i.e.,
+         // we first store scales, then quants.
+@@ -11973,7 +12017,9 @@ static void ggml_backend_opencl_buffer_set_tensor(ggml_backend_buffer_t buffer,
+                 size_t nb32 = (size_t)ne00 / 32;
+                 size_t scale_elems = (size_t)ne02 * ne01 * nb32 * 2;   // 2 per-16-seg scales / 32-block
+                 extra->scale = clCreateBuffer(context, CL_MEM_READ_WRITE, scale_elems * sizeof(cl_half), NULL, &err);
+-                CL_CHECK(err);
++                if (err != CL_SUCCESS) {
++                    throw_set_tensor_upload_error("scale clCreateBuffer", tensor->name);
++                }
+                 cl_kernel ek = backend_ctx->kernel_moe_expand_scale_q8_0;
+                 CL_CHECK(clSetKernelArg(ek, 0, sizeof(cl_mem), &extra->d));
+                 CL_CHECK(clSetKernelArg(ek, 1, sizeof(cl_mem), &extra->scale));
+@@ -12020,7 +12066,9 @@ static void ggml_backend_opencl_buffer_set_tensor(ggml_backend_buffer_t buffer,
+ 
+         cl_int err;
+         cl_mem data_device = ggml_cl_create_temp_upload_buffer(context, queue, ggml_nbytes(tensor), data, tensor->name);
+-        GGML_ASSERT(data_device != NULL && "set_tensor: temp upload buffer alloc failed");
++        if (!data_device) {
++            throw_set_tensor_upload_error("temp upload buffer alloc", tensor->name);
++        }
+ 
+         cl_buffer_region region;
+ 
+@@ -12101,7 +12149,9 @@ static void ggml_backend_opencl_buffer_set_tensor(ggml_backend_buffer_t buffer,
+         cl_int err;
+         ggml_opencl_log_alloc("try.q4_k.staging", ggml_nbytes(tensor), 0);
+         cl_mem data_device = ggml_cl_create_temp_upload_buffer(context, queue, ggml_nbytes(tensor), data, tensor->name);
+-        GGML_ASSERT(data_device != NULL && "q4_K set_tensor: temp upload buffer alloc failed");
++        if (!data_device) {
++            throw_set_tensor_upload_error("q4_K temp upload buffer alloc", tensor->name);
++        }
+         ggml_opencl_log_alloc("q4_k.staging", ggml_nbytes(tensor), CL_SUCCESS);
+         ggml_opencl_log_alloc_note("q4_k.write_done");
+ 
+@@ -12181,7 +12231,9 @@ static void ggml_backend_opencl_buffer_set_tensor(ggml_backend_buffer_t buffer,
+             const size_t q4k_img_px = (size_t) ggml_nelements(tensor) / 8;
+             ggml_opencl_log_alloc("try.q4_k.q_img", q4k_img_px * 4, 0);
+             extra->q_img = clCreateImage(context, CL_MEM_READ_ONLY, &img_format_q, &img_desc_q, NULL, &err);
+-            CL_CHECK(err);
++            if (err != CL_SUCCESS) {
++                throw_set_tensor_upload_error("weight clCreateImage", tensor->name);
++            }
+             ggml_opencl_log_alloc("q4_k.q_img", q4k_img_px * 4, err);
+             tensor->extra = extra;
+ 
+@@ -12273,7 +12325,10 @@ static void ggml_backend_opencl_buffer_set_tensor(ggml_backend_buffer_t buffer,
+                 wimg_desc.image_type  = CL_MEM_OBJECT_IMAGE1D_BUFFER;
+                 wimg_desc.image_width = (size_t)M * K / 8;
+                 wimg_desc.buffer      = extra->q;
+-                CL_CHECK((extra->q_img = clCreateImage(context, CL_MEM_READ_ONLY, &wimg_fmt, &wimg_desc, NULL, &err), err));
++                extra->q_img = clCreateImage(context, CL_MEM_READ_ONLY, &wimg_fmt, &wimg_desc, NULL, &err);
++                if (err != CL_SUCCESS) {
++                    throw_set_tensor_upload_error("weight clCreateImage", tensor->name);
++                }
+             } else {
+                 // Transpose q as ushort
+                 transpose_2d_as_16b(backend_ctx, extra->q, extra->q, size_q, K/4, M);
+@@ -12305,7 +12360,9 @@ static void ggml_backend_opencl_buffer_set_tensor(ggml_backend_buffer_t buffer,
+ 
+         cl_int err;
+         cl_mem data_device = ggml_cl_create_temp_upload_buffer(context, queue, ggml_nbytes(tensor), data, tensor->name);
+-        GGML_ASSERT(data_device != NULL && "q5_K set_tensor: temp upload buffer alloc failed");
++        if (!data_device) {
++            throw_set_tensor_upload_error("q5_K temp upload buffer alloc", tensor->name);
++        }
+ 
+         cl_buffer_region region;
+ 
+@@ -12389,7 +12446,9 @@ static void ggml_backend_opencl_buffer_set_tensor(ggml_backend_buffer_t buffer,
+                 { extra->q }
+             };
+             extra->q_img = clCreateImage(context, CL_MEM_READ_ONLY, &img_format_q, &img_desc_q, NULL, &err);
+-            CL_CHECK(err);
++            if (err != CL_SUCCESS) {
++                throw_set_tensor_upload_error("weight clCreateImage", tensor->name);
++            }
+             tensor->extra = extra;
+ 
+             // Generic dp4a MoE path
+@@ -12401,8 +12460,14 @@ static void ggml_backend_opencl_buffer_set_tensor(ggml_backend_buffer_t buffer,
+                     size_t nb32     = (size_t)ne00 / 32;
+                     size_t sc_elems = (size_t)ne02 * ne01 * nb32 * 2;
+                     size_t mn_elems = (size_t)ne02 * ne01 * nb32;
+-                    extra->scale = clCreateBuffer(context, CL_MEM_READ_WRITE, sc_elems * sizeof(cl_half), NULL, &err); CL_CHECK(err);
+-                    extra->min   = clCreateBuffer(context, CL_MEM_READ_WRITE, mn_elems * sizeof(cl_half), NULL, &err); CL_CHECK(err);
++                    extra->scale = clCreateBuffer(context, CL_MEM_READ_WRITE, sc_elems * sizeof(cl_half), NULL, &err);
++                    if (err != CL_SUCCESS) {
++                        throw_set_tensor_upload_error("scale clCreateBuffer", tensor->name);
++                    }
++                    extra->min   = clCreateBuffer(context, CL_MEM_READ_WRITE, mn_elems * sizeof(cl_half), NULL, &err);
++                    if (err != CL_SUCCESS) {
++                        throw_set_tensor_upload_error("min clCreateBuffer", tensor->name);
++                    }
+                     cl_kernel ek = backend_ctx->kernel_moe_expand_scale_q5_K;
+                     CL_CHECK(clSetKernelArg(ek, 0, sizeof(cl_mem), &extra->s));
+                     CL_CHECK(clSetKernelArg(ek, 1, sizeof(cl_mem), &extra->d));
+@@ -12493,7 +12558,9 @@ static void ggml_backend_opencl_buffer_set_tensor(ggml_backend_buffer_t buffer,
+ 
+         cl_int err;
+         cl_mem data_device = ggml_cl_create_temp_upload_buffer(context, queue, ggml_nbytes(tensor), data, tensor->name);
+-        GGML_ASSERT(data_device != NULL && "q6_K set_tensor: temp upload buffer alloc failed");
++        if (!data_device) {
++            throw_set_tensor_upload_error("q6_K temp upload buffer alloc", tensor->name);
++        }
+ 
+         cl_buffer_region region;
+ 
+@@ -12718,9 +12785,14 @@ static void ggml_backend_opencl_buffer_set_tensor(ggml_backend_buffer_t buffer,
+             cl_int err;
+             ggml_opencl_log_alloc("try.q2_k.staging", ggml_nbytes(tensor), 0);
+             cl_mem data_device = clCreateBuffer(context, CL_MEM_READ_WRITE, ggml_nbytes(tensor), NULL, &err);
+-            CL_CHECK(err);
++            if (err != CL_SUCCESS) {
++                throw_set_tensor_upload_error("staging clCreateBuffer", tensor->name);
++            }
+             ggml_opencl_log_alloc("q2_k.staging", ggml_nbytes(tensor), err);
+-            CL_CHECK(clEnqueueWriteBuffer(queue, data_device, CL_TRUE, 0, ggml_nbytes(tensor), data, 0, NULL, NULL));
++            if (clEnqueueWriteBuffer(queue, data_device, CL_TRUE, 0, ggml_nbytes(tensor), data, 0, NULL, NULL) != CL_SUCCESS) {
++                clReleaseMemObject(data_device);
++                throw_set_tensor_upload_error("staging clEnqueueWriteBuffer", tensor->name);
++            }
+ 
+             ggml_opencl_log_weight_storage_path(backend_ctx, tensor, "trans4-moe");
+ 
+@@ -12796,9 +12868,14 @@ static void ggml_backend_opencl_buffer_set_tensor(ggml_backend_buffer_t buffer,
+             cl_int err;
+             ggml_opencl_log_alloc("try.q3_k.staging", ggml_nbytes(tensor), 0);
+             cl_mem data_device = clCreateBuffer(context, CL_MEM_READ_WRITE, ggml_nbytes(tensor), NULL, &err);
+-            CL_CHECK(err);
++            if (err != CL_SUCCESS) {
++                throw_set_tensor_upload_error("staging clCreateBuffer", tensor->name);
++            }
+             ggml_opencl_log_alloc("q3_k.staging", ggml_nbytes(tensor), err);
+-            CL_CHECK(clEnqueueWriteBuffer(queue, data_device, CL_TRUE, 0, ggml_nbytes(tensor), data, 0, NULL, NULL));
++            if (clEnqueueWriteBuffer(queue, data_device, CL_TRUE, 0, ggml_nbytes(tensor), data, 0, NULL, NULL) != CL_SUCCESS) {
++                clReleaseMemObject(data_device);
++                throw_set_tensor_upload_error("staging clEnqueueWriteBuffer", tensor->name);
++            }
+ 
+             ggml_opencl_log_weight_storage_path(backend_ctx, tensor, "trans4-moe");
+             ggml_opencl_log_alloc_note("q3_k.parent_planes SoA=114B/sb (subbuffers of existing parent, not a new clCreateBuffer)");
+@@ -12875,7 +12952,9 @@ static void ggml_backend_opencl_buffer_set_tensor(ggml_backend_buffer_t buffer,
+         cl_int err;
+         cl_mem data_device = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+             size, const_cast<void *>(data), &err);
+-        CL_CHECK(err);
++        if (err != CL_SUCCESS) {
++            throw_set_tensor_upload_error("staging clCreateBuffer", tensor->name);
++        }
+ 
+         cl_kernel kernel = backend_ctx->kernel_convert_bf16_to_f16;
+         CL_CHECK(clSetKernelArg(kernel, 0, sizeof(cl_mem), &data_device));
+@@ -12898,9 +12977,11 @@ static void ggml_backend_opencl_buffer_set_tensor(ggml_backend_buffer_t buffer,
+     ggml_tensor_extra_cl * extra = (ggml_tensor_extra_cl *) tensor->extra;
+     GGML_ASSERT(extra);
+ 
+-    CL_CHECK(clEnqueueWriteBuffer(
++    if (clEnqueueWriteBuffer(
+         queue, extra->data_device, CL_TRUE, extra->offset + offset,
+-        size, data, 0, NULL, NULL));
++        size, data, 0, NULL, NULL) != CL_SUCCESS) {
++        throw_set_tensor_upload_error("clEnqueueWriteBuffer", tensor->name);
++    }
+ 
+     ggml_opencl_gemv_audit_stash_generic(extra, tensor, data, offset, size);
+ 

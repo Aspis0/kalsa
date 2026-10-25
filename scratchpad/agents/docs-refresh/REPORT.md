@@ -305,3 +305,27 @@ pushed anywhere.
   points at item 7.
 
 No commit, no push, no tag from this cell.
+
+## Sixth pass (2026-09-23): the K-order ablation and the refspec rule
+
+Verified at source: `scratchpad/agents/cok-residual/REPORT.md` (written 03:34), plus read-only
+`git ls-remote` - `refs/heads/kalsa-opencl-cok-korder = 7965f43e0...` (pushed as a NEW ref) and
+`refs/heads/kalsa-phone-v1-1-1 = 1577495b9...` (shipping line unmoved), both re-checked while
+writing.
+
+- **`docs/ALIVE.md` - overnight diary**: two blocks - the ablation (the K-walk difference with
+  file:line, the selector pattern with `fp16` still one-env control, the two byte-identity IR
+  gates, branch/commit/build/binary sha, the seven targets, the prediction timestamped 03:25 EDT
+  before the build with its stop rule and two fixed-in-advance caveats) and the process point
+  (the push block targeting `refs/heads/kalsa-phone-v1-1-1`, what actually ran, and the rule:
+  a coder's refspec is a proposal, not a decision). The queue paragraph's third item now names
+  the K-split pair and its binary, so the morning reads as one three-item list.
+- **`docs/ALIVE.md` - Standing cautions**: the refspec rule as a bullet. **Proven table**: the
+  tail-fix row now includes `cok-residual/REPORT.md`.
+- **`PLAN.md` - new `## STANDING RULE (2026-09-23): A CODER'S REFSPEC IS A PROPOSAL, NOT A
+  DECISION`** directly under the existing upstream rule (rules kept together at the top).
+- **`PLAN.md` - `### The residual's next ablation: built, prediction on disk`** appended after
+  the tail-fix subsection; **Roadmap item 7**'s third queue entry now names the branch, commit,
+  build and binary sha.
+
+No commit, no push, no tag from this cell.

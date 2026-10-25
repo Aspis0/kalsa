@@ -8,3 +8,4 @@
 [20:38:33] GATE label=setup
 [20:38:33] SETUP_DONE skin=33.5 thermal=0 batt_temp=310 level=88 plugged=false
 [20:38:33] GATE label=pre_A
+[02:45:47] STOP reason=missing_skin

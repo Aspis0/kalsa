@@ -1,0 +1,13 @@
+arm	depth	fa	nkvo	ctk	ctv	test	pp_tok_s	per_chunk_ms	src_log	device_model	soc	bat_pct	bat_temp_c	thermal_before	thermal_after
+A-nkvo	0	auto	1	q8_0	q8_0	pp128	1089.51	117.5	A-nkvo-clean.log	Canoe for arm64	SM8850	100	45.0	0	0
+A-nkvo	512	auto	1	q8_0	q8_0	pp128 @ d512	641.57	199.5	A-nkvo-clean.log	Canoe for arm64	SM8850	100	45.0	0	0
+A-nkvo	1700	auto	1	q8_0	q8_0	pp128 @ d1700	260.90	490.6	A-nkvo-clean.log	Canoe for arm64	SM8850	100	45.0	0	0
+A-nkvo	3100	auto	1	q8_0	q8_0	pp128 @ d3100	148.94	859.4	A-nkvo-clean.log	Canoe for arm64	SM8850	100	45.0	0	0
+B-offload	0	auto	0	q8_0	q8_0	pp128	1555.03	82.3	B-offload-clean.log	Canoe for arm64	SM8850	100	45.0	0	0
+B-offload	512	auto	0	q8_0	q8_0	pp128 @ d512	1475.90	86.7	B-offload-clean.log	Canoe for arm64	SM8850	100	45.0	0	0
+B-offload	1700	auto	0	q8_0	q8_0	pp128 @ d1700	1374.91	93.1	B-offload-clean.log	Canoe for arm64	SM8850	100	45.0	0	0
+B-offload	3100	auto	0	q8_0	q8_0	pp128 @ d3100	1309.04	97.8	B-offload-clean.log	Canoe for arm64	SM8850	100	45.0	0	0
+C-app-vq4	0	auto	1	q8_0	q4_0	pp128	1168.82	109.5	C-app-vq4-clean.log	Canoe for arm64	SM8850	100	45.0	0	0
+C-app-vq4	512	auto	1	q8_0	q4_0	pp128 @ d512	625.06	204.8	C-app-vq4-clean.log	Canoe for arm64	SM8850	100	45.0	0	0
+C-app-vq4	1700	auto	1	q8_0	q4_0	pp128 @ d1700	247.17	517.9	C-app-vq4-clean.log	Canoe for arm64	SM8850	100	45.0	0	0
+C-app-vq4	3100	auto	1	q8_0	q4_0	pp128 @ d3100	132.03	969.5	C-app-vq4-clean.log	Canoe for arm64	SM8850	100	45.0	0	0

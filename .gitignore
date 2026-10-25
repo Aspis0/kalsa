@@ -86,3 +86,11 @@ scratchpad/agents/qdc-heat-per-backend/restore-prefs.log
 *.apk
 *.aab
 scratchpad/agents/s23-launch-jank/raw/session-20260927-diagnosis/logcat.txt
+
+# Raw run output (logcats, dumps, device logs) stays on the machine that ran
+# it: logcats carry the phones' own accounts and tokens. Reports cite it.
+scratchpad/agents/*/raw/
+*logcat*.txt
+*.logcat
+*.kld
+*.gguf

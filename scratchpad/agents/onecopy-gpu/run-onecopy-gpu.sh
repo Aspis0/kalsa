@@ -55,6 +55,9 @@ push() {
     adb -s "$serial" push "$eng/ggml/src/ggml-opencl/kernels/mul_mm_q4_0_f32_l4_lm_raw.cl" $dev/kernels/ || exit 24
     adb -s "$serial" push "$eng/ggml/src/ggml-opencl/kernels/mul_mv_q4_0_f32_v.cl" $dev/kernels/ || exit 25
     adb -s "$serial" push "$eng/ggml/src/ggml-opencl/kernels/mul_mv_q4_0_f32_tiled.cl" $dev/kernels/ || exit 26
+    adb -s "$serial" push "$eng/ggml/src/ggml-opencl/kernels/mul_mv_q4_0_f32_tiled_v2.cl" $dev/kernels/ || exit 30
+    adb -s "$serial" push "$eng/ggml/src/ggml-opencl/kernels/mul_mv_q4_0_f32_tiled_v3i.cl" $dev/kernels/ || exit 32
+    adb -s "$serial" push "$eng/ggml/src/ggml-opencl/kernels/mul_mv_q4_0_f32_tiled_v3h.cl" $dev/kernels/ || exit 33
     # SoA baseline arm: the engine's own convert + decode-gemv sources
     adb -s "$serial" push "$eng/ggml/src/ggml-opencl/kernels/cvt.cl" $dev/kernels/ || exit 27
     adb -s "$serial" push "$eng/ggml/src/ggml-opencl/kernels/gemv_noshuffle_q4_0_f32.cl" $dev/kernels/ || exit 28

@@ -251,3 +251,51 @@ dp4a route. No proposal below may move q6_K off dp4a; anything that does is list
 | **do not** | route q6_K back to the f32 GEMM "for precision" | - | - | **gives back the -9.9%** and is measured *worse* (0.006954 vs 0.005412) | - |
 | **do not** | global `q8a_t` f32 promotion across 14 `.cl` + 14 host sites (coordinator's inventory) | obsolete for `da` (fp32 default ships); `sa` promotion only matters if/when q4_K dp4a is enabled (X2E or R2 forcing) - do it then, scoped | - | - | - |
 | **do not** | chase softmax/attention/KV as the *common* term | bounded by the passing Q4_0 control at **0.001373 total** (same code, same device); the app-KV config is a *separate* product question with its own measured numbers (0.010268, s23 24) | - | - | - |
+
+## Z1 counters RESULT
+
+**Pre-registration (Z1, §3):** “Run the existing instrumented binary (atomic enqueue counters, proven observationally neutral in s23 sec. 15) at `-b 1`. Prediction under my section 1: `quant_a=0, dp4a=0, f32=all`.” The registered falsifier is any `kernel_quant_a_q8_1` enqueue at `ne1==1`.
+
+**Observed:** at `-b 1`, median KLD was **0.006012**. The instrument emitted `ggml_opencl[instrument]: dense q6_K batch GEMM executions: dp4a=0, f32=0 (KALSA_Q6K_DENSE)`. This is zero dense q6_K batch-GEMM executions. The `c6b45aaa4` instrument reports only those dense batch-GEMM counters; its output has no `quant_a` enqueue count and does not count the `ne1==1` GEMV f32 path. Thus `dp4a=0` is consistent with the registered prediction, but this run cannot establish `quant_a=0` or `f32=all` from the emitted counters. **Verdict: INSTRUMENT-LIMITED; the registered quant_a falsifier remains unobserved.**
+
+The host-restored original instrument binary matched the registered SHA-256 `108dfcd41c6d660f92e99bd75c9b38108ace7b7f1bcb908bb7bed6a3d8504cad`; it was pushed under the new device name `llama-perplexity-instr-z1-c6b45aaa4`, whose device SHA-256 matched. No build was performed. The successful run used the registered model, corpus and b1 reference with `-c 256 -b 1 -ngl 99 -fa off -s 42 --temp 0 --kl-divergence` and returned rc=0. A prior attempt exited rc=1 after three chunks without a counter line; those partial files are retained separately. The complete run was retried after the cool-down gate.
+
+Successful-run start bracket: 30%, charge counter 1,170,000 µAh, 32.7 °C, thermal status 0, AC/USB/wireless false, Dozing. End bracket: 24%, charge counter 926,250 µAh, 37.5 °C, thermal status 1, AC/USB/wireless false, Dozing. `adsprpcd`, `pm-proxy`, and `heatmap` were each 7% CPU in both brackets. The thermal watcher recorded no stop gate; the battery remained above 22%.
+
+Raw files: `raw/z1-original-binary-host-sha.txt`, `raw/z1-binary-push.txt`, `raw/z1-binary-push-exit.txt`, `raw/z1-device-binary-sha-and-inputs.txt`, `raw/z1-counters-success.log`, `raw/z1-counters-success.err`, `raw/z1-device-success-exit.txt`, `raw/z1-host-runner-r4-exit.txt`, `raw/z1-retry2-start-bracket.txt`, `raw/z1-success-end-bracket.txt`, `raw/z1-thermal-watchdog-retry2.log`, partial attempt `raw/z1-counters.log`, `raw/z1-counters.err`, `raw/z1-device-exit.txt`, and scripts `raw/run-scripts/z1-probe-device-r4.sh`, `raw/run-scripts/z1-bracket.sh`, `raw/run-scripts/z1-thermal-watchdog.sh`.
+
+File inventory (`ls -la`; `wc -l`):
+-rw-r--r-- 1 marco staff 178 raw/z1-original-binary-host-sha.txt
+-rw-r--r-- 1 marco staff 177 raw/z1-binary-push.txt
+-rw-r--r-- 1 marco staff 2 raw/z1-binary-push-exit.txt
+-rw-r--r-- 1 marco staff 438 raw/z1-device-binary-sha-and-inputs.txt
+-rw-r--r-- 1 marco staff 3087 raw/z1-counters-success.log
+-rw-r--r-- 1 marco staff 33728 raw/z1-counters-success.err
+-rw-r--r-- 1 marco staff 2 raw/z1-device-success-exit.txt
+-rw-r--r-- 1 marco staff 2 raw/z1-host-runner-r4-exit.txt
+-rw-r--r-- 1 marco staff 626 raw/z1-retry2-start-bracket.txt
+-rw-r--r-- 1 marco staff 614 raw/z1-success-end-bracket.txt
+-rw-r--r-- 1 marco staff 40514 raw/z1-thermal-watchdog-retry2.log
+-rw-r--r-- 1 marco staff 530 raw/z1-counters.log
+-rw-r--r-- 1 marco staff 33637 raw/z1-counters.err
+-rw-r--r-- 1 marco staff 2 raw/z1-device-exit.txt
+-rwxr-xr-x 1 marco staff 625 raw/run-scripts/z1-probe-device-r4.sh
+-rwxr-xr-x 1 marco staff 576 raw/run-scripts/z1-bracket.sh
+-rwxr-xr-x 1 marco staff 1918 raw/run-scripts/z1-thermal-watchdog.sh
+       1 raw/z1-original-binary-host-sha.txt
+       1 raw/z1-binary-push.txt
+       1 raw/z1-binary-push-exit.txt
+       4 raw/z1-device-binary-sha-and-inputs.txt
+      58 raw/z1-counters-success.log
+     204 raw/z1-counters-success.err
+       1 raw/z1-device-success-exit.txt
+       1 raw/z1-host-runner-r4-exit.txt
+      23 raw/z1-retry2-start-bracket.txt
+      23 raw/z1-success-end-bracket.txt
+     202 raw/z1-thermal-watchdog-retry2.log
+       6 raw/z1-counters.log
+     203 raw/z1-counters.err
+       1 raw/z1-device-exit.txt
+      10 raw/run-scripts/z1-probe-device-r4.sh
+       9 raw/run-scripts/z1-bracket.sh
+      29 raw/run-scripts/z1-thermal-watchdog.sh
