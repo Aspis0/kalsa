@@ -24,8 +24,19 @@ fn owner_a() -> Owner {
     (DeviceId::new(1), digest("cred-a"))
 }
 
+/// **The claim one phone's turn makes on the page**: the phone's conversation
+/// and the turn's own id. This is what the sidecar stamps a card with, and
+/// what the bridge matches that card against.
+fn claim(device: u32, request: &str) -> String {
+    super::cards::stamp_of(DeviceId::new(device), request)
+}
+
 /// A bridge that has paired device 1 under the credential "cred-a", with one
 /// live request of that phone, and the door's end of its events.
+///
+/// **The live request is a turn whose phone announced it can draw a card** —
+/// the capability is the live turn's, so a turn that announced none is a turn
+/// whose cards are declined.
 fn bridge_with_request(
     kind: &'static str,
     reply_for: Option<u32>,
@@ -40,7 +51,8 @@ fn bridge_with_request(
             kind,
             reply_for,
             inbox,
-            conversation: super::cards::conversation_of(DeviceId::new(1)),
+            stamp: claim(1, "req"),
+            draws_cards: kind == "turn",
         },
     );
     (bridge, events)
@@ -396,7 +408,9 @@ fn the_phone_card_carries_a_label_only_where_the_page_gave_one() {
 fn held(device: u32, cred: &str, request: &str, id: &str) -> Held {
     Held {
         owner: (DeviceId::new(device), digest(cred)),
-        conversation: cards::conversation_of(DeviceId::new(device)),
+        // **The sidecar stamps the card with the claim of the turn that raised
+        // it**, so this is the turn's name and not the phone's conversation.
+        conversation: claim(device, request),
         request: request.to_string(),
         id: id.to_string(),
         method: "POST".to_string(),
@@ -411,23 +425,49 @@ fn held(device: u32, cred: &str, request: &str, id: &str) -> Held {
 /// A live turn for `device`, put in by hand where `Bridge::open` cannot be: the
 /// real `open` needs an app to emit into, and what these proofs are about is what
 /// happens to a card once a phone is listening. Returns the request id.
+///
+/// **The turn announces what the phone's app announced**, so the cards it raised
+/// can be drawn: the capability is the live turn's, and a turn that announced
+/// none has its cards declined at once. **A read announces nothing**: the
+/// capability is a turn's, and a read drives no page at all.
 fn open_for(
     bridge: &Bridge,
     device: DeviceId,
     request: &str,
     kind: &'static str,
 ) -> mpsc::Receiver<ChatEvent> {
+    let capabilities = if kind == "turn" { json!([super::CARD_CAPABILITY]) } else { json!([]) };
+    open_for_that(bridge, device, request, kind, capabilities)
+}
+
+/// A live turn for `device` whose phone announced **no** capability: a phone
+/// that cannot be shown a card, whatever the turn says otherwise.
+fn open_for_that_cannot_draw(
+    bridge: &Bridge,
+    device: DeviceId,
+    request: &str,
+    kind: &'static str,
+) -> mpsc::Receiver<ChatEvent> {
+    open_for_that(bridge, device, request, kind, json!([]))
+}
+
+/// A live turn for `device`, with the capabilities the turn's body carried.
+fn open_for_that(
+    bridge: &Bridge,
+    device: DeviceId,
+    request: &str,
+    kind: &'static str,
+    capabilities: Value,
+) -> mpsc::Receiver<ChatEvent> {
     let credential = if device == DeviceId::new(1) { "cred-a" } else { "cred-b" };
-    let asking = super::asking((device, digest(credential)), device, &json!({}));
+    let body = json!({"capabilities": capabilities});
+    let asking = super::asking((device, digest(credential)), device, &body, request);
     bridge.start_live(request, kind, &asking)
 }
 
 /// A bridge that has paired two phones.
 fn bridge_with_two_phones() -> Bridge {
-    // **These phones can be shown a card**, which is what the routing proofs below are
-    // about. The production default is that they cannot, and the proofs that say so
-    // build their bridge with `Bridge::default()`.
-    let bridge = Bridge { phones_show_cards: true, ..Bridge::default() };
+    let bridge = Bridge::default();
     bridge.pair(&[
         (DeviceId::new(1), "cred-a".to_string()),
         (DeviceId::new(2), "cred-b".to_string()),
@@ -440,12 +480,12 @@ fn bridge_with_two_phones() -> Bridge {
 /// The id of the ninth card a phone is offered — the first one refused.
 const NINTH: usize = 8;
 
-fn routed(device: u32, _request: &str, id: &str) -> pending::Card {
+fn routed(device: u32, request: &str, id: &str) -> pending::Card {
     pending::card_of(
         id,
         "POST",
         "https://shop.example/order",
-        &cards::conversation_of(DeviceId::new(device)),
+        &claim(device, request),
         vec![],
         Some(pending::Destination { host: "shop.example".to_owned(), port: None, secure: true }),
     )
@@ -471,7 +511,8 @@ fn a_card_goes_to_the_phone_that_raised_it_once() {
             kind: "turn",
             reply_for: None,
             inbox: inbox_a,
-            conversation: cards::conversation_of(DeviceId::new(1)),
+            stamp: claim(1, "req-a"),
+            draws_cards: true,
         },
     );
     lock(&bridge.live).insert(
@@ -481,7 +522,8 @@ fn a_card_goes_to_the_phone_that_raised_it_once() {
             kind: "turn",
             reply_for: None,
             inbox: inbox_b,
-            conversation: cards::conversation_of(DeviceId::new(2)),
+            stamp: claim(2, "req-b"),
+            draws_cards: true,
         },
     );
 
@@ -611,7 +653,7 @@ fn a_card_outlives_nobody_and_says_so() {
 fn a_turns_conversation_is_the_credential_s_device_and_not_what_the_body_says() {
     let lie = json!({"messages": [], "reply_for": "5", "device": "7"});
 
-    let one = super::asking(owner_a(), DeviceId::new(1), &lie);
+    let one = super::asking(owner_a(), DeviceId::new(1), &lie, "req-a");
     assert_eq!(
         one.conversation,
         super::cards::conversation_of(DeviceId::new(1)),
@@ -629,7 +671,7 @@ fn a_turns_conversation_is_the_credential_s_device_and_not_what_the_body_says() 
     // A body that agrees is no different, so the line above is not the body
     // happening to be wrong by accident.
     assert_eq!(
-        super::asking(owner_a(), DeviceId::new(1), &json!({"messages": [], "device": "1"})).conversation,
+        super::asking(owner_a(), DeviceId::new(1), &json!({"messages": [], "device": "1"}), "req-a").conversation,
         one.conversation,
         "whoever the body says, the credential decides"
     );
@@ -639,6 +681,7 @@ fn a_turns_conversation_is_the_credential_s_device_and_not_what_the_body_says() 
         (DeviceId::new(7), digest("cred-b")),
         DeviceId::new(7),
         &json!({"messages": [], "device": "1"}),
+        "req-7",
     );
     assert_ne!(
         seven.conversation, one.conversation,
@@ -817,7 +860,7 @@ fn a_phone_is_never_asked_about_more_than_eight_requests_at_once() {
     assert_eq!(said.data["card_id"], format!("{NINTH:032x}"), "and about the write that was refused");
     assert!(events.try_recv().is_err(), "and it was said twice");
     assert_eq!(
-        lock(&bridge.cards).held_in(&cards::conversation_of(DeviceId::new(1))),
+        lock(&bridge.cards).held_for(DeviceId::new(1)),
         8,
         "and it was kept anyway"
     );
@@ -827,6 +870,54 @@ fn a_phone_is_never_asked_about_more_than_eight_requests_at_once() {
     let events_b = open_for(&bridge, DeviceId::new(2), "req-b", "turn");
     bridge.route_cards(vec![routed(2, "req-b", &format!("{NINTH:032x}"))]);
     assert_eq!(events_b.try_recv().map(|said| said.name), Ok("browser_card".to_string()));
+}
+
+/// **One snapshot of nine cards shows eight and refuses the ninth.** The cap is
+/// a count of what the phone is holding, and a list of nine cards that arrive
+/// together is nine cards the phone would be asked about at once.
+#[test]
+fn one_snapshot_of_nine_cards_shows_eight_and_refuses_the_ninth() {
+    let bridge = bridge_with_two_phones();
+    let events = open_for(&bridge, DeviceId::new(1), "req", "turn");
+
+    let snapshot: Vec<pending::Card> = (0..9).map(|at| routed(1, "req", &format!("{at:032x}"))).collect();
+    bridge.route_cards(snapshot);
+
+    let mut shown = 0;
+    let mut refused = 0;
+    while let Ok(said) = events.try_recv() {
+        match said.name.as_str() {
+            "browser_card" => shown += 1,
+            "browser_outcome" => refused += 1,
+            other => panic!("an event nobody expected: {other}"),
+        }
+    }
+    assert_eq!(shown, 8, "every card up to the cap is shown");
+    assert_eq!(refused, 1, "and the ninth is refused");
+    assert_eq!(lock(&bridge.cards).held_for(DeviceId::new(1)), 8, "and only eight are held");
+}
+
+/// **A refresh of the cards a phone already holds declines none of them.**
+///
+/// The sidecar holds a card until it is answered or expires, and a refresh after
+/// every browser call hands the whole list over again. A card the phone already
+/// has is not a card to send it a second time — and it is not counted against
+/// the cap either, or a refresh of eight held cards would decline all eight.
+#[test]
+fn a_refresh_of_the_cards_a_phone_already_holds_declines_none_of_them() {
+    let bridge = bridge_with_two_phones();
+    let events = open_for(&bridge, DeviceId::new(1), "req", "turn");
+
+    let snapshot: Vec<pending::Card> = (0..8).map(|at| routed(1, "req", &format!("{at:032x}"))).collect();
+    bridge.route_cards(snapshot.clone());
+    assert_eq!(events.try_iter().count(), 8, "every card up to the cap is shown");
+
+    // The same list again, as the refresh after the next browser call sends it.
+    bridge.route_cards(snapshot);
+
+    assert!(events.try_recv().is_err(), "a card the phone already has was sent or declined again");
+    assert!(lock(&bridge.declined).is_empty(), "and it was declined");
+    assert_eq!(lock(&bridge.cards).held_for(DeviceId::new(1)), 8, "and the phone still holds eight");
 }
 
 /// **The card's deadline crosses as a duration, never as an absolute time.**
@@ -1168,7 +1259,7 @@ async fn refusing_a_write_from_inside_a_runtime_does_not_block() {
         1,
         "and the write over the cap was said, once"
     );
-    assert_eq!(lock(&bridge.cards).held_in(&cards::conversation_of(DeviceId::new(1))), 8);
+    assert_eq!(lock(&bridge.cards).held_for(DeviceId::new(1)), 8);
 
     // **And the other branch: a phone that is unpaired under its card.** The card
     // is held, the phone is paired, and the pairing changes — the decline that
@@ -1204,6 +1295,9 @@ async fn refusing_a_write_from_inside_a_runtime_does_not_block() {
 fn a_phone_unpaired_while_its_picture_is_taken_gets_no_picture() {
     let bridge = Arc::new(Bridge::default());
     bridge.pair(&[(DeviceId::new(1), "cred-a".to_string())]);
+    // **The phone's turn is running**, so it has a claim of its own to ask the
+    // picture for: the picture is asked in the name of that turn's claim.
+    let _events = open_for(&bridge, DeviceId::new(1), "req", "turn");
 
     // **Armed before the preview starts**, then the preview is run on its own
     // thread: this is a race the door and the owner's reconcile thread are
@@ -1212,7 +1306,7 @@ fn a_phone_unpaired_while_its_picture_is_taken_gets_no_picture() {
     let previewing = {
         let bridge = Arc::clone(&bridge);
         std::thread::spawn(move || {
-            bridge.preview_guarded(DeviceId::new(1), || {
+            bridge.preview_guarded(DeviceId::new(1), |_| {
                 // The picture, taken while the owner removes the phone.
                 Ok(json!({
                     "image": "QUJD",
@@ -1247,7 +1341,9 @@ fn a_phone_unpaired_while_its_picture_is_taken_gets_no_picture() {
 fn a_phone_that_is_not_paired_gets_no_picture() {
     let bridge = Bridge::default();
     bridge.pair(&[(DeviceId::new(1), "cred-a".to_string())]);
-    let said = bridge.preview_guarded(DeviceId::new(2), || panic!("a picture was taken for a phone this computer does not know"));
+    let said = bridge.preview_guarded(DeviceId::new(2), |_| {
+        panic!("a picture was taken for a phone this computer does not know")
+    });
     assert_eq!(said, Err("unavailable".to_string()));
     assert!(lock(&bridge.answering).is_empty());
 }
@@ -1258,15 +1354,33 @@ fn a_phone_that_is_not_paired_gets_no_picture() {
 fn a_paired_phone_gets_its_picture() {
     let bridge = Bridge::default();
     bridge.pair(&[(DeviceId::new(1), "cred-a".to_string())]);
+    // **The phone's turn is running**, so it has a claim of its own to ask the
+    // picture for.
+    let _events = open_for(&bridge, DeviceId::new(1), "req", "turn");
     let picture = json!({
         "image": "QUJD",
         "media_type": "image/jpeg",
         "host": "shop.example",
         "taken_at": 1_u64,
     });
-    let said = bridge.preview_guarded(DeviceId::new(1), || Ok(picture.clone()));
+    let said = bridge.preview_guarded(DeviceId::new(1), |_| Ok(picture.clone()));
     assert_eq!(said, Ok(picture));
     assert!(lock(&bridge.answering).is_empty(), "the mark is taken down when the preview ends");
+}
+
+/// **A phone with no turn of its own is told there is no page.** The picture is
+/// asked for in the name of the turn's claim, and a phone whose turn has ended
+/// has no claim — so it is refused as no page, and no picture is taken of
+/// anything.
+#[test]
+fn a_phone_with_no_turn_of_its_own_is_told_there_is_no_page() {
+    let bridge = Bridge::default();
+    bridge.pair(&[(DeviceId::new(1), "cred-a".to_string())]);
+    let said = bridge.preview_guarded(DeviceId::new(1), |_| {
+        panic!("a picture was taken for a phone with no claim of its own")
+    });
+    assert_eq!(said, Err("no_page".to_string()));
+    assert!(lock(&bridge.answering).is_empty());
 }
 
 /// The desktop's own conversation, as a card of the window carries it: a UUID, which
@@ -1275,10 +1389,11 @@ const DESKTOP: &str = "3f0a1c2e-9b7d-4f21-8a55-6c1e2b3d4f50";
 
 /// **A card a phone cannot be shown is declined at once, and it is never shown.**
 ///
-/// The phone's app draws no card yet. A card that goes to it anyway is a card nobody
-/// can answer, and the person would wait the whole five minutes for it. So the card is
-/// declined on the spot with its reason, nothing is held for it, and the phone is handed
-/// nothing it could press.
+/// **The phone's app says it cannot draw a card**: its turn announced no
+/// capability, and the capability is the live turn's. A card that goes to it
+/// anyway is a card nobody can answer, and the person would wait the whole five
+/// minutes for it. So the card is declined on the spot with its reason, nothing
+/// is held for it, and the phone is handed nothing it could press.
 ///
 /// **And the decline is not silent.** The model's own write is still "awaiting
 /// confirm" to it, so the outcome reaches the model's path, and the phone's live
@@ -1287,7 +1402,7 @@ const DESKTOP: &str = "3f0a1c2e-9b7d-4f21-8a55-6c1e2b3d4f50";
 fn a_card_a_phone_cannot_be_shown_is_declined_at_once_and_never_shown() {
     let bridge = Bridge::default();
     bridge.pair(&[(DeviceId::new(1), "cred-a".to_string())]);
-    let events = open_for(&bridge, DeviceId::new(1), "req", "turn");
+    let events = open_for_that_cannot_draw(&bridge, DeviceId::new(1), "req", "turn");
 
     bridge.route_cards(vec![routed(1, "req", ID)]);
 
@@ -1310,7 +1425,7 @@ fn a_card_a_phone_cannot_be_shown_is_declined_at_once_and_never_shown() {
     // reads, and the sentence its next browser call is prefixed with.
     assert_eq!(
         lock(&bridge.told).as_slice(),
-        &[(ID.to_string(), cards::conversation_of(DeviceId::new(1)), "unsendable".to_owned())],
+        &[(ID.to_string(), claim(1, "req"), "unsendable".to_owned())],
         "the model was not told the request was let go"
     );
     // **The phone's live turn is handed the outcome**, so its screen can settle
@@ -1337,7 +1452,7 @@ fn a_card_whose_turn_has_ended_is_declined_at_once() {
     assert_eq!(lock(&bridge.declined).as_slice(), &[(ID.to_string(), TURN_ENDED)]);
     assert_eq!(
         lock(&bridge.told).as_slice(),
-        &[(ID.to_string(), cards::conversation_of(DeviceId::new(1)), "unsendable".to_owned())],
+        &[(ID.to_string(), claim(1, "req"), "unsendable".to_owned())],
         "the model was not told the request was let go"
     );
     assert_eq!(
@@ -1353,7 +1468,7 @@ fn a_card_whose_turn_has_ended_is_declined_at_once() {
 /// a pairing that is gone has no next turn to hear an outcome on.
 #[test]
 fn a_card_for_a_phone_that_is_not_paired_is_declined_as_an_unpair_would_decline_it() {
-    let bridge = Bridge { phones_show_cards: true, ..Bridge::default() };
+    let bridge = Bridge::default();
     bridge.pair(&[(DeviceId::new(1), "cred-a".to_string())]);
 
     bridge.route_cards(vec![routed(2, "req", ID)]);
@@ -1361,7 +1476,7 @@ fn a_card_for_a_phone_that_is_not_paired_is_declined_as_an_unpair_would_decline_
     assert_eq!(lock(&bridge.declined).as_slice(), &[(ID.to_string(), UNPAIRED)]);
     assert_eq!(
         lock(&bridge.told).as_slice(),
-        &[(ID.to_string(), cards::conversation_of(DeviceId::new(2)), "unsendable".to_owned())],
+        &[(ID.to_string(), claim(2, "req"), "unsendable".to_owned())],
         "the model was not told the request was let go"
     );
     assert!(lock(&bridge.waiting).is_empty(), "an outcome was queued for a phone that is no longer paired");
@@ -1410,4 +1525,127 @@ fn a_desktop_turns_card_is_never_routed_to_a_phone() {
 
     assert!(events.try_iter().next().is_none(), "a desktop's card reached a phone");
     assert!(lock(&bridge.declined).is_empty(), "and the phone's path declined a card that is not a phone's");
+}
+
+/// **The capability is the live turn's own, and it is the turn that decides.**
+///
+/// Two phones, two turns, one answer each: the turn that announced it can draw
+/// a card has its card drawn on it, and the turn that announced nothing has its
+/// card declined at once. **Nothing here is a property of the phone or of the
+/// build**: it is what each turn said, and the two turns say different things.
+#[test]
+fn the_capability_is_the_live_turn_s_own_and_not_the_phone_s() {
+    let bridge = bridge_with_two_phones();
+    let events_a = open_for(&bridge, DeviceId::new(1), "req-a", "turn");
+    let events_b = open_for_that_cannot_draw(&bridge, DeviceId::new(2), "req-b", "turn");
+
+    bridge.route_cards(vec![routed(1, "req-a", ID), routed(2, "req-b", "22222222222222222222222222222222")]);
+
+    let sent: Vec<ChatEvent> = events_a.try_iter().collect();
+    assert_eq!(
+        sent.iter().filter(|event| event.name == "browser_card").count(),
+        1,
+        "the turn that announced the capability was not shown its card"
+    );
+    let declined_b: Vec<ChatEvent> = events_b.try_iter().collect();
+    assert!(
+        declined_b.iter().all(|event| event.name != "browser_card"),
+        "a card reached a phone whose turn said it cannot draw one"
+    );
+    assert_eq!(
+        lock(&bridge.declined).as_slice(),
+        &[("22222222222222222222222222222222".to_string(), NO_CARD)],
+        "and the card that could not be drawn was declined at once, with the reason"
+    );
+}
+
+/// **A card belongs to the turn that raised it, and to no other turn.**
+///
+/// The card is stamped with that turn's claim, so a card of a turn that has
+/// ended finds no turn to be drawn on — **even when the phone's next turn is
+/// running and able to draw**. The protocol says a card arrives on the turn
+/// that raised it, once, and that a card whose turn has closed is declined with
+/// the reason that the turn had ended.
+#[test]
+fn a_card_of_a_turn_that_has_ended_is_not_drawn_on_the_phone_s_next_turn() {
+    let bridge = bridge_with_two_phones();
+    // The turn that raised the card is over; the phone's next turn is running.
+    let events = open_for(&bridge, DeviceId::new(1), "req-b", "turn");
+
+    bridge.route_cards(vec![routed(1, "req-a", ID)]);
+
+    assert!(
+        events.try_iter().all(|event| event.name != "browser_card"),
+        "a card of a turn that had ended was drawn on the phone's next turn"
+    );
+    assert_eq!(
+        lock(&bridge.declined).as_slice(),
+        &[(ID.to_string(), TURN_ENDED)],
+        "and it was declined with the reason that names what is true: the turn had ended"
+    );
+}
+
+/// **While the phone cannot draw a card, the first reason is the one given,
+/// whatever the turn's state.**
+///
+/// The card's own turn has ended and the phone's live turn cannot draw a card,
+/// so the card is declined with the reason that says the phone cannot be shown
+/// one — and not with the reason about the turn that had ended, which is the
+/// later of the two.
+#[test]
+fn while_the_phone_cannot_draw_a_card_the_first_reason_is_the_one_given() {
+    let bridge = bridge_with_two_phones();
+    // The phone's live turn cannot draw a card.
+    let events = open_for_that_cannot_draw(&bridge, DeviceId::new(1), "req-b", "turn");
+
+    bridge.route_cards(vec![routed(1, "req-a", ID)]);
+
+    assert!(
+        events.try_iter().all(|event| event.name != "browser_card"),
+        "a card reached a phone that cannot draw one"
+    );
+    assert_eq!(
+        lock(&bridge.declined).as_slice(),
+        &[(ID.to_string(), NO_CARD)],
+        "the first reason is the one given, whatever the turn's state"
+    );
+}
+
+/// **Two turns of one phone make two claims, and the phone keeps one
+/// conversation.**
+///
+/// The claim names the turn, so a release can let go of one turn's claim and
+/// never of another's. The conversation names the phone, so a card's outcome
+/// still comes back to the phone that raised it, on whichever turn it reads it.
+#[test]
+fn two_turns_of_one_phone_make_two_claims_and_one_conversation() {
+    let one = super::cards::stamp_of(DeviceId::new(1), "req-a");
+    let two = super::cards::stamp_of(DeviceId::new(1), "req-b");
+
+    assert_ne!(one, two, "a claim that does not name the turn cannot tell two turns apart");
+    assert!(one.starts_with("phone:1:"), "and it is the phone's conversation with the turn's own name after it");
+    assert_eq!(
+        super::cards::conversation_of(DeviceId::new(1)),
+        "phone:1",
+        "while the conversation itself is the phone's and outlives every turn of it"
+    );
+}
+
+/// **The picture is asked for in the name of the claim of the turn that opened
+/// the page.** The page belongs to the conversation that opened it, so a
+/// preview that asked under any other name would be told the page is somebody
+/// else's — and the phone would get no picture of the page its own turn is
+/// driving.
+#[test]
+fn the_picture_is_asked_for_in_the_name_of_the_live_turn_s_claim() {
+    let (bridge, _events) = bridge_with_request("turn", None);
+    let asked = std::cell::RefCell::new(String::new());
+
+    let said = bridge.preview_guarded(DeviceId::new(1), |conversation| {
+        *asked.borrow_mut() = conversation.to_string();
+        Ok(json!({"image": "QUJD"}))
+    });
+
+    assert!(said.is_ok(), "the picture was not given");
+    assert_eq!(asked.into_inner(), claim(1, "req"), "the picture was asked for in somebody else's name");
 }

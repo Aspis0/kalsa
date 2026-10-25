@@ -13,6 +13,7 @@ import { loadSettings } from "../settings";
 import type { LiveSettings } from "../types";
 import { getBrainServer, withBrainDefaults } from "../../surfaces/useBrain";
 import { phoneSink, sendPhoneEvent } from "./phoneEvents";
+import { forgetClaims } from "./phoneClaims";
 import { readPhoneRequest, requestIdOf } from "./phoneRequest";
 import { runPhoneRead } from "./phoneRead";
 import { runPhoneTurn } from "./phoneTurn";
@@ -29,13 +30,15 @@ const UNPAIRED_EVENT = "phone-chat-unpaired";
  * The turn a request is run as.
  *
  * **The device goes on beside the turn, from the app.** It is what the app
- * resolved the credential to, and the browser writes of this turn are stamped
- * with it — so a card raised here is drawn on that phone, and its outcome comes
- * back under the same conversation. The phone's own body carries no device: it
- * cannot learn its own number (the pairing seal hands back the credential and
- * nothing else) and the door builds the turn without the field, so the app's is
- * the only one there is. A body that tries is `device: null` here already, and
- * is overwritten by this.
+ * resolved the credential to, and so what says whose phone this is: a card
+ * raised by this turn is drawn on that phone and on no desktop. The phone's own
+ * body carries no device: it cannot learn its own number (the pairing seal
+ * hands back the credential and nothing else) and the door builds the turn
+ * without the field, so the app's is the only one there is. A body that tries
+ * is `device: null` here already, and is overwritten by this.
+ *
+ * **The claim on the page rides with the turn**, because the app put it there
+ * beside the messages and the door rebuilt the turn without it.
  */
 export function turnFor(body: TurnBody, device: string | null): PhoneTurn {
   return { ...body.turn, device };
@@ -53,9 +56,13 @@ export function startPhoneChatRunner(): () => void {
     // **A phone that is no longer paired takes this window's memory of it with
     // it**: what its chat was refused for is a thing this computer remembered
     // about a phone that no longer exists, and a phone paired again later must
-    // not inherit another phone's caution.
+    // not inherit another phone's caution — nor another phone's answers, which
+    // came back under the claims of that phone's turns.
     listen(UNPAIRED_EVENT, (payload) => {
-      for (const conversation of Array.isArray(payload) ? payload : []) forgetArmedChat(String(conversation));
+      for (const conversation of Array.isArray(payload) ? payload : []) {
+        forgetArmedChat(String(conversation));
+        forgetClaims(String(conversation));
+      }
     }),
   ]);
 

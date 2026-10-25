@@ -49,6 +49,52 @@ const REDIRECT_WINDOW: Duration = Duration::from_secs(2);
 /// that never answers must not hold the window for ever.
 const ANSWER_WINDOW: Duration = Duration::from_secs(10);
 
+/// **The prefix a phone's claim carries.** A desktop's conversation is a plain
+/// name and never carries it, and that is what tells the two apart.
+const PHONE: &str = "phone:";
+
+/// **The claim a phone's turn makes on the page: the phone's own name and the
+/// turn's own id.**
+///
+/// **The split lives here and nowhere else.** Two crates read this string — the
+/// brain that builds it and this crate that rules on it — and a rule kept in two
+/// places is a rule that will be read two ways.
+pub fn phone_claim(device: &str, turn: &str) -> String {
+    format!("{PHONE}{device}:{turn}")
+}
+
+/// **The name of a phone's conversation: the phone alone.**
+pub fn phone_conversation(device: &str) -> String {
+    format!("{PHONE}{device}")
+}
+
+/// **Whether a name belongs to a phone.** A phone's conversation and a phone's
+/// claim both carry the prefix; a desktop's conversation never does.
+pub fn is_phone(name: &str) -> bool {
+    name.starts_with(PHONE)
+}
+
+/// **Whether two claims are the same phone's.**
+///
+/// **The phone is what may take a claim over; the turn is what the claim is
+/// of.** A desktop's conversation is nobody's phone, so no desktop's claim is
+/// ever taken over by anything.
+pub fn same_phone(one: &str, other: &str) -> bool {
+    match (phone_of(one), phone_of(other)) {
+        (Some(one), Some(other)) => one == other,
+        _ => false,
+    }
+}
+
+/// **The phone a claim names, when it names one.**
+fn phone_of(name: &str) -> Option<&str> {
+    let (phone, turn) = name.strip_prefix(PHONE)?.split_once(':')?;
+    if phone.is_empty() || turn.is_empty() {
+        return None;
+    }
+    Some(phone)
+}
+
 /// The future that dispatches or drops a held request. What the browser does
 /// with one is the caller's business; what this store does with it — once, and
 /// only once — is its own.
@@ -674,9 +720,19 @@ impl Holds {
     /// conversation holds is refused with `None`, and nothing is written.
     /// Otherwise the page and the last actor are the caller's, and the stamps the
     /// claim replaced come back, so an open that never lands can give them back.
+    ///
+    /// **A phone may take over a claim of its own from a turn that has ended.**
+    /// The door allows one live turn per phone, so a claim of this phone's
+    /// belongs to a turn that is over — and a release that never came is not a
+    /// claim anybody else may hold: without this, a lost release would lock the
+    /// phone out of its own page for the rest of the pairing. Another phone's
+    /// claim, and a desktop's, are still refused.
     pub async fn claim_for_turn(&self, conversation: &str) -> Option<(String, String)> {
         let mut inner = self.inner.lock().await;
-        if !inner.navigated.is_empty() && inner.navigated != conversation {
+        let held_by_another = !inner.navigated.is_empty()
+            && inner.navigated != conversation
+            && !same_phone(&inner.navigated, conversation);
+        if held_by_another {
             return None;
         }
         let replaced = (inner.navigated.clone(), inner.calling.clone());
@@ -2612,6 +2668,62 @@ mod tests {
         assert!(holds.forget_owner(CHAT).await, "A's claim did not let go");
         holds.claim_for_turn("chat-b").await.expect("the page was free to take");
         assert_eq!(holds.stamp_for_the_page().await, "chat-b");
+    }
+
+    /// **A phone's next turn takes over the claim its own last turn left behind.**
+    ///
+    /// The release at a turn's end is best-effort, and a release that never came
+    /// leaves the page stamped with that turn's claim: without a way back, the
+    /// phone was then locked out of its own page for the rest of the pairing,
+    /// and so was the desktop. The door allows one live turn per phone, so a
+    /// claim of this phone's belongs to a turn that is over — and the next turn
+    /// of that phone may take it.
+    #[tokio::test]
+    async fn a_phones_next_turn_takes_over_the_claim_its_own_last_turn_left_behind() {
+        let holds = holds_in("phone:1").await;
+        holds.claim_for_turn("phone:1:turn-1").await.expect("the phone took the page nobody held");
+        assert_eq!(holds.stamp_for_the_page().await, "phone:1:turn-1");
+
+        // The turn ended, and its release never came.
+        assert!(holds.claim_for_turn("phone:1:turn-2").await.is_some(), "the phone was locked out of its own page");
+        assert_eq!(holds.stamp_for_the_page().await, "phone:1:turn-2", "and the page is the new turn's");
+    }
+
+    /// **And a claim of another phone's, or of a desktop's, is still refused.**
+    /// The takeover is the phone's own and nobody else's.
+    #[tokio::test]
+    async fn a_claim_of_another_phone_or_of_a_desktop_is_not_taken_over() {
+        let holds = holds_in(CHAT).await;
+        holds.claim_for_turn("phone:1:turn-1").await.expect("the phone took the page nobody held");
+
+        assert!(holds.claim_for_turn("phone:2:turn-1").await.is_none(), "another phone took the page");
+        assert!(holds.claim_for_turn(CHAT).await.is_none(), "the desktop took a phone's page");
+        assert_eq!(holds.stamp_for_the_page().await, "phone:1:turn-1", "the page changed hands");
+    }
+
+    /// **A phone does not take over a desktop's claim either.** The takeover is
+    /// one phone's own, and a desktop's page is nobody else's to take.
+    #[tokio::test]
+    async fn a_phone_does_not_take_over_a_desktops_claim() {
+        let holds = holds_in(CHAT).await;
+        holds.claim_for_turn(CHAT).await.expect("the desktop took the page nobody held");
+
+        assert!(holds.claim_for_turn("phone:1:turn-1").await.is_none(), "the phone took the desktop's page");
+        assert_eq!(holds.stamp_for_the_page().await, CHAT, "the page changed hands");
+    }
+
+    /// **The claim names its phone and its turn, and the phone is what a claim
+    /// is taken over by.** The split is one rule in one place: the phone may
+    /// take over, the turn may not, and a desktop's name is neither.
+    #[test]
+    fn a_claim_names_its_phone_and_its_turn() {
+        assert_eq!(super::phone_claim("2", "turn-1"), "phone:2:turn-1");
+        assert_eq!(super::phone_conversation("2"), "phone:2");
+        assert!(super::same_phone("phone:2:turn-1", "phone:2:turn-2"), "one phone's claims are the same phone's");
+        assert!(!super::same_phone("phone:2:turn-1", "phone:3:turn-1"), "and another phone's are not");
+        assert!(!super::same_phone("phone:2:turn-1", CHAT), "and a desktop's are not");
+        assert!(!super::same_phone("phone:2:turn-1", "phone:2"), "a phone's conversation alone is not a claim");
+        assert!(super::is_phone("phone:2:turn-1") && !super::is_phone(CHAT), "a phone's name says so");
     }
 
     /// **A call that panics lets go of the window.**

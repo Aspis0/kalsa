@@ -58,7 +58,8 @@ silent: an older computer is not an error.
 {
   "messages": [{"role": "user", "content": "che mail ho ricevuto oggi?"}],
   "reply_for": "105",
-  "language": "it"
+  "language": "it",
+  "capabilities": ["browser_card"]
 }
 ```
 
@@ -70,6 +71,12 @@ silent: an older computer is not an error.
   Digits only, otherwise `bad_request`.
 - `language` (optional): `en` or `it`, the phone's UI language, so tool words and failure
   sentences match the phone. Default `en`.
+- `capabilities` (optional): **what this phone's app can draw.** An array of names, and
+  `browser_card` is the only one there is: a phone that announces it is a phone whose
+  browser cards are drawn on it (§3.1). A name this computer does not know is ignored, and a
+  field that is not an array of names is no capabilities at all — **a turn is never refused
+  over this**: a phone that speaks a newer dialect still gets its turn, it simply does not
+  get the card that capability is about.
 - Body at most 1 MiB, at most 200 messages.
 
 **The turn body carries no `device`.** Which phone is asking is not something the phone says:
@@ -130,12 +137,18 @@ tap: a mail the model read can put a link into the answer.
 
 **The device that started the turn confirms** — and the phone never says which device that is.
 The computer already knows: it resolved the device from the credential the request authenticated
-with, and every browser call of this turn is stamped with that phone's conversation. A phone turn
-is offered the same browser the desktop is offered — the same web switch, the same rules, and the
-same card for a write. What changes is where the card is drawn: on that phone, and on no desktop.
-A card raised by a desktop turn is drawn on the window as always; the two never mix, because a
-card belongs to the conversation that raised it and a phone's conversation is not a desktop's.
+with, and every browser call of this turn is stamped with that phone's claim on the page. A phone
+turn is offered the same browser the desktop is offered — the same web switch, the same rules, and
+the same card for a write. What changes is where the card is drawn: on that phone, and on no
+desktop. A card raised by a desktop turn is drawn on the window as always; the two never mix,
+because a card belongs to the turn that raised it and a phone's turn is not a desktop's.
 A credential that is not paired reaches none of this: there is no turn, so there is no card.
+
+**And the phone's app says it can draw one.** The turn announces `browser_card` (§2), and a card
+is drawn on that phone only if the turn running on it announced it: **the capability belongs to
+the live turn**, not to the phone for the life of the pairing and not to the build. A phone whose
+app announces nothing has its cards declined at once, with the reason, and it is still answered
+like any other phone.
 
 #### The card
 
@@ -232,15 +245,16 @@ has closed, the card is not re-sent, and it is declined at once with the reason 
 had ended (below): the model is told, and nothing was sent. A phone that reconnects sees no
 card, because there is nothing left to answer.
 
-**A card the phone cannot draw is declined at once.** Until the phone's app draws a card,
-the computer never puts one on a phone's stream. It declines the card on the spot, the browser
+**A card the phone cannot draw is declined at once.** A card is drawn on a phone only if the
+turn running on it announced that it can draw one (§2); otherwise the computer never puts one on
+a phone's stream. It declines the card on the spot, the browser
 is asked to let the held request go without sending it, and the model is told in the
 computer's own sentence, `No request was sent: <reason>, so the person was never asked about
 it.` — prefixed to the conversation's next browser call, and said again on the model's next
 turn, so a model is never left waiting on an "awaiting confirm" that will never be answered.
-The reasons are three: `this
-phone cannot be shown the confirm card yet` (the phone's
-turn is live and the app cannot draw it), `the turn that raised this had already ended before
+The reasons are three: `the
+phone's turn did not say it could draw the confirm card` (the phone's live turn announced no
+such capability, or its number could not be read at all), `the turn that raised this had already ended before
 the card could be shown` (no turn to carry it), and `the phone that raised this was unpaired
 before anybody could answer it` (no pairing). The phone's conversation is handed the same
 outcome as a `browser_outcome` — on the turn's stream while the turn that raised the request
@@ -250,17 +264,29 @@ gone has no next turn to hear an outcome on. A card a browser call raises is dec
 nobody waits out the five minutes for it, and the phone is handed nothing to press. The one hold
 that is not routed at once is a hold with no browser call to carry it: it waits for the computer's
 five minutes, and §3.1 names that limit here rather than hide it. A desktop's card never takes this
-road. While the phone cannot draw a card, the first reason is the one given, whatever the turn's
-state: `TURN_ENDED` is given only once a phone can draw one. A phone's conversation whose number
+road. While the phone's live turn has not said it can draw a card, the first reason is the one given,
+whatever the card's own turn's state is. A phone's conversation whose number
 cannot be read is declined with the first reason as well.
+
+**And which reason is which is the turn's, not the phone's.** The capability belongs to the live
+turn and is not kept past it: with no live turn at all the computer cannot know what that phone
+could have drawn, and what is certainly true is that the turn that raised the card has ended and
+there is no turn to carry it — so the card is declined as `TURN_ENDED`.
 
 **A phone reads and drives only its own page.** The browser is one window, and a desktop
 conversation reads whatever page is on it, as it always has. A phone's read, find, click or type
-is refused, unless the page's stamp is that phone's conversation: the conversation whose turn
-last opened the page, for as long as that turn runs. The refusal is one plain sentence: `The page
+is refused, unless the page's stamp is that phone's claim on it: the claim of the turn that last
+opened the page, for as long as that turn runs. The refusal is one plain sentence: `The page
 on the screen was not opened by this phone's conversation, so nothing was read or done on it.` A
 page the phone's turn opened stays the phone's until that turn ends, and a page the person moved
 by hand is nobody's.
+
+**And the claim names the turn, not only the phone.** The stamp a phone's browser calls carry is
+that phone's conversation **and the turn's own name** — so a turn's end lets go of the claim of
+that turn and of no other's, and a release that arrives late, after the next turn has taken the
+page, finds that the stamps are not its own and lets nothing go. A card is bound to the same
+name: it is stamped with the claim of the turn that raised it, which is what says which turn a
+late card belongs to.
 
 **One page, one turn.** The window is one. A turn — a phone's and a desktop's alike — may open
 a page and drive it while no other conversation holds the page on the window: a page nobody
@@ -352,14 +378,19 @@ browser window appears on the person's desk because a phone pressed something. T
 never put in the model's context, never written to a file and never logged: it crosses once and
 is gone.
 
-**Only the phone that owns the page gets it.** The page belongs to the conversation that opened
-it, and the computer asks the sidecar whether that is still so. Reading the page does not make it
-yours, and a page the person opened by hand is nobody's. Those are refused as `not_yours`.
+**Only the phone that owns the page gets it.** The page belongs to the claim of the turn that
+opened it, and the computer asks the sidecar whether that is still so — in that turn's name, so
+the question is the one the sidecar can answer. Reading the page does not make it yours, and a
+page the person opened by hand is nobody's. Those are refused as `not_yours`.
+
+**A phone with no turn of its own is told `no_page` at once.** The picture is asked for in the
+name of the turn's claim, and a phone whose turn has ended has no claim — so the computer says
+so without asking the sidecar, and no picture of anybody's page is taken.
 
 | body | meaning |
 |---|---|
 | `{"image":"<base64 JPEG>","media_type":"image/jpeg","host":"shop.example","taken_at":1767225600000}` | the picture |
-| `{"error":"no_page"}` | no browser is open; nothing was started |
+| `{"error":"no_page"}` | no browser is open; nothing was started — or this phone has no turn of its own to claim a page with |
 | `{"error":"not_yours"}` | the page is another conversation's, or nobody's |
 | `{"error":"busy"}` | another call is driving the browser, the person has paused it, or another preview of this phone's is in flight |
 | `{"error":"too_large"}` | the picture was bigger than the road can carry |

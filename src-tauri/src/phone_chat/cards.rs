@@ -17,6 +17,7 @@
 use std::collections::HashMap;
 use std::time::Instant;
 
+use kalsa_browser::hold::{is_phone, phone_claim, phone_conversation};
 use kalsa_door::DeviceId;
 
 use crate::browser::pending::{Destination, Field, ASKED_FOR};
@@ -27,8 +28,10 @@ use super::drafts::Owner;
 #[derive(Clone)]
 pub(super) struct Held {
     pub(super) owner: Owner,
-    /// The conversation the sidecar stamped, which is this phone's — a card is
-    /// drawn, answered and reported in the turn that caused it and no other.
+    /// **The claim of the turn that raised the card**, which the sidecar
+    /// stamped: the phone's conversation and that turn's own name. A card is
+    /// drawn, answered and reported in the turn that caused it and no other,
+    /// and this is the name that says which turn that was.
     pub(super) conversation: String,
     /// The turn it was raised on, so a card can only be shown to the phone that
     /// is actually listening for it.
@@ -104,10 +107,22 @@ impl Cards {
         self.entries.get(id).is_some_and(|card| card.request == request && &card.owner == owner)
     }
 
-    /// How many cards one conversation is holding, so the caller can refuse the
+    /// **Whether this computer is already holding a card.** A refresh re-routes
+    /// every card the sidecar is holding, so a card the phone already has is
+    /// one to leave alone — and one not to count against the phone's cap.
+    pub(super) fn holds(&self, id: &str) -> bool {
+        self.entries.contains_key(id)
+    }
+
+    /// How many cards one phone is holding, so the caller can refuse the
     /// next one instead of stacking a screen full of decisions on one phone.
-    pub(super) fn held_in(&self, conversation: &str) -> usize {
-        self.entries.values().filter(|card| card.conversation == conversation).count()
+    ///
+    /// **Counted per phone, not per turn.** A card is stamped with the turn that
+    /// raised it, and a phone's next turn is stamped with a different name, so a
+    /// count per stamp would let one phone be asked about eight cards on this
+    /// turn and eight more on the next.
+    pub(super) fn held_for(&self, device: DeviceId) -> usize {
+        self.entries.values().filter(|card| card.owner.0 == device).count()
     }
 
     /// **Drops the cards of every phone not in `paired`, and hands them back** so
@@ -151,12 +166,37 @@ impl Cards {
 /// the phone, because the phone is who may answer and who is told. A desktop
 /// conversation is a UUID and never carries this prefix, so the two can never be
 /// confused for one another.
+///
+/// **The name itself is the browser's.** `kalsa-browser` owns the shape of a
+/// phone's claim and the rule that reads it, so the two crates cannot go on
+/// reading the same string two ways.
 pub(super) fn conversation_of(device: DeviceId) -> String {
-    format!("phone:{}", device.value())
+    phone_conversation(&device.value().to_string())
 }
 
 /// Whether a conversation belongs to a phone. The window asks this before it
 /// draws: a card for a phone is drawn on that phone and on no desktop.
 pub(crate) fn is_phone_conversation(conversation: &str) -> bool {
-    conversation.starts_with("phone:")
+    is_phone(conversation)
+}
+
+/// **The claim one turn makes on the page**: the phone's conversation and the
+/// turn's own id.
+///
+/// **The claim belongs to the turn, not to the phone for the life of the
+/// pairing.** The protocol says so, and the reason is a release: the turn's end
+/// is what lets the page go, and a release that names one turn must not let go
+/// of a claim another turn holds. A name per device cannot tell the two apart —
+/// a late release would find the next turn's claim and take the page from it —
+/// so the name carries the turn, and a release that finds nothing of its own
+/// lets nothing go.
+///
+/// **Built in one place, and the window is handed it.** The sidecar treats the
+/// name as a name, so the two halves of the computer — the window that stamps
+/// the browser calls and the bridge that reads the card back — have to be
+/// saying the same thing; the bridge builds it and the window is given it, so
+/// they cannot drift apart. **And the shape of it is the browser's**, which is
+/// where the rule that reads a claim lives.
+pub(super) fn stamp_of(device: DeviceId, request: &str) -> String {
+    phone_claim(&device.value().to_string(), request)
 }

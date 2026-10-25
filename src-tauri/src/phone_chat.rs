@@ -74,6 +74,18 @@ struct Decline {
     tell_phone: bool,
 }
 
+/// **What one card's routing came to.** One decision, with the reasons it has:
+/// a card this computer does not route, a card that goes to a phone, and a card
+/// that is declined with the reason it was.
+enum Routing {
+    /// Not this computer's card to route.
+    NotOurs,
+    /// The card goes to this phone, on the turn that raised it.
+    Draw { owner: Owner, request: String },
+    /// The card is declined, and this is why.
+    Decline { request: String, why: &'static str, tell_phone: bool },
+}
+
 /// One event's data once serialized. A larger one ends its turn as an engine failure.
 const MAX_EVENT_BYTES: usize = 1024 * 1024;
 
@@ -103,9 +115,20 @@ const LATE: &str = "the person's five minutes for this request were already up w
 /// The phone that raised this has no card it can draw, so nobody was asked. Read
 /// in the sidecar's own sentence: "No request was sent: …, so the person was never
 /// asked about it."
-const NO_CARD: &str = "this phone cannot be shown the confirm card yet";
+///
+/// **What is missing is the turn's own word.** The capability is the live turn's,
+/// so a turn that announced none is a phone that cannot be shown a card — a
+/// fact about that turn and not a state this computer is in.
+const NO_CARD: &str = "the phone's turn did not say it could draw the confirm card";
 /// The turn that raised the card had ended before the card could reach its phone.
 const TURN_ENDED: &str = "the turn that raised this had already ended before the card could be shown";
+
+/// **What a phone says it can draw.** The name is the protocol's
+/// (`kalsa-door`'s `chat::body` lets through the names this protocol has, and
+/// this is the one the computer acts on): a turn that announced it is a turn
+/// whose phone can be shown a card, and a turn that did not is one whose cards
+/// are declined at once.
+const CARD_CAPABILITY: &str = "browser_card";
 
 /// What the model is told about a card nobody answered. The same word the
 /// desktop's own expiry uses, so one model reads one set of sentences.
@@ -126,11 +149,22 @@ struct Live {
     kind: &'static str,
     reply_for: Option<u32>,
     inbox: mpsc::Sender<ChatEvent>,
-    /// **The conversation this request's browser writes are stamped with**, which
-    /// is the phone's and not a turn's. It is what binds a card to the phone that
-    /// may answer it, and what makes a page script's invented card find nothing:
-    /// the id has to be one this bridge is actually holding for this phone.
-    conversation: String,
+    /// **This turn's claim on the page**: the phone's conversation and this
+    /// turn's own id.
+    ///
+    /// **The claim belongs to the turn, not to the phone for the life of the
+    /// pairing.** The turn's end is what lets the page go, so a release names
+    /// the turn that made the claim and can never let go of another turn's. It
+    /// is also what binds a card to the turn that raised it, and what the
+    /// window is handed to stamp this turn's browser calls with.
+    stamp: String,
+    /// **What this turn's phone said it could draw.**
+    ///
+    /// **The capability is the live turn's**: it is what the phone's app
+    /// announced when this turn began, and it is not kept past the turn — so a
+    /// card that arrives with no live turn to have announced it is declined
+    /// rather than drawn on a phone that may not be able to draw it.
+    draws_cards: bool,
 }
 
 /// The door's hook and the page's side of the phone's chat, in one place: the
@@ -177,12 +211,6 @@ pub(crate) struct Bridge {
     pause: std::sync::Condvar,
     #[cfg(test)]
     paused: Mutex<(bool, bool)>,
-    /// **Whether a phone can be shown a browser card.** Off until the phone's app
-    /// draws one: a card that nobody is shown is a card nobody answers, and the
-    /// person would wait the whole five minutes for it. Until this is on, every
-    /// card a phone's turn raises is declined at once, with the reason, and the
-    /// browser is never asked to send it.
-    phones_show_cards: bool,
     /// The declines a proof can read: a unit test has no app to send them through.
     #[cfg(test)]
     declined: Mutex<Vec<(String, &'static str)>>,
@@ -547,7 +575,8 @@ impl Bridge {
                 kind,
                 reply_for: asking.reply_for,
                 inbox,
-                conversation: asking.conversation.clone(),
+                stamp: asking.stamp.clone(),
+                draws_cards: asking.draws_cards,
             },
         );
         events
@@ -613,109 +642,133 @@ impl Bridge {
         // [`Bridge::send_declines`].
         let mut declining: Vec<Decline> = Vec::new();
         for card in cards {
-            let Some(device) = device_of(&card.conversation) else {
-                // A phone's conversation with no usable number names no phone that could be
-                // shown the card: declined at once, not left to the sidecar's five minutes.
-                if is_phone_conversation(&card.conversation) {
-                    declining.push(Decline {
-                        id: card.id,
-                        conversation: card.conversation,
-                        request: String::new(),
-                        why: NO_CARD,
-                        tell_phone: false,
-                    });
+            match self.route_card(&card) {
+                Routing::NotOurs => continue,
+                Routing::Decline { request, why, tell_phone } => declining.push(Decline {
+                    id: card.id,
+                    conversation: card.conversation,
+                    request,
+                    why,
+                    tell_phone,
+                }),
+                Routing::Draw { owner, request } => {
+                    let held = Held {
+                        owner,
+                        conversation: card.conversation.clone(),
+                        request,
+                        id: card.id.clone(),
+                        method: card.method.clone(),
+                        url: card.url.clone(),
+                        destination: card.destination.clone(),
+                        fields: card.fields.clone(),
+                        created: now,
+                    };
+                    if lock(&self.cards).note(held.clone(), now) {
+                        self.send_card(&held);
+                    }
                 }
-                continue;
-            };
-            // **A card a phone cannot answer is declined at once.** Nobody is asked and
-            // nothing is sent, and the model is told why in the sidecar's own sentence.
-            // The person is never made to wait out the five minutes for a card that
-            // nobody can draw. An unpaired phone's card is declined the way `pair`
-            // declines the cards of a phone it forgets — and is told nothing, for
-            // there is no next turn of that pairing to hear it.
-            let Some(owner) = self.paired_owner(device) else {
-                declining.push(Decline {
-                    id: card.id,
-                    conversation: card.conversation,
-                    request: String::new(),
-                    why: UNPAIRED,
-                    tell_phone: false,
-                });
-                continue;
-            };
-            if !self.phones_show_cards {
-                // The turn may well be live — the model is waiting on its
-                // "awaiting confirm" — so the outcome goes on its stream when
-                // there is one, and the queue when there is not.
-                let request = self.request_of(owner, &card.conversation).unwrap_or_default();
-                declining.push(Decline {
-                    id: card.id,
-                    conversation: card.conversation,
-                    request,
-                    why: NO_CARD,
-                    tell_phone: true,
-                });
-                continue;
-            }
-            // The card goes to the turn that raised it. **No turn means no socket, and
-            // no socket means no card:** the card is declined here, and nothing is sent.
-            let Some(request) = self.request_of(owner, &card.conversation) else {
-                declining.push(Decline {
-                    id: card.id,
-                    conversation: card.conversation,
-                    request: String::new(),
-                    why: TURN_ENDED,
-                    tell_phone: true,
-                });
-                continue;
-            };
-            // **Eight is as many as one phone is ever asked about at once.**
-            // A person is being asked to decide on a stranger's write, and a ninth
-            // card on the same screen is not a decision any more — it is a queue
-            // they will clear by pressing the top one. So the write is refused
-            // rather than held: the sidecar lets it go without dispatching and
-            // the model is told once, in one line, why. It never reaches the
-            // phone, because a card nobody is shown is a card nobody answers.
-            if lock(&self.cards).held_in(&card.conversation) >= MAX_HELD {
-                // **Collected, not sent here**: `route_cards` runs inside a tauri
-                // command, which is an async context, and the sidecar is a pipe
-                // across a process. The decline goes out after every lock is let
-                // go, so nothing here blocks and nothing is asked while a table is
-                // half-read.
-                declining.push(Decline {
-                    id: card.id,
-                    conversation: card.conversation,
-                    request,
-                    why: TOO_MANY,
-                    tell_phone: true,
-                });
-                continue;
-            }
-            let held = Held {
-                owner,
-                conversation: card.conversation.clone(),
-                request,
-                id: card.id.clone(),
-                method: card.method.clone(),
-                url: card.url.clone(),
-                destination: card.destination.clone(),
-                fields: card.fields.clone(),
-                created: now,
-            };
-            if lock(&self.cards).note(held.clone(), now) {
-                self.send_card(&held);
             }
         }
         self.send_declines(declining);
     }
 
+    /// **What one card comes to, and why.** The whole of a card's routing is
+    /// here: whether this computer may show it, which turn would carry it, and
+    /// the reason it is not sent when it is not.
+    fn route_card(&self, card: &pending::Card) -> Routing {
+        let Some(device) = device_of(&card.conversation) else {
+            // A phone's conversation with no usable number names no phone that could be
+            // shown the card: declined at once, not left to the sidecar's five minutes.
+            if is_phone_conversation(&card.conversation) {
+                return Routing::Decline { request: String::new(), why: NO_CARD, tell_phone: false };
+            }
+            return Routing::NotOurs;
+        };
+        // **A card a phone cannot answer is declined at once.** Nobody is asked and
+        // nothing is sent, and the model is told why in the sidecar's own sentence.
+        // The person is never made to wait out the five minutes for a card that
+        // nobody can draw. An unpaired phone's card is declined the way `pair`
+        // declines the cards of a phone it forgets — and is told nothing, for
+        // there is no next turn of that pairing to hear it.
+        let Some(owner) = self.paired_owner(device) else {
+            return Routing::Decline { request: String::new(), why: UNPAIRED, tell_phone: false };
+        };
+        // **A card this phone already holds is the same card again.** A refresh
+        // re-routes every card the sidecar is holding, and a card the phone has
+        // is not sent to it a second time — nor counted against its cap, or a
+        // refresh of eight held cards would decline all eight of them.
+        if lock(&self.cards).holds(&card.id) {
+            return Routing::NotOurs;
+        }
+        // **While the phone cannot draw a card, the first reason is the one
+        // given, whatever the turn's state.**
+        //
+        // **The capability is the live turn's**: it is what the phone's app
+        // announced when that turn began, and it is not kept past it. So
+        // the live turn of this phone decides whether this phone can be
+        // shown a card at all, and a card is declined at once — nobody is
+        // asked, nothing is sent, and the model is told why in the
+        // sidecar's own sentence. The person is never made to wait out the
+        // five minutes for a card that nobody can draw.
+        if let Some((_, draws_cards)) = self.live_turn(owner) {
+            if !draws_cards {
+                // The turn that raised this may well be live — the model is
+                // waiting on its "awaiting confirm" — so the outcome goes on
+                // its stream when there is one, and the queue when there is not.
+                let request = self.request_of(owner, &card.conversation).unwrap_or_default();
+                return Routing::Decline { request, why: NO_CARD, tell_phone: true };
+            }
+        }
+        // The card goes to the turn that raised it. **No turn means no socket, and
+        // no socket means no card:** the card is declined here, and nothing is sent.
+        //
+        // **The card is stamped with the turn that raised it**, so that turn is the
+        // one that would carry it, and a card whose turn has ended has no turn to
+        // be carried on. The capability is not the reason here: it belongs to the
+        // live turn and is not kept past it, so with no live turn the computer
+        // cannot know what this phone could draw — and what is certainly true is
+        // that the turn that raised this has ended.
+        let Some(request) = self.request_of(owner, &card.conversation) else {
+            return Routing::Decline { request: String::new(), why: TURN_ENDED, tell_phone: true };
+        };
+        // **Eight is as many as one phone is ever asked about at once.**
+        // A person is being asked to decide on a stranger's write, and a ninth
+        // card on the same screen is not a decision any more — it is a queue
+        // they will clear by pressing the top one. So the write is refused
+        // rather than held: the sidecar lets it go without dispatching and
+        // the model is told once, in one line, why. It never reaches the
+        // phone, because a card nobody is shown is a card nobody answers.
+        if lock(&self.cards).held_for(device) >= MAX_HELD {
+            return Routing::Decline { request, why: TOO_MANY, tell_phone: true };
+        }
+        Routing::Draw { owner, request }
+    }
+
     /// The live turn a phone is running, if any. **Device plus credential**: the
     /// id alone would let a phone that has taken another's number speak for it.
+    ///
+    /// **The card's own claim is what is matched**, not the phone's: the card
+    /// is stamped with the turn that raised it, so a card of a turn that has
+    /// ended finds nothing here — which is what tells the phone that the turn
+    /// it was waiting for is over.
     fn request_of(&self, owner: Owner, conversation: &str) -> Option<String> {
         lock(&self.live)
             .iter()
-            .find(|(_, live)| live.owner == owner && live.conversation == conversation)
+            .find(|(_, live)| live.owner == owner && live.stamp == conversation)
             .map(|(request, _)| request.clone())
+    }
+
+    /// **The live turn of one phone, and what that turn said it could draw.**
+    ///
+    /// **A turn and not a read**: a read is a mailbox read and never drives a
+    /// page, so it has nothing to say about cards. **Device plus credential**,
+    /// as everywhere else: the id alone would let a phone that has taken
+    /// another's number speak for it.
+    fn live_turn(&self, owner: Owner) -> Option<(String, bool)> {
+        lock(&self.live)
+            .iter()
+            .find(|(_, live)| live.owner == owner && live.kind == "turn")
+            .map(|(request, live)| (request.clone(), live.draws_cards))
     }
 
     /// **Puts one card on the phone's socket, once.**
@@ -984,22 +1037,30 @@ impl Bridge {
     /// second is asked after the picture has been taken and before a byte of it
     /// leaves, so a phone the owner removed under the capture gets no picture.
     ///
-    /// **The conversation is this phone's own**, named from the device the
-    /// door authenticated: a phone cannot ask for somebody else's page.
+    /// **The claim is this phone's own**, named from the device the door
+    /// authenticated: a phone cannot ask for somebody else's page.
     pub(crate) fn preview(&self, device: DeviceId) -> Result<Value, String> {
-        self.preview_guarded(device, || self.take_preview(device))
+        self.preview_guarded(device, |conversation| self.take_preview(conversation))
     }
 
     /// The preview, with the picture behind a seam, so the pairing rule can be
     /// proved without a browser.
     fn preview_guarded<F>(&self, device: DeviceId, capture: F) -> Result<Value, String>
     where
-        F: FnOnce() -> Result<Value, String>,
+        F: FnOnce(&str) -> Result<Value, String>,
     {
         let Some(owner) = self.paired_owner(device) else {
             // This computer does not know this phone, so it will not answer for
             // it. The door has already refused a credential it does not hold.
             return Err(crate::browser::preview::Code::Unavailable.as_str().to_string());
+        };
+        // **The page belongs to the claim of the turn that opened it**, so that
+        // is the name the picture is asked for in: the phone's conversation and
+        // the turn's own id. **A phone with no live turn has no claim**, and so
+        // no page of its own to show: refused as no page, which is the truth —
+        // the turn that opened the page is over.
+        let Some(conversation) = self.stamp_of(owner) else {
+            return Err(crate::browser::preview::Code::NoPage.as_str().to_string());
         };
         let Some(key) = preview_key() else {
             return Err(crate::browser::preview::Code::Unavailable.as_str().to_string());
@@ -1012,7 +1073,7 @@ impl Bridge {
         let _guard = PreviewMark { bridge: self, owner, key };
         #[cfg(test)]
         self.arrived();
-        let captured = capture();
+        let captured = capture(&conversation);
         // **The last look, as close to the hand-over as this code can get.** A
         // phone unpaired since the check above gets no picture, and one
         // unpaired under the capture is stopped by the mark. What has already
@@ -1028,16 +1089,26 @@ impl Bridge {
     ///
     /// **Nothing is started for it.** A preview of a page that is not open is
     /// an answer, not a reason to open a window on the person's desk.
-    fn take_preview(&self, device: DeviceId) -> Result<Value, String> {
+    fn take_preview(&self, conversation: &str) -> Result<Value, String> {
         let Some(app) = self.app.get() else {
             return Err(crate::browser::preview::Code::Unavailable.as_str().to_string());
         };
         let state = app.state::<BrowserState>();
-        let conversation = conversation_of(device);
         // Blocked on, not awaited: the door calls a hook from a thread of its
         // own with no runtime of ours, exactly as a card's answer is dispatched.
-        tauri::async_runtime::block_on(state.browser().preview(&conversation))
+        tauri::async_runtime::block_on(state.browser().preview(conversation))
             .map_err(|code| code.as_str().to_string())
+    }
+
+    /// **The claim of one phone's live turn**, if it has one running.
+    ///
+    /// **Device plus credential**, as everywhere else: the id alone would let a
+    /// phone that has taken another's number speak for it.
+    fn stamp_of(&self, owner: Owner) -> Option<String> {
+        lock(&self.live)
+            .values()
+            .find(|live| live.owner == owner && live.kind == "turn")
+            .map(|live| live.stamp.clone())
     }
 
     /// Tells the phone what became of its card.
@@ -1224,8 +1295,24 @@ impl PhoneChat for Bridge {
         let app = self.app.get()?;
         let owner = self.paired_owner(device)?;
         let request = random_hex()?;
-        let asking = asking(owner, device, &body);
+        let asking = asking(owner, device, &body, &request);
         let events = self.start_live(&request, kind, &asking);
+        let mut body = body;
+        // **This turn's claim on the page, handed over inside the turn.**
+        //
+        // The window stamps the browser calls with it and lets the page go with
+        // it, and the sidecar reads the stamps back: the claim belongs to the
+        // turn, so a release names the turn that made the claim and can never
+        // let go of another turn's. **Built here and given, not built twice**:
+        // the window and the bridge must be saying the same thing, or a card
+        // would come back stamped with a name this bridge does not know.
+        //
+        // **And it is the app's own.** The door rebuilds the turn from the fields
+        // it knows, so a phone cannot bring a claim of its own: the one the
+        // window is given is this turn's and no other's.
+        if kind == "turn" {
+            body["stamp"] = json!(asking.stamp);
+        }
         let mut payload = json!({"request": request});
         payload[kind] = body;
         payload["kind"] = json!(kind);
@@ -1289,8 +1376,13 @@ impl PhoneChat for Bridge {
 /// The device a phone conversation names, or `None` for a conversation that is
 /// not one. **The prefix is the whole rule**: a desktop conversation is a UUID and
 /// can never begin with it, so this can only ever name a phone.
+///
+/// **The turn's own name may follow the number.** A claim is the phone's
+/// conversation and the turn's id, and the number is what says which phone this
+/// is; the rest is the turn, and the turn is not a device.
 pub(crate) fn device_of(conversation: &str) -> Option<DeviceId> {
     let number = conversation.strip_prefix("phone:")?;
+    let number = number.split(':').next()?;
     number.parse().ok().map(DeviceId::new)
 }
 
@@ -1327,21 +1419,40 @@ pub(crate) fn decline_phones(app: &AppHandle, cards: Vec<pending::Card>) {
 /// Split out of [`PhoneChat::open`] because **this is the one place a phone's
 /// identity is chosen**, and it has to be provable without an app to emit into.
 /// `device` is the credential's own — the door resolved it from the Bearer
-/// before any body was parsed — and `body` is read for `reply_for` and for
-/// nothing else. A phone cannot learn its own number (the pairing seal hands
-/// back the credential and nothing else) and the door builds the turn body
-/// without a `device` at all, so there is nothing here for a body to name
-/// another phone with.
+/// before any body was parsed — and `body` is read for `reply_for` and for what
+/// the phone said it could draw, and for nothing else. A phone cannot learn its
+/// own number (the pairing seal hands back the credential and nothing else) and
+/// the door builds the turn body without a `device` at all, so there is nothing
+/// here for a body to name another phone with.
 pub(crate) struct Asking {
     pub(crate) owner: Owner,
+    /// The phone's own conversation: one per device, for the life of the pairing.
     pub(crate) conversation: String,
+    /// **This turn's claim on the page**: the phone's conversation and the
+    /// turn's own id.
+    pub(crate) stamp: String,
+    /// **What this turn's phone said it could draw.** The capability is the
+    /// live turn's, and it is not kept past the turn.
+    pub(crate) draws_cards: bool,
     pub(crate) reply_for: Option<u32>,
 }
 
-fn asking(owner: Owner, device: DeviceId, body: &Value) -> Asking {
+/// **What one turn asked for, as the door's own rebuilt body says it.**
+///
+/// **The capability is the turn's, and it is announced in the turn's body.** A
+/// phone that says it can draw a card is a phone whose cards are drawn on it;
+/// a phone that says nothing, or says something this build does not know, is
+/// a phone whose cards are declined at once — **and it is still answered**, for
+/// a phone that cannot draw a card is not a phone that may not talk.
+fn asking(owner: Owner, device: DeviceId, body: &Value, request: &str) -> Asking {
     Asking {
         owner,
         conversation: conversation_of(device),
+        stamp: cards::stamp_of(device, request),
+        draws_cards: body
+            .get("capabilities")
+            .and_then(Value::as_array)
+            .is_some_and(|names| names.iter().any(|name| name.as_str() == Some(CARD_CAPABILITY))),
         reply_for: body
             .get("reply_for")
             .and_then(Value::as_str)

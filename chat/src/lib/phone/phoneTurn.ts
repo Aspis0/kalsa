@@ -23,6 +23,7 @@ import type { LiveSettings, ToolRun } from "../types";
 import type { PhoneSink } from "./phoneEvents";
 import type { PhoneTurn } from "./phoneRequest";
 import { phoneWire } from "./phoneWire";
+import { fileUnderThePhone, rememberStamp } from "./phoneClaims";
 
 const FACTS_TIMEOUT_MS = 8000;
 
@@ -39,8 +40,9 @@ const FACTS_TIMEOUT_MS = 8000;
  * **The browser is one of them, on the desktop's own terms.** A phone turn drives
  * the same computer's browser: it may open, read, find, and click or type. A write
  * that would send something leaves only under a card, and the card goes to the phone
- * that raised it. A phone whose app cannot draw one is answered on the spot by the
- * computer (`phone_chat::route_cards`), so no write waits on a press that cannot come.
+ * that raised it. A phone whose turn did not say it could draw one is answered on the
+ * spot by the computer (`phone_chat::route_cards`), so no write waits on a press that
+ * cannot come.
  *
  * **A turn with no phone is offered no browser at all.** It has no conversation of
  * its own, so the page it would read is the desktop's. And in a chat that holds mail
@@ -50,8 +52,9 @@ const FACTS_TIMEOUT_MS = 8000;
  * **And never the picture.** The picture is the person's own screen, and a phone
  * is not shown it. The browser's list is built without one, and the filter keeps
  * the picture's name off the list anyway. **A phone reads and drives only the page
- * its own conversation opened**: the computer refuses any other page to a phone
- * (`phone_may_touch`), so the words of a desktop's page do not reach the phone.
+ * its own turn opened**: the page is stamped with that turn's claim, and the
+ * computer refuses any other page to a phone (`phone_may_touch`), so the words of a
+ * desktop's page do not reach the phone.
  *
  * A stranger's phone cannot reach this window at all: the bridge binds a request
  * to a paired device and a credential before the page is told a request exists.
@@ -127,9 +130,9 @@ const BROWSER_SENDS = new Set(["browser_open", "browser_click", "browser_type"])
     refused for the same reason the writes are. */
 const ARMED_OPEN_REFUSAL = "Kalsa won't open a website in a chat that holds your mail or documents.";
 
-/** What a browser call says on a turn that names no phone: there is no page of its own
-    for it to read, so none is run. */
-const NO_PHONE_BROWSER = "Kalsa has no browser for this turn: the turn names no phone that could answer for it.";
+/** What a browser call says on a turn with no page of its own: a turn that names
+    no phone, and a turn with no claim on one, have neither, so none is run. */
+const NO_PHONE_BROWSER = "Kalsa has no browser for this turn: the turn has no page of its own to drive.";
 
 /**
  * **Which phone chats are holding their owner's mail.** One map, on this
@@ -186,11 +189,16 @@ export function forgetArmedChat(conversation: string): void {
 }
 
 /**
- * The conversation one phone's browser calls are stamped with.
+ * The conversation one phone's cards and its notes belong to.
  *
  * **One per device, and the same rule the Rust side uses**, because both halves
  * have to agree on what "this phone's card" means. A desktop conversation is a
  * UUID, so this prefix can never collide with one.
+ *
+ * **This is the phone's conversation, not the turn's claim.** The claim on the
+ * page names the turn as well, and it is what the browser calls are stamped
+ * with; this is what a card's outcome comes back under, and what outlives
+ * every turn of that phone.
  */
 export function phoneConversation(device: string): string {
   return `phone:${device}`;
@@ -208,11 +216,20 @@ export async function runPhoneTurn(
   // The engine's own facts, read now: a model switch applies to the next turn.
   const facts = await deps.facts(serverBase(settings.endpoint), FACTS_TIMEOUT_MS, settings.token);
   if (signal.aborted) return sink.fail("cancelled");
-  // **This turn is this phone's own conversation**, for the browser: it is what a
-  // card is stamped with, what decides the phone that is shown it, and what the
-  // outcome comes back under. A turn with no device has no conversation, and so
-  // no card and no writes.
+  // **This turn is this phone's own conversation**: what decides the phone that
+  // is shown a card, and what the outcome comes back under. A turn with no
+  // device has no conversation, and so no card and no writes.
   const conversation = turn.device === null ? "" : phoneConversation(turn.device);
+  // **And this is the claim of this turn on the page**: the phone's
+  // conversation and the turn's own id. It is what the browser calls are
+  // stamped with and what the release at the turn's end is stamped with, so
+  // that a release lets go of the claim of the turn that made it and of no
+  // other's. A turn with no claim is offered no browser at all.
+  const stamp = turn.stamp;
+  // **And this turn's claim is remembered now**, before anything is driven with
+  // it: what became of a card comes back under the claim of the turn that
+  // raised it, and the phone it belongs to has to be known when it arrives.
+  rememberStamp(conversation, stamp);
   // **The armed state, read once, at the start of the turn** — the flag has
   // side effects, and a reader that cleared the very thing it was asked about
   // would be no reader at all.
@@ -250,13 +267,19 @@ export async function runPhoneTurn(
     if (said === null) return;
     sink.recap(recapLine(said, TABLES[turn.language].tools.recap));
   };
-  // What became of a request the person was asked about since this phone last
+  // **What became of a request the person was asked about since this phone last
   // spoke, drained **for this phone only** and carried like the mail note, read by
   // the model alone. An outcome belongs to the phone that was asked.
   //
   // **On the wire, not beside it.** A rider the wire builder does not read is
   // a rider that never reaches the model, and a recap the model cannot read is
   // not a note — it is a line the desktop keeps and the phone silently loses.
+  //
+  // **And what became of it is filed under the phone first.** An outcome comes
+  // back under the claim of the turn that raised the card, and that claim names
+  // a turn: the note the model reads here belongs to the phone, and the phone is
+  // what outlives the turn.
+  fileUnderThePhone(conversation);
   const browserNote = takeNote(conversation, TABLES[turn.language].tools.recap);
   const said = browserNote === "" ? wire.wire : [...wire.wire, noteMessage(browserNote)];
   // **Whether this chat is holding the owner's mail**, asked of the wire the
@@ -318,7 +341,12 @@ export async function runPhoneTurn(
         // refused in one plain line, whoever asks and whenever it arrives.
         // **A browser call on a turn with no phone is refused here as well**: a model can
         // name a tool it was never offered, and this turn has no page of its own.
-        if (BROWSER_NAMES.has(name) && !conversation) {
+        //
+        // **And a turn with no claim is refused the same way**: the claim is what
+        // the page is stamped with, so a call without one would be stamped with
+        // a name of its own — and a page stamped with two names is a page nobody
+        // may touch.
+        if (BROWSER_NAMES.has(name) && (!conversation || !stamp)) {
           return { text: NO_PHONE_BROWSER, ok: false, resultCode: "browser.refused" };
         }
         if ((armed || phoneArmed(saidByLoop)) && BROWSER_SENDS.has(name)) {
@@ -343,11 +371,12 @@ export async function runPhoneTurn(
           openedFor,
           undefined,
           settings.webTools,
-          // **This turn is this phone's chat**, for everything the browser stamps
-          // with a conversation: a card is raised, drawn and answered under it,
-          // and its outcome rides this phone's next turn. Empty when the turn
-          // named no phone, which is why such a turn is offered no writes.
-          conversation,
+          // **This turn's claim on the page**, for everything the browser
+          // stamps with a conversation: a card is raised, drawn and answered
+          // under it, and the release at the turn's end lets go of it and of
+          // no other turn's. Empty when the turn had no claim, which is why
+          // such a turn is offered no writes.
+          stamp,
           // **A phone turn has the browser's ledger too.** It drives the same
           // browser the desktop drives, so the same action failing twice is the
           // same loop, and the same code is what ends it.
@@ -381,11 +410,11 @@ export async function runPhoneTurn(
     });
   } catch (error) {
     closeTurn();
-    await letThePageGo(conversation, droveTheBrowser);
+    await letThePageGo(stamp, droveTheBrowser);
     return sink.fail(failureCode(error, signal));
   }
   closeTurn();
-  await letThePageGo(conversation, droveTheBrowser);
+  await letThePageGo(stamp, droveTheBrowser);
   return signal.aborted ? sink.fail("cancelled") : sink.done();
 }
 
@@ -400,10 +429,16 @@ export async function runPhoneTurn(
  * exists to end. **Awaited, not fired and forgotten**: the phone's next turn
  * starts after this turn is done, and an open that races a release still in
  * flight would be refused busy by a page nobody is driving.
+ *
+ * **The release names the turn, and only that turn.** The claim is the phone's
+ * conversation and the turn's own id, so a release that arrives late — after
+ * the next turn has taken the page — finds that the stamps are not its own and
+ * lets nothing go. A claim named by the phone alone could not tell the two
+ * apart, and a late release would take the page from the turn that holds it.
  */
-async function letThePageGo(conversation: string, droveTheBrowser: boolean): Promise<void> {
-  if (!droveTheBrowser || conversation === "") return;
-  await browserRelease(conversation).catch(() => {});
+async function letThePageGo(stamp: string, droveTheBrowser: boolean): Promise<void> {
+  if (!droveTheBrowser || stamp === "") return;
+  await browserRelease(stamp).catch(() => {});
 }
 
 /**
