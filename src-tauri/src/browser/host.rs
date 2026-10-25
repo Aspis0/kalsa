@@ -21,7 +21,7 @@
 //! wait for it.
 
 use std::path::Path;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tokio::sync::watch;
 
 use kalsa_mcp::host::Host;
@@ -279,6 +279,20 @@ impl<H> Slot<H> {
         self.seq += 1;
     }
 
+    /// **A lease lost on the way** — a press cancelled while its call ran, so
+    /// the lease was dropped without being handed back. The host died with the
+    /// lease (the launcher kills the child on drop), so what the slot was
+    /// holding is already gone: back to `Idle`, as an ended session leaves it.
+    /// A lease the slot has moved past changes nothing, exactly as a
+    /// superseded give-back does not.
+    fn reclaim(&mut self, gen: u64) {
+        if matches!(self.state, State::Busy | State::Closing) && self.taken == gen {
+            self.state = State::Idle;
+            self.paused = false;
+            self.seq += 1;
+        }
+    }
+
     /// The session ends. An open host is handed out to be dropped, which is what
     /// ends it — so the slot is **`Idle`**, not `Closing`: nothing is running,
     /// and the person may open another browser. A running call is marked instead,
@@ -356,7 +370,7 @@ impl<H> Slot<H> {
 }
 
 pub(crate) struct Browser {
-    slot: Mutex<Slot<Host<SealedStdioLauncher>>>,
+    slot: Arc<Mutex<Slot<Host<SealedStdioLauncher>>>>,
     /// **The kill handle for the call that is running.** A generation counter,
     /// raised by `end` and watched by every call in flight: a Stop on a window
     /// with a slow page in it comes back at once, and the lease that call is
@@ -370,7 +384,41 @@ pub(crate) struct Browser {
 
 impl Default for Browser {
     fn default() -> Self {
-        Self { slot: Mutex::new(Slot::idle()), stop: watch::Sender::new(0) }
+        Self { slot: Arc::new(Mutex::new(Slot::idle())), stop: watch::Sender::new(0) }
+    }
+}
+
+/// **A lease out of the slot, with the slot it must go back to.** A press can
+/// be cancelled while its call runs — the press deadline runs it out, the
+/// caller goes — and the drop is the one moment a lease can otherwise be lost:
+/// the host dies with it, and a slot left `Busy` over a host nobody holds would
+/// refuse every call and every end for the life of the window. `handed_back`
+/// disarms the guard on the ordinary way out, so only a lost lease reclaims.
+struct Held {
+    lease: Option<Lease<Host<SealedStdioLauncher>>>,
+    slot: Arc<Mutex<Slot<Host<SealedStdioLauncher>>>>,
+}
+
+impl Held {
+    fn holding(lease: Lease<Host<SealedStdioLauncher>>, slot: &Arc<Mutex<Slot<Host<SealedStdioLauncher>>>>) -> Self {
+        Self { lease: Some(lease), slot: Arc::clone(slot) }
+    }
+
+    /// The host the call runs on.
+    fn the_host(&mut self) -> &mut Host<SealedStdioLauncher> {
+        &mut self.lease.as_mut().expect("the lease is held until the call is answered").host
+    }
+
+    /// The lease, out of the guard's hands: the caller hands it back itself.
+    fn handed_back(&mut self) -> Lease<Host<SealedStdioLauncher>> {
+        self.lease.take().expect("the lease is held until the call is answered")
+    }
+}
+
+impl Drop for Held {
+    fn drop(&mut self) {
+        let Some(lease) = self.lease.take() else { return };
+        self.slot.lock().expect("the session slot is not poisoned").reclaim(lease.gen);
     }
 }
 
@@ -384,7 +432,7 @@ impl Browser {
         tool: &str,
         args: Map<String, Value>,
     ) -> Result<String, BrowserError> {
-        self.reach(app_data, tool, args, false, None).await
+        self.reach(Some(app_data), tool, args, false, None).await
     }
 
     /// Calls one of the person's own answers, or the list of what waits for them,
@@ -396,7 +444,21 @@ impl Browser {
         tool: &str,
         args: Map<String, Value>,
     ) -> Result<String, BrowserError> {
-        self.reach(app_data, tool, args, true, None).await
+        self.reach(Some(app_data), tool, args, true, None).await
+    }
+
+    /// Calls one of the person's own answers **on the session that is already
+    /// open, and starts nothing**. An idle slot is the caller's answer — there
+    /// is no page, so there is nothing to say to it — and a busy one is refused,
+    /// for the caller that waits a busy slot out and asks again. The release is
+    /// the one caller: a release of a page that is not open is an answer, never
+    /// a browser started to be released.
+    pub(crate) async fn call_host_existing(
+        &self,
+        tool: &str,
+        args: Map<String, Value>,
+    ) -> Result<String, BrowserError> {
+        self.reach(None, tool, args, true, None).await
     }
 
     /// Calls one of the person's own answers, **and spends what the press was
@@ -420,7 +482,7 @@ impl Browser {
         args: Map<String, Value>,
         spend: impl FnOnce() -> bool + Send + 'static,
     ) -> Result<String, BrowserError> {
-        self.reach(app_data, tool, args, true, Some(Box::new(spend))).await
+        self.reach(Some(app_data), tool, args, true, Some(Box::new(spend))).await
     }
 
     /// **The phone's preview of the page this browser is showing.**
@@ -433,16 +495,17 @@ impl Browser {
     /// to the phone that asked for it — never into the model's context, never
     /// written down.
     pub(crate) async fn preview(&self, conversation: &str) -> Result<Value, preview::Code> {
-        let mut lease = match self.locked().take_existing() {
-            Taken::Host(lease) => lease,
+        let mut held = match self.locked().take_existing() {
+            Taken::Host(lease) => Held::holding(lease, &self.slot),
             Taken::Nothing => return Err(preview::Code::NoPage),
             Taken::Busy => return Err(preview::Code::Busy),
         };
         let name = qualified("browser_preview");
         let args = json!({"conversation": conversation}).as_object().cloned().unwrap_or_default();
-        let ran = lease.host.call_host_only(CONVERSATION, &name, args).await;
+        let ran = held.the_host().call_host_only(CONVERSATION, &name, args).await;
         // **The host goes back whether the answer was read or not**, and it is
         // dropped if the session was ended while this call was running.
+        let lease = held.handed_back();
         let kept = self.locked().give_back(lease);
         if !kept {
             log::info!("browser sidecar: dropped, the session was ended or its window is gone");
@@ -466,7 +529,7 @@ impl Browser {
     /// so nothing goes out about a request that has already been answered.
     async fn reach(
         &self,
-        app_data: &Path,
+        app_data: Option<&Path>,
         tool: &str,
         args: Map<String, Value>,
         person: bool,
@@ -490,22 +553,41 @@ impl Browser {
         // spends nothing and dispatches nothing. **And the spend is the
         // arbiter of whether the request goes at all**: a card that was not
         // there to spend stops the call here, with the browser put back.
-        let mut lease = self.locked().take_spending(
-            || start(app_data),
-            || match spent {
-                Some(spend) => spend(),
-                None => true,
-            },
-        )?;
+        //
+        // **A call with no `app_data` takes the slot without starting anything**,
+        // the way the preview does: an idle slot is that call's answer, and a
+        // busy one is its refusal to wait for.
+        let mut held = match app_data {
+            None => {
+                // A call that starts nothing dispatches nothing, so there is
+                // nothing it could spend.
+                debug_assert!(spent.is_none(), "a call that starts nothing has nothing to spend");
+                match self.locked().take_existing() {
+                    Taken::Host(lease) => Held::holding(lease, &self.slot),
+                    Taken::Nothing => return Ok(String::new()),
+                    Taken::Busy => return Err(BrowserError::SlotBusy),
+                }
+            }
+            Some(app_data) => Held::holding(
+                self.locked().take_spending(
+                    || start(app_data),
+                    || match spent {
+                        Some(spend) => spend(),
+                        None => true,
+                    },
+                )?,
+                &self.slot,
+            ),
+        };
         let name = qualified(tool);
         let ran = tokio::select! {
             biased;
             _ = wait_for_stop(&mut stopped, seen) => None,
             outcome = async {
                 if person {
-                    lease.host.call_host_only(CONVERSATION, &name, args).await.map(CallOutcome::Ran)
+                    held.the_host().call_host_only(CONVERSATION, &name, args).await.map(CallOutcome::Ran)
                 } else {
-                    lease.host.call(CONVERSATION, &name, args).await
+                    held.the_host().call(CONVERSATION, &name, args).await
                 }
             } => Some(outcome),
         };
@@ -517,6 +599,7 @@ impl Browser {
         // back would leave the page drawing a window over a dead one, and a paused
         // one nothing could clear. So it is dropped, the child dies with it and
         // the pause with that.
+        let lease = held.handed_back();
         let kept = if keep_the_host(&ran) { self.locked().give_back(lease) } else { self.locked().abandon(lease); false };
         if !kept {
             log::info!("browser sidecar: dropped, the session was ended or its window is gone");
@@ -594,6 +677,16 @@ impl Browser {
     /// the three can never be a half-old pair.
     pub(crate) fn window_state(&self) -> WindowState {
         self.locked().snapshot()
+    }
+
+    /// **Where the slot settled, as the window is told it — and whether the
+    /// browser's cards go with it.** The one decision an answered call and a
+    /// press that gave up on its deadline share: a browser that is no longer
+    /// open takes its cards with it, and the page is told the state the slot
+    /// is in now. Both facts are read in one move, so they can never disagree.
+    pub(crate) fn settled_telling(&self) -> (bool, WindowState) {
+        let slot = self.locked();
+        (!slot.is_open(), slot.snapshot())
     }
 
     /// Takes the emptying of the profile, if there is no browser and no clear
@@ -709,9 +802,13 @@ mod tests {
     use kalsa_mcp::pins::Pins;
     use kalsa_mcp::server_id::ServerId;
     use serde_json::{json, Map, Value};
+    use crate::browser::session::retry_while_busy;
     use crate::browser::SERVER;
     use crate::browser::window::WindowState;
+    use std::future::Future;
     use std::path::PathBuf;
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+    use std::sync::Arc;
     use std::time::{Duration, Instant};
     use tokio::sync::watch;
 
@@ -1022,6 +1119,106 @@ mod tests {
         let refused = browser.preview("phone:1").await.err().expect("there is no page to show");
         assert_eq!(refused, crate::browser::preview::Code::NoPage);
         assert!(!browser.is_open(), "and no browser was started");
+    }
+
+    /// **A release on an idle browser is an answer, and starts no sidecar.**
+    /// There is no page to release, so the release says so and ends there: a
+    /// release that started a browser to release it would leave a sidecar
+    /// running for nothing, on a desk where no window was.
+    ///
+    /// **And a busy slot is the busy refusal, not the idle answer.** The two
+    /// arms of the take must not be folded into one: a release that answered
+    /// `Ok` over a busy slot would believe it had landed on a page it never
+    /// reached.
+    #[tokio::test]
+    async fn a_release_of_an_idle_browser_answers_and_starts_nothing() {
+        let browser = Browser::default();
+        let said = browser.call_host_existing("browser_release", Map::new()).await;
+        assert!(said.is_ok(), "an idle slot is nothing to release, not a failure: {said:?}");
+        assert!(!browser.is_open(), "and no process was started to release it");
+
+        let busy = Browser::default();
+        busy.locked().state = State::Busy;
+        assert!(
+            matches!(busy.call_host_existing("browser_release", Map::new()).await, Err(BrowserError::SlotBusy)),
+            "a busy slot answered as though there were nothing to release"
+        );
+        assert!(busy.is_busy(), "and the call that holds the browser still holds it");
+    }
+
+    /// **A press cancelled while its call ran does not brick the slot.** The
+    /// press deadline can drop a press mid-flight, lease in hand: the host dies
+    /// with the lease, and a slot left `Busy` over a host nobody holds would be
+    /// refused for ever — no take, no preview, and `end` left waiting on a call
+    /// that never comes back. The guard's drop is what returns the slot, so the
+    /// next release is answered and a later end is one ending.
+    #[tokio::test]
+    async fn a_press_cancelled_mid_call_leaves_a_slot_the_next_press_can_take() {
+        let browser = Browser::default();
+        // An open session whose sidecar is the test's own binary, pinned by
+        // nothing: a call under way against it digests the binary on a blocking
+        // thread — tens of milliseconds — so the press below is provably still
+        // waiting when the single poll that starts it returns.
+        let record = ServerRecord::new(
+            ServerId::new(SERVER).expect("the browser's own server name"),
+            std::env::current_exe().expect("the test binary"),
+            Trust::FirstParty,
+        )
+        .expect("an absolute path is a record");
+        let registry = Registry::new(vec![record]).expect("one server");
+        let host = Host::new(registry, SealedStdioLauncher::new(Vec::new()), Pins::default());
+        browser.locked().host = Some(host);
+        browser.locked().state = State::Open;
+
+        // One poll, then the drop: the press is cancelled at the await it
+        // parked on, with the lease taken and not handed back. The press is
+        // boxed so that dropping it drops the future — and the lease in it.
+        let mut press = Box::pin(browser.call_host(
+            std::path::Path::new("/nonexistent/app-data"),
+            "browser_waiting",
+            Map::new(),
+        ));
+        let mut polled = std::task::Context::from_waker(std::task::Waker::noop());
+        assert!(
+            matches!(press.as_mut().poll(&mut polled), std::task::Poll::Pending),
+            "the press answered before it could be cancelled"
+        );
+        drop(press);
+
+        assert!(!browser.is_busy(), "a cancelled press left the slot busy");
+        assert!(!browser.is_open(), "over a browser nobody can reach any more");
+        assert!(
+            browser.call_host_existing("browser_release", Map::new()).await.is_ok(),
+            "the next release is answered, not refused as busy"
+        );
+        browser.end();
+        assert!(!browser.is_open(), "and the end completes rather than waiting a call out");
+    }
+
+    /// **A press that gives up on a reclaimed slot says the session is gone,
+    /// and one whose browser is still open says that instead.** The deadline
+    /// drops the call mid-lease and the slot reclaims to idle; what the window
+    /// is then told is the idle state, and the browser's cards go with it —
+    /// never left on a window over a browser that is not there. A slot still
+    /// holding a session keeps its cards and says the session is there.
+    #[test]
+    fn what_a_press_that_gives_up_says_of_a_reclaimed_slot_and_of_an_open_one() {
+        let reclaimed = Browser::default();
+        let (cards_go, said) = reclaimed.settled_telling();
+        assert!(cards_go, "a browser that is not open takes its cards with it");
+        assert_eq!(said, WindowState { open: false, paused: false, seq: said.seq }, "and the window is told the idle state");
+
+        let open = Browser::default();
+        open.locked().state = State::Open;
+        let (cards_go, said) = open.settled_telling();
+        assert!(!cards_go, "an open browser's cards are still waiting for the person");
+        assert!(said.open, "and the window is told the session is there");
+
+        let busy = Browser::default();
+        busy.locked().state = State::Busy;
+        let (cards_go, said) = busy.settled_telling();
+        assert!(!cards_go, "a call another press is driving keeps its cards too");
+        assert!(said.open, "and the window is told the session is there: {said:?}");
     }
 
     /// **`end` on an open session leaves the browser `Idle`, not `Closing`.** The
@@ -1548,5 +1745,45 @@ mod tests {
             Some(BrowserError::Refused { code: BrowserCode::Refused, why: None, stage: None })
         );
         assert!(!browser.is_open(), "and no browser was started");
+    }
+
+    /// **A slot that is merely busy is waited for, and the freed answer is the
+    /// one that comes back.** An ask refused while the slot is busy is asked
+    /// again — once per refusal — and the answer from the moment the slot
+    /// freed is returned as it is. This is the wait a Pausa and the refresh
+    /// that reads what a press raised both sit in.
+    #[tokio::test]
+    async fn a_busy_slot_is_waited_out_and_the_freed_answer_is_the_one_that_comes_back() {
+        let asks = Arc::new(AtomicUsize::new(0));
+        let busy = Arc::new(AtomicBool::new(true));
+        let counting = asks.clone();
+        let holding = busy.clone();
+        let ask = move || {
+            let counting = counting.clone();
+            let holding = holding.clone();
+            async move {
+                let attempt = counting.fetch_add(1, Ordering::SeqCst) + 1;
+                if attempt >= 3 {
+                    holding.store(false, Ordering::SeqCst);
+                    Ok::<_, BrowserError>("said".to_owned())
+                } else {
+                    Err::<String, _>(BrowserError::SlotBusy)
+                }
+            }
+        };
+        let Ok(said) = retry_while_busy(ask, || busy.load(Ordering::SeqCst)).await else {
+            panic!("the answer from the freed slot is the one returned");
+        };
+        assert_eq!(said, "said");
+        assert_eq!(asks.load(Ordering::SeqCst), 3, "one ask per busy refusal, and no more");
+    }
+
+    /// **The wait is bounded.** A slot busy for the whole of it ends the wait
+    /// as the busy refusal it is, not as an ask that never came back.
+    #[tokio::test]
+    async fn the_wait_for_a_busy_slot_is_bounded() {
+        let ask = || async { Err::<String, BrowserError>(BrowserError::SlotBusy) };
+        let refused = retry_while_busy(ask, || true).await;
+        assert!(refused.is_err(), "a slot busy for the whole wait ends the wait refused");
     }
 }

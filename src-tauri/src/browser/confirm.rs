@@ -22,6 +22,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 
 use super::error::{BrowserError, CommandFailure};
 use super::pending::{self, Card, Field};
+use super::session;
 use super::state::BrowserState;
 
 /// What the chat listens for. One event, carrying the whole list: a card that
@@ -81,7 +82,16 @@ pub(crate) const DECLINED: &str = "declined";
 /// asked at all, because a failure to read the list is not a failure of the
 /// click that came before it.
 pub(crate) async fn refresh(app: &AppHandle, state: &State<'_, BrowserState>) {
-    let Ok(listed) = state.inner().call_host(app, "browser_waiting", Map::new()).await else {
+    // **A slot that is merely busy is waited for, briefly.** The call that
+    // raised the card may still hold the slot as its own answer comes back, and
+    // a refresh refused over it would leave the card it raised unread — pending
+    // on the phone, and silent about why.
+    let Ok(listed) = session::retry_while_busy(
+        || state.inner().call_host(app, "browser_waiting", Map::new()),
+        || state.inner().browser().is_busy(),
+    )
+    .await
+    else {
         // A sidecar that could not answer has already taken its cards with it,
         // inside the call: this is only the case where the read never ran.
         return;

@@ -355,7 +355,7 @@ pub(crate) struct OpenArgs {
 }
 
 #[derive(Deserialize)]
-struct ReadArgs {
+pub(crate) struct ReadArgs {
     /// **The line to start from.** Zero is the first line of the page: a page
     /// longer than one answer is read in windows, and this says which one.
     from: Option<usize>,
@@ -367,7 +367,7 @@ struct ReadArgs {
 }
 
 #[derive(Deserialize)]
-struct FindArgs {
+pub(crate) struct FindArgs {
     text: String,
     #[serde(default)]
     conversation: String,
@@ -450,6 +450,18 @@ const NOT_THE_PHONES_PAGE: &str =
 /// only where the page is stamped with it.
 pub(crate) async fn phone_may_touch(holds: &Holds, conversation: &str) -> bool {
     !conversation.starts_with("phone:") || holds.stamp_for_the_page().await == conversation
+}
+
+/// **The stamp, judged again once the text is in hand.** A person's navigation
+/// while the read runs clears the stamps — the page they opened is theirs — so
+/// the words just taken may be the words of a page that is not the phone's any
+/// more. The screenshot path judges the same way, after the picture.
+async fn the_page_is_still_the_phones(holds: &Holds, conversation: &str) -> Result<(), CallToolResult> {
+    if phone_may_touch(holds, conversation).await {
+        Ok(())
+    } else {
+        Err(view::failed(Stage::Unavailable, NOT_THE_PHONES_PAGE))
+    }
 }
 
 /// **The one gate every answer carrying page text goes through.**
@@ -828,10 +840,15 @@ async fn read(
 /// next window, and the find that searches the whole page, is a read the model
 /// can act on.
 fn read_again(given: &session::Given) -> String {
-    if given.total == 0 {
-        return "This is the same text you already read. Do not read it again: pass from=N for the lines that follow, \
-                or use browser_find, which searches the whole page."
-            .to_string();
+    if given.after >= given.total {
+        return format!(
+            "This is the same text you already read: lines {}\u{2013}{} of {}. This is the last window of the page, \
+             and no lines follow it: a read from any line will give you these ones again. Use browser_find, which \
+             searches the whole page.",
+            given.first + 1,
+            given.after,
+            given.total
+        );
     }
     format!(
         "This is the same text you already read: lines {}\u{2013}{} of {}. Do not read it again: pass from={} for the \
@@ -921,7 +938,11 @@ pub(crate) async fn open(sessions: &Sessions, args: OpenArgs) -> CallToolResult 
     answer
 }
 
-async fn read_page(sessions: &Sessions, args: ReadArgs) -> CallToolResult {
+/// The read the model's `browser_read` answers: Pausa stops it, the phone's
+/// stamp is judged before the read and again on the text it took, and the
+/// window is remembered so the same one is not read twice. Public because the
+/// browser tests drive the real read the tool answers, as `open` is.
+pub(crate) async fn read_page(sessions: &Sessions, args: ReadArgs) -> CallToolResult {
     // Every model tool stops while the person has the window, not just the two
     // that write: a paused browser that still reads is a browser Kalsa is
     // driving, and the button says it is not.
@@ -947,11 +968,29 @@ async fn read_page(sessions: &Sessions, args: ReadArgs) -> CallToolResult {
     }
     match read_text(sessions, &page, &landings, from, part).await {
         Ok((text, window)) => {
-            if let Some(window) = window {
+            // **The stamp is judged again before anything is done with the
+            // text**: a person's navigation during the read leaves the page
+            // theirs, and the words of the page they opened are not the
+            // phone's to be handed — nor a window of it remembered as one
+            // this conversation was given.
+            if let Err(refused) = the_page_is_still_the_phones(&holds, &args.conversation).await {
+                return refused;
+            }
+            // **A window with no lines in it is not one the model was
+            // given.** Remembering one would refuse the read of the same
+            // emptiness as a repeat, with advice that lands in it again.
+            //
+            // **And the window is remembered by where it starts**: a `from`
+            // past the end of the page serves the last window, and the next
+            // ask for that window — by its start, by the end, or past it — is
+            // the same read. A part is remembered by the `from` it was asked
+            // with, which is the key the next part read looks it up by.
+            if let Some(window) = window.filter(|window| window.total > 0) {
+                let by = if part.is_some() { from } else { window.first };
                 sessions
                     .remember_read(
                         document,
-                        from,
+                        by,
                         part,
                         session::Given { first: window.first, after: window.after, total: window.total },
                     )
@@ -963,7 +1002,9 @@ async fn read_page(sessions: &Sessions, args: ReadArgs) -> CallToolResult {
     }
 }
 
-async fn find(sessions: &Sessions, args: FindArgs) -> CallToolResult {
+/// Text on the page, matched where it appears. Public because the browser
+/// tests drive the real find the tool answers, as `open` is.
+pub(crate) async fn find(sessions: &Sessions, args: FindArgs) -> CallToolResult {
     if sessions.paused() {
         return view::failed(Stage::Paused, PAUSED);
     }
@@ -978,7 +1019,14 @@ async fn find(sessions: &Sessions, args: FindArgs) -> CallToolResult {
     // through the same gate for the same reason.
     let wanted = args.text;
     match page_text(sessions, &page, &landings, || snapshot::find_with_main(&page, &wanted, 1, 40)).await {
-        Ok(read) => view::answered(read.text),
+        Ok(read) => {
+            // **The stamp is judged again once the matches are in hand**, for
+            // the reason the read judges: see `read_page`.
+            if let Err(refused) = the_page_is_still_the_phones(&holds, &args.conversation).await {
+                return refused;
+            }
+            view::answered(read.text)
+        }
         Err(refused) => refused,
     }
 }
@@ -1668,12 +1716,143 @@ mod tests {
         assert!(said.contains("from=200"), "{said}");
         assert!(said.contains("browser_find"), "{said}");
 
-        // **And a window of a page with no lines says the same thing**, without
-        // inventing a line for it.
-        let empty = read_again(&session::Given { first: 0, after: 0, total: 0 });
-        assert!(empty.contains("the same text you already read"), "{empty}");
-        assert!(empty.contains("from=N"), "{empty}");
-        assert!(!empty.contains("lines 1"), "and invents no line for it: {empty}");
+        // **And the last window says the page is done, and names no line to go
+        // on from**: every line it could name is one the model already has, and
+        // a `from` past the end is the same window again.
+        let last = read_again(&session::Given { first: 1300, after: 1340, total: 1340 });
+        assert!(last.contains("lines 1301\u{2013}1340 of 1340"), "{last}");
+        assert!(last.contains("last window"), "{last}");
+        assert!(last.contains("browser_find"), "{last}");
+        assert!(!last.contains("pass from="), "no line is named to read again from: {last}");
+    }
+
+    /// **A read that answered no lines is not remembered as one already
+    /// read.** The window with nothing in it is not a window the model was
+    /// given: the store is left empty, so the read of the same page is a read
+    /// again, not a repeat refused with advice that lands in the same
+    /// emptiness.
+    ///
+    /// The page is served from a public address the test answers itself, and
+    /// says nothing at all — which is the one way a window comes back empty,
+    /// and the reason the read waits out its content budget before answering.
+    #[tokio::test]
+    async fn a_read_that_answered_no_lines_is_not_remembered_as_one_already_read() {
+        let body = "<body></body>".to_string();
+        let (playwright, context, page) = crate::tests::headless().await;
+        page.route("http://93.184.216.34/**", move |route| {
+            let body = body.clone();
+            async move {
+                let html = playwright_rs::protocol::FulfillOptions::builder()
+                    .content_type("text/html")
+                    .body(body.into_bytes())
+                    .build();
+                route.fulfill(Some(html)).await
+            }
+        })
+        .await
+        .expect("the test answers the public address");
+        let landings = crate::landing::Landings::holding(vec![("http://93.184.216.34/", "93.184.216.34")]).await;
+        let sessions = crate::session::Sessions::with_window(
+            playwright.clone(),
+            context.clone(),
+            page.clone(),
+            landings,
+            crate::hold::Holds::new(),
+        );
+        page.goto("http://93.184.216.34/", None).await.expect("the page loads");
+
+        let first = said(
+            super::read_page(
+                &sessions,
+                serde_json::from_value(serde_json::json!({"conversation": "chat-a"}))
+                    .expect("the read's arguments"),
+            )
+            .await,
+        );
+        assert!(
+            first.text.contains("no lines to read"),
+            "the page answers as the empty window it is: {}",
+            first.text
+        );
+
+        // Nothing was remembered as given, so the next read of the same page
+        // of the same nothing is a read, not a repeat.
+        assert!(
+            sessions.read_given(0, 0, None).await.is_none(),
+            "the empty window was remembered as one the model was given"
+        );
+    }
+
+    /// **A read past the end of the page, then one at it, is one read refused —
+    /// and the refusal names no line to go on from.**
+    ///
+    /// The last window is what a `from` past the page's end serves, and every
+    /// spelling of that ask — the end itself, or beyond it — is the same
+    /// window. A refusal that answered it with `from={total}` would send the
+    /// next read back to the same window and be refused again: a loop made of
+    /// refusals. The refusal says the page is done instead.
+    #[tokio::test]
+    async fn a_read_past_the_end_then_at_it_is_one_read_and_the_refusal_names_no_line() {
+        let mut body = String::from("<body>");
+        for n in 0..1340 {
+            body.push_str(&format!("<p>row {n} of the long page</p>"));
+        }
+        body.push_str("</body>");
+        let (playwright, context, page) = crate::tests::headless().await;
+        page.route("http://93.184.216.34/**", move |route| {
+            let body = body.clone();
+            async move {
+                let html = playwright_rs::protocol::FulfillOptions::builder()
+                    .content_type("text/html")
+                    .body(body.into_bytes())
+                    .build();
+                route.fulfill(Some(html)).await
+            }
+        })
+        .await
+        .expect("the test answers the public address");
+        let landings = crate::landing::Landings::holding(vec![("http://93.184.216.34/", "93.184.216.34")]).await;
+        let sessions = crate::session::Sessions::with_window(
+            playwright.clone(),
+            context.clone(),
+            page.clone(),
+            landings,
+            crate::hold::Holds::new(),
+        );
+        page.goto("http://93.184.216.34/", None).await.expect("the page loads");
+
+        let read = |from| {
+            super::read_page(
+                &sessions,
+                serde_json::from_value(serde_json::json!({"from": from, "conversation": "chat-a"}))
+                    .expect("the read's arguments"),
+            )
+        };
+        // A from far past the end: the page's own last window, with the footer
+        // that says so. Its last line names the page's total.
+        let past = said(read(1_000_000).await);
+        assert!(past.text.contains("this is the last line"), "the far read is the last window: {}", past.text);
+        let footer = past
+            .text
+            .lines()
+            .rev()
+            .find(|line| line.starts_with("lines "))
+            .expect("the footer that says where the window stands");
+        let total: usize = footer
+            .strip_prefix("lines ")
+            .and_then(|said| said.split_once(" of "))
+            .and_then(|(_, after)| after.split(" \u{2014} ").next())
+            .and_then(|total| total.trim().parse().ok())
+            .expect("the footer names the page's total");
+
+        // The same window asked for at the end, and past it: one read, refused.
+        for from in [total, total + 1] {
+            let again = said(read(from).await);
+            assert!(again.refused, "from={from} is the same window again, not a new read: {}", again.text);
+            assert!(again.text.contains("the same text you already read"), "{}", again.text);
+            assert!(again.text.contains("last window"), "and the refusal says the page is done: {}", again.text);
+            assert!(!again.text.contains("pass from="), "no line is named to read again from: {}", again.text);
+        }
     }
 
     /// The stage the answer carries, read the way the host reads it.

@@ -220,6 +220,12 @@ pub(crate) async fn brain_browser_resume(
 /// briefly, the way a Pausa is, and a sidecar that cannot be reached at all is
 /// answered as the refusal it is: the caller's turn still ends, and the
 /// stamps die with the session.
+///
+/// **A give-up is said, and no more.** Both chat callers swallow the refusal,
+/// so the give-up is named in the log — and a second attempt is deliberately
+/// not made: the release speaks only the conversation's name, and one arriving
+/// late could erase a newer turn's claim of that same conversation. The page
+/// stays claimed until the owner's next browser turn or the session end.
 #[tauri::command]
 pub(crate) async fn brain_browser_release(
     app: AppHandle,
@@ -228,50 +234,111 @@ pub(crate) async fn brain_browser_release(
 ) -> Result<(), super::error::CommandFailure> {
     let mut args = Map::new();
     args.insert("conversation".to_owned(), Value::from(conversation));
-    push_to_the_sidecar(&app, &state, "browser_release", args).await?;
-    Ok(())
+    match release_now(&app, &state, args).await {
+        Ok(_) => Ok(()),
+        Err(gave_up) => {
+            if gave_up.code() == BrowserError::SlotBusy.code() {
+                log::warn!("browser release gave up: slot busy");
+            }
+            Err(gave_up)
+        }
+    }
 }
 
 /// How many times, and how long between them, the app waits for a slot that a
 /// Pausa has just freed by interrupting its call.
 const SLOT_TRIES: usize = 40;
 const SLOT_GAP: Duration = Duration::from_millis(25);
-/// **One deadline for the whole press, not one per attempt.** A host call has no
-/// timeout of its own, so a sidecar that has stopped answering would hold this
-/// command open for as long as it likes — and a person pressing a button must
-/// never be left waiting on one. Past this the push has failed, and the caller
-/// ends the session rather than leaving a pause the sidecar does not hold.
+/// One deadline for the whole press, not one per attempt; past this the push
+/// has failed, and the caller of a pause ends the session rather than leaving
+/// a pause the sidecar does not hold.
 const PRESS_DEADLINE: Duration = Duration::from_millis(1500);
 
-/// A pause, a resume or a release as the sidecar is told, **once the slot is
-/// free**. Only a slot that is merely busy is waited for: anything else refused
-/// this call is the sidecar's answer, and is passed on as it is.
+/// A pause or a resume as the sidecar is told, **once the slot is free**. Only
+/// a slot that is merely busy is waited for: anything else refused this call is
+/// the sidecar's answer, and is passed on as it is.
 async fn push_to_the_sidecar(
     app: &AppHandle,
     state: &State<'_, BrowserState>,
     tool: &str,
     args: Map<String, Value>,
 ) -> Result<String, super::error::CommandFailure> {
-    let pushed = tokio::time::timeout(PRESS_DEADLINE, retry_while_busy(app, state, tool, args)).await;
+    within_the_press_deadline(
+        app,
+        state,
+        retry_while_busy(
+            || state.inner().call_host(app, tool, args.clone()),
+            || state.inner().browser().is_busy(),
+        ),
+    )
+    .await
+}
+
+/// The release as the sidecar is told: **the slot taken without starting
+/// anything** — an idle slot is nothing to release, not a browser to start —
+/// and a slot that is merely busy waited for briefly, like a Pausa.
+async fn release_now(
+    app: &AppHandle,
+    state: &State<'_, BrowserState>,
+    args: Map<String, Value>,
+) -> Result<String, super::error::CommandFailure> {
+    within_the_press_deadline(
+        app,
+        state,
+        retry_while_busy(
+            || state.inner().call_host_existing(app, "browser_release", args.clone()),
+            || state.inner().browser().is_busy(),
+        ),
+    )
+    .await
+}
+
+/// **One deadline for the whole press**, whatever the press is. A host call has
+/// no timeout of its own, so a sidecar that has stopped answering would hold
+/// this command open for as long as it likes — and a person pressing a button
+/// must never be left waiting on one.
+///
+/// **And a press that gives up still says where the slot settled.** The
+/// deadline drops the call mid-flight and the wrapper that would have
+/// published with it; the lease may have died with the call, and a window
+/// left drawing the session it had is a window drawing a browser that is not
+/// there — with cards nobody is left to answer.
+async fn within_the_press_deadline(
+    app: &AppHandle,
+    state: &State<'_, BrowserState>,
+    pushed: impl std::future::Future<Output = Result<String, super::error::CommandFailure>>,
+) -> Result<String, super::error::CommandFailure> {
+    // **The press is dropped before the slot is read.** The timeout keeps the
+    // call alive inside itself until it is dropped, and a match would hold it
+    // to the end of its own statement; the drop is what returns the slot, so
+    // it happens here, at the semicolon, before the give-up reads what is left.
+    let pushed = tokio::time::timeout(PRESS_DEADLINE, pushed).await;
     match pushed {
         Ok(said) => said,
-        Err(_elapsed) => Err(BrowserError::SlotBusy.into()),
+        Err(_elapsed) => {
+            state.inner().settled(app);
+            Err(BrowserError::SlotBusy.into())
+        }
     }
 }
 
-/// A slot still held by the call the Pausa interrupted, waited for briefly: that
-/// call hands the browser back as soon as it notices, and anything still holding
-/// it after this is a browser this app cannot reach at all.
-async fn retry_while_busy(
-    app: &AppHandle,
-    state: &State<'_, BrowserState>,
-    tool: &str,
-    args: Map<String, Value>,
-) -> Result<String, super::error::CommandFailure> {
+/// A slot still held by the call the Pausa interrupted, waited for briefly:
+/// that call hands the browser back as soon as it notices, and anything still
+/// holding it after this is a browser this app cannot reach at all. `ask` is
+/// one whole attempt, and only a slot that answers it as busy is waited for —
+/// anything else the ask was refused with is the sidecar's own answer.
+pub(crate) async fn retry_while_busy<F, Fut>(
+    ask: F,
+    slot_is_busy: impl Fn() -> bool,
+) -> Result<String, super::error::CommandFailure>
+where
+    F: Fn() -> Fut,
+    Fut: std::future::Future<Output = Result<String, BrowserError>>,
+{
     for _ in 0..SLOT_TRIES {
-        let said = state.inner().call_host(app, tool, args.clone()).await.map_err(Into::into);
-        if said.is_ok() || !state.inner().browser().is_busy() {
-            return said;
+        let said = ask().await;
+        if said.is_ok() || !slot_is_busy() {
+            return said.map_err(Into::into);
         }
         tokio::time::sleep(SLOT_GAP).await;
     }

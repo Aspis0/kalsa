@@ -151,8 +151,23 @@ impl Sessions {
 
     /// **The window the model was given for this read**, if it was given one:
     /// the same page, the same line, the same part.
+    ///
+    /// **And a line at or past the end of the page is the last window however
+    /// it is asked for.** The last window is remembered by its own start, and a
+    /// read from beyond the end serves that same window — so asking for it by
+    /// the end, or past it, is the same read, not a new one.
     pub(crate) async fn read_given(&self, document: u64, from: usize, part: Option<usize>) -> Option<Given> {
-        self.last_read.lock().await.get(&(document, from, part)).copied()
+        let windows = self.last_read.lock().await;
+        if let Some(given) = windows.get(&(document, from, part)) {
+            return Some(*given);
+        }
+        windows
+            .iter()
+            .filter(|((page, _, asked_as), given)| {
+                *page == document && *asked_as == part && given.after >= given.total && from >= given.total
+            })
+            .min_by_key(|(_, given)| given.first)
+            .map(|(_, given)| *given)
     }
 
     /// **Remembers the window the model was given.** The next read of the same

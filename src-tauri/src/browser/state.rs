@@ -122,6 +122,22 @@ impl BrowserState {
         self.published(app, said)
     }
 
+    /// **The person's answer on the session that is already open, and published
+    /// the same way.** Nothing is started: an idle slot answers the call rather
+    /// than opening a browser for it. The release is the one caller, and the
+    /// slot has still settled here — a caller that moved the slot without
+    /// saying anything is how a page ends up drawing a browser that was
+    /// abandoned under it.
+    pub(crate) async fn call_host_existing(
+        &self,
+        app: &AppHandle,
+        tool: &str,
+        args: serde_json::Map<String, serde_json::Value>,
+    ) -> Result<String, BrowserError> {
+        let said = self.browser.call_host_existing(tool, args).await;
+        self.published(app, said)
+    }
+
     /// **The same, and what the press spends is spent only once the slot is
     /// ours** — and the spend says whether there was anything to spend. A press
     /// that found the browser busy was never dispatched, so it must not spend
@@ -141,13 +157,20 @@ impl BrowserState {
         self.published(app, said)
     }
 
-    /// What both calls say once the slot has settled: the cards go with a browser
-    /// that is gone, and the page is told the state it is now in.
-    fn published(&self, app: &AppHandle, said: Result<String, BrowserError>) -> Result<String, BrowserError> {
-        if !self.browser.is_open() {
+    /// **What both calls say once the slot has settled** — and a press that
+    /// gave up on its deadline says it too, because the future that would
+    /// have said it was dropped with the call. A browser that is gone takes
+    /// its cards with it, and the page is told the state it is in now.
+    pub(crate) fn settled(&self, app: &AppHandle) {
+        let (cards_go, said) = self.browser.settled_telling();
+        if cards_go {
             super::confirm::declined_by_the_window_going(app, self);
         }
-        window::emit(app, self.window_state());
+        window::emit(app, said);
+    }
+
+    fn published(&self, app: &AppHandle, said: Result<String, BrowserError>) -> Result<String, BrowserError> {
+        self.settled(app);
         said
     }
 

@@ -324,14 +324,17 @@ pub async fn snapshot_from(page: &Page, from: usize) -> Result<String, playwrigh
 }
 
 /// **The window of the page a read returns.** The lines from `start` that fit
-/// the room, and the line after them: the next window starts there.
+/// the room, and the line after them: the next window starts there. A `start`
+/// at or past the page's end is the last window's start — see
+/// [`clamped_start`] — so every ask beyond the page serves the same last
+/// window.
 ///
 /// **Whole lines, as a part has always been whole lines.** A line that carries
 /// an address is never cut, so a window cannot invent a truncated destination;
 /// a line longer than the whole room and carrying no address is cut at a
 /// character boundary, and the window ends there.
 fn window_of(lines: &[String], start: usize, room: usize) -> (String, usize, usize, bool) {
-    let start = start.min(lines.len());
+    let start = clamped_start(lines, start, room);
     let mut kept: Vec<&str> = Vec::new();
     let mut used = 0usize;
     let mut end = start;
@@ -352,6 +355,30 @@ fn window_of(lines: &[String], start: usize, room: usize) -> (String, usize, usi
     }
     let said = kept.iter().any(|line| !line.trim().is_empty());
     (kept.join("\n"), start, end, said)
+}
+
+/// Where a read from `start` begins. Within the page, at the line asked for;
+/// past it, at the start of the last window — the page's own last lines, with
+/// the footer that says so — and never the empty window a bare clamp answers,
+/// whose «lines 1341–1340 of 1340» is an answer a repeat is refused back into.
+fn clamped_start(lines: &[String], start: usize, room: usize) -> usize {
+    if start < lines.len() || lines.is_empty() {
+        return start.min(lines.len());
+    }
+    last_window_start(lines, room)
+}
+
+/// Where the last window of the page begins: the walk the parts follow, run to
+/// the end, so a clamped read and a part past the end land on the same window.
+fn last_window_start(lines: &[String], room: usize) -> usize {
+    let mut start = 0usize;
+    loop {
+        let (_, _, end, _) = window_of(lines, start, room);
+        if end >= lines.len() {
+            return start;
+        }
+        start = end;
+    }
 }
 
 /// **The window the Nth part of the page is**, counting from one. The parts are
@@ -499,7 +526,7 @@ fn matching(lines: &[String], needle: &str) -> Vec<usize> {
 
 #[cfg(test)]
 mod tests {
-    use super::{boundary_at_or_below, capped, header, window_of, within_budget, PARTIAL_NOTE, TREE_CHARS};
+    use super::{boundary_at_or_below, capped, header, last_window_start, window_of, within_budget, PARTIAL_NOTE, TREE_CHARS};
     use crate::tree;
 
     /// A ref cut in half is worse than a long window: the model reads `textbo` as
@@ -554,6 +581,59 @@ mod tests {
         let lines = vec!["abc".to_string()];
         let (_, _, after, _) = window_of(&lines, 0, 0);
         assert_eq!(after, 1, "the window still moves");
+    }
+
+    /// **A `from` past the page's end is the last window, and not an empty
+    /// answer.** The lines the model can act on are the page's own last ones,
+    /// and the footer says the window it got is the last one — not
+    /// «lines 1341–1340 of 1340», which is an emptiness a repeat would be
+    /// refused back into.
+    #[test]
+    fn a_from_past_the_end_is_the_last_window_and_not_an_empty_answer() {
+        let lines: Vec<String> = (1..=40).map(|n| format!("line {n}")).collect();
+        let mut start = 0usize;
+        let last = loop {
+            let (_, _, end, _) = window_of(&lines, start, 120);
+            if end >= lines.len() {
+                break start;
+            }
+            start = end;
+        };
+        let (text, first, after, said) = window_of(&lines, 999, 120);
+        let (last_window, _, _, _) = window_of(&lines, last, 120);
+        assert_eq!((first, after), (last, lines.len()), "the window is the page's last one");
+        assert_eq!(text, last_window, "and it carries the last window's lines");
+        assert!(said, "and the lines say something");
+        assert!(
+            super::window_footer(first, after, lines.len()).contains("this is the last line"),
+            "and the footer says the window is the last one"
+        );
+    }
+
+    /// A page that fits in one window is answered from its first line, and a
+    /// page with no lines at all still answers that it has none.
+    #[test]
+    fn a_past_the_end_read_of_a_short_page_is_its_first_window_and_of_an_empty_page_is_no_lines() {
+        let short = vec!["only".to_string()];
+        assert_eq!(window_of(&short, 50, 100), ("only".to_owned(), 0, 1, true));
+        assert_eq!(window_of(&Vec::new(), 5, 100), (String::new(), 0, 0, false));
+    }
+
+    /// **The end of the page and the last window's own start are the same
+    /// read.** `from == total` and `from == the start of the last window` both
+    /// serve the last window — neither an emptiness, nor a window different
+    /// from the one the other spelling serves.
+    #[test]
+    fn a_read_from_the_end_and_from_the_last_window_start_are_the_last_window() {
+        let lines: Vec<String> = (1..=40).map(|n| format!("line {n}")).collect();
+        let last = last_window_start(&lines, 120);
+        let (window, first, after, _) = window_of(&lines, last, 120);
+        for from in [last, lines.len()] {
+            let (text, at, end, said) = window_of(&lines, from, 120);
+            assert_eq!((at, end), (first, after), "from={from} serves the last window");
+            assert_eq!(text, window, "and its lines, exactly");
+            assert!(said, "and the window says something");
+        }
     }
 
     /// Every character in these is four bytes and every boundary is four apart,
