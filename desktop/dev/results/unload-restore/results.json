@@ -1,0 +1,767 @@
+{
+ "measurement": "unload-restore",
+ "provenance": {
+  "engine_binary": "/Users/marco/Projects/kalsallama/build/bin/llama-server",
+  "engine_sha256": "c748bac0942dc196a7dd1bcddb50ceb53f8fff6381c1b354cc5ecdc5ce801abc",
+  "engine_version": "version: 0.4.1-dev (build 11193, commit 833cde99b)\nbuilt with AppleClang 21.0.0.21000101 for Darwin arm64",
+  "model": "/Users/marco/Library/Application Support/kalsa-brain/runtime/models/Trinity-Nano-Preview-Q4_K_M.gguf",
+  "model_sha256": "287562a3824ce2277e2c71cfcc70248b2d90f7fa342a4779979e0bf3e37ad546",
+  "script": "/Users/marco/Projects/kalsa-brain/dev/measure-unload-restore.py",
+  "script_sha256": "7f5cb02ab37a2ec31793c321eec660c5a4b9974956f249a32633adb483e7583f",
+  "ctx_size": 8192,
+  "parallel": 1,
+  "cache_ram": 0,
+  "ctx_checkpoints": 1,
+  "swa_full": false,
+  "sleep_idle_seconds": 30,
+  "sleep_idle_note": "short so the release lands inside the run; the app ships 300",
+  "engine_nice": 10,
+  "watched_release_line": "server is entering sleeping state",
+  "watched_reload_line": "server is exiting sleeping state",
+  "watched_lines_source": "crates/kalsa-supervisor/src/child.rs:42-43",
+  "release_deadline_s": 120,
+  "reload_deadline_s": 180,
+  "release_settle_s": 1.0,
+  "n_predict": 16,
+  "warm_threshold": "cache_n >= 0.5 * chat_tokens",
+  "salt_header": "x-kalsa-cache-salt",
+  "salt_on_slot_actions": true,
+  "raw_log_committed": false,
+  "wall_times_note": "wall times are measurements of this machine at nice 10 under whatever else it was doing, not performance promises",
+  "loadavg_before": [
+   5.26953125,
+   4.744140625,
+   3.890625
+  ],
+  "loadavg_after": [
+   5.5205078125,
+   4.97216796875,
+   4.16455078125
+  ],
+  "chat_sentinels_found_in_log": false
+ },
+ "engine_commits": {},
+ "arms": {
+  "600": {
+   "saved": {
+    "arm": "saved",
+    "chat_tokens": 600,
+    "save_filename": "chat600.bin",
+    "erase": {
+     "status": 200,
+     "wall_ms": 1.03,
+     "n_saved": null,
+     "n_written": null,
+     "n_restored": null,
+     "n_read": null,
+     "n_erased": 0,
+     "save_ms": null,
+     "restore_ms": null
+    },
+    "cold_send": {
+     "status": 200,
+     "salt": "set",
+     "wall_ms": 3446.0,
+     "prompt_n": 600,
+     "cache_n": 0,
+     "prompt_ms": 3206.663,
+     "predicted_n": 16,
+     "predicted_per_second": 64.02868485081316,
+     "cache_reused_tokens": 615,
+     "engine_lines": [
+      {
+       "slot": 0,
+       "line": "task -1 | selected slot by id (0)"
+      },
+      {
+       "slot": 0,
+       "line": "task -1 |  - skipping, different cache namespace"
+      },
+      {
+       "slot": 0,
+       "line": "task 1 | different cache namespace - clearing cached prompt"
+      }
+     ],
+     "loadavg": [
+      5.80810546875,
+      4.8642578125,
+      3.93798828125
+     ]
+    },
+    "save": {
+     "status": 200,
+     "wall_ms": 33.55,
+     "n_saved": 615,
+     "n_written": 32379628,
+     "n_restored": null,
+     "n_read": null,
+     "n_erased": null,
+     "save_ms": 32.885,
+     "restore_ms": null,
+     "file_bytes": 32379628
+    },
+    "restore_with_model_resident": {
+     "status": 200,
+     "wall_ms": 5.97,
+     "n_saved": null,
+     "n_written": null,
+     "n_restored": 615,
+     "n_read": 32379628,
+     "n_erased": null,
+     "save_ms": null,
+     "restore_ms": 5.331
+    },
+    "release": {
+     "observed": true,
+     "line_index": 264,
+     "line": "0.38.203.719 I srv  handle_sleep: server is entering sleeping state",
+     "waited_s": 30.28,
+     "deadline_s": 120
+    },
+    "restore_after_release": {
+     "status": 200,
+     "wall_ms": 4219.83,
+     "n_saved": null,
+     "n_written": null,
+     "n_restored": 615,
+     "n_read": 32379628,
+     "n_erased": null,
+     "save_ms": null,
+     "restore_ms": 10.879
+    },
+    "model_reload": {
+     "observed": true,
+     "line_index": 266,
+     "line": "0.39.373.956 I srv  handle_sleep: server is exiting sleeping state",
+     "ms_after_start": 52.9,
+     "triggered_by": "restore"
+    },
+    "second_send": {
+     "status": 200,
+     "salt": "set",
+     "wall_ms": 296.4,
+     "prompt_n": 5,
+     "cache_n": 595,
+     "prompt_ms": 58.014,
+     "predicted_n": 16,
+     "predicted_per_second": 63.69102211352288,
+     "cache_reused_tokens": 615,
+     "engine_lines": [
+      {
+       "slot": 0,
+       "line": "task -1 | selected slot by id (0)"
+      },
+      {
+       "slot": 0,
+       "line": "task 23 | restored context checkpoint (pos_min = 0, pos_max = 595, n_tokens = 596, n_past = 595, size = 12.994 MiB)"
+      }
+     ],
+     "loadavg": [
+      4.224609375,
+      4.576171875,
+      3.86962890625
+     ]
+    },
+    "derived": {
+     "release_observed": true,
+     "release_waited_s": 30.28,
+     "reload_observed": true,
+     "reload_triggered_by": "restore",
+     "n_saved": 615,
+     "file_bytes": 32379628,
+     "n_restored": 615,
+     "n_read": 32379628,
+     "restore_wall_ms": 4219.83,
+     "resident_restore_wall_ms": 5.97,
+     "warm": true,
+     "second_send": {
+      "cache_n": 595,
+      "prompt_n": 5,
+      "prompt_ms": 58.014,
+      "predicted_n": 16,
+      "wall_ms": 296.4
+     },
+     "cache_n": 595,
+     "reused_fraction": 0.992,
+     "reload_announced_ms_after_restore_start": 52.9,
+     "restore_wall_minus_resident_ms": 4213.9,
+     "model_reload_ms_estimate": 4161.0
+    },
+    "measured": true,
+    "arm_wall_s": 39.3,
+    "argv": [
+     "nice",
+     "-n",
+     "10",
+     "/Users/marco/Projects/kalsallama/build/bin/llama-server",
+     "-m",
+     "/Users/marco/Library/Application Support/kalsa-brain/runtime/models/Trinity-Nano-Preview-Q4_K_M.gguf",
+     "--host",
+     "127.0.0.1",
+     "--port",
+     "19347",
+     "--parallel",
+     "1",
+     "--ctx-size",
+     "8192",
+     "--cache-type-k",
+     "q8_0",
+     "--cache-type-v",
+     "q8_0",
+     "--n-gpu-layers",
+     "all",
+     "--threads",
+     "4",
+     "--threads-batch",
+     "4",
+     "--batch-size",
+     "2048",
+     "--ubatch-size",
+     "512",
+     "--no-webui",
+     "-lv",
+     "4",
+     "--slot-save-path",
+     "/tmp/kalsa-unload-restore/saved_600/slots",
+     "--ctx-checkpoints",
+     "1",
+     "--cache-ram",
+     "0",
+     "--sleep-idle-seconds",
+     "30"
+    ],
+    "blockers": [],
+    "engine_lines_note": "per-send engine lines are filtered by WATCH in measure-slot-restore.py"
+   },
+   "control": {
+    "arm": "control",
+    "chat_tokens": 600,
+    "file_saved": false,
+    "erase": {
+     "status": 200,
+     "wall_ms": 0.55,
+     "n_saved": null,
+     "n_written": null,
+     "n_restored": null,
+     "n_read": null,
+     "n_erased": 0,
+     "save_ms": null,
+     "restore_ms": null
+    },
+    "cold_send": {
+     "status": 200,
+     "salt": "set",
+     "wall_ms": 3497.8,
+     "prompt_n": 600,
+     "cache_n": 0,
+     "prompt_ms": 3262.459,
+     "predicted_n": 16,
+     "predicted_per_second": 64.51279933938893,
+     "cache_reused_tokens": 615,
+     "engine_lines": [
+      {
+       "slot": 0,
+       "line": "task -1 | selected slot by id (0)"
+      },
+      {
+       "slot": 0,
+       "line": "task -1 |  - skipping, different cache namespace"
+      },
+      {
+       "slot": 0,
+       "line": "task 1 | different cache namespace - clearing cached prompt"
+      }
+     ],
+     "loadavg": [
+      4.1162109375,
+      4.54052734375,
+      3.86474609375
+     ]
+    },
+    "release": {
+     "observed": true,
+     "line_index": 260,
+     "line": "0.38.227.561 I srv  handle_sleep: server is entering sleeping state",
+     "waited_s": 30.28,
+     "deadline_s": 120
+    },
+    "second_send": {
+     "status": 200,
+     "salt": "set",
+     "wall_ms": 7671.4,
+     "prompt_n": 600,
+     "cache_n": 0,
+     "prompt_ms": 3190.181,
+     "predicted_n": 16,
+     "predicted_per_second": 64.07518154634771,
+     "cache_reused_tokens": 615,
+     "engine_lines": [
+      {
+       "slot": 0,
+       "line": "task -1 | selected slot by id (0)"
+      },
+      {
+       "slot": 0,
+       "line": "task -1 |  - skipping, different cache namespace"
+      },
+      {
+       "slot": 0,
+       "line": "task 20 | different cache namespace - clearing cached prompt"
+      }
+     ],
+     "loadavg": [
+      4.67626953125,
+      4.615234375,
+      3.92138671875
+     ]
+    },
+    "model_reload": {
+     "observed": true,
+     "line_index": 262,
+     "line": "0.39.402.605 I srv  handle_sleep: server is exiting sleeping state",
+     "ms_after_start": 53.3,
+     "triggered_by": "completion"
+    },
+    "derived": {
+     "release_observed": true,
+     "release_waited_s": 30.28,
+     "reload_observed": true,
+     "reload_triggered_by": "completion",
+     "reload_announced_ms_after_send_start": 53.3,
+     "warm": false,
+     "second_send": {
+      "cache_n": 0,
+      "prompt_n": 600,
+      "prompt_ms": 3190.181,
+      "predicted_n": 16,
+      "wall_ms": 7671.4
+     },
+     "cache_n": 0,
+     "reused_fraction": 0.0,
+     "cold": true
+    },
+    "measured": true,
+    "arm_wall_s": 42.5,
+    "argv": [
+     "nice",
+     "-n",
+     "10",
+     "/Users/marco/Projects/kalsallama/build/bin/llama-server",
+     "-m",
+     "/Users/marco/Library/Application Support/kalsa-brain/runtime/models/Trinity-Nano-Preview-Q4_K_M.gguf",
+     "--host",
+     "127.0.0.1",
+     "--port",
+     "19347",
+     "--parallel",
+     "1",
+     "--ctx-size",
+     "8192",
+     "--cache-type-k",
+     "q8_0",
+     "--cache-type-v",
+     "q8_0",
+     "--n-gpu-layers",
+     "all",
+     "--threads",
+     "4",
+     "--threads-batch",
+     "4",
+     "--batch-size",
+     "2048",
+     "--ubatch-size",
+     "512",
+     "--no-webui",
+     "-lv",
+     "4",
+     "--slot-save-path",
+     "/tmp/kalsa-unload-restore/control_600/slots",
+     "--ctx-checkpoints",
+     "1",
+     "--cache-ram",
+     "0",
+     "--sleep-idle-seconds",
+     "30"
+    ],
+    "blockers": [],
+    "engine_lines_note": "per-send engine lines are filtered by WATCH in measure-slot-restore.py"
+   }
+  },
+  "1900": {
+   "saved": {
+    "arm": "saved",
+    "chat_tokens": 1900,
+    "save_filename": "chat1900.bin",
+    "erase": {
+     "status": 200,
+     "wall_ms": 0.44,
+     "n_saved": null,
+     "n_written": null,
+     "n_restored": null,
+     "n_read": null,
+     "n_erased": 0,
+     "save_ms": null,
+     "restore_ms": null
+    },
+    "cold_send": {
+     "status": 200,
+     "salt": "set",
+     "wall_ms": 15256.3,
+     "prompt_n": 1900,
+     "cache_n": 0,
+     "prompt_ms": 14933.243,
+     "predicted_n": 16,
+     "predicted_per_second": 47.41358873453132,
+     "cache_reused_tokens": 1915,
+     "engine_lines": [
+      {
+       "slot": 0,
+       "line": "task -1 | selected slot by id (0)"
+      },
+      {
+       "slot": 0,
+       "line": "task -1 |  - skipping, different cache namespace"
+      },
+      {
+       "slot": 0,
+       "line": "task 1 | different cache namespace - clearing cached prompt"
+      }
+     ],
+     "loadavg": [
+      5.9453125,
+      4.89208984375,
+      4.0390625
+     ]
+    },
+    "save": {
+     "status": 200,
+     "wall_ms": 86.62,
+     "n_saved": 1915,
+     "n_written": 101737228,
+     "n_restored": null,
+     "n_read": null,
+     "n_erased": null,
+     "save_ms": 85.921,
+     "restore_ms": null,
+     "file_bytes": 101737228
+    },
+    "restore_with_model_resident": {
+     "status": 200,
+     "wall_ms": 19.75,
+     "n_saved": null,
+     "n_written": null,
+     "n_restored": 1915,
+     "n_read": 101737228,
+     "n_erased": null,
+     "save_ms": null,
+     "restore_ms": 19.129
+    },
+    "release": {
+     "observed": true,
+     "line_index": 265,
+     "line": "0.50.093.134 I srv  handle_sleep: server is entering sleeping state",
+     "waited_s": 30.29,
+     "deadline_s": 120
+    },
+    "restore_after_release": {
+     "status": 200,
+     "wall_ms": 4278.85,
+     "n_saved": null,
+     "n_written": null,
+     "n_restored": 1915,
+     "n_read": 101737228,
+     "n_erased": null,
+     "save_ms": null,
+     "restore_ms": 15.986
+    },
+    "model_reload": {
+     "observed": true,
+     "line_index": 267,
+     "line": "0.51.268.948 I srv  handle_sleep: server is exiting sleeping state",
+     "ms_after_start": 55.6,
+     "triggered_by": "restore"
+    },
+    "second_send": {
+     "status": 200,
+     "salt": "set",
+     "wall_ms": 414.0,
+     "prompt_n": 5,
+     "cache_n": 1895,
+     "prompt_ms": 89.39,
+     "predicted_n": 16,
+     "predicted_per_second": 47.18746952475927,
+     "cache_reused_tokens": 1915,
+     "engine_lines": [
+      {
+       "slot": 0,
+       "line": "task -1 | selected slot by id (0)"
+      },
+      {
+       "slot": 0,
+       "line": "task 23 | restored context checkpoint (pos_min = 0, pos_max = 1895, n_tokens = 1896, n_past = 1895, size = 41.336 MiB)"
+      }
+     ],
+     "loadavg": [
+      5.0078125,
+      4.77587890625,
+      4.02978515625
+     ]
+    },
+    "derived": {
+     "release_observed": true,
+     "release_waited_s": 30.29,
+     "reload_observed": true,
+     "reload_triggered_by": "restore",
+     "n_saved": 1915,
+     "file_bytes": 101737228,
+     "n_restored": 1915,
+     "n_read": 101737228,
+     "restore_wall_ms": 4278.85,
+     "resident_restore_wall_ms": 19.75,
+     "warm": true,
+     "second_send": {
+      "cache_n": 1895,
+      "prompt_n": 5,
+      "prompt_ms": 89.39,
+      "predicted_n": 16,
+      "wall_ms": 414.0
+     },
+     "cache_n": 1895,
+     "reused_fraction": 0.997,
+     "reload_announced_ms_after_restore_start": 55.6,
+     "restore_wall_minus_resident_ms": 4259.1,
+     "model_reload_ms_estimate": 4203.5
+    },
+    "measured": true,
+    "arm_wall_s": 51.4,
+    "argv": [
+     "nice",
+     "-n",
+     "10",
+     "/Users/marco/Projects/kalsallama/build/bin/llama-server",
+     "-m",
+     "/Users/marco/Library/Application Support/kalsa-brain/runtime/models/Trinity-Nano-Preview-Q4_K_M.gguf",
+     "--host",
+     "127.0.0.1",
+     "--port",
+     "19347",
+     "--parallel",
+     "1",
+     "--ctx-size",
+     "8192",
+     "--cache-type-k",
+     "q8_0",
+     "--cache-type-v",
+     "q8_0",
+     "--n-gpu-layers",
+     "all",
+     "--threads",
+     "4",
+     "--threads-batch",
+     "4",
+     "--batch-size",
+     "2048",
+     "--ubatch-size",
+     "512",
+     "--no-webui",
+     "-lv",
+     "4",
+     "--slot-save-path",
+     "/tmp/kalsa-unload-restore/saved_1900/slots",
+     "--ctx-checkpoints",
+     "1",
+     "--cache-ram",
+     "0",
+     "--sleep-idle-seconds",
+     "30"
+    ],
+    "blockers": [],
+    "engine_lines_note": "per-send engine lines are filtered by WATCH in measure-slot-restore.py"
+   },
+   "control": {
+    "arm": "control",
+    "chat_tokens": 1900,
+    "file_saved": false,
+    "erase": {
+     "status": 200,
+     "wall_ms": 0.44,
+     "n_saved": null,
+     "n_written": null,
+     "n_restored": null,
+     "n_read": null,
+     "n_erased": 0,
+     "save_ms": null,
+     "restore_ms": null
+    },
+    "cold_send": {
+     "status": 200,
+     "salt": "set",
+     "wall_ms": 15293.8,
+     "prompt_n": 1900,
+     "cache_n": 0,
+     "prompt_ms": 14973.656,
+     "predicted_n": 16,
+     "predicted_per_second": 47.83605626795845,
+     "cache_reused_tokens": 1915,
+     "engine_lines": [
+      {
+       "slot": 0,
+       "line": "task -1 | selected slot by id (0)"
+      },
+      {
+       "slot": 0,
+       "line": "task -1 |  - skipping, different cache namespace"
+      },
+      {
+       "slot": 0,
+       "line": "task 1 | different cache namespace - clearing cached prompt"
+      }
+     ],
+     "loadavg": [
+      5.27734375,
+      4.853515625,
+      4.07470703125
+     ]
+    },
+    "release": {
+     "observed": true,
+     "line_index": 261,
+     "line": "0.50.031.816 I srv  handle_sleep: server is entering sleeping state",
+     "waited_s": 30.3,
+     "deadline_s": 120
+    },
+    "second_send": {
+     "status": 200,
+     "salt": "set",
+     "wall_ms": 19685.0,
+     "prompt_n": 1900,
+     "cache_n": 0,
+     "prompt_ms": 15142.283,
+     "predicted_n": 16,
+     "predicted_per_second": 49.14230300488802,
+     "cache_reused_tokens": 1915,
+     "engine_lines": [
+      {
+       "slot": 0,
+       "line": "task -1 | selected slot by id (0)"
+      },
+      {
+       "slot": 0,
+       "line": "task -1 |  - skipping, different cache namespace"
+      },
+      {
+       "slot": 0,
+       "line": "task 20 | different cache namespace - clearing cached prompt"
+      }
+     ],
+     "loadavg": [
+      5.6533203125,
+      4.98876953125,
+      4.16552734375
+     ]
+    },
+    "model_reload": {
+     "observed": true,
+     "line_index": 263,
+     "line": "0.51.214.443 I srv  handle_sleep: server is exiting sleeping state",
+     "ms_after_start": 56.0,
+     "triggered_by": "completion"
+    },
+    "derived": {
+     "release_observed": true,
+     "release_waited_s": 30.3,
+     "reload_observed": true,
+     "reload_triggered_by": "completion",
+     "reload_announced_ms_after_send_start": 56.0,
+     "warm": false,
+     "second_send": {
+      "cache_n": 0,
+      "prompt_n": 1900,
+      "prompt_ms": 15142.283,
+      "predicted_n": 16,
+      "wall_ms": 19685.0
+     },
+     "cache_n": 0,
+     "reused_fraction": 0.0,
+     "cold": true
+    },
+    "measured": true,
+    "arm_wall_s": 66.3,
+    "argv": [
+     "nice",
+     "-n",
+     "10",
+     "/Users/marco/Projects/kalsallama/build/bin/llama-server",
+     "-m",
+     "/Users/marco/Library/Application Support/kalsa-brain/runtime/models/Trinity-Nano-Preview-Q4_K_M.gguf",
+     "--host",
+     "127.0.0.1",
+     "--port",
+     "19347",
+     "--parallel",
+     "1",
+     "--ctx-size",
+     "8192",
+     "--cache-type-k",
+     "q8_0",
+     "--cache-type-v",
+     "q8_0",
+     "--n-gpu-layers",
+     "all",
+     "--threads",
+     "4",
+     "--threads-batch",
+     "4",
+     "--batch-size",
+     "2048",
+     "--ubatch-size",
+     "512",
+     "--no-webui",
+     "-lv",
+     "4",
+     "--slot-save-path",
+     "/tmp/kalsa-unload-restore/control_1900/slots",
+     "--ctx-checkpoints",
+     "1",
+     "--cache-ram",
+     "0",
+     "--sleep-idle-seconds",
+     "30"
+    ],
+    "blockers": [],
+    "engine_lines_note": "per-send engine lines are filtered by WATCH in measure-slot-restore.py"
+   }
+  }
+ },
+ "verdict": {
+  "warm_after_unload": true,
+  "cold_without_the_file": true,
+  "per_size": {
+   "600": {
+    "warm_after_unload": true,
+    "cold_without_the_file": true,
+    "release_waited_s_saved": 30.28,
+    "release_waited_s_control": 30.28,
+    "restore_wall_ms": 4219.83,
+    "resident_restore_wall_ms": 5.97,
+    "model_reload_ms_estimate": 4161.0,
+    "n_restored": 615,
+    "second_send_cache_n_saved": 595,
+    "second_send_cache_n_control": 0
+   },
+   "1900": {
+    "warm_after_unload": true,
+    "cold_without_the_file": true,
+    "release_waited_s_saved": 30.29,
+    "release_waited_s_control": 30.3,
+    "restore_wall_ms": 4278.85,
+    "resident_restore_wall_ms": 19.75,
+    "model_reload_ms_estimate": 4203.5,
+    "n_restored": 1915,
+    "second_send_cache_n_saved": 1895,
+    "second_send_cache_n_control": 0
+   }
+  },
+  "conclusion": "after a real release the saved chats came back warm and the no-file controls stayed cold, so the warmth travelled with the file. Numbers: 600 tokens: saved cache_n=595/600 n_restored=615 restore=4219.83ms (resident 5.97ms, reload est. 4161.0ms), control cache_n=0/600; 1900 tokens: saved cache_n=1895/1900 n_restored=1915 restore=4278.85ms (resident 19.75ms, reload est. 4203.5ms), control cache_n=0/1900"
+ }
+}

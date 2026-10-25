@@ -1,0 +1,1766 @@
+{
+ "measurement": "slot-restore-swa",
+ "provenance": {
+  "host_arch": "arm64",
+  "engine_binary": "/Users/marco/Projects/kalsallama/build/bin/llama-server",
+  "engine_sha256": "c748bac0942dc196a7dd1bcddb50ceb53f8fff6381c1b354cc5ecdc5ce801abc",
+  "engine_version": "version: 0.4.1-dev (build 11193, commit 833cde99b)\nbuilt with AppleClang 21.0.0.21000101 for Darwin arm64",
+  "model": "/Users/marco/Library/Application Support/kalsa-brain/runtime/models/Trinity-Nano-Preview-Q4_K_M.gguf",
+  "model_sha256": "287562a3824ce2277e2c71cfcc70248b2d90f7fa342a4779979e0bf3e37ad546",
+  "context_size": 16384,
+  "cache_type_k": "q8_0",
+  "cache_type_v": "q8_0",
+  "n_predict": 8,
+  "ignore_eos": true,
+  "verbosity": 4,
+  "verbosity_note": "-lv 4 carries the INFO lines and the TRC lines (which print with an I but need verbosity 4); -lv 5 would add the DEBUG `launching slot` JSON, which embeds prompt tokens",
+  "raw_log_committed": false,
+  "salt_header": "x-kalsa-cache-salt",
+  "salt_value_reported_as": "sha256(device label), 64 hex",
+  "chat_sentinels_found_in_log": false
+ },
+ "engines": {
+  "swa_full_off": {
+   "argv": [
+    "/Users/marco/Projects/kalsallama/build/bin/llama-server",
+    "-m",
+    "/Users/marco/Library/Application Support/kalsa-brain/runtime/models/Trinity-Nano-Preview-Q4_K_M.gguf",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "19312",
+    "--parallel",
+    "1",
+    "--ctx-size",
+    "16384",
+    "--cache-type-k",
+    "q8_0",
+    "--cache-type-v",
+    "q8_0",
+    "--n-gpu-layers",
+    "all",
+    "--threads",
+    "4",
+    "--threads-batch",
+    "4",
+    "--batch-size",
+    "2048",
+    "--ubatch-size",
+    "512",
+    "--no-webui",
+    "-lv",
+    "4",
+    "--cache-ram",
+    "0",
+    "--slot-save-path",
+    "/tmp/kalsa-task1/slot-restore-clean/slots_swa_full_off/",
+    "--ctx-checkpoints",
+    "1"
+   ],
+   "port": 19312,
+   "slot_dir": "/tmp/kalsa-task1/slot-restore-clean/slots_swa_full_off",
+   "slot_actions_supported": true,
+   "init_line": [
+    "0.04.353.812 I srv    load_model: initializing, n_slots = 1, n_ctx_slot = 16384, kv_unified = 'false'"
+   ],
+   "kv_lines": [
+    "0.04.294.018 I llama_kv_cache: size =  119.00 MiB ( 16384 cells,  14 layers,  1/1 seqs), K (q8_0):   59.50 MiB, V (q8_0):   59.50 MiB",
+    "0.04.297.730 I llama_kv_cache: size =   55.78 MiB (  2560 cells,  42 layers,  1/1 seqs), K (q8_0):   27.89 MiB, V (q8_0):   27.89 MiB"
+   ],
+   "swa_lines": [
+    "0.00.443.338 I print_info: n_swa                 = 2048",
+    "0.00.443.339 I print_info: is_swa_any            = 1",
+    "0.04.285.983 I llama_kv_cache_iswa: creating non-SWA KV cache, size = 16384 cells",
+    "0.04.294.044 I llama_kv_cache_iswa: creating     SWA KV cache, size = 2560 cells"
+   ],
+   "checkpoint_line": [
+    "0.04.353.865 I srv    load_model: context checkpoints enabled, max = 1, min spacing = 8192"
+   ],
+   "cache_ram_line": [
+    "0.04.353.863 I srv    load_model: prompt cache is disabled - use `--cache-ram N` to enable it"
+   ],
+   "sequences": {
+    "600_salted": {
+     "salt_mode": "salted",
+     "cold_send": {
+      "status": 200,
+      "salt": "set",
+      "wall_ms": 3362.6,
+      "prompt_n": 600,
+      "cache_n": 0,
+      "prompt_ms": 3250.766,
+      "predicted_n": 8,
+      "predicted_per_second": 64.12722842118764,
+      "cache_reused_tokens": 607,
+      "engine_lines": [
+       {
+        "slot": 0,
+        "line": "task -1 | selected slot by id (0)"
+       },
+       {
+        "slot": 0,
+        "line": "task -1 |  - skipping, different cache namespace"
+       },
+       {
+        "slot": 0,
+        "line": "task 1 | different cache namespace - clearing cached prompt"
+       }
+      ],
+      "loadavg": [
+       2.94482421875,
+       4.68115234375,
+       5.1357421875
+      ]
+     },
+     "save": {
+      "status": 200,
+      "wall_ms": 59.09,
+      "body": {
+       "id_slot": 0,
+       "filename": "600_salted.bin",
+       "n_saved": 607,
+       "n_written": 32135692,
+       "timings": {
+        "save_ms": 58.244
+       }
+      }
+     },
+     "erase": {
+      "status": 200,
+      "wall_ms": 0.64,
+      "body": {
+       "id_slot": 0,
+       "n_erased": 607
+      }
+     },
+     "restore": {
+      "status": 200,
+      "wall_ms": 9.08,
+      "body": {
+       "id_slot": 0,
+       "filename": "600_salted.bin",
+       "n_restored": 607,
+       "n_read": 32135692,
+       "timings": {
+        "restore_ms": 8.511
+       }
+      }
+     },
+     "action_engine_lines": [
+      {
+       "slot": null,
+       "line": "0.08.052.119 I srv  save_slot_ch: appended 1 context checkpoint(s) (12.994 MiB)"
+      },
+      {
+       "slot": null,
+       "line": "0.08.062.093 I srv  load_slot_ch: restored 1 context checkpoint(s) from '/tmp/kalsa-task1/slot-restore-clean/slots_swa_full_off/600_salted.bin'"
+      }
+     ],
+     "next_send_same_salt": {
+      "status": 200,
+      "salt": "set",
+      "wall_ms": 171.1,
+      "prompt_n": 5,
+      "cache_n": 595,
+      "prompt_ms": 55.978,
+      "predicted_n": 8,
+      "predicted_per_second": 62.40527770348578,
+      "cache_reused_tokens": 607,
+      "engine_lines": [
+       {
+        "slot": 0,
+        "line": "task -1 | selected slot by id (0)"
+       },
+       {
+        "slot": 0,
+        "line": "task 15 | restored context checkpoint (pos_min = 0, pos_max = 595, n_tokens = 596, n_past = 595, size = 12.994 MiB)"
+       }
+      ],
+      "loadavg": [
+       2.94482421875,
+       4.68115234375,
+       5.1357421875
+      ]
+     },
+     "file_bytes": 32135692,
+     "save_filename": "600_salted.bin",
+     "n_saved": 607,
+     "n_written": 32135692,
+     "save_ms": 58.244,
+     "n_erased": 607,
+     "n_restored": 607,
+     "n_read": 32135692,
+     "restore_ms": 8.511,
+     "re_evaluated_tokens": 5,
+     "next_cache_n": 595,
+     "next_wall_ms": 171.1,
+     "restore_confirms_cold": {
+      "cold_cache_n": 0,
+      "cold_prompt_n": 600,
+      "cold_prompt_ms": 3250.766
+     },
+     "chat_tokens": 600
+    },
+    "600_unsalted": {
+     "salt_mode": "unsalted",
+     "cold_send": {
+      "status": 200,
+      "salt": "none",
+      "wall_ms": 3316.2,
+      "prompt_n": 600,
+      "cache_n": 0,
+      "prompt_ms": 3201.541,
+      "predicted_n": 8,
+      "predicted_per_second": 62.996661176957616,
+      "cache_reused_tokens": 607,
+      "engine_lines": [
+       {
+        "slot": 0,
+        "line": "task -1 | selected slot by id (0)"
+       }
+      ],
+      "loadavg": [
+       3.109375,
+       4.68603515625,
+       5.134765625
+      ]
+     },
+     "save": {
+      "status": 200,
+      "wall_ms": 61.54,
+      "body": {
+       "id_slot": 0,
+       "filename": "600_unsalted.bin",
+       "n_saved": 607,
+       "n_written": 32135692,
+       "timings": {
+        "save_ms": 60.819
+       }
+      }
+     },
+     "erase": {
+      "status": 200,
+      "wall_ms": 0.58,
+      "body": {
+       "id_slot": 0,
+       "n_erased": 607
+      }
+     },
+     "restore": {
+      "status": 200,
+      "wall_ms": 5.52,
+      "body": {
+       "id_slot": 0,
+       "filename": "600_unsalted.bin",
+       "n_restored": 607,
+       "n_read": 32135692,
+       "timings": {
+        "restore_ms": 5.066
+       }
+      }
+     },
+     "action_engine_lines": [
+      {
+       "slot": null,
+       "line": "0.12.622.816 I srv  save_slot_ch: appended 1 context checkpoint(s) (12.994 MiB)"
+      },
+      {
+       "slot": null,
+       "line": "0.12.629.086 I srv  load_slot_ch: restored 1 context checkpoint(s) from '/tmp/kalsa-task1/slot-restore-clean/slots_swa_full_off/600_unsalted.bin'"
+      }
+     ],
+     "next_send_same_salt": {
+      "status": 200,
+      "salt": "none",
+      "wall_ms": 166.3,
+      "prompt_n": 5,
+      "cache_n": 595,
+      "prompt_ms": 54.505,
+      "predicted_n": 8,
+      "predicted_per_second": 64.29391504018369,
+      "cache_reused_tokens": 607,
+      "engine_lines": [
+       {
+        "slot": 0,
+        "line": "task -1 | selected slot by id (0)"
+       },
+       {
+        "slot": 0,
+        "line": "task 40 | restored context checkpoint (pos_min = 0, pos_max = 595, n_tokens = 596, n_past = 595, size = 12.994 MiB)"
+       }
+      ],
+      "loadavg": [
+       3.109375,
+       4.68603515625,
+       5.134765625
+      ]
+     },
+     "file_bytes": 32135692,
+     "save_filename": "600_unsalted.bin",
+     "n_saved": 607,
+     "n_written": 32135692,
+     "save_ms": 60.819,
+     "n_erased": 607,
+     "n_restored": 607,
+     "n_read": 32135692,
+     "restore_ms": 5.066,
+     "re_evaluated_tokens": 5,
+     "next_cache_n": 595,
+     "next_wall_ms": 166.3,
+     "restore_confirms_cold": {
+      "cold_cache_n": 0,
+      "cold_prompt_n": 600,
+      "cold_prompt_ms": 3201.541
+     },
+     "chat_tokens": 600
+    },
+    "1900_salted": {
+     "salt_mode": "salted",
+     "cold_send": {
+      "status": 200,
+      "salt": "set",
+      "wall_ms": 15308.8,
+      "prompt_n": 1900,
+      "cache_n": 0,
+      "prompt_ms": 15152.397,
+      "predicted_n": 8,
+      "predicted_per_second": 46.69966776522075,
+      "cache_reused_tokens": 1907,
+      "engine_lines": [
+       {
+        "slot": 0,
+        "line": "task -1 | selected slot by id (0)"
+       },
+       {
+        "slot": 0,
+        "line": "task -1 |  - skipping, different cache namespace"
+       },
+       {
+        "slot": 0,
+        "line": "task 51 | different cache namespace - clearing cached prompt"
+       }
+      ],
+      "loadavg": [
+       3.52783203125,
+       4.70068359375,
+       5.1318359375
+      ]
+     },
+     "save": {
+      "status": 200,
+      "wall_ms": 181.57,
+      "body": {
+       "id_slot": 0,
+       "filename": "1900_salted.bin",
+       "n_saved": 1907,
+       "n_written": 101493292,
+       "timings": {
+        "save_ms": 180.759
+       }
+      }
+     },
+     "erase": {
+      "status": 200,
+      "wall_ms": 0.82,
+      "body": {
+       "id_slot": 0,
+       "n_erased": 1907
+      }
+     },
+     "restore": {
+      "status": 200,
+      "wall_ms": 16.39,
+      "body": {
+       "id_slot": 0,
+       "filename": "1900_salted.bin",
+       "n_restored": 1907,
+       "n_read": 101493292,
+       "timings": {
+        "restore_ms": 15.871
+       }
+      }
+     },
+     "action_engine_lines": [
+      {
+       "slot": null,
+       "line": "0.29.359.573 I srv  save_slot_ch: appended 1 context checkpoint(s) (41.336 MiB)"
+      },
+      {
+       "slot": null,
+       "line": "0.29.376.997 I srv  load_slot_ch: restored 1 context checkpoint(s) from '/tmp/kalsa-task1/slot-restore-clean/slots_swa_full_off/1900_salted.bin'"
+      }
+     ],
+     "next_send_same_salt": {
+      "status": 200,
+      "salt": "set",
+      "wall_ms": 239.9,
+      "prompt_n": 5,
+      "cache_n": 1895,
+      "prompt_ms": 85.128,
+      "predicted_n": 8,
+      "predicted_per_second": 47.337278106508876,
+      "cache_reused_tokens": 1907,
+      "engine_lines": [
+       {
+        "slot": 0,
+        "line": "task -1 | selected slot by id (0)"
+       },
+       {
+        "slot": 0,
+        "line": "task 65 | restored context checkpoint (pos_min = 0, pos_max = 1895, n_tokens = 1896, n_past = 1895, size = 41.336 MiB)"
+       }
+      ],
+      "loadavg": [
+       3.52783203125,
+       4.70068359375,
+       5.1318359375
+      ]
+     },
+     "file_bytes": 101493292,
+     "save_filename": "1900_salted.bin",
+     "n_saved": 1907,
+     "n_written": 101493292,
+     "save_ms": 180.759,
+     "n_erased": 1907,
+     "n_restored": 1907,
+     "n_read": 101493292,
+     "restore_ms": 15.871,
+     "re_evaluated_tokens": 5,
+     "next_cache_n": 1895,
+     "next_wall_ms": 239.9,
+     "restore_confirms_cold": {
+      "cold_cache_n": 0,
+      "cold_prompt_n": 1900,
+      "cold_prompt_ms": 15152.397
+     },
+     "chat_tokens": 1900
+    },
+    "1900_unsalted": {
+     "salt_mode": "unsalted",
+     "cold_send": {
+      "status": 200,
+      "salt": "none",
+      "wall_ms": 16287.0,
+      "prompt_n": 1900,
+      "cache_n": 0,
+      "prompt_ms": 16002.749,
+      "predicted_n": 8,
+      "predicted_per_second": 25.264464808405123,
+      "cache_reused_tokens": 1907,
+      "engine_lines": [
+       {
+        "slot": 0,
+        "line": "task -1 | selected slot by id (0)"
+       }
+      ],
+      "loadavg": [
+       3.93798828125,
+       4.71923828125,
+       5.1279296875
+      ]
+     },
+     "save": {
+      "status": 200,
+      "wall_ms": 176.87,
+      "body": {
+       "id_slot": 0,
+       "filename": "1900_unsalted.bin",
+       "n_saved": 1907,
+       "n_written": 101493292,
+       "timings": {
+        "save_ms": 176.062
+       }
+      }
+     },
+     "erase": {
+      "status": 200,
+      "wall_ms": 0.86,
+      "body": {
+       "id_slot": 0,
+       "n_erased": 1907
+      }
+     },
+     "restore": {
+      "status": 200,
+      "wall_ms": 19.63,
+      "body": {
+       "id_slot": 0,
+       "filename": "1900_unsalted.bin",
+       "n_restored": 1907,
+       "n_read": 101493292,
+       "timings": {
+        "restore_ms": 19.015
+       }
+      }
+     },
+     "action_engine_lines": [
+      {
+       "slot": null,
+       "line": "0.47.093.992 I srv  save_slot_ch: appended 1 context checkpoint(s) (41.336 MiB)"
+      },
+      {
+       "slot": null,
+       "line": "0.47.114.600 I srv  load_slot_ch: restored 1 context checkpoint(s) from '/tmp/kalsa-task1/slot-restore-clean/slots_swa_full_off/1900_unsalted.bin'"
+      }
+     ],
+     "next_send_same_salt": {
+      "status": 200,
+      "salt": "none",
+      "wall_ms": 281.9,
+      "prompt_n": 5,
+      "cache_n": 1895,
+      "prompt_ms": 95.892,
+      "predicted_n": 8,
+      "predicted_per_second": 39.148136548700286,
+      "cache_reused_tokens": 1907,
+      "engine_lines": [
+       {
+        "slot": 0,
+        "line": "task -1 | selected slot by id (0)"
+       },
+       {
+        "slot": 0,
+        "line": "task 90 | restored context checkpoint (pos_min = 0, pos_max = 1895, n_tokens = 1896, n_past = 1895, size = 41.336 MiB)"
+       }
+      ],
+      "loadavg": [
+       3.93798828125,
+       4.71923828125,
+       5.1279296875
+      ]
+     },
+     "file_bytes": 101493292,
+     "save_filename": "1900_unsalted.bin",
+     "n_saved": 1907,
+     "n_written": 101493292,
+     "save_ms": 176.062,
+     "n_erased": 1907,
+     "n_restored": 1907,
+     "n_read": 101493292,
+     "restore_ms": 19.015,
+     "re_evaluated_tokens": 5,
+     "next_cache_n": 1895,
+     "next_wall_ms": 281.9,
+     "restore_confirms_cold": {
+      "cold_cache_n": 0,
+      "cold_prompt_n": 1900,
+      "cold_prompt_ms": 16002.749
+     },
+     "chat_tokens": 1900
+    }
+   }
+  },
+  "swa_full_on": {
+   "argv": [
+    "/Users/marco/Projects/kalsallama/build/bin/llama-server",
+    "-m",
+    "/Users/marco/Library/Application Support/kalsa-brain/runtime/models/Trinity-Nano-Preview-Q4_K_M.gguf",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "19313",
+    "--parallel",
+    "1",
+    "--ctx-size",
+    "16384",
+    "--cache-type-k",
+    "q8_0",
+    "--cache-type-v",
+    "q8_0",
+    "--n-gpu-layers",
+    "all",
+    "--threads",
+    "4",
+    "--threads-batch",
+    "4",
+    "--batch-size",
+    "2048",
+    "--ubatch-size",
+    "512",
+    "--no-webui",
+    "-lv",
+    "4",
+    "--cache-ram",
+    "0",
+    "--slot-save-path",
+    "/tmp/kalsa-task1/slot-restore-clean/slots_swa_full_on/",
+    "--ctx-checkpoints",
+    "1",
+    "--swa-full"
+   ],
+   "port": 19313,
+   "slot_dir": "/tmp/kalsa-task1/slot-restore-clean/slots_swa_full_on",
+   "slot_actions_supported": true,
+   "init_line": [
+    "0.04.387.038 I srv    load_model: initializing, n_slots = 1, n_ctx_slot = 16384, kv_unified = 'false'"
+   ],
+   "kv_lines": [
+    "0.04.259.625 I llama_kv_cache: size =  119.00 MiB ( 16384 cells,  14 layers,  1/1 seqs), K (q8_0):   59.50 MiB, V (q8_0):   59.50 MiB",
+    "0.04.289.681 I llama_kv_cache: size =  357.00 MiB ( 16384 cells,  42 layers,  1/1 seqs), K (q8_0):  178.50 MiB, V (q8_0):  178.50 MiB"
+   ],
+   "swa_lines": [
+    "0.00.451.374 I print_info: n_swa                 = 2048",
+    "0.00.451.375 I print_info: is_swa_any            = 1",
+    "0.04.250.764 I llama_kv_cache_iswa: creating non-SWA KV cache, size = 16384 cells",
+    "0.04.259.664 I llama_kv_cache_iswa: creating     SWA KV cache, size = 16384 cells"
+   ],
+   "checkpoint_line": [
+    "0.04.387.097 I srv    load_model: context checkpoints enabled, max = 1, min spacing = 8192"
+   ],
+   "cache_ram_line": [
+    "0.04.387.095 I srv    load_model: prompt cache is disabled - use `--cache-ram N` to enable it"
+   ],
+   "sequences": {
+    "600_salted": {
+     "salt_mode": "salted",
+     "cold_send": {
+      "status": 200,
+      "salt": "set",
+      "wall_ms": 3251.2,
+      "prompt_n": 600,
+      "cache_n": 0,
+      "prompt_ms": 3138.472,
+      "predicted_n": 8,
+      "predicted_per_second": 63.62768713357269,
+      "cache_reused_tokens": 607,
+      "engine_lines": [
+       {
+        "slot": 0,
+        "line": "task -1 | selected slot by id (0)"
+       },
+       {
+        "slot": 0,
+        "line": "task -1 |  - skipping, different cache namespace"
+       },
+       {
+        "slot": 0,
+        "line": "task 1 | different cache namespace - clearing cached prompt"
+       }
+      ],
+      "loadavg": [
+       3.7998046875,
+       4.66259765625,
+       5.1025390625
+      ]
+     },
+     "save": {
+      "status": 200,
+      "wall_ms": 28.94,
+      "body": {
+       "id_slot": 0,
+       "filename": "600_salted.bin",
+       "n_saved": 607,
+       "n_written": 18510048,
+       "timings": {
+        "save_ms": 28.281
+       }
+      }
+     },
+     "erase": {
+      "status": 200,
+      "wall_ms": 0.6,
+      "body": {
+       "id_slot": 0,
+       "n_erased": 607
+      }
+     },
+     "restore": {
+      "status": 200,
+      "wall_ms": 2.5,
+      "body": {
+       "id_slot": 0,
+       "filename": "600_salted.bin",
+       "n_restored": 607,
+       "n_read": 18510048,
+       "timings": {
+        "restore_ms": 2.047
+       }
+      }
+     },
+     "action_engine_lines": [],
+     "next_send_same_salt": {
+      "status": 200,
+      "salt": "set",
+      "wall_ms": 123.8,
+      "prompt_n": 1,
+      "cache_n": 599,
+      "prompt_ms": 15.19,
+      "predicted_n": 8,
+      "predicted_per_second": 66.16006956258742,
+      "cache_reused_tokens": 607,
+      "engine_lines": [
+       {
+        "slot": 0,
+        "line": "task -1 | selected slot by id (0)"
+       }
+      ],
+      "loadavg": [
+       3.7998046875,
+       4.66259765625,
+       5.1025390625
+      ]
+     },
+     "file_bytes": 18510048,
+     "save_filename": "600_salted.bin",
+     "n_saved": 607,
+     "n_written": 18510048,
+     "save_ms": 28.281,
+     "n_erased": 607,
+     "n_restored": 607,
+     "n_read": 18510048,
+     "restore_ms": 2.047,
+     "re_evaluated_tokens": 1,
+     "next_cache_n": 599,
+     "next_wall_ms": 123.8,
+     "restore_confirms_cold": {
+      "cold_cache_n": 0,
+      "cold_prompt_n": 600,
+      "cold_prompt_ms": 3138.472
+     },
+     "chat_tokens": 600
+    },
+    "600_unsalted": {
+     "salt_mode": "unsalted",
+     "cold_send": {
+      "status": 200,
+      "salt": "none",
+      "wall_ms": 3208.7,
+      "prompt_n": 600,
+      "cache_n": 0,
+      "prompt_ms": 3097.526,
+      "predicted_n": 8,
+      "predicted_per_second": 64.51910226277708,
+      "cache_reused_tokens": 607,
+      "engine_lines": [
+       {
+        "slot": 0,
+        "line": "task -1 | selected slot by id (0)"
+       }
+      ],
+      "loadavg": [
+       3.4951171875,
+       4.5849609375,
+       5.072265625
+      ]
+     },
+     "save": {
+      "status": 200,
+      "wall_ms": 24.82,
+      "body": {
+       "id_slot": 0,
+       "filename": "600_unsalted.bin",
+       "n_saved": 607,
+       "n_written": 18510048,
+       "timings": {
+        "save_ms": 24.192
+       }
+      }
+     },
+     "erase": {
+      "status": 200,
+      "wall_ms": 0.58,
+      "body": {
+       "id_slot": 0,
+       "n_erased": 607
+      }
+     },
+     "restore": {
+      "status": 200,
+      "wall_ms": 2.59,
+      "body": {
+       "id_slot": 0,
+       "filename": "600_unsalted.bin",
+       "n_restored": 607,
+       "n_read": 18510048,
+       "timings": {
+        "restore_ms": 2.115
+       }
+      }
+     },
+     "action_engine_lines": [],
+     "next_send_same_salt": {
+      "status": 200,
+      "salt": "none",
+      "wall_ms": 119.8,
+      "prompt_n": 1,
+      "cache_n": 599,
+      "prompt_ms": 15.035,
+      "predicted_n": 8,
+      "predicted_per_second": 68.6402369068748,
+      "cache_reused_tokens": 607,
+      "engine_lines": [
+       {
+        "slot": 0,
+        "line": "task -1 | selected slot by id (0)"
+       }
+      ],
+      "loadavg": [
+       3.4951171875,
+       4.5849609375,
+       5.072265625
+      ]
+     },
+     "file_bytes": 18510048,
+     "save_filename": "600_unsalted.bin",
+     "n_saved": 607,
+     "n_written": 18510048,
+     "save_ms": 24.192,
+     "n_erased": 607,
+     "n_restored": 607,
+     "n_read": 18510048,
+     "restore_ms": 2.115,
+     "re_evaluated_tokens": 1,
+     "next_cache_n": 599,
+     "next_wall_ms": 119.8,
+     "restore_confirms_cold": {
+      "cold_cache_n": 0,
+      "cold_prompt_n": 600,
+      "cold_prompt_ms": 3097.526
+     },
+     "chat_tokens": 600
+    },
+    "1900_salted": {
+     "salt_mode": "salted",
+     "cold_send": {
+      "status": 200,
+      "salt": "set",
+      "wall_ms": 15013.6,
+      "prompt_n": 1900,
+      "cache_n": 0,
+      "prompt_ms": 14866.517,
+      "predicted_n": 8,
+      "predicted_per_second": 49.7003777228707,
+      "cache_reused_tokens": 1907,
+      "engine_lines": [
+       {
+        "slot": 0,
+        "line": "task -1 | selected slot by id (0)"
+       },
+       {
+        "slot": 0,
+        "line": "task -1 |  - skipping, different cache namespace"
+       },
+       {
+        "slot": 0,
+        "line": "task 45 | different cache namespace - clearing cached prompt"
+       }
+      ],
+      "loadavg": [
+       3.54443359375,
+       4.5400390625,
+       5.04736328125
+      ]
+     },
+     "save": {
+      "status": 200,
+      "wall_ms": 71.4,
+      "body": {
+       "id_slot": 0,
+       "filename": "1900_salted.bin",
+       "n_saved": 1907,
+       "n_written": 58149648,
+       "timings": {
+        "save_ms": 70.729
+       }
+      }
+     },
+     "erase": {
+      "status": 200,
+      "wall_ms": 0.71,
+      "body": {
+       "id_slot": 0,
+       "n_erased": 1907
+      }
+     },
+     "restore": {
+      "status": 200,
+      "wall_ms": 6.81,
+      "body": {
+       "id_slot": 0,
+       "filename": "1900_salted.bin",
+       "n_restored": 1907,
+       "n_read": 58149648,
+       "timings": {
+        "restore_ms": 6.33
+       }
+      }
+     },
+     "action_engine_lines": [],
+     "next_send_same_salt": {
+      "status": 200,
+      "salt": "set",
+      "wall_ms": 166.1,
+      "prompt_n": 1,
+      "cache_n": 1899,
+      "prompt_ms": 22.063,
+      "predicted_n": 8,
+      "predicted_per_second": 51.025986806137695,
+      "cache_reused_tokens": 1907,
+      "engine_lines": [
+       {
+        "slot": 0,
+        "line": "task -1 | selected slot by id (0)"
+       }
+      ],
+      "loadavg": [
+       3.34033203125,
+       4.48095703125,
+       5.0234375
+      ]
+     },
+     "file_bytes": 58149648,
+     "save_filename": "1900_salted.bin",
+     "n_saved": 1907,
+     "n_written": 58149648,
+     "save_ms": 70.729,
+     "n_erased": 1907,
+     "n_restored": 1907,
+     "n_read": 58149648,
+     "restore_ms": 6.33,
+     "re_evaluated_tokens": 1,
+     "next_cache_n": 1899,
+     "next_wall_ms": 166.1,
+     "restore_confirms_cold": {
+      "cold_cache_n": 0,
+      "cold_prompt_n": 1900,
+      "cold_prompt_ms": 14866.517
+     },
+     "chat_tokens": 1900
+    },
+    "1900_unsalted": {
+     "salt_mode": "unsalted",
+     "cold_send": {
+      "status": 200,
+      "salt": "none",
+      "wall_ms": 18112.5,
+      "prompt_n": 1900,
+      "cache_n": 0,
+      "prompt_ms": 17957.326,
+      "predicted_n": 8,
+      "predicted_per_second": 50.0482608229364,
+      "cache_reused_tokens": 1907,
+      "engine_lines": [
+       {
+        "slot": 0,
+        "line": "task -1 | selected slot by id (0)"
+       }
+      ],
+      "loadavg": [
+       7.57421875,
+       5.3427734375,
+       5.31982421875
+      ]
+     },
+     "save": {
+      "status": 200,
+      "wall_ms": 72.38,
+      "body": {
+       "id_slot": 0,
+       "filename": "1900_unsalted.bin",
+       "n_saved": 1907,
+       "n_written": 58149648,
+       "timings": {
+        "save_ms": 71.598
+       }
+      }
+     },
+     "erase": {
+      "status": 200,
+      "wall_ms": 0.83,
+      "body": {
+       "id_slot": 0,
+       "n_erased": 1907
+      }
+     },
+     "restore": {
+      "status": 200,
+      "wall_ms": 6.71,
+      "body": {
+       "id_slot": 0,
+       "filename": "1900_unsalted.bin",
+       "n_restored": 1907,
+       "n_read": 58149648,
+       "timings": {
+        "restore_ms": 6.237
+       }
+      }
+     },
+     "action_engine_lines": [],
+     "next_send_same_salt": {
+      "status": 200,
+      "salt": "none",
+      "wall_ms": 165.9,
+      "prompt_n": 1,
+      "cache_n": 1899,
+      "prompt_ms": 21.151,
+      "predicted_n": 8,
+      "predicted_per_second": 50.75074857354146,
+      "cache_reused_tokens": 1907,
+      "engine_lines": [
+       {
+        "slot": 0,
+        "line": "task -1 | selected slot by id (0)"
+       }
+      ],
+      "loadavg": [
+       7.57421875,
+       5.3427734375,
+       5.31982421875
+      ]
+     },
+     "file_bytes": 58149648,
+     "save_filename": "1900_unsalted.bin",
+     "n_saved": 1907,
+     "n_written": 58149648,
+     "save_ms": 71.598,
+     "n_erased": 1907,
+     "n_restored": 1907,
+     "n_read": 58149648,
+     "restore_ms": 6.237,
+     "re_evaluated_tokens": 1,
+     "next_cache_n": 1899,
+     "next_wall_ms": 165.9,
+     "restore_confirms_cold": {
+      "cold_cache_n": 0,
+      "cold_prompt_n": 1900,
+      "cold_prompt_ms": 17957.326
+     },
+     "chat_tokens": 1900
+    }
+   }
+  }
+ },
+ "ram_prompt_cache_control": {
+  "mechanism": "RAM prompt cache, --cache-ram 384, no slot save/restore",
+  "engines": {
+   "600": {
+    "argv": [
+     "/Users/marco/Projects/kalsallama/build/bin/llama-server",
+     "-m",
+     "/Users/marco/Library/Application Support/kalsa-brain/runtime/models/Trinity-Nano-Preview-Q4_K_M.gguf",
+     "--host",
+     "127.0.0.1",
+     "--port",
+     "19314",
+     "--parallel",
+     "1",
+     "--ctx-size",
+     "16384",
+     "--cache-type-k",
+     "q8_0",
+     "--cache-type-v",
+     "q8_0",
+     "--n-gpu-layers",
+     "all",
+     "--threads",
+     "4",
+     "--threads-batch",
+     "4",
+     "--batch-size",
+     "2048",
+     "--ubatch-size",
+     "512",
+     "--no-webui",
+     "-lv",
+     "4",
+     "--cache-ram",
+     "384"
+    ],
+    "port": 19314,
+    "slot_actions_supported": false,
+    "slot_actions_note": "no --slot-save-path, so action=erase returns 501; the slot begins empty, which is all this control needs",
+    "init_line": [
+     "0.04.230.158 I srv    load_model: initializing, n_slots = 1, n_ctx_slot = 16384, kv_unified = 'false'"
+    ],
+    "cache_ram_line": [
+     "0.04.230.228 I srv    load_model: prompt cache is enabled, size limit: 384 MiB",
+     "0.04.230.228 I srv    load_model: use `--cache-ram 0` to disable the prompt cache",
+     "0.04.230.245 I srv          init: idle slots will be saved to prompt cache upon starting a new task"
+    ],
+    "run": {
+     "tag": "size600",
+     "sequence": [
+      {
+       "status": 200,
+       "salt": "set",
+       "wall_ms": 3265.1,
+       "prompt_n": 600,
+       "cache_n": 0,
+       "prompt_ms": 3151.464,
+       "predicted_n": 8,
+       "predicted_per_second": 63.030695948927125,
+       "cache_reused_tokens": 607,
+       "engine_lines": [
+        {
+         "slot": 0,
+         "line": "task -1 | selected slot by id (0)"
+        },
+        {
+         "slot": 0,
+         "line": "task -1 |  - skipping, different cache namespace"
+        },
+        {
+         "slot": 0,
+         "line": "task 0 | different cache namespace - clearing cached prompt"
+        }
+       ],
+       "loadavg": [
+        7.318359375,
+        5.37841796875,
+        5.33154296875
+       ],
+       "label": "A0-cold"
+      },
+      {
+       "status": 200,
+       "salt": "set",
+       "wall_ms": 168.4,
+       "prompt_n": 5,
+       "cache_n": 595,
+       "prompt_ms": 55.752,
+       "predicted_n": 8,
+       "predicted_per_second": 63.817954725719545,
+       "cache_reused_tokens": 607,
+       "engine_lines": [
+        {
+         "slot": 0,
+         "line": "task -1 | selected slot by id (0)"
+        },
+        {
+         "slot": 0,
+         "line": "task 11 | restored context checkpoint (pos_min = 0, pos_max = 595, n_tokens = 596, n_past = 595, size = 12.994 MiB)"
+        }
+       ],
+       "loadavg": [
+        7.318359375,
+        5.37841796875,
+        5.33154296875
+       ],
+       "label": "A1-warm"
+      },
+      {
+       "status": 200,
+       "salt": "set",
+       "wall_ms": 3255.5,
+       "prompt_n": 600,
+       "cache_n": 0,
+       "prompt_ms": 3135.34,
+       "predicted_n": 8,
+       "predicted_per_second": 62.73300831660453,
+       "cache_reused_tokens": 607,
+       "engine_lines": [
+        {
+         "slot": 0,
+         "line": "task -1 | selected slot by id (0)"
+        },
+        {
+         "slot": null,
+         "line": "0.08.143.595 I srv   prompt_save:  - saving prompt with length 607, total state size = 17.650 MiB (draft: 0.000 MiB)"
+        },
+        {
+         "slot": null,
+         "line": "0.08.149.099 I srv  get_availabl: prompt cache update took 5.57 ms"
+        },
+        {
+         "slot": 0,
+         "line": "task 21 | forcing full prompt re-processing due to lack of cache data (likely due to SWA or hybrid/recurrent memory, see https://github.com/ggml-org/llama.cpp/pull/13194#issuecomment-2868343055)"
+        },
+        {
+         "slot": 0,
+         "line": "task 21 | erased invalidated context checkpoint (pos_min = 0, pos_max = 83, n_tokens = 84, n_swa = 2048, pos_next = 0, size = 1.832 MiB)"
+        },
+        {
+         "slot": 0,
+         "line": "task 21 | erased invalidated context checkpoint (pos_min = 0, pos_max = 594, n_tokens = 595, n_swa = 2048, pos_next = 0, size = 12.973 MiB)"
+        },
+        {
+         "slot": 0,
+         "line": "task 21 | erased invalidated context checkpoint (pos_min = 0, pos_max = 595, n_tokens = 596, n_swa = 2048, pos_next = 0, size = 12.994 MiB)"
+        }
+       ],
+       "loadavg": [
+        9.13427734375,
+        5.787109375,
+        5.47607421875
+       ],
+       "label": "B0-switch-away"
+      },
+      {
+       "status": 200,
+       "salt": "set",
+       "wall_ms": 181.7,
+       "prompt_n": 5,
+       "cache_n": 595,
+       "prompt_ms": 60.091,
+       "predicted_n": 8,
+       "predicted_per_second": 61.70554115759595,
+       "cache_reused_tokens": 607,
+       "engine_lines": [
+        {
+         "slot": 0,
+         "line": "task -1 | selected slot by id (0)"
+        },
+        {
+         "slot": null,
+         "line": "0.11.399.427 I srv   prompt_save:  - saving prompt with length 607, total state size = 17.650 MiB (draft: 0.000 MiB)"
+        },
+        {
+         "slot": null,
+         "line": "0.11.402.822 I srv          load:  - found better prompt with f_keep = 0.988, f_sim = 1.000"
+        },
+        {
+         "slot": null,
+         "line": "0.11.404.489 I srv  get_availabl: prompt cache update took 5.12 ms"
+        },
+        {
+         "slot": 0,
+         "line": "task 32 | restored context checkpoint (pos_min = 0, pos_max = 595, n_tokens = 596, n_past = 595, size = 12.994 MiB)"
+        }
+       ],
+       "loadavg": [
+        9.13427734375,
+        5.787109375,
+        5.47607421875
+       ],
+       "label": "A2-switch-back"
+      },
+      {
+       "status": 200,
+       "salt": "set",
+       "wall_ms": 169.3,
+       "prompt_n": 5,
+       "cache_n": 595,
+       "prompt_ms": 55.289,
+       "predicted_n": 8,
+       "predicted_per_second": 62.993826604992705,
+       "cache_reused_tokens": 607,
+       "engine_lines": [
+        {
+         "slot": 0,
+         "line": "task -1 | selected slot by id (0)"
+        },
+        {
+         "slot": 0,
+         "line": "task 42 | restored context checkpoint (pos_min = 0, pos_max = 595, n_tokens = 596, n_past = 595, size = 12.994 MiB)"
+        }
+       ],
+       "loadavg": [
+        9.13427734375,
+        5.787109375,
+        5.47607421875
+       ],
+       "label": "A3-warm-confirm"
+      },
+      {
+       "status": 200,
+       "salt": "set",
+       "wall_ms": 170.3,
+       "prompt_n": 5,
+       "cache_n": 595,
+       "prompt_ms": 55.431,
+       "predicted_n": 8,
+       "predicted_per_second": 63.98946916164653,
+       "cache_reused_tokens": 607,
+       "engine_lines": [
+        {
+         "slot": 0,
+         "line": "task -1 | selected slot by id (0)"
+        },
+        {
+         "slot": null,
+         "line": "0.11.750.980 I srv   prompt_save:  - saving prompt with length 607, total state size = 17.650 MiB (draft: 0.000 MiB)"
+        },
+        {
+         "slot": null,
+         "line": "0.11.752.834 I srv          load:  - found better prompt with f_keep = 0.988, f_sim = 1.000"
+        },
+        {
+         "slot": null,
+         "line": "0.11.753.555 I srv  get_availabl: prompt cache update took 2.64 ms"
+        },
+        {
+         "slot": 0,
+         "line": "task 52 | restored context checkpoint (pos_min = 0, pos_max = 595, n_tokens = 596, n_past = 595, size = 12.994 MiB)"
+        }
+       ],
+       "loadavg": [
+        9.13427734375,
+        5.787109375,
+        5.47607421875
+       ],
+       "label": "B1-switch-away-2"
+      },
+      {
+       "status": 200,
+       "salt": "set",
+       "wall_ms": 166.2,
+       "prompt_n": 5,
+       "cache_n": 595,
+       "prompt_ms": 53.95,
+       "predicted_n": 8,
+       "predicted_per_second": 65.84516978647352,
+       "cache_reused_tokens": 607,
+       "engine_lines": [
+        {
+         "slot": 0,
+         "line": "task -1 | selected slot by id (0)"
+        },
+        {
+         "slot": null,
+         "line": "0.11.921.735 I srv   prompt_save:  - saving prompt with length 607, total state size = 17.650 MiB (draft: 0.000 MiB)"
+        },
+        {
+         "slot": null,
+         "line": "0.11.923.988 I srv          load:  - found better prompt with f_keep = 0.988, f_sim = 1.000"
+        },
+        {
+         "slot": null,
+         "line": "0.11.924.665 I srv  get_availabl: prompt cache update took 3.00 ms"
+        },
+        {
+         "slot": 0,
+         "line": "task 62 | restored context checkpoint (pos_min = 0, pos_max = 595, n_tokens = 596, n_past = 595, size = 12.994 MiB)"
+        }
+       ],
+       "loadavg": [
+        9.13427734375,
+        5.787109375,
+        5.47607421875
+       ],
+       "label": "A4-switch-back-2"
+      }
+     ],
+     "warm_baseline_cache_n": 595,
+     "switch_backs": [
+      {
+       "label": "A2-switch-back",
+       "cache_n": 595,
+       "prompt_n": 5,
+       "prompt_ms": 60.091,
+       "minus_warm_prompt_ms": 4.34,
+       "loadavg": [
+        9.13427734375,
+        5.787109375,
+        5.47607421875
+       ]
+      },
+      {
+       "label": "A4-switch-back-2",
+       "cache_n": 595,
+       "prompt_n": 5,
+       "prompt_ms": 53.95,
+       "minus_warm_prompt_ms": -1.8,
+       "loadavg": [
+        9.13427734375,
+        5.787109375,
+        5.47607421875
+       ]
+      }
+     ],
+     "switch_back_cache_n": 595,
+     "switch_back_prompt_ms": 60.091,
+     "switch_back_minus_warm_prompt_ms": 4.34,
+     "erase_before": 501,
+     "chat_tokens": 600
+    }
+   },
+   "1900": {
+    "argv": [
+     "/Users/marco/Projects/kalsallama/build/bin/llama-server",
+     "-m",
+     "/Users/marco/Library/Application Support/kalsa-brain/runtime/models/Trinity-Nano-Preview-Q4_K_M.gguf",
+     "--host",
+     "127.0.0.1",
+     "--port",
+     "19314",
+     "--parallel",
+     "1",
+     "--ctx-size",
+     "16384",
+     "--cache-type-k",
+     "q8_0",
+     "--cache-type-v",
+     "q8_0",
+     "--n-gpu-layers",
+     "all",
+     "--threads",
+     "4",
+     "--threads-batch",
+     "4",
+     "--batch-size",
+     "2048",
+     "--ubatch-size",
+     "512",
+     "--no-webui",
+     "-lv",
+     "4",
+     "--cache-ram",
+     "384"
+    ],
+    "port": 19314,
+    "slot_actions_supported": false,
+    "slot_actions_note": "no --slot-save-path, so action=erase returns 501; the slot begins empty, which is all this control needs",
+    "init_line": [
+     "0.04.291.032 I srv    load_model: initializing, n_slots = 1, n_ctx_slot = 16384, kv_unified = 'false'"
+    ],
+    "cache_ram_line": [
+     "0.04.291.111 I srv    load_model: prompt cache is enabled, size limit: 384 MiB",
+     "0.04.291.112 I srv    load_model: use `--cache-ram 0` to disable the prompt cache",
+     "0.04.291.128 I srv          init: idle slots will be saved to prompt cache upon starting a new task"
+    ],
+    "run": {
+     "tag": "size1900",
+     "sequence": [
+      {
+       "status": 200,
+       "salt": "set",
+       "wall_ms": 20254.1,
+       "prompt_n": 1900,
+       "cache_n": 0,
+       "prompt_ms": 20099.631,
+       "predicted_n": 8,
+       "predicted_per_second": 47.301132524258726,
+       "cache_reused_tokens": 1907,
+       "engine_lines": [
+        {
+         "slot": 0,
+         "line": "task -1 | selected slot by id (0)"
+        },
+        {
+         "slot": 0,
+         "line": "task -1 |  - skipping, different cache namespace"
+        },
+        {
+         "slot": 0,
+         "line": "task 0 | different cache namespace - clearing cached prompt"
+        }
+       ],
+       "loadavg": [
+        14.2861328125,
+        7.32861328125,
+        6.0439453125
+       ],
+       "label": "A0-cold"
+      },
+      {
+       "status": 200,
+       "salt": "set",
+       "wall_ms": 242.6,
+       "prompt_n": 5,
+       "cache_n": 1895,
+       "prompt_ms": 87.507,
+       "predicted_n": 8,
+       "predicted_per_second": 47.30400935267842,
+       "cache_reused_tokens": 1907,
+       "engine_lines": [
+        {
+         "slot": 0,
+         "line": "task -1 | selected slot by id (0)"
+        },
+        {
+         "slot": 0,
+         "line": "task 11 | restored context checkpoint (pos_min = 0, pos_max = 1895, n_tokens = 1896, n_past = 1895, size = 41.336 MiB)"
+        }
+       ],
+       "loadavg": [
+        14.2861328125,
+        7.32861328125,
+        6.0439453125
+       ],
+       "label": "A1-warm"
+      },
+      {
+       "status": 200,
+       "salt": "set",
+       "wall_ms": 15317.4,
+       "prompt_n": 1900,
+       "cache_n": 0,
+       "prompt_ms": 15145.684,
+       "predicted_n": 8,
+       "predicted_per_second": 47.876014800528,
+       "cache_reused_tokens": 1907,
+       "engine_lines": [
+        {
+         "slot": 0,
+         "line": "task -1 | selected slot by id (0)"
+        },
+        {
+         "slot": null,
+         "line": "0.25.155.479 I srv   prompt_save:  - saving prompt with length 1907, total state size = 55.449 MiB (draft: 0.000 MiB)"
+        },
+        {
+         "slot": null,
+         "line": "0.25.174.104 I srv  get_availabl: prompt cache update took 18.79 ms"
+        },
+        {
+         "slot": 0,
+         "line": "task 21 | forcing full prompt re-processing due to lack of cache data (likely due to SWA or hybrid/recurrent memory, see https://github.com/ggml-org/llama.cpp/pull/13194#issuecomment-2868343055)"
+        },
+        {
+         "slot": 0,
+         "line": "task 21 | erased invalidated context checkpoint (pos_min = 0, pos_max = 1383, n_tokens = 1384, n_swa = 2048, pos_next = 0, size = 30.174 MiB)"
+        },
+        {
+         "slot": 0,
+         "line": "task 21 | erased invalidated context checkpoint (pos_min = 0, pos_max = 1894, n_tokens = 1895, n_swa = 2048, pos_next = 0, size = 41.314 MiB)"
+        },
+        {
+         "slot": 0,
+         "line": "task 21 | erased invalidated context checkpoint (pos_min = 0, pos_max = 1895, n_tokens = 1896, n_swa = 2048, pos_next = 0, size = 41.336 MiB)"
+        }
+       ],
+       "loadavg": [
+        12.302734375,
+        7.22998046875,
+        6.03076171875
+       ],
+       "label": "B0-switch-away"
+      },
+      {
+       "status": 200,
+       "salt": "set",
+       "wall_ms": 253.9,
+       "prompt_n": 5,
+       "cache_n": 1895,
+       "prompt_ms": 87.632,
+       "predicted_n": 8,
+       "predicted_per_second": 47.74865110060641,
+       "cache_reused_tokens": 1907,
+       "engine_lines": [
+        {
+         "slot": 0,
+         "line": "task -1 | selected slot by id (0)"
+        },
+        {
+         "slot": null,
+         "line": "0.40.473.756 I srv   prompt_save:  - saving prompt with length 1907, total state size = 55.449 MiB (draft: 0.000 MiB)"
+        },
+        {
+         "slot": null,
+         "line": "0.40.484.045 I srv          load:  - found better prompt with f_keep = 0.996, f_sim = 1.000"
+        },
+        {
+         "slot": null,
+         "line": "0.40.486.049 I srv  get_availabl: prompt cache update took 12.45 ms"
+        },
+        {
+         "slot": 0,
+         "line": "task 32 | restored context checkpoint (pos_min = 0, pos_max = 1895, n_tokens = 1896, n_past = 1895, size = 41.336 MiB)"
+        }
+       ],
+       "loadavg": [
+        12.302734375,
+        7.22998046875,
+        6.03076171875
+       ],
+       "label": "A2-switch-back"
+      },
+      {
+       "status": 200,
+       "salt": "set",
+       "wall_ms": 235.7,
+       "prompt_n": 5,
+       "cache_n": 1895,
+       "prompt_ms": 83.979,
+       "predicted_n": 8,
+       "predicted_per_second": 48.36057645807138,
+       "cache_reused_tokens": 1907,
+       "engine_lines": [
+        {
+         "slot": 0,
+         "line": "task -1 | selected slot by id (0)"
+        },
+        {
+         "slot": 0,
+         "line": "task 42 | restored context checkpoint (pos_min = 0, pos_max = 1895, n_tokens = 1896, n_past = 1895, size = 41.336 MiB)"
+        }
+       ],
+       "loadavg": [
+        12.302734375,
+        7.22998046875,
+        6.03076171875
+       ],
+       "label": "A3-warm-confirm"
+      },
+      {
+       "status": 200,
+       "salt": "set",
+       "wall_ms": 254.3,
+       "prompt_n": 5,
+       "cache_n": 1895,
+       "prompt_ms": 86.518,
+       "predicted_n": 8,
+       "predicted_per_second": 48.692264885920984,
+       "cache_reused_tokens": 1907,
+       "engine_lines": [
+        {
+         "slot": 0,
+         "line": "task -1 | selected slot by id (0)"
+        },
+        {
+         "slot": null,
+         "line": "0.40.963.618 I srv   prompt_save:  - saving prompt with length 1907, total state size = 55.449 MiB (draft: 0.000 MiB)"
+        },
+        {
+         "slot": null,
+         "line": "0.40.975.713 I srv          load:  - found better prompt with f_keep = 0.996, f_sim = 1.000"
+        },
+        {
+         "slot": null,
+         "line": "0.40.980.692 I srv  get_availabl: prompt cache update took 17.25 ms"
+        },
+        {
+         "slot": 0,
+         "line": "task 52 | restored context checkpoint (pos_min = 0, pos_max = 1895, n_tokens = 1896, n_past = 1895, size = 41.336 MiB)"
+        }
+       ],
+       "loadavg": [
+        12.302734375,
+        7.22998046875,
+        6.03076171875
+       ],
+       "label": "B1-switch-away-2"
+      },
+      {
+       "status": 200,
+       "salt": "set",
+       "wall_ms": 248.7,
+       "prompt_n": 5,
+       "cache_n": 1895,
+       "prompt_ms": 85.707,
+       "predicted_n": 8,
+       "predicted_per_second": 47.767549456473525,
+       "cache_reused_tokens": 1907,
+       "engine_lines": [
+        {
+         "slot": 0,
+         "line": "task -1 | selected slot by id (0)"
+        },
+        {
+         "slot": null,
+         "line": "0.41.218.574 I srv   prompt_save:  - saving prompt with length 1907, total state size = 55.449 MiB (draft: 0.000 MiB)"
+        },
+        {
+         "slot": null,
+         "line": "0.41.225.860 I srv          load:  - found better prompt with f_keep = 0.996, f_sim = 1.000"
+        },
+        {
+         "slot": null,
+         "line": "0.41.227.821 I srv  get_availabl: prompt cache update took 9.40 ms"
+        },
+        {
+         "slot": 0,
+         "line": "task 62 | restored context checkpoint (pos_min = 0, pos_max = 1895, n_tokens = 1896, n_past = 1895, size = 41.336 MiB)"
+        }
+       ],
+       "loadavg": [
+        11.6376953125,
+        7.17626953125,
+        6.0185546875
+       ],
+       "label": "A4-switch-back-2"
+      }
+     ],
+     "warm_baseline_cache_n": 1895,
+     "switch_backs": [
+      {
+       "label": "A2-switch-back",
+       "cache_n": 1895,
+       "prompt_n": 5,
+       "prompt_ms": 87.632,
+       "minus_warm_prompt_ms": 0.12,
+       "loadavg": [
+        12.302734375,
+        7.22998046875,
+        6.03076171875
+       ]
+      },
+      {
+       "label": "A4-switch-back-2",
+       "cache_n": 1895,
+       "prompt_n": 5,
+       "prompt_ms": 85.707,
+       "minus_warm_prompt_ms": -1.8,
+       "loadavg": [
+        11.6376953125,
+        7.17626953125,
+        6.0185546875
+       ]
+      }
+     ],
+     "switch_back_cache_n": 1895,
+     "switch_back_prompt_ms": 87.632,
+     "switch_back_minus_warm_prompt_ms": 0.12,
+     "erase_before": 501,
+     "chat_tokens": 1900
+    }
+   }
+  }
+ },
+ "answers": {
+  "same_salt_next_request_warm_without_swa_full": true,
+  "same_salt_next_request_warm_with_swa_full": true,
+  "saltless_next_request_warm_without_swa_full": true,
+  "saltless_next_request_warm_with_swa_full": true,
+  "cold_arms": [],
+  "mechanism_if_cold": "the restore clears slot.prompt.cache_salt; a cold arm carrying a salt means the namespace was not stamped back, and the engine's own log says `different cache namespace - clearing cached prompt`",
+  "derived": {
+   "swa_full_off_600_salted": {
+    "n_restored": 607,
+    "next_cache_n": 595,
+    "re_evaluated_tokens": 5,
+    "file_bytes": 32135692,
+    "warm": true
+   },
+   "swa_full_off_600_unsalted": {
+    "n_restored": 607,
+    "next_cache_n": 595,
+    "re_evaluated_tokens": 5,
+    "file_bytes": 32135692,
+    "warm": true
+   },
+   "swa_full_off_1900_salted": {
+    "n_restored": 1907,
+    "next_cache_n": 1895,
+    "re_evaluated_tokens": 5,
+    "file_bytes": 101493292,
+    "warm": true
+   },
+   "swa_full_off_1900_unsalted": {
+    "n_restored": 1907,
+    "next_cache_n": 1895,
+    "re_evaluated_tokens": 5,
+    "file_bytes": 101493292,
+    "warm": true
+   },
+   "swa_full_on_600_salted": {
+    "n_restored": 607,
+    "next_cache_n": 599,
+    "re_evaluated_tokens": 1,
+    "file_bytes": 18510048,
+    "warm": true
+   },
+   "swa_full_on_600_unsalted": {
+    "n_restored": 607,
+    "next_cache_n": 599,
+    "re_evaluated_tokens": 1,
+    "file_bytes": 18510048,
+    "warm": true
+   },
+   "swa_full_on_1900_salted": {
+    "n_restored": 1907,
+    "next_cache_n": 1899,
+    "re_evaluated_tokens": 1,
+    "file_bytes": 58149648,
+    "warm": true
+   },
+   "swa_full_on_1900_unsalted": {
+    "n_restored": 1907,
+    "next_cache_n": 1899,
+    "re_evaluated_tokens": 1,
+    "file_bytes": 58149648,
+    "warm": true
+   }
+  }
+ }
+}

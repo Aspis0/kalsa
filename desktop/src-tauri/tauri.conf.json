@@ -1,0 +1,55 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Kalsa",
+  "identifier": "ai.kalsa.brain",
+  "build": {
+    "frontendDist": "../chat/dist",
+    "beforeDevCommand": "npm --prefix ../chat run dev",
+    "beforeBuildCommand": "npm --prefix ../chat run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Kalsa",
+        "width": 1000,
+        "height": 720,
+        "minWidth": 720,
+        "minHeight": 480,
+        "resizable": true,
+        "backgroundThrottling": "disabled"
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:* http://localhost:*; img-src 'self' blob:; media-src 'self' blob:"
+    },
+    "withGlobalTauri": true
+  },
+  "bundle": {
+    "active": true,
+    "createUpdaterArtifacts": true,
+    "targets": ["app", "dmg", "nsis"],
+    "icon": ["icons/Assets.car", "icons/icon.icns", "icons/icon.ico"],
+    "macOS": {
+      "signingIdentity": "-"
+    },
+    "windows": {
+      "nsis": {
+        "installerHooks": "windows/hooks.nsh",
+        "languages": ["English", "Italian", "Spanish", "French", "SimpChinese"]
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEMyN0Q0QzM5MzkyOEMzNTAKUldSUXd5ZzVPVXg5d20xTlRoMjYwbWI5LzZacE1NUy9SZEY0RjdFUUpYYmhWeTBqc1BqWlBJYVYK",
+      "endpoints": [
+        "https://kalsa.io/download/update/REPLACE_WITH_UPDATE_KEY/{{target}}/{{arch}}/{{current_version}}"
+      ],
+      "requireSignedVersion": true,
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
+}

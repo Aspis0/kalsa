@@ -1,0 +1,83 @@
+{
+ "label": "CLIFF2-B4",
+ "port": 18361,
+ "phones": 2,
+ "turns": 3,
+ "doc_words": 3400,
+ "n_predict": 72,
+ "wall_s": 1.0,
+ "metrics": {
+  "max_processing": 0,
+  "max_deferred": 0,
+  "samples": 0,
+  "deferred_samples": 0
+ },
+ "requests": [
+  {
+   "ttft_ms": null,
+   "total_ms": 42,
+   "prompt_tokens": null,
+   "cached_tokens": null,
+   "cache_n": null,
+   "completion_tokens": null,
+   "error": "HTTPError: HTTP Error 400: Bad Request",
+   "phone": 0,
+   "turn": 0
+  },
+  {
+   "ttft_ms": null,
+   "total_ms": 15,
+   "prompt_tokens": null,
+   "cached_tokens": null,
+   "cache_n": null,
+   "completion_tokens": null,
+   "error": "HTTPError: HTTP Error 400: Bad Request",
+   "phone": 0,
+   "turn": 1
+  },
+  {
+   "ttft_ms": null,
+   "total_ms": 24,
+   "prompt_tokens": null,
+   "cached_tokens": null,
+   "cache_n": null,
+   "completion_tokens": null,
+   "error": "HTTPError: HTTP Error 400: Bad Request",
+   "phone": 0,
+   "turn": 2
+  },
+  {
+   "ttft_ms": null,
+   "total_ms": 42,
+   "prompt_tokens": null,
+   "cached_tokens": null,
+   "cache_n": null,
+   "completion_tokens": null,
+   "error": "HTTPError: HTTP Error 400: Bad Request",
+   "phone": 1,
+   "turn": 0
+  },
+  {
+   "ttft_ms": null,
+   "total_ms": 16,
+   "prompt_tokens": null,
+   "cached_tokens": null,
+   "cache_n": null,
+   "completion_tokens": null,
+   "error": "HTTPError: HTTP Error 400: Bad Request",
+   "phone": 1,
+   "turn": 1
+  },
+  {
+   "ttft_ms": null,
+   "total_ms": 24,
+   "prompt_tokens": null,
+   "cached_tokens": null,
+   "cache_n": null,
+   "completion_tokens": null,
+   "error": "HTTPError: HTTP Error 400: Bad Request",
+   "phone": 1,
+   "turn": 2
+  }
+ ]
+}

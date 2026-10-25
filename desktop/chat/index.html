@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- No remote loads, ever: images and media self-only plus blob: —
+         the app's own object URLs (pictures this computer re-encoded and
+         stored, minted in-page, never a remote origin),
+         connections self-only plus this computer's own server and Tauri's IPC
+         channel — never a remote origin. This list must match
+         `app.security.csp` in src-tauri/tauri.conf.json: the webview enforces
+         the intersection of the two, so a policy here that is wider than that
+         one is a lie, not a permission.
+         scripts/csp-consistency.mjs fails when the two drift.
+         Inline scripts and styles are for the DEV SERVER only: Vite's
+         React-refresh preamble (an inline module script) and its style
+         injection need them there. The built page has no inline script or
+         style at all — the entry ships as one external module script — and
+         `app.security.csp` in src-tauri/tauri.conf.json carries no
+         'unsafe-inline', so the intersection drops both in a built binary,
+         where nothing needs them (real XSS defense is markdown escaping plus
+         never rendering remote images). -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline'; img-src 'self' blob:; media-src 'self' blob:; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:* http://localhost:*; style-src 'self' 'unsafe-inline'; object-src 'none'; frame-src 'none'; base-uri 'self'"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Crescent Chat</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

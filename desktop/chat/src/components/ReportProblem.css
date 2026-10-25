@@ -1,0 +1,109 @@
+/* The report card, shared by the Help page and the crash screen (mockups
+   10-help-report*, 18-dialogs-crash). The privacy sentence is the large green
+   line the owner asked for; it is one sentence, so it stays one card. */
+
+.report-card {
+  display: flex;
+  flex-direction: column;
+  padding: 24px 26px;
+  color: var(--tx);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  text-align: left;
+}
+
+.report-title {
+  margin: 0 0 10px;
+  font-family: var(--font-display);
+  font-size: 21px;
+  line-height: 28px;
+  font-weight: 650;
+}
+
+.report-privacy {
+  display: flex;
+  margin: 0;
+  align-items: flex-start;
+  gap: 12px;
+  color: var(--ac-tx);
+  font-size: 19px;
+  line-height: 28px;
+  font-weight: 600;
+}
+
+.report-privacy .icon {
+  flex: none;
+  margin-top: 4px;
+}
+
+.report-facts {
+  margin: 10px 0 0;
+  color: var(--tx2);
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.report-actions {
+  display: flex;
+  margin-top: 20px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.report-btn {
+  display: inline-flex;
+  height: 50px;
+  padding: 0 22px;
+  align-items: center;
+  gap: 8px;
+  color: var(--tx);
+  background: transparent;
+  border: 1.5px solid var(--line);
+  border-radius: 25px;
+  font-family: var(--font-ui);
+  font-size: 17px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.report-btn:hover:not(:disabled) {
+  border-color: var(--ac);
+}
+
+.report-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.report-btn:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.report-btn-primary {
+  color: var(--ac-ink);
+  background: var(--ac);
+  border-color: var(--ac);
+}
+
+.report-sent {
+  display: inline-flex;
+  margin: 0;
+  align-items: center;
+  gap: 8px;
+  color: var(--ac-tx);
+  font-size: 17px;
+  font-weight: 650;
+  user-select: text;
+}
+
+.report-error {
+  margin: 0;
+  color: var(--err-ink);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+}

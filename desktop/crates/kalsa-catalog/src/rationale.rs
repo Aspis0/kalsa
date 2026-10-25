@@ -1,0 +1,402 @@
+//! The words that travel with a decision, in two registers.
+//!
+//! The plain reason is for the person reading the screen: what the offer
+//! means for them, in sentences they can hear without asking what a word
+//! means. The details are for whoever wants the working — the same facts,
+//! with the numbers, the caveats and the provenance. Both stay honest: a
+//! caveat may live only in the details, but it may not vanish.
+
+use crate::candidate::{too_slow_to_use, Candidate, Prediction};
+use crate::choice::{CapabilityBasis, ChoiceInput, Justification, PhoneModel};
+use crate::footprint::{MemoryBudget, GIB};
+
+/// One or two sentences for the user: what the offer means for them. No
+/// jargon, no internals, no numbers — the shell can show it as-is, and
+/// everything technical lives in [`details`].
+pub(crate) fn plain_reason(justification: Justification) -> String {
+    match justification {
+        Justification::Capability(CapabilityBasis::PublishedDenseEquivalent { .. }) => {
+            // The publisher's own comparison travels with the row, source
+            // and all: a confident sentence is earned here.
+            "This is a clear step up from what your phone runs: a bigger, stronger model."
+                .to_string()
+        }
+        // This basis is a parameter ratio over what the phone itself
+        // reported: bigger is known, better was never measured, and the
+        // sentence says exactly that. No promise to measure — nothing in
+        // the app runs the bake-off that could keep one.
+        Justification::Capability(CapabilityBasis::Parameters) => {
+            "This is a bigger model than your phone runs. We have not measured whether \
+             it is better."
+                .to_string()
+        }
+        // Same restraint as the arm above, for the same reason: "and we will"
+        // stood here promising the bake-off, and no script in this repo runs
+        // one. A sentence may say what is not known; it may not commit the
+        // product to work nothing schedules.
+        Justification::ExpectedButUnmeasured => {
+            "This should be better than what your phone runs. We have not checked it on \
+             this computer."
+                .to_string()
+        }
+        // The relief words follow the two sizes, and the selection did not
+        // move: the band's floor already decided this candidate is worth
+        // offering, and only the size claim is at stake.
+        Justification::Relief { same_class: true } => {
+            "This is about as good as what your phone already runs, but doing the work \
+             here keeps the heat and the battery drain off your phone."
+                .to_string()
+        }
+        Justification::Relief { same_class: false } => {
+            "This is a much bigger model than your phone runs. We have not measured \
+             whether it is better, but doing the work here keeps the heat and the \
+             battery drain off your phone."
+                .to_string()
+        }
+    }
+}
+
+/// The full working, for whoever asks: speeds as ranges, floors as floors,
+/// what was assumed, what is still missing, and where each claim came from.
+pub(crate) fn details(
+    chosen: &Candidate<'_>,
+    input: &ChoiceInput,
+    phone: &PhoneModel,
+    budget: MemoryBudget,
+    justification: Justification,
+) -> String {
+    // The context this working is about: the row's own priced window, so
+    // every sentence about the cache names the context it was charged at.
+    let context = chosen.entry.priced_context(input.context_tokens);
+    // The head names the model as the user knows it, never by repo or quant:
+    // those are ours, and this sentence is the user's. The shape of the
+    // number decides the shape of the sentence: a floor gets words only —
+    // tonight a floor figure was wrong by twenty times in front of the user,
+    // so the formatter is not allowed digits for it — and a measurement
+    // names the machine it was taken on.
+    let mut parts = vec![match chosen.decode {
+        Prediction::Floor(_) => format!(
+            "{} ({} of weights): decoding and prompt-processing speeds on this machine \
+             have not been measured — the probe runs on the CPU, the model will decode \
+             on a faster path, and any figure here would be a guess. Both will be \
+             measured on this machine.",
+            chosen.entry.display_name,
+            gib_text(chosen.entry.weights_bytes)
+        ),
+        Prediction::Measured {
+            tokens_per_second,
+            machine,
+        } => format!(
+            "{} ({} of weights): {:.1} tokens per second, as measured on {} — and \
+             prompt processing on this machine not yet measured.",
+            chosen.entry.display_name,
+            gib_text(chosen.entry.weights_bytes),
+            tokens_per_second,
+            machine
+        ),
+        _ => {
+            // Prefill is always the compute floor: it reaches the screen as
+            // an "at least", never as the ≈ of an estimate.
+            let prefill = match chosen.prefill {
+                Prediction::Estimate(value) => format!("at least {value:.1}"),
+                ref other => render(other),
+            };
+            // The caller may be pricing the cache at a single token so that
+            // no context anyone chose excludes a row. That figure is the
+            // best case with an empty conversation, and it has to say so:
+            // the page's own headline is priced at a real exchange and is
+            // lower, and two speeds for one model that do not say which is
+            // which read as one of them being wrong.
+            let cache = if context <= 1 {
+                " with an empty conversation"
+            } else {
+                ""
+            };
+            format!(
+                "{} ({} of weights): about {} tokens per second{}, and {} for prompt \
+                 processing.",
+                chosen.entry.display_name,
+                gib_text(chosen.entry.weights_bytes),
+                render(&chosen.decode),
+                cache,
+                prefill
+            )
+        }
+    }];
+
+    if chosen.entry.parameters.is_mixture() {
+        parts.push(format!(
+            "It is a mixture of experts: only {} of its {} parameters are read per token, \
+             which is why decoding is quick. Prompt processing is limited by compute rather \
+             than by bandwidth, so its own estimate above is what it will feel like.",
+            billions(chosen.entry.parameters.active().count()),
+            billions(chosen.entry.parameters.total().count())
+        ));
+    }
+
+    // Why it is being offered at all, with the provenance a reviewer can
+    // check: the same facts the Justification data carries.
+    parts.push(match justification {
+        Justification::Capability(CapabilityBasis::Parameters) => {
+            "It is offered on capability: it is meaningfully more model than your phone \
+             runs, not merely comparable to it."
+                .to_string()
+        }
+        Justification::Capability(CapabilityBasis::PublishedDenseEquivalent {
+            parameters,
+            note,
+            source,
+        }) => {
+            format!(
+                "It is offered on capability, by the publisher's own comparison: {} places \
+                 it near a dense model of {} parameters ({}), which is meaningfully more \
+                 model than your phone runs.",
+                source,
+                billions(parameters),
+                note
+            )
+        }
+        Justification::ExpectedButUnmeasured => {
+            "It is expected to be more model than your phone runs, but nothing published \
+             settles a mixture-of-experts model against a dense one of the same total, so \
+             it will be measured on this machine before it is called an upgrade."
+                .to_string()
+        }
+        Justification::Relief { same_class: true } => {
+            "It is offered for relief rather than capability: the model is comparable to \
+             what your phone already runs, and doing the work here keeps the heat and the \
+             battery drain off a phone that is on battery."
+                .to_string()
+        }
+        Justification::Relief { same_class: false } => {
+            "It is offered for relief rather than capability: the model is much bigger \
+             than what your phone runs — bigger without a measurement is not better — \
+             and doing the work here keeps the heat and the battery drain off a phone \
+             that is on battery."
+                .to_string()
+        }
+    });
+
+    // A sourced equivalence travels with its row even when the offer rests on
+    // something weaker than it; only the publisher-route capability already
+    // speaks for itself.
+    if let Some(equivalent) = chosen.entry.dense_equivalent {
+        if !matches!(
+            justification,
+            Justification::Capability(CapabilityBasis::PublishedDenseEquivalent { .. })
+        ) {
+            parts.push(format!(
+                "Its publisher places it near a dense model of {} parameters: {} ({}).",
+                billions(equivalent.parameters),
+                equivalent.note,
+                equivalent.source
+            ));
+        }
+    }
+
+    if let Some(slowest) = too_slow_to_use(input, &budget, chosen) {
+        parts.push(format!(
+            "A bigger model fits in this machine, but the numbers say it would run at about \
+             {} tokens per second: slower than reading, so it is not offered.",
+            render(&slowest)
+        ));
+    }
+
+    parts.push(match phone.measured_tokens_per_second {
+        // Both numbers, no verdict: one is measured and one is a range, and
+        // calling a winner would be claiming a precision neither of them has.
+        Some(phone_speed) => format!(
+            "Your phone's own model does about {:.0} tokens per second, against that range.",
+            phone_speed
+        ),
+        None => "Your phone has not reported its own speed, so that half of the comparison \
+                 is missing."
+            .to_string(),
+    });
+
+    if !budget.gpu_accounted_for {
+        parts.push(
+            "This machine's graphics could not be detected, so the budget is system RAM \
+             and whatever the machine has is not accounted for."
+                .to_string(),
+        );
+    }
+
+    if chosen.footprint.kv_is_assumed(chosen.entry) {
+        parts.push(format!(
+            "Memory is an estimate: the cache per token for this model has not been measured \
+             yet, so {} per token was assumed, and a {}-token context costs {}.",
+            size_text(chosen.footprint.kv_bytes / context.max(1)),
+            context,
+            size_text(chosen.footprint.kv_bytes)
+        ));
+    }
+
+    parts.join(" ")
+}
+
+pub(crate) fn gib_text(bytes: u64) -> String {
+    size_text(bytes)
+}
+
+/// One formatter, because there is only one question: which shape is it? A
+/// range prints with an en dash, an estimate prints with ≈ — and a floor
+/// prints NO figure at all: its number has been wrong by twenty times in
+/// front of a user, so the type's words are all it may say. A degenerate
+/// band (a failed measurement would make one) renders harmlessly instead of
+/// taking the app down.
+pub(crate) fn render(prediction: &Prediction) -> String {
+    match *prediction {
+        Prediction::Range { low, high } if high >= 10.0 => format!("{:.0}–{:.0}", low, high),
+        Prediction::Range { low, high } => format!("{:.1}–{:.1}", low, high),
+        Prediction::Floor(_) => "a decoding speed not yet measured on this machine".to_string(),
+        Prediction::Estimate(value) => format!("≈ {:.1}", value),
+        Prediction::Measured {
+            tokens_per_second,
+            machine,
+        } => format!("{tokens_per_second:.1} tok/s on {machine} (measured)"),
+    }
+}
+
+fn billions(count: u64) -> String {
+    format!("{:.1}B", count as f64 / 1e9)
+}
+
+/// Sizes in the unit that reads: a cache of 96 KiB is not "0.0 GiB".
+fn size_text(bytes: u64) -> String {
+    const MIB: u64 = 1024 * 1024;
+    const KIB: u64 = 1024;
+    if bytes >= GIB {
+        format!("{:.1} GiB", bytes as f64 / GIB as f64)
+    } else if bytes >= MIB {
+        format!("{} MiB", bytes / MIB)
+    } else {
+        format!("{} KiB", bytes / KIB)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_assumed_cache_is_admitted_in_the_sentence() {
+        // Every shipped row carries its own per-token figure now, so the
+        // admission needs a fixture: the research row with no measurement,
+        // built through the same candidate the chooser builds, must say what
+        // was assumed and what the window costs. The pick tests promise this
+        // sentence never appears on a measured row; without this test nothing
+        // proves it still appears at all.
+        let entry = crate::manifest::CATALOG
+            .iter()
+            .find(|row| row.repo == "Qwen/Qwen3.5-4B")
+            .expect("a research row with no measured cache");
+        let usable = crate::manifest::UsableEntry::for_test(entry);
+        let input = ChoiceInput {
+            backend: crate::Backend::Cpu,
+            ram_bytes: 16 * GIB,
+            bandwidth_bytes_per_second: 85.0e9,
+            bandwidth_is_lower_bound: false,
+            compute_flops_per_second: 100.0e9,
+            context_tokens: 8_192,
+            phone: None,
+        };
+        let chosen = crate::candidate::candidate(usable, &input);
+        let budget = crate::footprint::memory_budget(input.backend, input.ram_bytes);
+        let phone = PhoneModel {
+            weights_bytes: 2_834_975_040,
+            parameters: Some(crate::parameters::Parameters::dense(4_000_000_000)),
+            measured_tokens_per_second: None,
+            battery_powered: Some(true),
+        };
+        // What justification() decides for this fixture: 2.81 GiB against a
+        // 2.83 GB phone sits inside the class, so the comparable wording is
+        // the honest one here.
+        let justification = Justification::Relief { same_class: true };
+        let text = details(&chosen, &input, &phone, budget, justification);
+        assert!(text.contains("Memory is an estimate"), "{text}");
+        assert!(text.contains("has not been measured yet"), "{text}");
+        assert!(text.contains("per token was assumed"), "{text}");
+    }
+
+    #[test]
+    fn a_floor_prints_words_and_a_range_prints_its_band() {
+        // The shape is decided by the type, not by the caller picking a
+        // formatter: one render, and a floor can never wear a figure —
+        // tonight's floor was wrong by twenty times in front of the user.
+        let floor = render(&Prediction::Floor(3.0));
+        assert!(!floor.chars().any(|c| c.is_ascii_digit()), "{floor}");
+        assert_eq!(floor, "a decoding speed not yet measured on this machine");
+        assert_eq!(
+            render(&Prediction::Range {
+                low: 25.4,
+                high: 32.6
+            }),
+            "25–33"
+        );
+        assert_eq!(
+            render(&Prediction::Range {
+                low: 0.5,
+                high: 0.7
+            }),
+            "0.5–0.7",
+            "below ten, a decimal"
+        );
+        assert_eq!(render(&Prediction::Estimate(16.7)), "≈ 16.7");
+        let measured = render(&Prediction::Measured {
+            tokens_per_second: 62.7,
+            machine: "M1 Max",
+        });
+        assert!(
+            measured.contains("62.7") && measured.contains("M1 Max"),
+            "{measured}"
+        );
+    }
+
+    #[test]
+    fn a_degenerate_band_renders_harmlessly() {
+        // A failed measurement would produce a zero band. It must print, not
+        // panic: formatting code never takes the app down in front of a user.
+        assert_eq!(
+            render(&Prediction::Range {
+                low: 0.0,
+                high: 0.0
+            }),
+            "0.0–0.0"
+        );
+    }
+
+    #[test]
+    fn the_two_capability_bases_do_not_share_a_sentence() {
+        // One basis is the publisher's own comparison; the other is a
+        // parameter ratio. Two backings behind one word like "clear" is how
+        // a placeholder starts reading as a measurement.
+        let published = plain_reason(Justification::Capability(
+            CapabilityBasis::PublishedDenseEquivalent {
+                parameters: 3_800_000_000,
+                note: "near Phi-3 mini",
+                source: "model card",
+            },
+        ));
+        let counted = plain_reason(Justification::Capability(CapabilityBasis::Parameters));
+        assert_ne!(published, counted, "one sentence, two backings");
+        assert_ne!(
+            counted,
+            plain_reason(Justification::ExpectedButUnmeasured),
+            "a different state must not wear the same words either"
+        );
+        // What is known on the counted basis is bigger — the phone reported
+        // its parameters — and that word must be there. The not-known part
+        // must be admitted in words, not implied away. The banned list is
+        // claim words only: "measured" now reads the honest way, in "we
+        // have not measured", and banning the token would ban the admission.
+        assert!(counted.contains("bigger"), "{counted}");
+        assert!(counted.contains("not measured"), "{counted}");
+        for overclaim in ["clear", "stronger"] {
+            assert!(
+                !counted.to_ascii_lowercase().contains(overclaim),
+                "the counted basis claims `{overclaim}`: {counted}"
+            );
+        }
+    }
+}

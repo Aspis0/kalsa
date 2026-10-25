@@ -1,0 +1,300 @@
+//! Negotiating the resume with the server: what we ask for, and which
+//! answers count as an answer.
+//!
+//! The part file is append-only truth, so a resume may only append a body
+//! that provably continues it: a 206 whose `Content-Range` starts exactly at
+//! the offset we asked for. A 200 to the Range request — the server ignored
+//! it — and a 206 that starts anywhere else get the same treatment: one
+//! fresh request, from zero, overwriting the part file rather than gluing a
+//! foreign body onto our prefix.
+//!
+//! The connection is built here too, with the clocks the wire is held to —
+//! including the resolver's, which ureq itself does not apply (see
+//! [`crate::resolve`]).
+
+use std::io;
+use std::net::SocketAddr;
+use std::time::Duration;
+
+use crate::resolve::{deadline_resolver, std_lookup, RESOLVE_DEADLINE};
+use crate::DownloadError;
+
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
+// Thirty seconds allows several TCP retransmission backoffs; it detects
+// silence too long for ordinary recovery, not a slow connection.
+pub(crate) const DEFAULT_READ_TIMEOUT: Duration = Duration::from_secs(30);
+
+/// Asks for the suffix at `resume_from` and checks the answer against the
+/// header we sent. Returns the response and the offset its body starts at.
+pub fn connect(url: &str, resume_from: u64) -> Result<(ureq::Response, u64), DownloadError> {
+    connect_with_read_timeout(url, resume_from, DEFAULT_READ_TIMEOUT)
+}
+
+pub(crate) fn connect_with_read_timeout(
+    url: &str,
+    resume_from: u64,
+    read_timeout: Duration,
+) -> Result<(ureq::Response, u64), DownloadError> {
+    connect_with_lookup(url, resume_from, read_timeout, RESOLVE_DEADLINE, std_lookup)
+}
+
+/// The connect with its clocks and its lookup handed in: the read clock is
+/// the resume's, the resolver's is the one ureq cannot apply, and the lookup
+/// is whatever the caller wants held to that clock — a test hands in a
+/// sleeper and a short deadline and never opens a socket.
+pub(crate) fn connect_with_lookup(
+    url: &str,
+    resume_from: u64,
+    read_timeout: Duration,
+    resolve_deadline: Duration,
+    lookup: impl Fn(&str) -> io::Result<Vec<SocketAddr>> + Send + Sync + 'static,
+) -> Result<(ureq::Response, u64), DownloadError> {
+    let agent = ureq::AgentBuilder::new()
+        .timeout_connect(CONNECT_TIMEOUT)
+        .timeout_read(read_timeout)
+        // Only a request line and headers are ever written, so bounding
+        // writes cannot touch a download's body — and a peer that accepts
+        // no bytes would otherwise hang here before any read could start.
+        .timeout_write(CONNECT_TIMEOUT)
+        .resolver(deadline_resolver(resolve_deadline, lookup))
+        .build();
+    if resume_from > 0 {
+        let response = send(&agent, url, Some(resume_from))?;
+        match response.status() {
+            // Range ignored: the body is the whole file.
+            200 => return Ok((response, 0)),
+            206 => match response
+                .header("Content-Range")
+                .and_then(content_range_start)
+            {
+                Some(at) if at == resume_from => return Ok((response, resume_from)),
+                // Missing or lying: whatever this body is, it does not
+                // continue our file.
+                _ => {}
+            },
+            code if code >= 400 => return Err(http_error(code)),
+            code => return Err(unusable_status(code)),
+        }
+    }
+    let response = send(&agent, url, None)?;
+    let start = match response.status() {
+        200 => 0,
+        // A 206 to a request with no Range is a broken server; its body may
+        // only be used if it claims to start at zero.
+        206 => response
+            .header("Content-Range")
+            .and_then(content_range_start)
+            .filter(|at| *at == 0)
+            .ok_or_else(|| unusable_status(206))?,
+        code if code >= 400 => return Err(http_error(code)),
+        code => return Err(unusable_status(code)),
+    };
+    Ok((response, start))
+}
+
+fn send(
+    agent: &ureq::Agent,
+    url: &str,
+    range: Option<u64>,
+) -> Result<ureq::Response, DownloadError> {
+    let mut request = agent.get(url);
+    if let Some(at) = range {
+        // No If-Range alongside this, on purpose: we persist no ETag from the
+        // first request, so any validator here would be fabricated — and a
+        // made-up one silently converts every resume into a full restart.
+        // The sha256 gate in `verify` is what catches a URL whose content
+        // changed underneath our prefix.
+        request = request.set("Range", &format!("bytes={at}-"));
+    }
+    request.call().map_err(|e| match e {
+        // ureq hands a 4xx/5xx back as an error, not a response: a real
+        // 403 or 429 must not wear the connection's sentence, which is
+        // what a blanket map_err here once did.
+        ureq::Error::Status(code, _) => DownloadError::Refused { status: code },
+        ureq::Error::Transport(t) => match t.kind() {
+            // The wire itself — DNS, connect refused or timed out (TLS
+            // handshake and reset included: ureq reports them as
+            // ConnectionFailed), socket I/O and mid-body silence — leaves
+            // no HTTP answer to judge. Every remaining kind (BadStatus,
+            // BadHeader, the proxy and url faults) means an exchange
+            // happened or the request was ours to get wrong: those keep
+            // `Network`'s retry advice and stay out of the network-block
+            // classification.
+            ureq::ErrorKind::Dns
+            | ureq::ErrorKind::ConnectionFailed
+            | ureq::ErrorKind::Io => DownloadError::Unreachable(io::Error::new(
+                io::ErrorKind::Other,
+                format!("{:?}: {}", t.kind(), t),
+            )),
+            kind => DownloadError::Network(io::Error::new(
+                io::ErrorKind::Other,
+                format!("{:?}: {}", kind, t),
+            )),
+        },
+    })
+}
+
+/// Start offset of a `Content-Range: bytes N-M/T` header value, or None when
+/// absent or unintelligible — and None is treated as "not a continuation".
+fn content_range_start(value: &str) -> Option<u64> {
+    let rest = value.trim().strip_prefix("bytes")?.trim_start();
+    let range = rest.split('/').next()?;
+    range.split('-').next()?.parse().ok()
+}
+
+/// An HTTP status is the publisher refusing the download — an answer, not
+/// a transport failure — so it carries its own kind: the sentence for a
+/// dropped connection would be false, and resuming is not what it calls
+/// for.
+fn http_error(code: u16) -> DownloadError {
+    DownloadError::Refused { status: code }
+}
+
+/// An HTTP status this code cannot use that is NOT a refusal: a 2xx that is
+/// neither 200 nor 206, a 3xx that arrived terminal (ureq already follows
+/// redirects, so one that reaches here is a broken exchange), a 206 whose
+/// Content-Range cannot be placed. The origin allowed the request in every
+/// one of those, so `Refused`'s sentence would be false; `Network`'s retry
+/// is the honest advice.
+fn unusable_status(code: u16) -> DownloadError {
+    DownloadError::Network(io::Error::new(
+        io::ErrorKind::InvalidInput,
+        format!("unusable HTTP status {code}"),
+    ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::httptest::{self, RangeMode};
+    use std::path::PathBuf;
+
+    const SPLIT: u64 = 1024 * 1024;
+
+    fn scratch(name: &str) -> PathBuf {
+        let dir =
+            std::env::temp_dir().join(format!("kalsa-download-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("mkdir");
+        dir
+    }
+
+    fn payload(len: usize) -> Vec<u8> {
+        (0..len).map(|i| (i % 251) as u8).collect()
+    }
+
+    #[test]
+    fn a_content_range_is_parsed_or_distrusted() {
+        assert_eq!(content_range_start("bytes 123-456/789"), Some(123));
+        assert_eq!(content_range_start("bytes 0-0/1"), Some(0));
+        assert_eq!(content_range_start("bytes */789"), None);
+        assert_eq!(content_range_start("garbage"), None);
+        assert_eq!(content_range_start(""), None);
+    }
+
+    #[test]
+    fn a_name_that_never_answers_is_the_network_block_within_the_deadline() {
+        // The owner's black hole, at the resolver itself: a lookup that
+        // sleeps past its clock. No socket exists to hang on, and the answer
+        // the clock gives is the wire's — the classification the engine
+        // decision's network-block sentence reads.
+        let deadline = Duration::from_millis(250);
+        let slow = |_netloc: &str| -> io::Result<Vec<SocketAddr>> {
+            std::thread::sleep(Duration::from_secs(2));
+            Ok(vec![])
+        };
+        let started = std::time::Instant::now();
+        let err = connect_with_lookup(
+            "http://names-that-never-answer.invalid/model.gguf",
+            0,
+            DEFAULT_READ_TIMEOUT,
+            deadline,
+            slow,
+        )
+        .expect_err("a name that never answers must fail");
+        let elapsed = started.elapsed();
+        assert!(
+            elapsed < deadline + Duration::from_millis(750),
+            "the resolver's clock is the bound: {elapsed:?} for a {deadline:?} deadline"
+        );
+        assert!(err.is_network(), "the network-block fact: {err:?}");
+    }
+
+    #[test]
+    fn an_http_status_is_a_refusal_not_a_dropped_connection() {
+        // A 403 or a 429 is the publisher answering; only the transport
+        // half may ride `Network`, whose sentence says the connection
+        // dropped.
+        assert!(matches!(http_error(403), DownloadError::Refused { status: 403 }));
+        assert!(matches!(http_error(429), DownloadError::Refused { status: 429 }));
+        assert_eq!(
+            http_error(503).to_string(),
+            "the server refused the download: HTTP 503"
+        );
+    }
+
+    #[test]
+    fn a_real_403_over_the_wire_is_a_refusal_not_a_dropped_connection() {
+        // ureq hands a 4xx back as an Err, so the old blanket map_err —
+        // every error to `Network` — turned a live 403 into "the
+        // connection dropped", and only this path through the real
+        // request can catch that.
+        let dir = scratch("range-wire-refused");
+        let server = httptest::serve(payload(64), RangeMode::Refused);
+        let err = connect(&server.url, 0).expect_err("a 403 is an error");
+        assert!(
+            matches!(err, DownloadError::Refused { status: 403 }),
+            "{err:?}"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn an_unplaceable_206_is_not_a_refusal() {
+        // A 206 whose Content-Range starts nowhere we can use answered a
+        // request the origin allowed: `Refused`'s sentence would be false,
+        // so it rides `Network` with its retry advice.
+        let dir = scratch("range-misplaced");
+        let server = httptest::serve(payload(64), RangeMode::Misplaced);
+        let err = connect(&server.url, 0).expect_err("a misplaced 206 is an error");
+        assert!(
+            matches!(&err, DownloadError::Network(e) if e.kind() == io::ErrorKind::InvalidInput),
+            "{err:?}"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_terminal_304_is_not_a_refusal() {
+        // ureq follows redirects, so a 304 that arrives as the answer is a
+        // broken exchange, not the publisher refusing: the connection
+        // sentence's retry is the honest advice.
+        let dir = scratch("range-not-modified");
+        let server = httptest::serve(payload(64), RangeMode::NotModified);
+        let err = connect(&server.url, 0).expect_err("a terminal 304 is an error");
+        assert!(
+            matches!(&err, DownloadError::Network(e) if e.kind() == io::ErrorKind::InvalidInput),
+            "{err:?}"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_lying_206_gets_a_fresh_request_not_an_appended_body() {
+        let dir = scratch("range-lie");
+        let data = payload(3 * SPLIT as usize);
+        let server = httptest::serve(data, RangeMode::Lie);
+        // The fixture answers 206 with a Content-Range that starts past the
+        // prefix we asked to resume; trusting it would glue on a wrong
+        // suffix. The right answer is to ask again from zero.
+        let (response, start) = connect(&server.url, SPLIT).expect("negotiate");
+        assert_eq!(start, 0, "a mismatched Content-Range is not a continuation");
+        assert_eq!(response.status(), 200);
+        assert_eq!(
+            *server.requests.lock().expect("requests"),
+            vec![Some(SPLIT), None],
+            "the mismatched answer must be replaced by a fresh request"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}

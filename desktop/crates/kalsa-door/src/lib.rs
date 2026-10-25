@@ -1,0 +1,756 @@
+//! The authenticated door in front of the local inference server.
+//!
+//! The caller supplies both the already-bound listener and the upstream port;
+//! this crate never chooses a network interface. Construction refuses any
+//! listener whose address is not loopback, so the door is safe to speak plain
+//! HTTP because it never leaves this machine. Tailscale Serve supplies TLS on
+//! the tailnet road, and iroh supplies QUIC confidentiality on its road; the
+//! transports, not this local HTTP hop, protect traffic crossing the network.
+//!
+//! A bearer credential per paired device is therefore enough at this
+//! boundary: both intended roads are confidential and replay-proof before
+//! they reach the door. This
+//! must not be read as permission to expose the listener directly on a LAN or
+//! the public Internet — with one exception, earned elsewhere: the iroh road
+//! (`kalsa-iroh`) terminates its tunnel on this listener, and that road is
+//! reachable by strangers. The door answers them with its short head
+//! patience (`proxy`) and per-peer budgets live in the road itself; the
+//! credential, not reachability, is still what opens the upstream.
+//!
+//! The acceptor and queue are bounded. Each connection has one absolute
+//! deadline beginning at accept, and workers relay bytes without buffering a
+//! response, so SSE reaches the client as the upstream emits it.
+//!
+//! An event-stream answer is different in one way: it becomes a job. The
+//! door numbers every event (`id: <token>:<index>`, the standard SSE id the
+//! client echoes back as `Last-Event-ID`) and accumulates them while the
+//! generation runs, so the answer belongs to the door, not to the socket
+//! that happened to ask for it. A phone that disappears mid-answer leaves
+//! the generation running; when it comes back and sends its last seen id,
+//! the door replays what it missed and then follows the tail live — in
+//! order, without duplicates and without holes. Resuming asks for the same
+//! bearer credential as everything else and the same unguessable token the
+//! one device alone was shown; a job answers to the device that started it
+//! and nobody else, and it dies with
+//! the door that started it: no stopped server ever keeps a job promising
+//! that more of an answer is coming.
+//!
+//! The door also serves two routes of its own, under `/kalsa/`: opening one of
+//! a device's chats and erasing one. They are not a passthrough — the engine's
+//! own `/slots` routes stay refused to every client — so that a client names a
+//! conversation and the door, which owns the device-to-slot map, names the file
+//! and holds the slot for the whole save/restore (`paging`).
+//!
+//! The model being released while an answer is alive is not a door event:
+//! the server releases its weights only when idle, and a generating request
+//! is the opposite of idle, so a release can never cut a live job. What the
+//! door can observe is the upstream dying or going silent — a crash, a
+//! supervisor stop, a restart behind the door — and for all of those the
+//! job fails with one honest sentence, kept for the retention window so a
+//! returning phone is told the truth instead of being kept waiting.
+
+mod audit;
+mod chat;
+mod chunk;
+mod clocks;
+mod cors;
+mod devices;
+mod engine;
+mod jobs;
+mod media;
+mod paging;
+mod payload;
+mod proxy;
+mod queue;
+mod request;
+mod response;
+mod registry;
+mod room;
+mod server;
+mod slot_routes;
+mod slots;
+mod sse;
+mod stream;
+mod timings;
+mod token;
+
+#[cfg(test)]
+mod tests;
+
+pub use chat::{ChatEvent, Opened, PhoneChat};
+pub use devices::{DeviceEntry, DeviceId, Devices};
+pub use room::guest_entry;
+/// The device id the room's AI guest sits at: the reserved top of the
+/// range, above every id a pairing store mints.
+pub const ROOM_DEVICE: u32 = u32::MAX;
+pub use slots::EnginePrivateHeaders;
+pub(crate) use slots::{DeviceSet, LeaseError, SlotLease};
+
+use std::collections::HashMap;
+use std::fmt;
+use std::io;
+use std::path::PathBuf;
+use std::time::{Duration, Instant};
+use std::net::{SocketAddr, TcpListener};
+use std::sync::atomic::AtomicBool;
+use std::sync::{Arc, Mutex};
+use std::thread::JoinHandle;
+
+use kalsa_supervisor::EngineKey;
+
+const TOKEN_BYTES: usize = 64;
+const WORKERS: usize = 4;
+const QUEUE: usize = 8;
+const MAX_CONNECTIONS: usize = WORKERS + QUEUE;
+/// How long one read of the engine may block before the relay wakes up to
+/// look at the door and its client. A wake-up, not a verdict: the engine is
+/// legitimately silent between prefill reports and between tokens on a slow
+/// computer, and only the answer's own limits (see `clocks`) end the wait.
+const PATIENCE: std::time::Duration = std::time::Duration::from_secs(10);
+pub(crate) const HEAD_PATIENCE: Duration = Duration::from_secs(15);
+const CONNECTION_LIFETIME: std::time::Duration = std::time::Duration::from_secs(300);
+/// How long a finished answer stays resumable after its last event. A phone
+/// may be away for minutes; it is not away forever.
+const JOB_RETENTION: std::time::Duration = std::time::Duration::from_secs(600);
+/// Jobs alive at once, running plus kept. Running ones cannot exceed the
+/// workers; this roof exists so kept answers alone can never grow without
+/// bound either.
+const MAX_JOBS: usize = 64;
+/// The most memory one answer may accumulate. A whole completion is tens of
+/// kilobytes; reaching this roof means something is wrong, and the job
+/// fails loudly instead of silently dropping what it could not keep.
+const MAX_JOB_BYTES: usize = 2 * 1024 * 1024;
+/// How often the reaper looks for kept answers past their retention.
+const REAP_INTERVAL: std::time::Duration = std::time::Duration::from_secs(60);
+/// The refusal: an empty body whose length says so, and the origin headers
+/// for the origin it was asked from when that origin is one the desktop can
+/// have — a browser that cannot read the refusal is told the request failed
+/// at the network, which is not what happened and is not something the app
+/// can act on.
+pub(crate) fn unauthorized_response(origin: Option<&[u8]>) -> Vec<u8> {
+    let origin_headers = cors::origin_headers(origin);
+    format!(
+        "HTTP/1.1 401 Unauthorized\r\n{origin_headers}Content-Length: 0\r\nConnection: close\r\n\r\n"
+    )
+    .into_bytes()
+}
+/// The answer for a connection the door never got to read: pressure, not
+/// authentication, and the words must not say "unauthorized". It is the one
+/// answer that stays a constant, because it is written before any head exists
+/// — there is no origin to name and nothing in it can vary by one. The same
+/// answer for a request whose head WAS read is [`busy_response`].
+pub(crate) const BUSY_RESPONSE: &[u8] =
+    b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+
+/// The same answer as [`BUSY_RESPONSE`] for a request the door has already
+/// read: every job slot holds an answer that has not finished, so no answer
+/// can start. The same status and the same empty body; the origin headers are
+/// on it because this one is written with the request's head in hand.
+pub(crate) fn busy_response(origin: Option<&[u8]>) -> Vec<u8> {
+    let origin_headers = cors::origin_headers(origin);
+    format!(
+        "HTTP/1.1 503 Service Unavailable\r\n{origin_headers}Content-Length: 0\r\nConnection: close\r\n\r\n"
+    )
+    .into_bytes()
+}
+
+/// The answer for an authenticated device with no seat: every seat the
+/// engine funds is holding an in-flight request. Seats follow demand (see
+/// `slots`), so this is pressure, not planning — a device beyond the seat
+/// count takes its turn when a seat goes idle, and the request answered
+/// here is one that arrived while every seat was mid-flight. It is the
+/// door's own 503, with the count and one honest sentence — deliberately
+/// not [`BUSY_RESPONSE`] (which carries no body and means pressure at the
+/// listener) and deliberately not `refuse` (which is 401-only, for a
+/// credential the door does not know). Like the refusal, it names the
+/// browser's origin when there is one.
+pub(crate) fn no_slot_response(capacity: u32, origin: Option<&[u8]>) -> Vec<u8> {
+    // "1 devices" is the kind of thing that makes a sentence read like a
+    // machine wrote it, and this one is the whole answer a phone will see.
+    let seats = if capacity == 1 {
+        "1 device".to_string()
+    } else {
+        format!("{capacity} devices")
+    };
+    let words = format!(
+        "This computer is set up for {seats} at once, and every seat is busy right now. \
+         When a conversation finishes, try again."
+    );
+    let origin_headers = cors::origin_headers(origin);
+    format!(
+        "HTTP/1.1 503 Service Unavailable\r\n{origin_headers}\
+         Content-Type: text/plain; charset=utf-8\r\n\
+         Content-Length: {}\r\nConnection: close\r\n\r\n{words}",
+        words.len()
+    )
+    .into_bytes()
+}
+/// The answer for a body past the door's cap: the head parser refuses it
+/// before a byte of the body is read, and the honest code is the one that says
+/// the size — not the unauthorized refusal a head the door cannot trust gets.
+/// The origin is named when the head carried one, so a browser is allowed to
+/// read this answer instead of reporting a network failure.
+pub(crate) fn too_large_response(origin: Option<&[u8]>) -> Vec<u8> {
+    let body = serde_json::json!({
+        "error": {
+            "message": format!(
+                "The request body is larger than the {} MiB this door accepts.",
+                request::MAX_BODY / (1024 * 1024)
+            ),
+            "type": "invalid_request_error",
+            "code": 413,
+        }
+    })
+    .to_string();
+    let origin_headers = cors::origin_headers(origin);
+    format!(
+        "HTTP/1.1 413 Payload Too Large\r\n{origin_headers}Content-Type: application/json\r\n\
+         Content-Length: {}\r\nConnection: close\r\n\r\n{body}",
+        body.len()
+    )
+    .into_bytes()
+}
+/// The upstream the door could not reach, answered rather than left hanging —
+/// and answered after the head was read, so this one names the origin too.
+pub(crate) fn upstream_failure_response(origin: Option<&[u8]>) -> Vec<u8> {
+    let origin_headers = cors::origin_headers(origin);
+    format!(
+        "HTTP/1.1 502 Bad Gateway\r\n{origin_headers}Content-Length: 0\r\nConnection: close\r\n\r\n"
+    )
+    .into_bytes()
+}
+
+type ResponseObserver = Arc<dyn Fn(&[u8]) + Send + Sync>;
+type ResponseObserverFactory = Arc<dyn Fn() -> ResponseObserver + Send + Sync>;
+
+/// A construction failure. `NonLoopback` is separate so callers cannot turn
+/// an unsafe binding into a normal I/O failure by accident.
+#[derive(Debug)]
+pub enum DoorError {
+    Listener(io::Error),
+    NonLoopback(SocketAddr),
+    InvalidCredential,
+    /// A door that can serve nobody: `capacity` was zero.
+    CapacityZero,
+    /// `capacity > 1` was asked for without an engine declared to read the
+    /// door's private headers. Fail loudly: silently serving more devices
+    /// than the engine can keep apart is the wrap this door exists to stop.
+    CapacityWithoutHeaderSupport { capacity: u32 },
+    /// The upstream the door was told to forward to is the port it listens
+    /// on: every request would forward to itself, with no error line, until
+    /// the worker and queue budgets saturate. Refused where the argument is
+    /// still in hand.
+    UpstreamIsListener { port: u16 },
+    /// The model identity the disk tier names its files by is not eight
+    /// lowercase hex characters. The value is deliberately not carried in the
+    /// error: the caller meant to hand over a digest, and a malformed one may
+    /// be something else entirely.
+    InvalidModelHash,
+    Thread(io::Error),
+}
+
+impl fmt::Display for DoorError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Listener(error) => write!(f, "door listener: {error}"),
+            Self::NonLoopback(address) => write!(f, "door listener is not loopback: {address}"),
+            Self::InvalidCredential => f.write_str("door credential is invalid"),
+            Self::CapacityZero => f.write_str("door capacity must be at least one"),
+            Self::CapacityWithoutHeaderSupport { capacity } => write!(
+                f,
+                "door capacity {capacity} needs an engine that reads \
+                 X-Kalsa-Slot and X-Kalsa-Cache-Salt"
+            ),
+            Self::UpstreamIsListener { port } => write!(
+                f,
+                "door upstream port {port} is the port the door listens on"
+            ),
+            Self::InvalidModelHash => f.write_str("door model hash is not 8 hex characters"),
+            Self::Thread(error) => write!(f, "door thread: {error}"),
+        }
+    }
+}
+
+impl std::error::Error for DoorError {}
+
+/// A validated, not-yet-started door.
+pub struct Door {
+    listener: TcpListener,
+    address: SocketAddr,
+    upstream_port: u16,
+    devices: Arc<DeviceSet>,
+    /// How many devices the engine can serve at once. The same value as the
+    /// `--parallel` the launcher renders, passed through as data: the door
+    /// never derives it from the set, the count, or anything else.
+    capacity: u32,
+    head_patience: Duration,
+    /// The per-slot context the launch funded, named by the app from the
+    /// launch record the way it names the disk tier's halves.
+    slot_context: Option<u64>,
+    /// The limits on the engine's answers and on queueing; the product's
+    /// unless a test gives this door shorter ones.
+    clocks: clocks::Clocks,
+    /// The disk tier's two halves, both the app's to supply and both absent
+    /// until it does: the model identity a saved chat's name carries and the
+    /// directory the engine writes into. A door without them serves every
+    /// route it always did and refuses the two chat routes with a spoken
+    /// reason, never in silence.
+    model_hash: Option<String>,
+    slot_dir: Option<PathBuf>,
+    /// The tier's clock: how quiet a dirty slot has to be before the app's tick
+    /// writes it out, derived by the app from the unload clock the engine was
+    /// launched with (`kalsa_launch::idle_save_seconds`). Absent, the tier
+    /// saves on a switch and never on a timer.
+    idle_save: Option<Duration>,
+    response_observer: Option<ResponseObserverFactory>,
+    /// The room this door serves under `/kalsa/room/`, with the device id
+    /// the host seats. `None` — the door built by a caller that has not
+    /// opened one — answers every room route with one honest sentence.
+    room: Option<Arc<room::RoomDoor>>,
+    /// The app's side of the phone's chat. Absent, the chat routes answer 404
+    /// and the phone falls back to the old path.
+    phone_chat: Option<Arc<dyn PhoneChat>>,
+    /// The app's key for the engine this door forwards to. Required, not
+    /// optional: the engine refuses its routes without it (only `/health`,
+    /// `/v1/health` and UI assets are public), and a door built without one
+    /// would be a door quietly talking to a port that any web page can also
+    /// drive.
+    engine_key: Arc<EngineKey>,
+}
+
+/// The engine key a test's door hands its fake upstream. Minted per call and
+/// never read: the tests that care read the header off the wire, which is the
+/// only place it is ever written.
+#[cfg(test)]
+pub(crate) fn a_key() -> EngineKey {
+    EngineKey::mint().expect("the OS has randomness")
+}
+
+/// The devices with a connection currently being served. Presence, not
+/// history: a device is counted once per connection, exactly while the door
+/// is inside its request. Ids only — a credential never comes near this,
+/// and there is deliberately no `Debug`.
+pub(crate) struct ActiveDevices {
+    counts: Mutex<HashMap<DeviceId, usize>>,
+}
+
+impl ActiveDevices {
+    pub(crate) fn new() -> Self {
+        Self {
+            counts: Mutex::new(HashMap::new()),
+        }
+    }
+
+    /// Marks the device active until the returned guard drops — on the
+    /// request's every ending path, an unwind included.
+    pub(crate) fn enter(&self, device: DeviceId) -> ActiveGuard<'_> {
+        *self.lock().entry(device).or_insert(0) += 1;
+        ActiveGuard { devices: self, device }
+    }
+
+    /// The active devices, smallest id first: a list the reader can render
+    /// without being handed whatever order a hash map keeps.
+    pub(crate) fn snapshot(&self) -> Vec<DeviceId> {
+        let mut ids: Vec<DeviceId> = self.lock().keys().copied().collect();
+        ids.sort();
+        ids
+    }
+
+    fn lock(&self) -> std::sync::MutexGuard<'_, HashMap<DeviceId, usize>> {
+        self.counts
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+}
+
+pub(crate) struct ActiveGuard<'a> {
+    devices: &'a ActiveDevices,
+    device: DeviceId,
+}
+
+impl Drop for ActiveGuard<'_> {
+    fn drop(&mut self) {
+        let mut counts = self.devices.lock();
+        if let Some(count) = counts.get_mut(&self.device) {
+            *count -= 1;
+            if *count == 0 {
+                counts.remove(&self.device);
+            }
+        }
+    }
+}
+
+/// The running door. Dropping it stops and joins its bounded thread set.
+pub struct RunningDoor {
+    stop: Arc<AtomicBool>,
+    address: SocketAddr,
+    devices: Arc<DeviceSet>,
+    active: Arc<ActiveDevices>,
+    /// The disk tier's own state, and the port the engine listens on: the
+    /// timed save calls the engine as the door does, so both come from the
+    /// door that was started, never from a caller and never from a constant.
+    chats: Arc<paging::Chats>,
+    upstream_port: u16,
+    /// The engine's key, carried the same way the port is: the disk tier
+    /// calls the engine from this struct, so this is where it finds out.
+    engine_key: Arc<EngineKey>,
+    /// The line the accept loop fills. Shutdown closes it to end every
+    /// worker's wait, and it lives here rather than in the accept thread
+    /// because that thread is one of the things still blocked.
+    queue: Arc<queue::Queue<server::Work>>,
+    /// Where the wake connect goes: the address the listener actually bound.
+    /// A test points it at a port nothing holds, to prove that a wake which
+    /// cannot land still ends in a bounded shutdown.
+    wake: SocketAddr,
+    /// How many times the accept loop went round. Behind `cfg(test)` so the
+    /// idle-wakeup test can count the loop's turns instead of trusting a
+    /// clock.
+    #[cfg(test)]
+    accept_passes: Arc<std::sync::atomic::AtomicUsize>,
+    threads: Mutex<Vec<JoinHandle<()>>>,
+    /// The room this door serves and the workers' shared state, when the
+    /// caller gave the door a room: the pieces its driver needs, kept so
+    /// the app can drive the host's own calls without the HTTP door.
+    room: Option<Arc<crate::room::RoomDoor>>,
+    shared: Option<Arc<crate::proxy::Shared>>,
+}
+
+impl Door {
+    /// Validate the caller's bound listener and retain the set of paired
+    /// devices. The set already validated itself when it was built; the
+    /// door does not know where it came from, and the running door's set
+    /// changes only through [`RunningDoor::set_devices`].
+    ///
+    /// No engine is declared, so this door serves exactly one device:
+    /// `capacity > 1` is refused loudly rather than served silently. A
+    /// caller whose engine reads the private headers uses
+    /// [`Door::new_with_engine`].
+    pub fn new(
+        listener: TcpListener,
+        upstream_port: u16,
+        devices: Devices,
+        capacity: u32,
+        engine_key: &EngineKey,
+    ) -> Result<Self, DoorError> {
+        Self::new_with_engine(
+            listener,
+            upstream_port,
+            devices,
+            capacity,
+            EnginePrivateHeaders::NotConsumed,
+            engine_key,
+        )
+    }
+
+    /// The door with an explicit engine declaration. `capacity > 1` is
+    /// refused unless the engine is declared to read the door's private
+    /// headers: against an engine that ignores them, more than one device is
+    /// auto-scheduled into the same slot, and the door would be promising an
+    /// isolation the engine does not provide. The refusal is an error at
+    /// construction — fail loudly, never in silence.
+    pub fn new_with_engine(
+        listener: TcpListener,
+        upstream_port: u16,
+        devices: Devices,
+        capacity: u32,
+        engine: EnginePrivateHeaders,
+        engine_key: &EngineKey,
+    ) -> Result<Self, DoorError> {
+        if capacity == 0 {
+            return Err(DoorError::CapacityZero);
+        }
+        if capacity > 1 && engine != EnginePrivateHeaders::Consumed {
+            return Err(DoorError::CapacityWithoutHeaderSupport { capacity });
+        }
+        let address = listener.local_addr().map_err(DoorError::Listener)?;
+        if !address.ip().is_loopback() {
+            return Err(DoorError::NonLoopback(address));
+        }
+        if upstream_port == address.port() {
+            return Err(DoorError::UpstreamIsListener { port: upstream_port });
+        }
+        listener
+            .set_nonblocking(false)
+            .map_err(DoorError::Listener)?;
+        Ok(Self {
+            listener,
+            address,
+            upstream_port,
+            devices: Arc::new(DeviceSet::new(devices, capacity)),
+            capacity,
+            head_patience: HEAD_PATIENCE,
+            model_hash: None,
+            slot_dir: None,
+            idle_save: None,
+            response_observer: None,
+            room: None,
+            phone_chat: None,
+            slot_context: None,
+            clocks: clocks::Clocks::default(),
+            engine_key: Arc::new(engine_key.clone()),
+        })
+    }
+
+    /// Replace how long a worker waits for a complete request head before
+    /// taking the connection off its slot. Production keeps the default;
+    /// tests shrink it, the way they shrink the tunnel's deadlines.
+    pub fn with_head_patience(mut self, head_patience: Duration) -> Self {
+        self.head_patience = head_patience;
+        self
+    }
+
+    /// The model identity the disk tier names a chat's file by: the first
+    /// eight hex characters of the catalog row's pinned sha256, which the app
+    /// has — the digest the download verified — and the door does not, because
+    /// `kalsa-catalog` is a dev-dependency here. Refused unless it is exactly
+    /// that: a name built from a hash the app did not mean would be a name no
+    /// later launch could find again.
+    pub fn with_model_hash(mut self, hash8: &str) -> Result<Self, DoorError> {
+        let hex = |byte: u8| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte);
+        if hash8.len() != 8 || !hash8.bytes().all(hex) {
+            return Err(DoorError::InvalidModelHash);
+        }
+        self.model_hash = Some(hash8.to_string());
+        Ok(self)
+    }
+
+    /// The directory the engine was launched with (`--slot-save-path`), which
+    /// is where the disk tier keeps a chat and where the engine is told to
+    /// write one. The door does not create or check it: the app does, before
+    /// the launch, and a directory that is not there fails the first action
+    /// loudly rather than silently.
+    pub fn with_slot_dir(mut self, dir: PathBuf) -> Self {
+        self.slot_dir = Some(dir);
+        self
+    }
+
+    /// The quiet a dirty slot is allowed before the tick writes it out. It is
+    /// the app's to derive, because the unload clock is the app's to set: a
+    /// fixed interval would lose the turn of every device whose owner lowered
+    /// the clock below it, and the point of this timer is that it always fires
+    /// first.
+    pub fn with_idle_save(mut self, idle_save: Duration) -> Self {
+        self.idle_save = Some(idle_save);
+        self
+    }
+
+    /// The room served under `/kalsa/room/`, and the device id this
+    /// computer's own user seats in it — the room's name and the host's
+    /// default display name come from that device's label. A door built
+    /// without a room serves nothing under the prefix.
+    ///
+    /// The room's name comes from the host device's label; the room's AI
+    /// guest is seated by the caller, with [`guest_entry`] added where the
+    /// device set was built — the host's seat is the host's private chat,
+    /// and a guest does not borrow it.
+    pub fn with_room(mut self, room: Arc<kalsa_room::Room>, host: DeviceId) -> Self {
+        self.room = Some(Arc::new(room::RoomDoor::new(room, host)));
+        self
+    }
+
+    /// The app's side of the phone's chat: its window runs the phone's turns and
+    /// answers its mail reads and sends. A door built without one answers the
+    /// chat routes with 404.
+    pub fn with_phone_chat(mut self, hook: Arc<dyn PhoneChat>) -> Self {
+        self.phone_chat = Some(hook);
+        self
+    }
+
+    /// The per-slot context the engine was launched with, in tokens
+    /// (`--ctx-size / --parallel`), so the room's turns spend at most a
+    /// stated share of the slot their seat holds. A door without one
+    /// serves turns at the fallback budget — the honest smaller number,
+    /// never a guess at a slot nobody named.
+    pub fn with_slot_context(mut self, per_slot_tokens: u64) -> Self {
+        self.slot_context = Some(per_slot_tokens);
+        self
+    }
+
+    /// This door with shorter clocks, so a test of a limit costs a second, not
+    /// minutes. Only this door: the clocks are not shared with any other.
+    #[cfg(test)]
+    pub(crate) fn with_clocks(mut self, clocks: clocks::Clocks) -> Self {
+        self.clocks = clocks;
+        self
+    }
+
+    /// Build a per-connection observer for response bytes after forwarding.
+    /// Each observer must stay small and incremental: the door never buffers
+    /// an SSE body and separate responses never share parser state.
+    pub fn with_response_observer<F, O>(mut self, factory: F) -> Self
+    where
+        F: Fn() -> O + Send + Sync + 'static,
+        O: Fn(&[u8]) + Send + Sync + 'static,
+    {
+        self.response_observer = Some(Arc::new(move || Arc::new(factory()) as ResponseObserver));
+        self
+    }
+
+    /// Start the acceptor and its fixed worker pool.
+    pub fn start(self) -> Result<RunningDoor, DoorError> {
+        server::start(self)
+    }
+}
+
+impl RunningDoor {
+    /// The address the handed-in listener actually bound. Callers use this
+    /// value to configure the outer transport; it is never reconstructed from
+    /// a preferred port or an address remembered before binding.
+    pub fn address(&self) -> SocketAddr {
+        self.address
+    }
+
+    /// Which devices currently have a connection being served, smallest id
+    /// first. This is a transport fact, not a guess based on whether a
+    /// credential exists; who the devices are is the app's translation.
+    pub fn active_devices(&self) -> Vec<DeviceId> {
+        self.active.snapshot()
+    }
+
+    /// Writes out every slot that a completion has changed since it was last
+    /// saved, and answers how many were written. This is the tier's second
+    /// trigger, and it is what an unload cannot take away: the engine releases
+    /// the slot — and the state in it — after `--sleep-idle-seconds` idle, so
+    /// a turn that no switch ever saved would go with the release. The caller
+    /// owns the clock and it must be shorter than that one; the door owns the
+    /// save, because the door owns the slot, the device and the salt.
+    ///
+    /// The call is in-process, not a route: no client asks for it, no HTTP
+    /// head carries it, and the residency — which the caller never says — is
+    /// the door's own map. A slot that is clean or not named as resident is
+    /// not touched, and a save the engine refuses is simply still owed.
+    ///
+    /// `now` is the tick's own instant. It is passed in rather than read here
+    /// so the caller's clock is the only one that decides, which is what lets
+    /// a test prove "the quiet has not lasted" without sleeping.
+    pub fn save_idle(&self, now: Instant) -> usize {
+        self.chats
+            .save_idle(&self.devices, self.upstream_port, &self.engine_key, now)
+    }
+
+    /// What the app's tick calls when the supervisor says the engine no longer
+    /// holds what the map may claim: its model was released, or the server
+    /// died announcing nothing. Every `Resident` slot becomes `Evicted` with
+    /// its chat still named, so the next request of that device restores the
+    /// chat's file, and the next activation restores it instead of no-oping
+    /// against a released model.
+    ///
+    /// Observed on the ticker's thread, not by `brain_state`: that command is
+    /// polled by the webview, and with no poll nobody would ever invalidate —
+    /// the door, the map and the timer would outlive the engine.
+    pub fn invalidate_residency(&self, sample: &[u64]) {
+        self.chats.invalidate_residency(sample);
+    }
+
+    /// The claim counts for [`Self::invalidate_residency`]. Read it before the
+    /// supervisor's release is read, so a claim made in between is never
+    /// demoted by a release it outlived.
+    pub fn residency_sample(&self) -> Vec<u64> {
+        self.chats.residency_sample()
+    }
+
+    /// The app's clean quit calls this while the engine still runs, before it
+    /// stops the engine: the turns since the resident chat's last timer save
+    /// are written out, so the next start does not restore a stale file. The
+    /// caller owns the budget, which bounds the engine calls and the wait for
+    /// a slot a restore holds. Not on `Drop`: a door dropped after its engine
+    /// is gone would wait out the budget for a save nothing can answer.
+    pub fn save_on_quit(&self, budget: Duration) {
+        self.chats.save_on_quit(&self.devices, self.upstream_port, &self.engine_key, budget);
+    }
+
+    /// Replaces the credential set without stopping anything: the listener
+    /// stays bound, the workers keep serving, the road never notices.
+    ///
+    /// The two sides of the swap are not symmetric, on purpose. Adding a
+    /// device disturbs nobody — the next request from it authenticates, and
+    /// every exchange already in flight keeps its bytes. Removing a device
+    /// revokes it: every later request is refused outright, and an exchange
+    /// of the revoked device that is mid-flight right now is CUT at the
+    /// next relay check. The owner's forget outranks the tail of an answer
+    /// the device streamed for before it was revoked; the alternative —
+    /// letting a revoked credential pull the rest of its answer — is the
+    /// one outcome revocation cannot mean.
+    pub fn set_devices(&self, devices: Devices) {
+        self.devices.swap(devices);
+        // This is the moment a file becomes an orphan: a revoked device's
+        // names parse to an id the new set no longer holds. Sweeping here
+        // rather than on the tick is deliberate (see `paging::sweep`) — and
+        // the race with a save already in flight for the revoked device is
+        // benign by the sweep's own rule: it never touches a name whose
+        // device is still in the set, so the worst it can leave behind is a
+        // revoked device's file the in-flight rename recreates, taken by the
+        // next sweep — and the next sweep is not around the corner: the only
+        // two moments are this set change and the next construction of a
+        // door, so such a file sits until the next set change or the next
+        // start of the door.
+        self.chats.sweep(&self.devices);
+    }
+
+    /// Starts the room's driver for a call the room's queue already took.
+    /// The desktop's host posts through the app, not through the door's
+    /// HTTP routes, so the running door is the one piece that can turn the
+    /// call into a turn. `false` when this door hosts no room: the caller
+    /// owes the refusal, and nothing was queued for a driver that does not
+    /// exist.
+    pub fn drive_room_turn(&self, member: kalsa_room::MemberId, turn: u64) -> bool {
+        match (&self.room, &self.shared) {
+            (Some(room), Some(shared)) => {
+                crate::room::turn::spawn(room, shared, member, turn);
+                true
+            }
+            _ => false,
+        }
+    }
+
+    /// Stop accepting and wait for the bounded thread set to leave.
+    pub fn shutdown(&self) {
+        self.stop.store(true, std::sync::atomic::Ordering::SeqCst);
+        // Three waits a stop flag alone cannot end: the acceptor sits in a
+        // blocking accept, and the workers and the sweeper sleep on the line's
+        // condvar. Closing the line wakes the sleepers; the connect is the
+        // wake the acceptor takes, and it carries nothing.
+        self.queue.close();
+        let woken = server::wake(self.wake);
+        let threads = self
+            .threads
+            .lock()
+            .ok()
+            .map(|mut threads| std::mem::take(&mut *threads));
+        // A wake that did not land is news only while the acceptor is still
+        // in the door. A door stopped twice — the app's own stop, then the
+        // `Drop` its `Arc` makes later — and one whose acceptor had already
+        // left both answer a refused connect with no thread left to wait.
+        if !woken && threads.as_deref().is_some_and(server::acceptor_waiting) {
+            log::warn!(
+                "the door could not be woken at {}: its acceptor may still be waiting and will not come back",
+                self.wake
+            );
+        }
+        if let Some(threads) = threads {
+            server::stop_threads(threads);
+        }
+    }
+
+    /// Points the wake connect at another address. Tests only: a port with
+    /// nothing on it is the one way to exercise a wake that cannot land.
+    #[cfg(test)]
+    pub(crate) fn point_wake_at(&mut self, address: SocketAddr) {
+        self.wake = address;
+    }
+
+    /// How many turns the accept loop has taken. An idle door's acceptor
+    /// waits in `accept`, so the count stands still instead of climbing with a
+    /// poll. Tests only.
+    #[cfg(test)]
+    pub(crate) fn accept_passes(&self) -> usize {
+        self.accept_passes
+            .load(std::sync::atomic::Ordering::SeqCst)
+    }
+}
+
+impl Drop for RunningDoor {
+    fn drop(&mut self) {
+        self.shutdown();
+    }
+}

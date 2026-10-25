@@ -1,0 +1,262 @@
+# Kalsa Brain
+
+Desktop app that lets a phone use the computer it already owns as its model.
+The user installs one thing and answers no questions: the app measures the
+machine, decides what it can usefully run, fetches it, and serves it to the
+phone.
+
+The React chat in `chat/` is the desktop frontend, over a set of small crates
+that each decide one thing and can be tested without hardware.
+
+The plan behind it is the product spec; this README is only how to build and
+test what exists today.
+
+## Layout
+
+```
+crates/kalsa-supervisor/   the inference server's lifetime: spawn, readiness,
+                           shutdown, and recognising our own orphan instead of
+                           killing a stranger that inherited its pid
+crates/kalsa-probe/        what this machine can do, measured once: memory
+                           bandwidth to a plateau, compute, and which backend
+                           will really run. Every number carries the execution
+                           path it describes, because one that does not is how
+                           a CPU-only figure was read as the whole Mac
+crates/kalsa-catalog/      which model this machine should run, and why - pure,
+                           no hardware, no I/O, no download
+crates/kalsa-download/     getting a model file here once, safely: resumable,
+                           digest-verified before it is published under its
+                           final name, and refusing rather than filling a disk
+crates/kalsa-runtime/      which server build this machine needs, and proving it
+                           runs before any weights are fetched
+crates/kalsa-door/         the authenticated door in front of the local server:
+                           one bearer credential per paired device, bounded
+                           head patience, and an SSE answer that survives the
+                           phone vanishing and coming back
+crates/kalsa-files/        the user's own files for the picker: read-only
+                           listing and search over the whole disk - names,
+                           sizes, dates - and never a write
+crates/kalsa-iroh/         the second road to the door: a hole-punched QUIC
+                           tunnel with a relay of last resort, every wait
+                           bounded, an upstream API change a compile error in
+                           one file
+crates/kalsa-launch/       the exact arguments llama-server gets: context sized
+                           to what the KV cache fits after the weights, threads
+                           at the measured plateau capped at the physical
+                           cores, offload all or nothing
+crates/kalsa-pairing/      the ceremony behind the pairing square: one-time
+                           codes, the completion handshake, the offered /
+                           claimed / paired machine, and the credential that
+                           is the phone's only way in
+crates/kalsa-reuse/        whether the weights are already on this machine: a
+                           digest-verified look inside the ollama, LM Studio
+                           and Hugging Face stores, an optimization allowed to
+                           fail into "not found"
+crates/kalsa-sentinel/     the sustainability guard: it reads throughput decay
+                           because temperature needs a driver it cannot sign
+                           or license, and answers decay with a ladder of
+                           gentler settings, each announced, each reversible
+crates/kalsa-tune/         which launch settings run fastest on this machine
+                           with this model: measured, never assumed — the
+                           candidates worth trying, the winner inside a 5%
+                           band by lightness, and the record keyed to the
+                           machine, the model and the engine
+crates/kalsa-web/          the assistant's search and page fetch: text bounded
+                           and truncated for a model to read, and no address
+                           opened that the webview's CSP exists to keep out
+src-tauri/                 the Tauri shell, where the crates meet the screen:
+                           the commands the pages poll, the turn-on walk that
+                           measures and starts, the pairing desk, the road's
+                           switch, and the words every failure is shown in
+chat/                      the Vite + React + TypeScript desktop frontend
+NOTICE                     what came from Jan (MIT) and what did not
+```
+
+## Build and test
+
+```sh
+cargo test -p kalsa-supervisor               # the supervisor: fast, no network, no model
+cargo test -p kalsa-brain --bin kalsa-brain  # the app shell's own tests
+cargo check -p kalsa-brain                   # the app shell
+cargo run -p kalsa-brain                     # opens the window
+```
+
+During the alpha, technical error reports are on by default. They include
+which AI, processor, graphics card and memory use, never chats or text. Turn
+them off in Settings; a report already on its way may still arrive. The Rust
+backend sends them to telemetry.kalsa.io; the renderer CSP stays local.
+
+The frontend type-checks and keeps its Tauri command vocabulary honest:
+
+```sh
+cd chat
+npx tsc --noEmit                          # the frontend type-checks
+node scripts/command-contract.mjs         # every command either side names, the other names too
+node scripts/press-family-contract.mjs   # the codes a press that never left is, in Rust and in the page
+```
+
+Running the app needs a server binary and a model, because model selection and
+download are later pages:
+
+```sh
+KALSA_BRAIN_MODEL=/path/to/model.gguf \
+KALSA_BRAIN_SERVER_BIN=$(command -v llama-server) \
+cargo run -p kalsa-brain
+```
+
+Without `KALSA_BRAIN_MODEL` the switch reports that no model is selected yet.
+`KALSA_BRAIN_SERVER_BIN` is a development override: a shipped build carries
+`llama-server` next to its own executable.
+
+## What the supervisor guarantees
+
+- **Readiness is a probe, not a sleep.** `llama-server` has no startup line to
+  read, so the supervisor polls `/health` until its deadline. A guessed `sleep`
+  is either too short (first request fails) or too slow (the user waits on a
+  server that is already up).
+- **Stopping is ordered.** Close the child's stdin (the signal a cooperating
+  child waits for), then SIGTERM to its process group, then SIGKILL. Always
+  reaped, so no zombie survives a stop.
+- **The child can die on its own.** `GGML_ASSERT` calls `abort()`, which
+  `catch_unwind` does not contain — an inference crash takes down its host. The
+  supervisor watches the child and reports the exit, with the last lines of its
+  stderr, without taking the app down.
+- **Defaults for old hardware.** Half the logical cores (2..8), batch 2048,
+  ubatch 512 — 1024 when a projector is on, the vision floor — `--sleep-idle-seconds 300`,
+  host `127.0.0.1`. The objective is the highest sustainable throughput,
+  not the maximum.
+
+### Force-quit, per platform
+
+| platform | what stops the child when the app is killed |
+| --- | --- |
+| Windows | job object with `KILL_ON_JOB_CLOSE`: the OS reaps it |
+| Linux | `PR_SET_PDEATHSIG`: the kernel signals it when we die |
+| macOS | **nothing.** No job object, no `PR_SET_PDEATHSIG` |
+
+On macOS a force-quit can leave an idle `llama-server` behind. It is not
+burning CPU — `--sleep-idle-seconds` unloads the model and the KV cache — so it
+is handled at the next start, not at the crash:
+
+* the state file is locked for as long as our server runs, and the lock is
+  **inherited by the server**, so a held lock means "our server is alive" even
+  when the app was killed outright;
+* locked and answering → the app reuses it: no second model load;
+* locked and silent → it is ours and wedged, so it is closed and replaced;
+* unlocked (a crashed run) → the pid inside is *not* trusted and never
+  signalled — pids are recycled, and killing a stranger is unacceptable. The
+  file is discarded and the port checked instead;
+* a port held by anything that is not ours is reported in words and left alone.
+
+Closing the window normally is covered everywhere: the app's exit handler calls
+`Supervisor::shutdown`, which stops the child before the process goes.
+
+## The probe: predicting a model before downloading it
+
+`kalsa-probe` measures the machine once, so the catalog can predict any model
+before the user waits for gigabytes.
+
+```sh
+cargo run --release -p kalsa-probe          # a few seconds
+cargo run --release -p kalsa-probe -- --threads 1 --reps 10
+```
+
+Two measurements, kept apart on purpose:
+
+* **bandwidth** — streaming reads of a block larger than any cache. Decode
+  streams every active weight byte once per token *and* pays a price the weights
+  do not explain, so the cost is two terms, not a rate:
+  `seconds/token = fixed + traffic_bytes / bandwidth`. The thread count is not
+  assumed: **a ramp** measures 1, 2, 4 … threads and reports the first count that
+  reaches the plateau. A datasheet number is fantasy on a single-channel laptop,
+  which is why it is measured and not quoted.
+* **compute** — a dense f32 matmul, because **prefill is compute-bound** and
+  predicting it from the bandwidth figure would be wrong, and wrong in silence.
+
+Every number comes with its spread (`Series`), and the estimator for a capability
+measurement is the **best sample**, not the median: competition can only make a
+sample slower, so the fastest repetition is the closest we get to the machine.
+
+**A number that does not say which path it measures is how the wrong answer got
+out once.** The result carries both facts, as data:
+
+* `measured_on` — the path the numbers came from, `Cpu` today;
+* `will_run_on` — what detection says this machine offers: `Metal` on Apple
+  Silicon, `DiscreteGpu { vram_bytes }` when a discrete NVIDIA/AMD card is found,
+  `Cpu` when there is none, `Unknown` when no cheap honest answer exists;
+* `bandwidth_is_lower_bound()` — true when the machine will run on something
+  faster than the path measured, so the catalog can branch on it instead of
+  parsing a sentence.
+
+On Apple Silicon this matters, but not by a factor: the SoC's memory bandwidth
+(an M1 Max is specified at 400 GB/s) is reachable from the GPU and not from the
+CPU, and llama.cpp decodes through Metal there. Measured on five real models,
+the CPU's 110 GB/s is a floor under a *marginal* 197 GB/s through Metal — a
+floor under one of the two terms, which is not the same as a multiplier on the
+answer. On an old
+integrated GPU the CPU is the correct answer rather than a fallback, and on a
+discrete card the budget is VRAM, not system RAM — which is why one number could
+never have been enough.
+
+The probe refuses its own bad measurements: repetitions that disagree, a ramp
+that never flattens, a memory reading faster than the cache, threads that did
+not get their cores, or the probe having been compiled without optimisations —
+that last one is the only check that does not blame the machine, and it exists
+because an unoptimised build reads 5.8 GB/s where the same Mac reads 110. Any of
+them makes the verdict `unreliable`, and the caller retries
+rather than reporting a low number as a fact about the machine. What no
+invariant can do is tell "slow machine" from "busy machine" in absolute terms,
+and that is why the answer is a verdict instead of a table of what each CPU class
+should reach.
+
+The remaining honesty: the two terms still do not see everything the model pays
+— the KV cache is re-read every token and grows with context (the caller that
+knows the context charges it in), and a mixture-of-experts router reads more than
+its active bytes, which the catalog carries as a measured correction. A machine
+that has only been streamed is therefore given a **band**, never a point: a
+pessimistic end that charges one machine's fixed price and 70% of the measured
+rate, and an optimistic end that charges nothing and streams at the full rate.
+This is no longer unvalidated — the shape was fitted and cross-validated against
+five real llama.cpp runs on one machine — but one machine is one machine, and a
+measured decode always replaces the prediction.
+
+## The catalog: which model, before downloading anything
+
+`kalsa-catalog` looks at a measured machine, the phone's own model, and the
+researched rows, and answers with a model **and a reason**.
+
+```sh
+cargo run -p kalsa-catalog -- --ram 32 --bandwidth 85 --gflops 100 --phone-gb 2.64
+```
+
+The rules are pure and tested without hardware:
+
+* **two axes, two types.** Total weights decide whether a model fits, active
+  weights decide how fast it decodes. On a MoE they differ by up to ten, so
+  `TotalParameters` and `ActiveParameters` are separate types and swapping them
+  is a compile error rather than a wrong recommendation.
+* **licence is a door, not a column.** The chooser only accepts a
+  `UsableEntry`, and only `manifest::usable()` produces those, for rows whose
+  licence allows what this product needs. A refused row stays in the catalog
+  with its reason: `amd/Instella-MoE-16B-A3B-Think` is research-only. The six
+  rows the owner judged superseded were deleted on 2026-09-24; the `stale`
+  field still keeps a row off the menu, and no row carries it today.
+* **the PC must beat the phone.** A candidate needs at least 1.4× the phone
+  model's weight, and has to decode at 3 tokens per second or more at the *low*
+  end of its predicted range. If nothing clears both bars, the answer is "this
+  computer is not worth it", in words — there is no courtesy tier.
+* **say why, with the numbers.** Every decision carries a sentence naming the
+  model, the decode and prefill ranges, the phone's own measured speed when it
+  reports one, and that the cache size is still an assumption. Speeds are always
+  ranges: from an approximation, a single figure would be invented precision.
+
+Memory arithmetic (`footprint`): weights + mmproj + compute buffers + KV +
+margin ≤ RAM, where the margin is `max(3 GiB, 25%)` — a current OS idles around
+3 GiB and a browser adds more, and no fraction of an 8 GiB machine covers that,
+while on 64 GiB a quarter is more than the OS will ever want.
+
+## Licence
+
+Apache-2.0 for this shell. Parts of `crates/kalsa-supervisor/src/child.rs` are
+derived from Jan's MIT-licensed `tauri-plugin-llamacpp`; see `NOTICE` for
+exactly which parts and under what terms.

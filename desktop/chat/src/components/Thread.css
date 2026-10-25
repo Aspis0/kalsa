@@ -1,0 +1,605 @@
+.thread-wrap {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.thread {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  /* Instant: per-token pinning during streaming fights any smoothing —
+     intermediate scroll events unpin the view and strand the pill. */
+}
+
+.thread-column {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 100%;
+  max-width: calc(780px + 2rem);
+  margin: 0 auto;
+  padding: 26px 1rem 2rem;
+}
+
+.row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 120px;
+}
+
+/* Yours: sage, on the right, one small corner on your side (RULES.md "Bubbles"). */
+.row-user {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.user-bubble {
+  max-width: min(540px, 85%);
+  padding: 13px 19px;
+  color: var(--ac-ink);
+  background: var(--ac);
+  border-radius: 24px 24px 6px 24px;
+  font-size: 17px;
+  line-height: 26px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Which mail a turn is about, under the person's own words: shown here,
+   never sent. */
+.row-mail-subject {
+  max-width: min(540px, 85%);
+  padding: 4px 19px 0;
+  margin: 0;
+  color: var(--tx3);
+  font-size: 13.5px;
+  overflow-wrap: anywhere;
+}
+
+/* The badge of a turn that was sent armed for the browser: the same line the
+   mail subject takes, one word long. It says which turn drove the browser, and
+   it survives a reload because the flag rides the message. */
+.row-browser-badge {
+  max-width: min(540px, 85%);
+  padding: 4px 19px 0;
+  margin: 0;
+  color: var(--tx3);
+  font-size: 12.5px;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+}
+
+/* Kalsa's: a card on the left; the thinking and mini apps sit above it. */
+.row-assistant {
+  display: flex;
+  max-width: 660px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.row-assistant > .thought,
+.row-assistant > .miniapp-turn {
+  align-self: stretch;
+}
+
+.assistant-bubble {
+  max-width: 100%;
+  padding: 16px 22px;
+  color: var(--tx);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 24px 24px 24px 6px;
+  font-size: 17px;
+  line-height: 28px;
+  overflow-wrap: anywhere;
+}
+
+.assistant-bubble:empty {
+  display: none;
+}
+
+/* The row closes on its message action row; the gap above it is 6px, not 12. */
+.row-assistant > .message-actions {
+  margin-top: -6px;
+}
+
+.row-note {
+  margin: 10px 0 0;
+  padding-top: 10px;
+  color: var(--tx3);
+  border-top: 1px solid var(--line);
+  font-size: 15px;
+  line-height: 22px;
+}
+
+.interrupted-note {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.interrupted-retry {
+  padding: 0;
+  color: var(--ac-tx);
+  background: transparent;
+  border: 0;
+  font-size: inherit;
+  font-weight: 600;
+}
+
+.no-answer p {
+  margin: 0 0 12px;
+}
+
+/* --- markdown --- */
+
+.markdown > *:first-child {
+  margin-top: 0;
+}
+
+.markdown > *:last-child {
+  margin-bottom: 0;
+}
+
+.markdown p {
+  margin: 0 0 10px;
+}
+
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4 {
+  margin: 1.4em 0 0.5em;
+  font-family: var(--font-display);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.markdown h1 { font-size: 1.45rem; }
+.markdown h2 { font-size: 1.25rem; }
+.markdown h3 { font-size: 1.08rem; }
+.markdown h4 { font-size: 1rem; }
+
+.markdown ul,
+.markdown ol {
+  margin: 0 0 0.9em;
+  padding-left: 1.5em;
+}
+
+.markdown li {
+  margin: 0.3em 0;
+}
+
+/* Bullets are the ring's green dots (mockup 02-chat). */
+.markdown ul {
+  padding-left: 0;
+  list-style: none;
+}
+
+.markdown ul > li {
+  position: relative;
+  padding-left: 22px;
+}
+
+.markdown ul > li::before {
+  position: absolute;
+  top: 11px;
+  left: 5px;
+  width: 7px;
+  height: 7px;
+  background: var(--ring);
+  border-radius: 50%;
+  content: "";
+}
+
+.markdown strong {
+  font-weight: 650;
+}
+
+.markdown li > ul,
+.markdown li > ol {
+  margin-bottom: 0.2em;
+}
+
+.markdown blockquote {
+  margin: 0 0 0.9em;
+  padding: 0.1em 0 0.1em 1em;
+  color: var(--ink-soft);
+  border-left: 3px solid var(--border-strong);
+}
+
+.markdown blockquote > *:last-child {
+  margin-bottom: 0;
+}
+
+.markdown a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.markdown table {
+  display: block;
+  width: 100%;
+  margin: 0 0 1em;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.markdown th,
+.markdown td {
+  padding: 0.45em 0.75em;
+  border: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.markdown th {
+  background: var(--surface-muted);
+  font-weight: 600;
+}
+
+.markdown hr {
+  margin: 1.5em 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+.inline-code {
+  padding: 0.12em 0.35em;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+  overflow-wrap: anywhere;
+}
+
+.blocked-image {
+  display: block;
+  margin: 0 0 10px;
+  padding: 10px 14px;
+  color: var(--tx3);
+  background: var(--rail);
+  border-radius: 12px;
+  font-size: 15px;
+  line-height: 22px;
+}
+
+/* An address the reader can open by hand (Openable), in answers and tool lines. */
+.tool-link {
+  padding: 0;
+  color: var(--ac-tx);
+  background: none;
+  border: 0;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.tool-link:hover {
+  color: var(--ac);
+}
+
+/* --- code blocks --- */
+
+.codeblock {
+  margin: 10px 0 12px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.codeblock-head {
+  display: flex;
+  padding: 8px 14px;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--rail);
+}
+
+/* 15px: muted ink on the rail is only allowed from 15px up (RULES.md). */
+.codeblock-lang {
+  color: var(--tx3);
+  font-size: 15px;
+}
+
+.codeblock-copy {
+  display: inline-flex;
+  padding: 0 4px;
+  align-items: center;
+  gap: 6px;
+  color: var(--tx2);
+  background: transparent;
+  border: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.codeblock-copy:hover {
+  color: var(--ac-tx);
+}
+
+.codeblock-pre {
+  max-width: 100%;
+  max-height: 480px;
+  margin: 0;
+  padding: 12px 16px;
+  overflow: auto;
+  color: var(--tx);
+  background: var(--card);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.codeblock-pre code {
+  white-space: pre;
+}
+
+/* --- streaming indicator: three quiet dots, no idle spinner --- */
+
+.thinking {
+  display: inline-flex;
+  gap: 5px;
+  padding: 0.4em 0;
+}
+
+.thinking span {
+  width: 8px;
+  height: 8px;
+  background: var(--ring);
+  border-radius: 999px;
+  opacity: 0.35;
+  animation: think-pulse 1.2s ease-in-out infinite;
+}
+
+.thinking span:nth-child(2) { animation-delay: 0.15s; }
+.thinking span:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes think-pulse {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 1; }
+}
+
+/* The dots stay as a still mark; only the pulse stops. */
+@media (prefers-reduced-motion: reduce) {
+  .thinking span {
+    animation: none;
+  }
+}
+
+/* The dots and the sentence beside them, once the wait is long enough to need saying. */
+.waiting-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.waiting-row .row-note {
+  margin: 0;
+  padding: 0;
+  color: var(--tx2);
+  border: 0;
+  font-size: 16px;
+}
+
+/* --- errors: an amber circle, the words, one way out (mockup
+   11-chat-states-failed) --- */
+
+.error-block {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.markdown + .error-block {
+  margin-top: 12px;
+}
+
+.error-icon {
+  display: grid;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  color: var(--warn-ink);
+  background: var(--warn-fill);
+  border-radius: 50%;
+}
+
+.error-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 650;
+}
+
+.error-body {
+  margin: 0;
+  color: var(--tx2);
+}
+
+.error-url {
+  margin: 0.7rem 0 0;
+  color: var(--silence);
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  overflow-wrap: anywhere;
+}
+
+.error-detail {
+  margin: 0.4rem 0 0;
+  color: var(--ink-soft);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+/* The answer's own buttons, sized to the bubble (RULES.md small buttons). */
+.assistant-bubble .btn-primary,
+.assistant-bubble .btn-quiet {
+  display: inline-flex;
+  height: 44px;
+  margin-top: 12px;
+  padding: 0 18px;
+  align-items: center;
+  gap: 8px;
+  border-radius: 22px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.assistant-bubble .btn-quiet {
+  color: var(--tx);
+  border: 1.5px solid var(--line);
+}
+
+.no-answer .btn-quiet {
+  margin-top: 0;
+}
+
+.btn-primary {
+  min-height: 32px;
+  padding: 0 1rem;
+  color: var(--accent-ink);
+  background: var(--accent);
+  border: 0;
+  border-radius: 999px;
+  font-size: 0.86rem;
+  font-weight: 500;
+}
+
+.btn-primary:hover {
+  background: var(--accent-hover);
+}
+
+.btn-quiet {
+  min-height: 32px;
+  padding: 0 1rem;
+  color: var(--ink-soft);
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  font-size: 0.86rem;
+}
+
+.btn-quiet:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.jump-bottom {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  padding: 8px 16px;
+  color: var(--tx2);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  box-shadow: 0 8px 20px -10px var(--sh);
+  font-size: 15px;
+  font-weight: 600;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.jump-bottom:hover {
+  color: var(--ac-tx);
+  border-color: var(--ac);
+}
+
+/* The pictures and videos a user turn carries (mockup 11-chat-states-media):
+   180×132 tiles above the words, or the one honest box where a picture's
+   bytes are gone. */
+.user-images,
+.user-videos {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* The tile buttons that open the full-view viewer. */
+.user-image-thumb,
+.user-video-tile {
+  position: relative;
+  flex: none;
+  width: 180px;
+  height: 132px;
+  padding: 0;
+  overflow: hidden;
+  background: var(--rail);
+  border: 0;
+  border-radius: 18px;
+  cursor: zoom-in;
+}
+
+.user-image-thumb:focus-visible,
+.user-video-tile:focus-visible {
+  border-radius: 18px;
+}
+
+.user-image,
+.user-video-tile img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.user-image-missing,
+.user-video-note {
+  display: grid;
+  width: 180px;
+  height: 132px;
+  padding: 12px;
+  place-items: center;
+  color: var(--tx3);
+  border: 1.5px dashed var(--line);
+  border-radius: 18px;
+  font-size: 14px;
+  text-align: center;
+}
+
+.user-video-play {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.user-video-play > span {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 50%;
+}
+
+.user-video-label {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  padding: 2px 8px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.user-video {
+  display: block;
+  max-width: 320px;
+  border-radius: 18px;
+}

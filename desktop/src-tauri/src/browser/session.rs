@@ -1,0 +1,396 @@
+//! The commands the chat's browser tools call: one per tool, read-only.
+
+use std::time::Duration;
+
+use serde_json::{Map, Value};
+use tauri::{AppHandle, Manager, State};
+
+use super::confirm;
+use super::error::BrowserError;
+use super::state::BrowserState;
+
+/// Opens an address in the browser.
+///
+/// Read-only like the rest of this step, and it opens nothing: the sidecar
+/// refuses before a request is made, and the page's own words come back.
+#[tauri::command]
+pub(crate) async fn brain_browser_open(
+    app: AppHandle,
+    state: State<'_, BrowserState>,
+    url: String,
+    conversation: String,
+) -> Result<String, super::error::CommandFailure> {
+    let said = call(&app, &state, "browser_open", two("url", Value::from(url), &conversation)).await?;
+    // **A card the open raised is routed now.** The refresh runs when the open returns,
+    // so a write the page makes while it loads is seen here. A write the page makes later
+    // is seen only by the next call that refreshes (open, click or type, not read or find),
+    // and until then the hold's five minutes are the limit (docs/PHONE-CHAT-PROTOCOL.md §3.1).
+    confirm::refresh(&app, &state).await;
+    Ok(said)
+}
+
+/// The page as text, with the refs to act on.
+///
+/// **A page may be longer than the answer**: `from` is the line to start at,
+/// and `page` is the old way of naming the same place, a window counting from
+/// one. Both are optional, and both are the sidecar's business to answer.
+#[tauri::command]
+pub(crate) async fn brain_browser_read(
+    app: AppHandle,
+    state: State<'_, BrowserState>,
+    from: Option<u64>,
+    page: Option<u64>,
+    conversation: String,
+) -> Result<String, super::error::CommandFailure> {
+    // **The conversation is what the sidecar judges a phone's read by**: a phone may
+    // read only the page its own conversation opened (`mcp::phone_may_touch`).
+    let mut arguments = Map::new();
+    arguments.insert("conversation".to_owned(), Value::from(conversation));
+    if let Some(from) = from {
+        arguments.insert("from".to_owned(), Value::from(from));
+    }
+    if let Some(page) = page {
+        arguments.insert("page".to_owned(), Value::from(page));
+    }
+    call(&app, &state, "browser_read", arguments).await
+}
+
+/// Text on the page, matched where it appears.
+#[tauri::command]
+pub(crate) async fn brain_browser_find(
+    app: AppHandle,
+    state: State<'_, BrowserState>,
+    text: String,
+    conversation: String,
+) -> Result<String, super::error::CommandFailure> {
+    call(&app, &state, "browser_find", two("text", Value::from(text), &conversation)).await
+}
+
+/// Clicks one element. **A write this causes is held, not sent**: the card comes
+/// back through `browser_cards` and the person decides. A desktop's card goes to
+/// the window; a phone's goes to that phone, or is declined at once when the phone
+/// cannot draw it (`phone_chat::route_cards`).
+#[tauri::command]
+pub(crate) async fn brain_browser_click(
+    app: AppHandle,
+    state: State<'_, BrowserState>,
+    r#ref: String,
+    conversation: String,
+) -> Result<String, super::error::CommandFailure> {
+    let said = call(&app, &state, "browser_click", two("ref", Value::from(r#ref), &conversation)).await?;
+    confirm::refresh(&app, &state).await;
+    Ok(said)
+}
+
+/// Fills one field. A form goes when its own submit button is clicked, so this
+/// and that are the calls a write comes from, and both are held the same way.
+#[tauri::command]
+pub(crate) async fn brain_browser_type(
+    app: AppHandle,
+    state: State<'_, BrowserState>,
+    r#ref: String,
+    text: String,
+    conversation: String,
+) -> Result<String, super::error::CommandFailure> {
+    let mut args = two("ref", Value::from(r#ref), &conversation);
+    args.insert("text".to_owned(), Value::from(text));
+    let said = call(&app, &state, "browser_type", args).await?;
+    confirm::refresh(&app, &state).await;
+    Ok(said)
+}
+
+/// One picture of the page this conversation is driving.
+///
+/// **The model's own tool, and the app's gate on it.** The answer is JSON: the
+/// bytes of the JPEG, the host the page was on and the moment it was taken —
+/// and the app hands it on as it is, because the bytes never go into the
+/// sentence the model reads: they ride the tool message as their own part.
+///
+/// The picture belongs to the conversation that opened the page, and the
+/// sidecar says so: a page the person drove themselves is not this
+/// conversation's, and it is refused there.
+#[tauri::command]
+pub(crate) async fn brain_browser_screenshot(
+    app: AppHandle,
+    state: State<'_, BrowserState>,
+    conversation: String,
+) -> Result<String, super::error::CommandFailure> {
+    call(&app, &state, "browser_screenshot", one("conversation", Value::from(conversation))).await
+}
+
+/// The person said yes. The id is spent inside the sidecar before anything is
+/// dispatched, so a second press sends nothing more.
+#[tauri::command]
+pub(crate) async fn brain_browser_confirm(
+    app: AppHandle,
+    state: State<'_, BrowserState>,
+    id: String,
+    conversation: String,
+) -> Result<String, super::error::CommandFailure> {
+    confirm::answer(&app, &state, id, conversation, true).await
+}
+
+/// The person said no. Nothing was sent and the page is as it was.
+#[tauri::command]
+pub(crate) async fn brain_browser_decline(
+    app: AppHandle,
+    state: State<'_, BrowserState>,
+    id: String,
+    conversation: String,
+) -> Result<String, super::error::CommandFailure> {
+    confirm::answer(&app, &state, id, conversation, false).await
+}
+
+/// Pausa. Kalsa stops driving the browser, and the person's own submissions are
+/// not held while they have it: they are acting, and a held navigation freezes
+/// the page it is holding.
+///
+/// Host-only in the sidecar too — a model that could pause itself could stop being
+/// answerable to the person who has to decide about its writes.
+#[tauri::command]
+pub(crate) async fn brain_browser_pause(
+    app: AppHandle,
+    state: State<'_, BrowserState>,
+) -> Result<(), super::error::CommandFailure> {
+    // **The intent is recorded first, and that is what makes the press always take
+    // effect.** A slot running a call is still a session to pause, so this is not
+    // refused as busy: from here the app's own gate stops offering browser tools,
+    // and the page is told it is paused. What the sidecar is told follows, once
+    // the slot is free.
+    if !state.inner().pause(&app, true) {
+        // There is no session here to pause, and nothing was said about it: a
+        // page with no window on it has nothing to put words on.
+        return Err(BrowserError::SlotBusy.into());
+    }
+    // **A Pausa pressed while a call is running cuts that call short.** The call
+    // is what Kalsa is doing, and the person has just said to stop doing it; a
+    // refusal here would leave the control doing nothing, which is the one thing
+    // a pause must never be. The session stays open — the person wants the
+    // window, not the end of it — and the pause goes in as soon as the slot is
+    // free.
+    state.inner().browser().interrupt();
+    match push_to_the_sidecar(&app, &state, "browser_pause", Map::new()).await {
+        Ok(_) => Ok(()),
+        Err(refused) => {
+            // **A pause the sidecar would not take must not stand.** Either the
+            // host could not answer — in which case `call` has already dropped it
+            // and the session with it — or the slot stayed busy, and a `paused`
+            // flag the sidecar does not hold is a promise nobody kept. Both end
+            // here: the window goes, the pause goes with it, and the person is
+            // left with a browser that is closed rather than one this app claims
+            // to have stopped and has not.
+            state.inner().end(&app);
+            Err(refused)
+        }
+    }
+}
+
+/// Riprendi, and the page read fresh: the person has had the window, and the
+/// model must not go on reading a page it last saw before that.
+#[tauri::command]
+pub(crate) async fn brain_browser_resume(
+    app: AppHandle,
+    state: State<'_, BrowserState>,
+) -> Result<String, super::error::CommandFailure> {
+    if !state.inner().pause(&app, false) {
+        return Err(BrowserError::SlotBusy.into());
+    }
+    match push_to_the_sidecar(&app, &state, "browser_resume", Map::new()).await {
+        Ok(reading) => Ok(reading),
+        Err(refused) => {
+            state.inner().end(&app);
+            Err(refused)
+        }
+    }
+}
+
+/// **The turn that was driving the page has ended; its claim on the page goes.**
+///
+/// The claim belongs to a turn, not to a conversation for life: while the turn
+/// that opened the page is running, a second driver — a phone's turn and a
+/// desktop's turn alike — is refused as busy, and when the turn ends, however it
+/// ended, the page is left belonging to nobody and the next turn may take it.
+/// The sidecar's release is the app's to ask for, because the stamps are the
+/// sidecar's.
+///
+/// **Best-effort, and bounded.** The chat is not waiting on this — the turn is
+/// over — but the next turn's open is, in the sense that a release that never
+/// lands leaves the page claimed by a turn that no longer exists. So a slot
+/// that is merely busy — another conversation's call in flight — is waited for
+/// briefly, the way a Pausa is, and a sidecar that cannot be reached at all is
+/// answered as the refusal it is: the caller's turn still ends, and the
+/// stamps die with the session.
+///
+/// **A give-up is said, and no more.** Both chat callers swallow the refusal,
+/// so the give-up is named in the log — and a second attempt is deliberately
+/// not made: the release speaks only the conversation's name, and one arriving
+/// late could erase a newer turn's claim of that same conversation. The page
+/// stays claimed until the owner's next browser turn or the session end.
+#[tauri::command]
+pub(crate) async fn brain_browser_release(
+    app: AppHandle,
+    state: State<'_, BrowserState>,
+    conversation: String,
+) -> Result<(), super::error::CommandFailure> {
+    let mut args = Map::new();
+    args.insert("conversation".to_owned(), Value::from(conversation));
+    match release_now(&app, &state, args).await {
+        Ok(_) => Ok(()),
+        Err(gave_up) => {
+            if gave_up.code() == BrowserError::SlotBusy.code() {
+                log::warn!("browser release gave up: slot busy");
+            }
+            Err(gave_up)
+        }
+    }
+}
+
+/// How many times, and how long between them, the app waits for a slot that a
+/// Pausa has just freed by interrupting its call.
+const SLOT_TRIES: usize = 40;
+const SLOT_GAP: Duration = Duration::from_millis(25);
+/// One deadline for the whole press, not one per attempt; past this the push
+/// has failed, and the caller of a pause ends the session rather than leaving
+/// a pause the sidecar does not hold.
+const PRESS_DEADLINE: Duration = Duration::from_millis(1500);
+
+/// A pause or a resume as the sidecar is told, **once the slot is free**. Only
+/// a slot that is merely busy is waited for: anything else refused this call is
+/// the sidecar's answer, and is passed on as it is.
+async fn push_to_the_sidecar(
+    app: &AppHandle,
+    state: &State<'_, BrowserState>,
+    tool: &str,
+    args: Map<String, Value>,
+) -> Result<String, super::error::CommandFailure> {
+    within_the_press_deadline(
+        app,
+        state,
+        retry_while_busy(
+            || state.inner().call_host(app, tool, args.clone()),
+            || state.inner().browser().is_busy(),
+        ),
+    )
+    .await
+}
+
+/// The release as the sidecar is told: **the slot taken without starting
+/// anything** — an idle slot is nothing to release, not a browser to start —
+/// and a slot that is merely busy waited for briefly, like a Pausa.
+async fn release_now(
+    app: &AppHandle,
+    state: &State<'_, BrowserState>,
+    args: Map<String, Value>,
+) -> Result<String, super::error::CommandFailure> {
+    within_the_press_deadline(
+        app,
+        state,
+        retry_while_busy(
+            || state.inner().call_host_existing(app, "browser_release", args.clone()),
+            || state.inner().browser().is_busy(),
+        ),
+    )
+    .await
+}
+
+/// **One deadline for the whole press**, whatever the press is. A host call has
+/// no timeout of its own, so a sidecar that has stopped answering would hold
+/// this command open for as long as it likes — and a person pressing a button
+/// must never be left waiting on one.
+///
+/// **And a press that gives up still says where the slot settled.** The
+/// deadline drops the call mid-flight and the wrapper that would have
+/// published with it; the lease may have died with the call, and a window
+/// left drawing the session it had is a window drawing a browser that is not
+/// there — with cards nobody is left to answer.
+async fn within_the_press_deadline(
+    app: &AppHandle,
+    state: &State<'_, BrowserState>,
+    pushed: impl std::future::Future<Output = Result<String, super::error::CommandFailure>>,
+) -> Result<String, super::error::CommandFailure> {
+    // **The press is dropped before the slot is read.** The timeout keeps the
+    // call alive inside itself until it is dropped, and a match would hold it
+    // to the end of its own statement; the drop is what returns the slot, so
+    // it happens here, at the semicolon, before the give-up reads what is left.
+    let pushed = tokio::time::timeout(PRESS_DEADLINE, pushed).await;
+    match pushed {
+        Ok(said) => said,
+        Err(_elapsed) => {
+            state.inner().settled(app);
+            Err(BrowserError::SlotBusy.into())
+        }
+    }
+}
+
+/// A slot still held by the call the Pausa interrupted, waited for briefly:
+/// that call hands the browser back as soon as it notices, and anything still
+/// holding it after this is a browser this app cannot reach at all. `ask` is
+/// one whole attempt, and only a slot that answers it as busy is waited for —
+/// anything else the ask was refused with is the sidecar's own answer.
+pub(crate) async fn retry_while_busy<F, Fut>(
+    ask: F,
+    slot_is_busy: impl Fn() -> bool,
+) -> Result<String, super::error::CommandFailure>
+where
+    F: Fn() -> Fut,
+    Fut: std::future::Future<Output = Result<String, BrowserError>>,
+{
+    for _ in 0..SLOT_TRIES {
+        let said = ask().await;
+        if said.is_ok() || !slot_is_busy() {
+            return said.map_err(Into::into);
+        }
+        tokio::time::sleep(SLOT_GAP).await;
+    }
+    Err(BrowserError::SlotBusy.into())
+}
+
+/// Ends the session. The window closing and the app quitting both come here:
+/// a browser left running after its window is gone is a window nobody can see
+/// and nothing can stop.
+///
+/// **A call in flight does not hold this up.** `end()` raises the slot's kill
+/// handle first, so a slow page is cut short rather than waited for, and the
+/// lease that call was holding is dropped on the way out — which kills the
+/// sidecar child.
+#[tauri::command]
+pub(crate) async fn brain_browser_close(app: AppHandle) -> Result<(), super::error::CommandFailure> {
+    let state = app.state::<BrowserState>();
+    // The window going takes its cards with it: there is nobody left to answer
+    // them, and a card left on screen outlives the thing it was about. Each is
+    // declined and said, rather than the window simply going blank.
+    // **The end path is one path**: it declines every card the browser was
+    // holding, tells the phones, and says to the page that the window is gone.
+    state.inner().end(&app);
+    Ok(())
+}
+
+async fn call(
+    app: &AppHandle,
+    state: &State<'_, BrowserState>,
+    tool: &str,
+    args: Map<String, Value>,
+) -> Result<String, super::error::CommandFailure> {
+    // **One funnel, and it says what the slot settled on.** `BrowserState::call`
+    // is where the page is told and where a browser that is gone takes its cards
+    // with it, so a caller that asked the host for itself could not have done
+    // either.
+    state.inner().call(app, tool, args).await.map_err(Into::into)
+}
+
+fn one(name: &str, value: Value) -> Map<String, Value> {
+    let mut args = Map::new();
+    args.insert(name.to_owned(), value);
+    args
+}
+
+/// What a browser call carries besides its own argument: **the conversation that
+/// is driving**. Every write it causes is stamped with it, and a card can only be
+/// answered where it was raised — so this travels with the call rather than
+/// being remembered on the sidecar, where a second chat would be indistinguishable
+/// from the first.
+fn two(name: &str, value: Value, conversation: &str) -> Map<String, Value> {
+    let mut args = one(name, value);
+    args.insert("conversation".to_owned(), Value::from(conversation));
+    args
+}

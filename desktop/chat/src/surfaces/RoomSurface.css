@@ -1,0 +1,363 @@
+/* The host's room, on the chat's own pieces: the thread's bubbles and the
+   composer come from Thread.css and Composer.css; this file holds only what
+   a room has and a chat has not — the people, the authors' names, the
+   marks, and the quiet lines under the thread. */
+
+/* The header runs the page's full width (16-room); the feed and the
+   composer keep the Room's own, wider column. */
+.surface-page.room-page {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 0;
+  height: 100%;
+  padding: 0;
+}
+
+.room-page .thread-column,
+.room-page .composer {
+  max-width: calc(820px + 2rem);
+}
+
+.room-head {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  flex-wrap: wrap;
+  flex: 0 0 auto;
+  min-height: 4.75rem;
+  padding: 0.75rem 28px;
+  border-bottom: 1px solid var(--line);
+}
+
+.room-head .surface-verdict {
+  margin: 0 0.375rem 0 0;
+  font-size: 1.25rem;
+  font-weight: 650;
+}
+
+.room-people {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+/* A member is a chip: the dot of their color, their name, and once they
+   have left, a quiet "left" after it. */
+.room-person {
+  display: inline-flex;
+  align-items: center;
+  height: 2rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.room-author {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  margin: 0 0.875rem 0.25rem;
+}
+
+.room-author-name {
+  font-weight: 700;
+  font-size: 0.875rem;
+}
+
+/* One member's message: the name above in their color, the bubble washed in
+   the tint of the same hue and edged in the full color. The custom
+   properties arrive inline from the member's slot; a member who left holds
+   none, and their bubble falls back to the page's muted surface with the
+   quiet border. */
+.room-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.room-row-own {
+  align-items: flex-end;
+}
+
+.room-row-grouped {
+  /* The author's name is already above the run; the bubble simply
+     continues it, a touch closer. */
+  margin-top: -0.6rem;
+}
+
+/* The day a run of messages begins: a quiet pill on the feed's spine. */
+.room-day {
+  align-self: center;
+  margin: 0.375rem 0 1rem;
+  padding: 0.25rem 0.875rem;
+  color: var(--silence);
+  background: var(--surface-muted);
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.room-bubble {
+  max-width: min(35rem, 85%);
+  padding: 0.6875rem 1rem 0.5625rem;
+  color: var(--ink);
+  background: var(--room-bubble-tint, var(--surface-muted));
+  border: 1.5px solid var(--room-bubble-color, var(--border-strong));
+  border-radius: 20px;
+  font-size: 1.0625rem;
+  line-height: 1.53;
+  overflow-wrap: anywhere;
+}
+
+/* Kalsa's words sit on the card, edged in its green: the room's one
+   non-member bubble, readable in both themes at once. */
+.room-bubble-kalsa {
+  background: var(--card);
+}
+
+/* The asking token and the read count ride INSIDE the wash, quiet. */
+.room-bubble .room-asked {
+  color: var(--ink-soft);
+  font-weight: 700;
+}
+
+.room-bubble .room-read {
+  color: var(--silence);
+}
+
+/* An answer's lists sit tight inside a bubble (16-room). */
+.room-bubble .markdown ul,
+.room-bubble .markdown ol {
+  margin: 4px 0;
+}
+
+.room-bubble .markdown li {
+  margin: 0;
+}
+
+/* The waiting dots and the line beside them; the line appears only while the
+   engine works on this turn, never while Kalsa waits for a seat. */
+.room-waiting-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.room-waiting-row .surface-quiet {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+/* The moment of a message, on its own line under the words, right-aligned
+   and quiet (16-room). */
+.room-time {
+  display: block;
+  margin-top: 2px;
+  color: var(--tx3);
+  font-size: 12px;
+  line-height: 18px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* A header chip's dot: the member's own color, currentColor, set once. */
+.room-person-name::before {
+  content: "";
+  display: inline-block;
+  width: 0.5625rem;
+  height: 0.5625rem;
+  margin-right: 0.4rem;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+/* The words carry their own leading space, which a flex chip would trim. */
+.room-left {
+  color: var(--silence);
+  font-weight: 500;
+  font-size: 0.875rem;
+  white-space: pre;
+}
+
+/* Its own line under the answer, as the clock under it. */
+.room-read {
+  display: block;
+  color: var(--silence);
+  font-size: 0.8125rem;
+}
+
+.room-name-chip,
+.room-clear-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 2.75rem;
+  padding: 0 1rem;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.room-name-chip {
+  margin-left: auto;
+  border: 1.5px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+}
+
+.room-name-chip:hover {
+  border-color: var(--ac);
+}
+
+.room-clear-chip {
+  border: none;
+  background: none;
+  color: var(--ink-soft);
+}
+
+.room-name-chip:focus-visible,
+.room-clear-chip:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.room-name {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.room-name-input {
+  width: 16.25rem;
+  max-width: 100%;
+  min-height: 2.75rem;
+  padding: 0 1rem;
+  color: var(--tx);
+  font-size: 1rem;
+  font-weight: 600;
+  background: var(--bg);
+  border: 1.5px solid var(--ac);
+  border-radius: 999px;
+  box-shadow: 0 0 0 4px var(--ac-soft);
+}
+
+.room-name-input::placeholder {
+  color: var(--tx3);
+}
+
+/* The ring is the focus mark; the page-wide focus rule would square the pill. */
+.room-name-input:focus,
+.room-name-input:focus-visible {
+  border-radius: 999px;
+  outline: none;
+}
+
+.room-name-error {
+  color: var(--err-ink);
+  font-size: 0.875rem;
+}
+
+/* The room's quiet lines sit centred under the thread, above the composer. */
+.room-turn {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 1.4rem;
+  margin: 0.125rem 0 0.5rem;
+  padding: 0 1rem;
+  text-align: center;
+}
+
+.room-turn .surface-quiet {
+  margin: 0;
+  font-size: 0.9375rem;
+}
+
+.room-send-error {
+  margin: 0.2rem 1rem 0;
+}
+
+/* The empty room and the closed one share one page: a round mark, a title,
+   and one sentence. */
+.room-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 5rem auto 0;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+.room-empty-mark {
+  display: grid;
+  place-items: center;
+  width: 4.5rem;
+  height: 4.5rem;
+  margin-bottom: 1.25rem;
+  border-radius: 22px;
+  background: var(--ac-soft);
+  color: var(--ac-tx);
+}
+
+.room-empty-closed .room-empty-mark {
+  background: var(--rail);
+  color: var(--tx3);
+}
+
+.room-empty-title {
+  margin: 0;
+  color: var(--ink);
+  font-size: 1.875rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.room-empty-line {
+  margin: 0.5rem 0 0;
+  font-size: 1.1875rem;
+}
+
+/* The calling token, highlighted where the matcher found it (RoomText). */
+.room-mention {
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  border-radius: 3px;
+  padding: 0 0.15rem;
+}
+
+/* The closed Room's Turn Kalsa on (16-room-closed): Home's primary pill. */
+.room-empty-go {
+  display: inline-flex;
+  height: 60px;
+  margin-top: 26px;
+  padding: 0 34px;
+  align-items: center;
+  gap: 12px;
+  color: var(--ac-ink);
+  background: var(--ac);
+  border: 0;
+  border-radius: 30px;
+  font-size: 19px;
+  font-weight: 600;
+}
+
+.room-empty-go:hover {
+  background: var(--ac-tx);
+}
+
+.room-empty-go:disabled {
+  opacity: 0.55;
+}

@@ -1,0 +1,9 @@
+  [ok] preamble really is long: 579 shared of 596 tokens
+  [ok] A's completion carries A's own pin (cache_n=593)
+  [ok] cache reuse 81 <= genuinely shared 579 (this build restores checkpoints, so it stays well under)
+  [ok] B's completion does not carry A's pin
+  [ok] B answered from its own tail (sanity)
+cross-talk (np=2, red=False): GREEN
+  [ok] D (wrapped into C's slot) reused 0 tokens (genuinely shared 6) — no resident-token leak, full re-prefill paid (331.072ms)
+  [ok] D's completion carries no trace of C's conversation
+  [ok] info: C's follow-up after the collision reused 575 tokens (re-prefill 63.879ms)

@@ -1,0 +1,33 @@
+[package]
+name = "kalsa-supervisor"
+description = "Process supervision for the Kalsa Brain inference server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# Deliberately UI-free and dependency-light: the app shell may come and go, this
+# must stay testable with `cargo test -p kalsa-supervisor`.
+[dependencies]
+# The log facade: the app installs the one file sink; a test run with no
+# logger installed pays nothing but the macro calls.
+log = "0.4"
+# 256 bits per engine key, from the OS: the port's whole access control.
+# Already in the graph through kalsa-door and the app, so no new crate enters it.
+getrandom = "0.3"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = [
+    "Win32_Foundation",
+    # `CreateJobObjectW` takes a `*const SECURITY_ATTRIBUTES`; without this
+    # feature the symbol does not exist and the job module fails to import.
+    "Win32_Security",
+    # `LockFileEx` takes an OVERLAPPED: windows-sys gates the function on
+    # this feature, and the struct lives in this module.
+    "Win32_System_IO",
+    "Win32_Storage_FileSystem",
+    "Win32_System_JobObjects",
+    "Win32_System_Threading",
+] }

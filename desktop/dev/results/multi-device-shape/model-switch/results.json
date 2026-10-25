@@ -1,0 +1,24 @@
+{
+ "switches": [
+  {
+   "direction": "trinity-to-gemma",
+   "warm_ttft_s": 0.96,
+   "load_s": 2.53,
+   "first_token_after_switch_s": 14.89,
+   "ttft_of_first_request_s": 10.15,
+   "cached_tokens_first_request": 0,
+   "prompt_tokens": 2062,
+   "steady_ttft_s": 0.08
+  },
+  {
+   "direction": "gemma-to-trinity",
+   "warm_ttft_s": 10.14,
+   "load_s": 1.01,
+   "first_token_after_switch_s": 2.77,
+   "ttft_of_first_request_s": 0.97,
+   "cached_tokens_first_request": 0,
+   "prompt_tokens": 1883,
+   "steady_ttft_s": 0.06
+  }
+ ]
+}

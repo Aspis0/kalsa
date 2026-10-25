@@ -1,0 +1,104 @@
+/* The update sheet (mockup 05, 15-update-states-notice-failed): it rises at
+   Home's bottom edge and waits for the owner's press. */
+
+/* The last item of the stage's column, not a fixed overlay: Home lays out
+   above it, so however tall it grows it never covers the page's content. */
+.update-sheet {
+  position: relative;
+  order: 1;
+  flex: none;
+  /* A short window keeps part of Home above it; the sheet scrolls instead. */
+  max-height: 60%;
+  overflow-y: auto;
+  margin: 0 40px;
+  display: flex;
+  /* Top-aligned: the notes open downward under the title (15-update-states-notice-failed). */
+  align-items: flex-start;
+  gap: 20px;
+  padding: 24px 28px 28px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-bottom: 0;
+  border-radius: 28px 28px 0 0;
+  box-shadow: 0 24px 60px -18px var(--sh);
+  box-sizing: border-box;
+  animation: update-sheet-rise 0.25s ease-out;
+}
+
+@keyframes update-sheet-rise {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .update-sheet {
+    animation: none;
+  }
+}
+
+.update-sheet-icon {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  color: var(--ac-tx);
+  background: var(--ac-soft);
+  border-radius: 50%;
+}
+
+.update-sheet-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.update-sheet-title {
+  color: var(--tx);
+  font-size: 22px;
+  line-height: 30px;
+  font-weight: 650;
+}
+
+.update-sheet-error {
+  display: block;
+  margin-top: 4px;
+  color: var(--err-ink);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 25px;
+}
+
+.update-sheet .settings-more {
+  margin-top: 8px;
+  font-size: 17px;
+}
+
+.update-sheet-actions {
+  display: flex;
+  flex: none;
+  gap: 10px;
+}
+
+/* The same notice as a banner over any page but Home: in the page's flow, so
+   it never covers a composer, and capped like the notice slot above it. */
+.update-banner {
+  flex: none;
+  max-height: 12dvh;
+  overflow-y: auto;
+}
+
+.update-banner .update-sheet-title {
+  display: block;
+  font-size: 17px;
+  line-height: 24px;
+}
+
+.update-banner .settings-more {
+  margin-top: 2px;
+  font-size: 15px;
+}

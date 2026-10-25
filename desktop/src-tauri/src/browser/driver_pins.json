@@ -1,0 +1,24 @@
+{
+  "driver": "1.64.0",
+  "node": "24.21.0",
+  "platforms": {
+    "mac-arm64": {
+      "file": "playwright-1.64.0-mac-arm64-node24.21.0.tar.gz",
+      "size": 42353180,
+      "sha256": "5f2bbd502beb3e1151ab330c6c141611288b853c2375ccb89276f6d6051c5691",
+      "tree": "83928dd0bdeabad97984ddaed5d5216db9cdbb4a44d15db4f05130a1fc731e05"
+    },
+    "mac": {
+      "file": "playwright-1.64.0-mac-node24.21.0.tar.gz",
+      "size": 43662161,
+      "sha256": "a1fb638c38c591da172cc557ed73f80c07442522515df95c0df20eae2f70406e",
+      "tree": "d602d70b8867cce4cc352f35ff2756e00620e184a5d1d894beb4be1f53ccdc09"
+    },
+    "win32_x64": {
+      "file": "playwright-1.64.0-win32_x64-node24.21.0.tar.gz",
+      "size": 37989371,
+      "sha256": "f15c42bed28365a7f3ef507f11c110312e5d24c9f729c9c6773c4fed6397e7ac",
+      "tree": "81040a34280be72c456e97fae6192ef81af623433405c53e887d7b8706ad0f53"
+    }
+  }
+}

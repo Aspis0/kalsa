@@ -1,0 +1,121 @@
+{
+ "label": "B2-8k",
+ "port": 18352,
+ "phones": 4,
+ "turns": 2,
+ "doc_words": 5900,
+ "n_predict": 24,
+ "wall_s": 36.87,
+ "metrics": {
+  "max_processing": 0,
+  "max_deferred": 0,
+  "samples": 0,
+  "deferred_samples": 0
+ },
+ "requests": [
+  {
+   "ttft_ms": 18105,
+   "total_ms": 22666,
+   "prompt_tokens": 7258,
+   "cached_tokens": 0,
+   "cache_n": 0,
+   "completion_tokens": 13,
+   "error": null,
+   "prompt_ms": 4480.316,
+   "prompt_per_second": 1620.0,
+   "phone": 0,
+   "turn": 0
+  },
+  {
+   "ttft_ms": 13386,
+   "total_ms": 13595,
+   "prompt_tokens": 7298,
+   "cached_tokens": 0,
+   "cache_n": 0,
+   "completion_tokens": 14,
+   "error": null,
+   "prompt_ms": 4448.669,
+   "prompt_per_second": 1640.5,
+   "phone": 0,
+   "turn": 1
+  },
+  {
+   "ttft_ms": 8805,
+   "total_ms": 13609,
+   "prompt_tokens": 7326,
+   "cached_tokens": 0,
+   "cache_n": 0,
+   "completion_tokens": 23,
+   "error": null,
+   "prompt_ms": 8755.622,
+   "prompt_per_second": 836.7,
+   "phone": 1,
+   "turn": 0
+  },
+  {
+   "ttft_ms": 13276,
+   "total_ms": 21956,
+   "prompt_tokens": 7373,
+   "cached_tokens": 0,
+   "cache_n": 0,
+   "completion_tokens": 23,
+   "error": null,
+   "prompt_ms": 4519.991,
+   "prompt_per_second": 1631.2,
+   "phone": 1,
+   "turn": 1
+  },
+  {
+   "ttft_ms": 8609,
+   "total_ms": 9027,
+   "prompt_tokens": 7227,
+   "cached_tokens": 0,
+   "cache_n": 0,
+   "completion_tokens": 13,
+   "error": null,
+   "prompt_ms": 8553.249,
+   "prompt_per_second": 844.9,
+   "phone": 2,
+   "turn": 0
+  },
+  {
+   "ttft_ms": 13262,
+   "total_ms": 17860,
+   "prompt_tokens": 7268,
+   "cached_tokens": 0,
+   "cache_n": 0,
+   "completion_tokens": 12,
+   "error": null,
+   "prompt_ms": 4459.144,
+   "prompt_per_second": 1629.9,
+   "phone": 2,
+   "turn": 1
+  },
+  {
+   "ttft_ms": 13519,
+   "total_ms": 18129,
+   "prompt_tokens": 7282,
+   "cached_tokens": 0,
+   "cache_n": 0,
+   "completion_tokens": 14,
+   "error": null,
+   "prompt_ms": 4468.452,
+   "prompt_per_second": 1629.6,
+   "phone": 3,
+   "turn": 0
+  },
+  {
+   "ttft_ms": 13262,
+   "total_ms": 13463,
+   "prompt_tokens": 7323,
+   "cached_tokens": 0,
+   "cache_n": 0,
+   "completion_tokens": 10,
+   "error": null,
+   "prompt_ms": 4499.125,
+   "prompt_per_second": 1627.6,
+   "phone": 3,
+   "turn": 1
+  }
+ ]
+}

@@ -1,0 +1,16 @@
+/* The browser's own page in Settings: the same way back that Mail's page has. */
+
+.browser-back {
+  display: inline-flex;
+  margin: -8px 0 20px;
+  padding: 0;
+  align-items: center;
+  gap: 5px;
+  color: var(--ac-tx);
+  background: none;
+  border: none;
+  font-family: inherit;
+  font-size: 14.5px;
+  font-weight: 600;
+  cursor: pointer;
+}

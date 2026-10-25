@@ -1,0 +1,258 @@
+// The accumulator for streamed tool calls, fed the fragment sequences that a
+// real server produces and the ones it produces when something is wrong.
+// Pure: no server, no browser, no network.
+//
+// Run: node scripts/tool-calls.mjs   (from chat/)
+
+import { rm } from "node:fs/promises";
+import { loadApp } from "./lib/app-bundle.mjs";
+
+const { dir, app } = await loadApp();
+const { accumulate, readArguments, MAX_ARGUMENTS, createToolMarkupStripper } = app;
+
+let fail = 0;
+function check(label, condition, detail) {
+  const ok = condition ? "ok  " : "FAIL";
+  if (!condition) fail++;
+  console.log(`${ok} ${label}${condition || detail === undefined ? "" : `\n     ${detail}`}`);
+}
+function equal(label, actual, expected) {
+  check(label, JSON.stringify(actual) === JSON.stringify(expected), `got ${JSON.stringify(actual)}\n     want ${JSON.stringify(expected)}`);
+}
+/** A call as the accumulator returns it, so expectations stay readable. */
+function call(index, id, name, args, cut = false) {
+  return { index, id, name, arguments: args, cut };
+}
+
+// A single call, arguments in one chunk: the easy case.
+equal(
+  "one chunk carries the whole call",
+  accumulate([], [{ index: 0, id: "a1", function: { name: "web_search", arguments: '{"query":"x"}' } }]),
+  [call(0, "a1", "web_search", '{"query":"x"}')],
+);
+
+// Arguments split across chunks, name and id only on the first.
+const split = [
+  [{ index: 0, id: "b2", function: { name: "web_fetch", arguments: '{"url":' } }],
+  [{ index: 0, function: { arguments: '"https://exa' } }],
+  [{ index: 0, function: { arguments: 'mple.com/page"}' } }],
+];
+let calls = [];
+for (const delta of split) calls = accumulate(calls, delta);
+equal("arguments are concatenated in arrival order", calls, [
+  call(0, "b2", "web_fetch", '{"url":"https://example.com/page"}'),
+]);
+
+// Two calls interleaved by index, as a parallel-calling server sends them.
+calls = [];
+calls = accumulate(calls, [
+  { index: 0, id: "c0", function: { name: "web_search", arguments: '{"query":' } },
+  { index: 1, id: "c1", function: { name: "web_fetch", arguments: '{"url":' } },
+]);
+calls = accumulate(calls, [{ index: 1, function: { arguments: '"https://b"' } }]);
+calls = accumulate(calls, [{ index: 0, function: { arguments: '"a"}' } }]);
+calls = accumulate(calls, [{ index: 1, function: { arguments: "}" } }]);
+equal("interleaved calls are kept apart by index", calls, [
+  call(0, "c0", "web_search", '{"query":"a"}'),
+  call(1, "c1", "web_fetch", '{"url":"https://b"}'),
+]);
+
+// A call the server never named: it still needs an id to answer.
+equal(
+  "a call with no id gets one",
+  accumulate([], [{ index: 0, function: { name: "web_search", arguments: "{}" } }]),
+  [call(0, "call-0", "web_search", "{}")],
+);
+equal(
+  "the second unnamed call gets its own id",
+  accumulate([], [
+    { index: 0, function: { name: "web_search", arguments: "{}" } },
+    { index: 1, function: { name: "web_fetch", arguments: "{}" } },
+  ]),
+  [call(0, "call-0", "web_search", "{}"), call(1, "call-1", "web_fetch", "{}")],
+);
+
+// Nothing to fold: the same array comes back, untouched.
+const before = [call(0, "d1", "web_search", '{"query":"q"}')];
+check("an empty delta returns the same array", accumulate(before, undefined) === before);
+check("a non-array delta returns the same array", accumulate(before, "nonsense") === before);
+check("the input array is never mutated", before[0].name === "web_search" && before.length === 1);
+
+// Arguments that arrive empty: a call that takes none.
+calls = accumulate([], [{ index: 0, id: "e1", function: { name: "web_search" } }]);
+equal("missing arguments stay empty", calls, [call(0, "e1", "web_search", "")]);
+equal("empty arguments parse to none", readArguments(calls[0].name, calls[0].arguments), { args: {}, problem: null });
+
+// Malformed JSON at the end is a tool error, not a thrown exception.
+const broken = accumulate([], [{ index: 0, id: "f1", function: { name: "web_fetch", arguments: '{"url": ' } }]);
+const brokenRead = readArguments(broken[0].name, broken[0].arguments);
+check("malformed JSON does not throw", brokenRead.problem !== null, JSON.stringify(brokenRead));
+// The owner reads this sentence: plain words, never the tool's internal name.
+check(
+  "the refusal is the plain sentence, without the tool's internal name",
+  brokenRead.problem === "Kalsa couldn't finish checking. Ask again." && !brokenRead.problem.includes("web_fetch"),
+  brokenRead.problem ?? "",
+);
+equal("a refusal runs the tool with no arguments", brokenRead.args, {});
+
+// JSON that is valid but not an object cannot be a tool's arguments either.
+check("an array is not an argument object", readArguments("web_search", "[1,2]").problem !== null);
+check("a bare string is not an argument object", readArguments("web_search", '"x"').problem !== null);
+check("a real object parses", readArguments("web_search", '{"query":"q"}').problem === null);
+
+// --- placement: an index that cannot be placed must not be guessed (finding 11)
+
+// Each of these carries a valid call beside the junk, so "the junk was skipped"
+// cannot be satisfied by an accumulator that returns nothing at all.
+equal(
+  "non-object fragments are skipped and the real one is not",
+  accumulate([], [null, { index: 0, id: "k1", function: { name: "web_search", arguments: "{}" } }, 7, "x"]),
+  [call(0, "k1", "web_search", "{}")],
+);
+equal(
+  "an absurd index is ignored and the real one is not",
+  accumulate([], [
+    { index: 1e9, function: { name: "web_search" } },
+    { index: 0, id: "k2", function: { name: "web_search", arguments: "{}" } },
+  ]),
+  [call(0, "k2", "web_search", "{}")],
+);
+equal(
+  "a fractional index is ignored and the real one is not",
+  accumulate([], [
+    { index: 0.5, function: { name: "web_search", arguments: "{}" } },
+    { index: 0, id: "k3", function: { name: "web_search", arguments: "{}" } },
+  ]),
+  [call(0, "k3", "web_search", "{}")],
+);
+equal(
+  "a negative index is ignored and the real one is not",
+  accumulate([], [
+    { index: -1, function: { name: "web_fetch", arguments: '{"url":"https://evil"}' } },
+    { index: 0, id: "k4", function: { name: "web_search", arguments: "{}" } },
+  ]),
+  [call(0, "k4", "web_search", "{}")],
+);
+// This used to be asserted the other way round: a negative index folded its
+// arguments into the real call at zero, which is one tool receiving another's
+// arguments. It must be dropped, and call zero must be left alone.
+const real = accumulate([], [{ index: 0, id: "g1", function: { name: "web_search", arguments: '{"query":"real"}' } }]);
+const corrupted = accumulate(real, [{ index: -1, function: { name: "web_fetch", arguments: '{"url":"https://evil"}' } }]);
+equal("a negative index is dropped and the real call is untouched", corrupted, [
+  call(0, "g1", "web_search", '{"query":"real"}'),
+]);
+check(
+  "a missing index is dropped, not folded into call zero",
+  accumulate(real, [{ id: "x", function: { name: "web_fetch", arguments: '{"url":"https://evil"}' } }])[0]
+    .arguments === '{"query":"real"}',
+  JSON.stringify(accumulate(real, [{ id: "x", function: { name: "web_fetch", arguments: '{"url":"https://evil"}' } }])),
+);
+// Sparse: index 2 is one call, not three with two empty phantoms in front.
+const sparse = accumulate([], [{ index: 2, id: "h2", function: { name: "web_search", arguments: "{}" } }]);
+equal("a sparse index creates no phantom calls", sparse, [call(2, "h2", "web_search", "{}")]);
+
+// --- ids: unique, or the transcript loses a run (finding 12)
+
+const reused = accumulate([], [
+  { index: 0, id: "same", function: { name: "web_search", arguments: "{}" } },
+  { index: 1, id: "same", function: { name: "web_fetch", arguments: "{}" } },
+]);
+check("a reused id is made unique", reused[0].id !== reused[1].id, JSON.stringify(reused.map((c) => c.id)));
+const clash = accumulate([], [
+  { index: 0, function: { name: "web_search", arguments: "{}" } },
+  { index: 1, id: "call-0", function: { name: "web_fetch", arguments: "{}" } },
+]);
+check("a real id cannot collide with a synthetic one", new Set(clash.map((c) => c.id)).size === 2, JSON.stringify(clash.map((c) => c.id)));
+
+// --- a call the stream never named (finding 13): kept, but unnamed.
+const named = accumulate([], [{ index: 0, id: "i1", function: { arguments: "{}" } }]);
+equal("a fragment with no name leaves the call unnamed", named, [call(0, "i1", "", "{}")]);
+
+// --- the argument cap (finding 14)
+
+const flood = accumulate([], [{ index: 0, id: "j1", function: { name: "web_search", arguments: '{"query":"' + "x".repeat(5000) + '"}' } }]);
+check("arguments are cut at the cap", flood[0].arguments.length === MAX_ARGUMENTS, String(flood[0].arguments.length));
+check("a cut call is marked", flood[0].cut === true);
+const floodRead = readArguments(flood[0].name, flood[0].arguments, flood[0].cut);
+check(
+  "a cut call fails honestly instead of parsing half a sentence",
+  (floodRead.problem ?? "").includes("too long for Kalsa to check"),
+  floodRead.problem ?? "",
+);
+equal("and it runs with no arguments", floodRead.args, {});
+// The cap holds across many small fragments too.
+let long = [];
+for (let i = 0; i < 300; i += 1) long = accumulate(long, [{ index: 0, function: { arguments: "y".repeat(100) } }]);
+check("the cap holds across many chunks", long[0].arguments.length <= MAX_ARGUMENTS && long[0].cut === true, `${long[0].arguments.length}`);
+
+// --- tool-call markup that arrives as answer text (see src/lib/toolMarkup.ts)
+
+const LEAKED = [
+  "I need one more search to be sure.\n",
+  "<tool_call>\n<function=web_search>\n<parameter=query>\n",
+  "weather in Tokyo today\n</parameter>\n</function>\n</tool_call>",
+];
+function stripped(deltas) {
+  const stripper = createToolMarkupStripper();
+  let out = deltas.map((delta) => stripper.push(delta)).join("");
+  out += stripper.flush();
+  return out;
+}
+check("markup: nothing but the words around the call survives", stripped(LEAKED) === "I need one more search to be sure.\n", JSON.stringify(stripped(LEAKED)));
+check(
+  "markup: a tag split at every character is still hidden",
+  stripped([...LEAKED.join("")].map((ch) => ch)) === "I need one more search to be sure.\n",
+  JSON.stringify(stripped([...LEAKED.join("")].map((ch) => ch))),
+);
+check("markup: plain text is untouched", stripped(["Two ", "plain ", "words."]) === "Two plain words.", JSON.stringify(stripped(["Two ", "plain ", "words."])));
+check("markup: a half-typed tag is released at the end", stripped(["a <tool"]) === "a <tool", JSON.stringify(stripped(["a <tool"])));
+check(
+  "markup: ordinary text ending in a character like < is not held back",
+  stripped(["5 < ", "6"]) === "5 < 6",
+  JSON.stringify(stripped(["5 < ", "6"])),
+);
+check("markup: a tag split after one character is still hidden", stripped(["<", "tool_call>x</tool_call>y"]) === "y", JSON.stringify(stripped(["<", "tool_call>x</tool_call>y"])));
+check("markup: text after the block is kept", stripped(["<tool_call>x</tool_call>after"]) === "after", JSON.stringify(stripped(["<tool_call>x</tool_call>after"])));
+// An unterminated block is the case the owner hit live: the model wrote a
+// <tool_call> it never closed, and every character after it disappeared — the
+// page showed no answer at all. Held-back text that never turned out to be
+// markup has to reach the reader.
+check(
+  "markup: an unclosed block is given back, not swallowed",
+  stripped(["before <tool_call>after: ordinary prose with no close"]) ===
+    "before <tool_call>after: ordinary prose with no close",
+  JSON.stringify(stripped(["before <tool_call>after: ordinary prose with no close"])),
+);
+check(
+  "markup: an unclosed block split across deltas is given back too",
+  stripped(["before <tool_", "call>after: more prose"]) === "before <tool_call>after: more prose",
+  JSON.stringify(stripped(["before <tool_", "call>after: more prose"])),
+);
+
+// A call written out in the model's own tokens, the shape that reached the reader.
+const GEMMA = '<|tool_call>call:browser_type{ref:<|"|>f8e242<|"|>,text:<|"|>12<|"|>}<tool_call|>';
+check("markup: the Gemma spelling is hidden", stripped([GEMMA]) === "", JSON.stringify(stripped([GEMMA])));
+check(
+  "markup: the Gemma spelling split at every character is still hidden",
+  stripped([...GEMMA].map((ch) => ch)) === "",
+  JSON.stringify(stripped([...GEMMA].map((ch) => ch))),
+);
+check(
+  "markup: the words around a Gemma block are kept",
+  stripped(["prima ", GEMMA, " dopo"]) === "prima  dopo",
+  JSON.stringify(stripped(["prima ", GEMMA, " dopo"])),
+);
+check(
+  "markup: an unclosed Gemma block is not given back",
+  stripped(["prima <|tool_call>call:browser_type{ref:x}"]) === "prima ",
+  JSON.stringify(stripped(["prima <|tool_call>call:browser_type{ref:x}"])),
+);
+check(
+  "markup: a Gemma block split across deltas is still hidden",
+  stripped(["<|tool_", "call>call:browser_type{ref:x}<tool_", "call|>dopo"]) === "dopo",
+  JSON.stringify(stripped(["<|tool_", "call>call:browser_type{ref:x}<tool_", "call|>dopo"])),
+);
+
+await rm(dir, { recursive: true, force: true });
+console.log(fail ? `\n${fail} failed` : "\nall tool-call fragment cases passed");
+process.exit(fail ? 1 : 0);

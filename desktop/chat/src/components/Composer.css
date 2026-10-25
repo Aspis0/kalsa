@@ -1,0 +1,341 @@
+/* The composer (RULES.md "Composer"): a 28-radius card, the text line, then
+   one row — Attach a file, Think, the disclaimer, Send. Nothing below it. */
+
+.composer {
+  flex: none;
+  width: 100%;
+  max-width: calc(780px + 2rem);
+  margin: 0 auto;
+  padding: 8px 1rem 18px;
+}
+
+.composer-box {
+  display: flex;
+  flex-direction: column;
+  padding: 16px 12px 12px 22px;
+  background: var(--card);
+  border: 1.5px solid var(--line);
+  border-radius: 28px;
+}
+
+.composer-box:focus-within {
+  border-color: var(--ac);
+}
+
+.composer-input {
+  width: 100%;
+  min-height: 40px;
+  padding: 0;
+  color: var(--tx);
+  background: transparent;
+  border: 0;
+  outline: none;
+  resize: none;
+  font-size: 17px;
+  line-height: 26px;
+}
+
+.composer-input::placeholder {
+  color: var(--tx3);
+}
+
+/* The box's own border carries the focus; the textarea's ring would double it. */
+.composer-box .composer-input:focus-visible {
+  outline: none;
+}
+
+/* The row of controls under the words.
+   **It never leaves the box.** The controls are sized to sit beside the
+   disclaimer, the row wraps when even that is too much, and the disclaimer
+   itself is clamped — a block of large words that spilled out of the input's
+   own box is what the owner's desktop test of 21 October found. */
+.composer-row {
+  display: flex;
+  margin-top: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  row-gap: 6px;
+}
+
+.composer-pill {
+  display: inline-flex;
+  flex: none;
+  height: 36px;
+  padding: 0 12px;
+  align-items: center;
+  gap: 6px;
+  color: var(--tx2);
+  background: transparent;
+  border: 1.5px solid var(--line);
+  border-radius: 18px;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.composer-pill:focus-visible {
+  border-radius: 18px;
+}
+
+/* Disabled reads as quiet, not faded: every label keeps AA on its fill. */
+.composer-pill:disabled {
+  color: var(--tx3);
+  cursor: default;
+}
+
+.composer-attach {
+  padding: 0 14px 0 10px;
+  color: var(--ac-tx);
+  background: var(--ac-soft);
+  border-color: var(--ac-soft);
+}
+
+.composer-attach:hover {
+  border-color: var(--ac);
+}
+
+.composer-thinking.is-on {
+  color: var(--ac-tx);
+  background: var(--ac-soft);
+  border-color: var(--ac-soft);
+}
+
+.composer-thinking:hover:not(:disabled) {
+  border-color: var(--ac);
+}
+
+/* The browser control, armed. The same accent as the thinking switch: both
+   are the one control that changes what the next message does, and both say
+   it with the fill — **the armed chip is not a word longer**, because the row
+   of controls under the words has no room for one (BUG-1). */
+.composer-browser.is-on {
+  color: var(--ac-tx);
+  background: var(--ac-soft);
+  border-color: var(--ac-soft);
+}
+
+.composer-browser:hover:not(:disabled) {
+  border-color: var(--ac);
+}
+
+.composer-vision {
+  max-width: 280px;
+  color: var(--ac-tx);
+  border: 1.5px dashed var(--ring);
+}
+
+.composer-vision-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The disclaimer. **Two lines at most, and the whole sentence in the title**:
+   the row's height belongs to the controls, and the words are still there for
+   whoever hovers. The minimum width is what the sentence needs to be read; when
+   even that does not fit, the row wraps instead of spilling out of the box. */
+.composer-note {
+  flex: 1 1 12rem;
+  min-width: 12rem;
+  max-width: 100%;
+  max-height: 34px;
+  padding: 0 4px;
+  overflow: hidden;
+  color: var(--tx3);
+  font-size: 12.5px;
+  line-height: 16px;
+  text-align: center;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.composer-ask {
+  color: var(--tx);
+}
+
+.composer-ask:hover:not(:disabled) {
+  border-color: var(--ac);
+}
+
+.composer-send {
+  height: 38px;
+  padding: 0 16px;
+  color: var(--ac-ink);
+  background: var(--ac);
+  border-color: var(--ac);
+  border-radius: 19px;
+  font-size: 15px;
+}
+
+.composer-send:disabled {
+  color: var(--ac-tx);
+  background: var(--ac-soft);
+  border-color: var(--ac-soft);
+}
+
+.composer-send:hover:not(:disabled) {
+  background: var(--ac-tx);
+  border-color: var(--ac-tx);
+}
+
+.composer-stop {
+  height: 38px;
+  padding: 0 16px;
+  color: var(--bg);
+  background: var(--tx);
+  border-color: var(--tx);
+  border-radius: 19px;
+  font-size: 15px;
+}
+
+/* --- what rides with the next message --- */
+
+.composer-chips {
+  display: flex;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.composer-doc {
+  display: flex;
+  max-width: 100%;
+  height: 52px;
+  padding: 0 8px 0 12px;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+}
+
+.composer-doc-icon {
+  display: grid;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  color: var(--ac-tx);
+  background: var(--ac-soft);
+  border-radius: 10px;
+}
+
+.composer-doc-text {
+  min-width: 0;
+  line-height: 19px;
+}
+
+.composer-doc-text b {
+  display: block;
+  max-width: 18rem;
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.composer-doc-text small {
+  color: var(--tx3);
+  font-size: 13px;
+}
+
+.composer-doc-keep {
+  display: inline-flex;
+  flex: none;
+  height: 30px;
+  padding: 0 10px;
+  align-items: center;
+  gap: 5px;
+  color: var(--tx2);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.composer-doc-keep.is-on {
+  color: var(--ac-tx);
+  background: var(--ac-soft);
+  border-color: var(--ac-soft);
+}
+
+.composer-doc-keep:focus-visible,
+.composer-chip-remove:focus-visible {
+  border-radius: 15px;
+}
+
+.composer-chip-remove {
+  display: grid;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  place-items: center;
+  color: var(--tx3);
+  background: none;
+  border: 0;
+  border-radius: 50%;
+}
+
+.composer-chip-remove:hover {
+  color: var(--tx);
+  background: var(--rail);
+}
+
+.composer-image {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 14px;
+}
+
+.composer-image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.composer-image-remove {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  display: grid;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  place-items: center;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.55);
+  border: 0;
+  border-radius: 50%;
+}
+
+/* A video chip: the glyph stands where a picture would, and for a picture
+   whose bytes are not there yet. */
+.composer-image-glyph {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  color: var(--tx2);
+  background: var(--rail);
+}
+
+/* The work line on a compressing video chip. */
+.composer-image-label {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: 0.1rem 0.2rem;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.6);
+  font-size: 0.62rem;
+  text-align: center;
+}

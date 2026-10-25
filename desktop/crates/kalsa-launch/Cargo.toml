@@ -1,0 +1,28 @@
+[package]
+name = "kalsa-launch"
+description = "The exact arguments llama-server is started with, and what they cost in memory"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+# The memory arithmetic and the chosen model row: context is sized against
+# the budget this crate is handed, never against a number that sounds generous.
+kalsa-catalog = { path = "../kalsa-catalog" }
+# The measured thread plateau: the thread count is a measurement, not a fraction.
+kalsa-probe = { path = "../kalsa-probe" }
+# The server build that won: the arguments follow from the build, not the
+# other way round.
+kalsa-runtime = { path = "../kalsa-runtime" }
+# The owner's batch, micro-batch and KV-cache choice travel to and from the
+# panel as JSON, and the cache type is spelled exactly once on disk and wire.
+serde = { version = "1", features = ["derive"] }
+
+[dev-dependencies]
+# The cache measurement reads the server's own timings out of the response.
+serde_json = "1"
+# The same conversation repeated through the real door, the way the app
+# wires door and server together.
+kalsa-door = { path = "../kalsa-door" }
+# The engine key the door is built with, named where it is owned.
+kalsa-supervisor = { path = "../kalsa-supervisor" }

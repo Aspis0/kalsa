@@ -1,0 +1,174 @@
+/* The model's thinking as a thought bubble above the answer: Hearth colours
+   and type on the cloud's own shape and motion. */
+
+.thought {
+  --bubble-period: 1.8s;
+  position: relative;
+  max-width: 660px;
+  margin: 10px 0 22px;
+  padding: 12px 18px 14px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  /* A cloud, not a rounded rectangle: uneven radii plus the two puffs. */
+  border-radius: 24px 28px 26px 18px / 20px 26px 18px 28px;
+}
+
+/* Puffs: background only, no border — a ring would cut across the bubble. */
+.thought::before,
+.thought::after {
+  position: absolute;
+  content: "";
+  background: var(--card);
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.thought::before {
+  top: -9px;
+  left: 30px;
+  width: 26px;
+  height: 26px;
+}
+
+.thought::after {
+  top: -6px;
+  right: 52px;
+  width: 15px;
+  height: 15px;
+}
+
+/* Breathing while thinking streams. Compositor-only; frozen otherwise. */
+.thought-working {
+  animation: thought-breathe 2.6s ease-in-out infinite;
+}
+
+@keyframes thought-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.012); }
+}
+
+.thought-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  padding: 0;
+  text-align: left;
+  background: transparent;
+  border: 0;
+}
+
+.thought-head:focus-visible {
+  border-radius: 8px;
+}
+
+/* The thought ranks below the answer: quiet ink, smaller, never competing. */
+.thought-face {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  color: var(--tx3);
+  font-size: 15px;
+  font-style: italic;
+  line-height: 22px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The accent lives only on the clickable part. */
+.thought-toggle {
+  flex: none;
+  color: var(--ac-tx);
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.thought-body {
+  max-width: 100%;
+  max-height: 320px;
+  margin-top: 10px;
+  padding-top: 10px;
+  overflow-y: auto;
+  color: var(--tx2);
+  border-top: 1px dashed var(--line);
+  font-size: 15px;
+  line-height: 23px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* The trail: three bubbles dripping from the cloud toward the answer, in the
+   gap between them. */
+.thought-trail {
+  position: absolute;
+  top: 100%;
+  left: 44px;
+  display: flex;
+  margin-top: 2px;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.thought-trail span {
+  display: block;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+
+.thought-trail span:nth-child(1) { width: 9px; height: 9px; }
+.thought-trail span:nth-child(2) { width: 7px; height: 7px; margin-left: 2px; }
+.thought-trail span:nth-child(3) { width: 5px; height: 5px; margin-left: 5px; }
+
+/* Rise: from the answer up into the cloud, shrinking as they merge in.
+   Slow, silent, no bounce. Staggered by thirds of the measured period. */
+.thought-rise .thought-trail span {
+  animation: bubble-rise var(--bubble-period, 1.8s) linear infinite;
+}
+
+.thought-rise .thought-trail span:nth-child(2) {
+  animation-delay: calc(var(--bubble-period, 1.8s) / -3);
+}
+
+.thought-rise .thought-trail span:nth-child(3) {
+  animation-delay: calc(var(--bubble-period, 1.8s) / -1.5);
+}
+
+@keyframes bubble-rise {
+  0% { transform: translateY(12px) scale(0.7); opacity: 0; }
+  25% { opacity: 1; }
+  100% { transform: translateY(-2px) scale(0.45); opacity: 0; }
+}
+
+/* Settle: one gesture when the answer starts — down and still. */
+.thought-settle .thought-trail span {
+  animation: bubble-settle 0.9s ease-out backwards;
+}
+
+.thought-settle .thought-trail span:nth-child(2) {
+  animation-delay: 0.12s;
+}
+
+.thought-settle .thought-trail span:nth-child(3) {
+  animation-delay: 0.24s;
+}
+
+@keyframes bubble-settle {
+  0% { transform: translateY(-2px) scale(0.5); opacity: 0; }
+  35% { opacity: 1; }
+  100% { transform: translateY(12px) scale(1); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thought-working {
+    animation: none;
+  }
+
+  /* The trail appears and stays: still a connector, never a motion. */
+  .thought-rise .thought-trail span,
+  .thought-settle .thought-trail span {
+    animation: none;
+  }
+}

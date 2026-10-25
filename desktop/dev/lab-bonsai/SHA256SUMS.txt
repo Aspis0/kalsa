@@ -1,0 +1,2 @@
+3907dc1658db1f78a9826bf8d5bcb8dc65db0d466388937af57f2294fae62ec1  Ternary-Bonsai-2-27B-PQ2_0.gguf
+17ef842e47450caeb8eaa3ebfbbab5d2f2278b62b79be107985fb69a2f819aa0  Bonsai-27B-Q1_0.gguf

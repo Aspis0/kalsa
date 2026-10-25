@@ -1,0 +1,93 @@
+/* Server settings (mockup 17-advanced-server): the context presets, the
+   internet road's switch, and the values in force. */
+
+/* Chips rather than a select, because the point is the comparison: the sizes
+   sit next to each other, and the chip that is on says which one is chosen. */
+.advanced-presets {
+  display: flex;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.advanced-preset {
+  height: 36px;
+  padding: 0 14px;
+  color: var(--tx2);
+  background: transparent;
+  border: 1.5px solid var(--line);
+  border-radius: 18px;
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.advanced-preset:hover {
+  border-color: var(--ac);
+}
+
+.advanced-preset-on {
+  color: var(--ac-tx);
+  background: var(--ac-soft);
+  border-color: var(--ac);
+}
+
+.advanced-preset:focus-visible {
+  border-radius: 18px;
+}
+
+/* The context's own number stays editable beside the presets, at a number's
+   width rather than the grid's. */
+#advanced-context {
+  max-width: 12rem;
+}
+
+.advanced-switch {
+  position: relative;
+  width: 50px;
+  height: 30px;
+  margin: 6px 0 0;
+  background: #cfc8b6;
+  border-radius: 15px;
+  cursor: pointer;
+  appearance: none;
+}
+
+.advanced-switch::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 24px;
+  height: 24px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  content: "";
+}
+
+.advanced-switch:checked {
+  background: var(--ac);
+}
+
+.advanced-switch:checked::after {
+  left: 23px;
+}
+
+.advanced-switch:focus-visible {
+  border-radius: 15px;
+}
+
+.advanced-inforce {
+  margin-top: 16px;
+  padding: 12px 14px;
+  color: var(--tx2);
+  background: var(--rail);
+  border-radius: 14px;
+  font: 13px/20px ui-monospace, Menlo, monospace;
+}
+
+.advanced-inforce p {
+  margin: 0;
+  color: inherit;
+  font: inherit;
+}

@@ -1,0 +1,74 @@
+/* The vision offer above the composer (mockups 11-chat-states-vision-offer and
+   -vision-restarting): the ask drawn as the mockup's dialog card, kept in the
+   flow above the composer, not a modal, so the thread stays readable. */
+
+.vision-offer {
+  flex: none;
+  width: calc(100% - 2rem);
+  max-width: 780px;
+  margin: 0 auto 8px;
+  padding: 24px 28px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  box-shadow: 0 30px 80px -20px var(--sh);
+}
+
+.vision-offer p {
+  margin: 0;
+  color: var(--tx);
+  font-size: 17px;
+  line-height: 26px;
+}
+
+.vision-failed p {
+  color: var(--err-ink);
+}
+
+.vision-actions {
+  display: flex;
+  margin-top: 18px;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.vision-actions button {
+  display: inline-flex;
+  height: 52px;
+  padding: 0 24px;
+  align-items: center;
+  border-radius: 26px;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.vision-actions button:focus-visible {
+  border-radius: 26px;
+}
+
+.vision-download {
+  color: var(--ac-ink);
+  background: var(--ac);
+  border: 1.5px solid var(--ac);
+}
+
+.vision-not-now {
+  color: var(--tx);
+  background: transparent;
+  border: 1.5px solid var(--line);
+}
+
+/* The download's own view, kept to the card's measure: `SetupProgress` is a
+   page-level block (centred sentence over the plant) and this is not a page. */
+.vision-running {
+  box-shadow: none;
+}
+
+.vision-running .surface-walk {
+  margin: 0;
+}
+
+.vision-restarting {
+  color: var(--tx2);
+  text-align: center;
+}

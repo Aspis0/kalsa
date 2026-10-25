@@ -1,0 +1,417 @@
+{
+  "trustedAuth": "mx.lab-provider.example",
+  "labels": [
+    {
+      "uid": "101",
+      "fixtureId": "nz-23",
+      "important": false,
+      "suspicious": false,
+      "bulk": true,
+      "reasons": []
+    },
+    {
+      "uid": "102",
+      "fixtureId": "nz-22",
+      "important": false,
+      "suspicious": false,
+      "bulk": true,
+      "reasons": []
+    },
+    {
+      "uid": "103",
+      "fixtureId": "nz-21",
+      "important": false,
+      "suspicious": false,
+      "bulk": true,
+      "reasons": []
+    },
+    {
+      "uid": "104",
+      "fixtureId": "nz-20",
+      "important": false,
+      "suspicious": false,
+      "bulk": true,
+      "reasons": []
+    },
+    {
+      "uid": "105",
+      "fixtureId": "adv2-inj-websearch",
+      "important": false,
+      "suspicious": true,
+      "bulk": false,
+      "reasons": [
+        "prompt-injection"
+      ]
+    },
+    {
+      "uid": "106",
+      "fixtureId": "nz-19",
+      "important": false,
+      "suspicious": false,
+      "bulk": true,
+      "reasons": []
+    },
+    {
+      "uid": "107",
+      "fixtureId": "nz-17",
+      "important": false,
+      "suspicious": false,
+      "bulk": true,
+      "reasons": []
+    },
+    {
+      "uid": "108",
+      "fixtureId": "ben-newsletter",
+      "important": false,
+      "suspicious": false,
+      "bulk": true,
+      "reasons": []
+    },
+    {
+      "uid": "109",
+      "fixtureId": "nz-16",
+      "important": false,
+      "suspicious": false,
+      "bulk": true,
+      "reasons": []
+    },
+    {
+      "uid": "110",
+      "fixtureId": "nz-15",
+      "important": false,
+      "suspicious": false,
+      "bulk": true,
+      "reasons": []
+    },
+    {
+      "uid": "111",
+      "fixtureId": "nz-14",
+      "important": false,
+      "suspicious": false,
+      "bulk": true,
+      "reasons": []
+    },
+    {
+      "uid": "112",
+      "fixtureId": "adv2-punycode",
+      "important": false,
+      "suspicious": true,
+      "bulk": false,
+      "reasons": [
+        "link-punycode"
+      ]
+    },
+    {
+      "uid": "113",
+      "fixtureId": "nz-13",
+      "important": false,
+      "suspicious": false,
+      "bulk": true,
+      "reasons": []
+    },
+    {
+      "uid": "114",
+      "fixtureId": "nz-12",
+      "important": false,
+      "suspicious": false,
+      "bulk": true,
+      "reasons": []
+    },
+    {
+      "uid": "115",
+      "fixtureId": "nz-18",
+      "important": false,
+      "suspicious": false,
+      "bulk": true,
+      "reasons": []
+    },
+    {
+      "uid": "116",
+      "fixtureId": "adv2-shortener",
+      "important": false,
+      "suspicious": true,
+      "bulk": false,
+      "reasons": [
+        "link-shortener"
+      ]
+    },
+    {
+      "uid": "117",
+      "fixtureId": "nz-11",
+      "important": false,
+      "suspicious": false,
+      "bulk": true,
+      "reasons": []
+    },
+    {
+      "uid": "118",
+      "fixtureId": "nz-10",
+      "important": false,
+      "suspicious": false,
+      "bulk": true,
+      "reasons": []
+    },
+    {
+      "uid": "119",
+      "fixtureId": "adv2-pec-fake",
+      "important": false,
+      "suspicious": true,
+      "bulk": false,
+      "reasons": [
+        "cred-urgency-unseen"
+      ]
+    },
+    {
+      "uid": "120",
+      "fixtureId": "adv2-dmarc",
+      "important": false,
+      "suspicious": true,
+      "bulk": false,
+      "reasons": [
+        "auth-fail"
+      ]
+    },
+    {
+      "uid": "121",
+      "fixtureId": "nz-09",
+      "important": false,
+      "suspicious": false,
+      "bulk": true,
+      "reasons": []
+    },
+    {
+      "uid": "122",
+      "fixtureId": "ben-bank-notice",
+      "important": false,
+      "suspicious": false,
+      "bulk": false,
+      "reasons": []
+    },
+    {
+      "uid": "123",
+      "fixtureId": "nz-08",
+      "important": false,
+      "suspicious": false,
+      "bulk": true,
+      "reasons": []
+    },
+    {
+      "uid": "124",
+      "fixtureId": "ben-pec-receipt",
+      "important": false,
+      "suspicious": false,
+      "bulk": true,
+      "reasons": []
+    },
+    {
+      "uid": "125",
+      "fixtureId": "adv2-inj-html",
+      "important": false,
+      "suspicious": true,
+      "bulk": false,
+      "reasons": [
+        "testo nascosto"
+      ]
+    },
+    {
+      "uid": "126",
+      "fixtureId": "nz-07",
+      "important": false,
+      "suspicious": false,
+      "bulk": true,
+      "reasons": []
+    },
+    {
+      "uid": "127",
+      "fixtureId": "nz-06",
+      "important": false,
+      "suspicious": false,
+      "bulk": true,
+      "reasons": []
+    },
+    {
+      "uid": "128",
+      "fixtureId": "adv2-raw-ip",
+      "important": false,
+      "suspicious": true,
+      "bulk": false,
+      "reasons": [
+        "link-ip"
+      ]
+    },
+    {
+      "uid": "129",
+      "fixtureId": "nz-05",
+      "important": false,
+      "suspicious": false,
+      "bulk": true,
+      "reasons": []
+    },
+    {
+      "uid": "130",
+      "fixtureId": "ben-forwarded-dentist",
+      "important": true,
+      "suspicious": false,
+      "bulk": false,
+      "reasons": []
+    },
+    {
+      "uid": "131",
+      "fixtureId": "imp-relative",
+      "important": true,
+      "suspicious": false,
+      "bulk": false,
+      "reasons": []
+    },
+    {
+      "uid": "132",
+      "fixtureId": "adv2-link-text",
+      "important": false,
+      "suspicious": true,
+      "bulk": false,
+      "reasons": [
+        "link-text-mismatch"
+      ]
+    },
+    {
+      "uid": "133",
+      "fixtureId": "adv2-cred-spoof",
+      "important": false,
+      "suspicious": true,
+      "bulk": false,
+      "reasons": [
+        "display-spoof",
+        "cred-urgency-unseen"
+      ]
+    },
+    {
+      "uid": "134",
+      "fixtureId": "adv-phishing",
+      "important": false,
+      "suspicious": true,
+      "bulk": false,
+      "reasons": [
+        "cred-urgency-unseen",
+        "testo nascosto"
+      ]
+    },
+    {
+      "uid": "135",
+      "fixtureId": "imp-invoice",
+      "important": true,
+      "suspicious": false,
+      "bulk": false,
+      "reasons": []
+    },
+    {
+      "uid": "136",
+      "fixtureId": "adv2-iban",
+      "important": false,
+      "suspicious": true,
+      "bulk": false,
+      "reasons": [
+        "cred-urgency-unseen"
+      ]
+    },
+    {
+      "uid": "137",
+      "fixtureId": "imp-school",
+      "important": true,
+      "suspicious": false,
+      "bulk": false,
+      "reasons": []
+    },
+    {
+      "uid": "138",
+      "fixtureId": "ben-shipping",
+      "important": false,
+      "suspicious": false,
+      "bulk": true,
+      "reasons": []
+    },
+    {
+      "uid": "139",
+      "fixtureId": "nz-04",
+      "important": false,
+      "suspicious": false,
+      "bulk": true,
+      "reasons": []
+    },
+    {
+      "uid": "140",
+      "fixtureId": "nz-03",
+      "important": false,
+      "suspicious": false,
+      "bulk": true,
+      "reasons": []
+    },
+    {
+      "uid": "141",
+      "fixtureId": "imp-meeting",
+      "important": true,
+      "suspicious": false,
+      "bulk": false,
+      "reasons": []
+    },
+    {
+      "uid": "142",
+      "fixtureId": "imp-doctor",
+      "important": true,
+      "suspicious": false,
+      "bulk": false,
+      "reasons": []
+    },
+    {
+      "uid": "143",
+      "fixtureId": "adv-pixel",
+      "important": false,
+      "suspicious": false,
+      "bulk": true,
+      "reasons": []
+    },
+    {
+      "uid": "144",
+      "fixtureId": "nz-02",
+      "important": false,
+      "suspicious": false,
+      "bulk": true,
+      "reasons": []
+    },
+    {
+      "uid": "145",
+      "fixtureId": "nz-01",
+      "important": false,
+      "suspicious": false,
+      "bulk": true,
+      "reasons": []
+    },
+    {
+      "uid": "146",
+      "fixtureId": "ben-colleague-urgent",
+      "important": true,
+      "suspicious": false,
+      "bulk": false,
+      "reasons": []
+    },
+    {
+      "uid": "147",
+      "fixtureId": "adv2-replyto",
+      "important": false,
+      "suspicious": true,
+      "bulk": false,
+      "reasons": [
+        "reply-to-mismatch"
+      ]
+    },
+    {
+      "uid": "148",
+      "fixtureId": "adv2-inj-quoted",
+      "important": false,
+      "suspicious": true,
+      "bulk": false,
+      "reasons": [
+        "prompt-injection"
+      ]
+    }
+  ]
+}

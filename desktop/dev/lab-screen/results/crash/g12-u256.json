@@ -1,0 +1,32 @@
+{
+  "model": "gemma-4-12B-it-Q4_K_M",
+  "base": "http://127.0.0.1:8150",
+  "engineAlive": false,
+  "results": [
+    {
+      "label": "twin-text",
+      "status": 200,
+      "reply": "Please provide an image or a description for me to look at, as I cannot see your physical surroundings.",
+      "timings": {
+        "promptN": 21,
+        "cacheN": 0,
+        "totalN": 21,
+        "promptMs": 364.467,
+        "predictedN": 22,
+        "predictedMs": 1087.996
+      }
+    },
+    {
+      "label": "frame-1920",
+      "error": "UND_ERR_SOCKET"
+    },
+    {
+      "label": "big-3000",
+      "skipped": "engine already dead"
+    },
+    {
+      "label": "two-frames-1920",
+      "skipped": "engine already dead"
+    }
+  ]
+}

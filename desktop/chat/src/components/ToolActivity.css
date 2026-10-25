@@ -1,0 +1,146 @@
+/* --- the web checks: one quiet line each inside the answer, never an image
+   from the network --- */
+
+.tool-activity {
+  display: flex;
+  margin: 0 0 8px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.tool-run {
+  max-width: 100%;
+  color: var(--tx3);
+  font-size: 15px;
+  line-height: 22px;
+}
+
+/* What Kalsa did in the turn: the last line, in the thread's own quiet voice,
+   and not a row — there is nothing to open under it and nothing to retry. */
+.tool-recap {
+  margin: 6px 0 0;
+  color: var(--tx3);
+  font-size: 15px;
+  line-height: 22px;
+}
+
+/* A running mail call, and the cards that are still waiting for the answer's
+   first word. One step louder than the web row it borrows its spinner from: a
+   real mailbox read is seconds of silence, and a line too quiet to notice is
+   the same as no line. Accent like the spinner it turns beside. */
+.mail-run {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--ac);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+}
+
+.tool-run > summary {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.tool-run > summary::-webkit-details-marker {
+  display: none;
+}
+
+.tool-run > summary:focus-visible {
+  border-radius: 6px;
+}
+
+.tool-chevron {
+  display: inline-flex;
+}
+
+.tool-run[open] .tool-chevron {
+  transform: rotate(90deg);
+}
+
+/* Above the mini-app run's green, which comes later in this file. */
+.tool-run.tool-run-failed > summary .icon:first-child {
+  color: var(--err-ink);
+}
+
+.tool-spin {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border: 2.5px solid var(--ac-soft);
+  border-top-color: var(--ac);
+  border-radius: 50%;
+  animation: tool-turn 0.9s linear infinite;
+}
+
+.tool-detail {
+  margin: 8px 0 4px;
+  padding-left: 24px;
+  color: var(--tx2);
+}
+
+.tool-query,
+.tool-failure {
+  margin: 0 0 6px;
+  overflow-wrap: anywhere;
+}
+
+.tool-sources {
+  display: flex;
+  margin: 8px 0 0;
+  padding: 0;
+  flex-wrap: wrap;
+  gap: 8px;
+  list-style: none;
+}
+
+.tool-sources .tool-link {
+  display: inline-flex;
+  height: 32px;
+  padding: 0 12px;
+  align-items: center;
+  gap: 6px;
+  color: var(--tx);
+  background: var(--rail);
+  border-radius: 16px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+/* A mini app's build line: a card of its own above the answer. */
+.miniapp-run {
+  padding: 12px 16px;
+  color: var(--tx2);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  font-size: 16px;
+}
+
+.miniapp-run > summary .icon:first-child {
+  color: var(--ac-tx);
+}
+
+.miniapp-turn {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+@keyframes tool-turn {
+  to { transform: rotate(360deg); }
+}
+
+/* The spinner stays as a still ring; only the motion stops. */
+@media (prefers-reduced-motion: reduce) {
+  .tool-spin {
+    animation: none;
+  }
+}

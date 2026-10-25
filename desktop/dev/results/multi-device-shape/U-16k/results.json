@@ -1,0 +1,61 @@
+{
+ "label": "U-16k",
+ "port": 18353,
+ "phones": 2,
+ "turns": 2,
+ "doc_words": 12000,
+ "n_predict": 24,
+ "wall_s": 21.63,
+ "metrics": {
+  "max_processing": 0,
+  "max_deferred": 0,
+  "samples": 0,
+  "deferred_samples": 0
+ },
+ "requests": [
+  {
+   "ttft_ms": null,
+   "total_ms": 10501,
+   "prompt_tokens": null,
+   "cached_tokens": null,
+   "cache_n": null,
+   "completion_tokens": null,
+   "error": null,
+   "phone": 0,
+   "turn": 0
+  },
+  {
+   "ttft_ms": null,
+   "total_ms": 10519,
+   "prompt_tokens": null,
+   "cached_tokens": null,
+   "cache_n": null,
+   "completion_tokens": null,
+   "error": null,
+   "phone": 0,
+   "turn": 1
+  },
+  {
+   "ttft_ms": null,
+   "total_ms": 10503,
+   "prompt_tokens": null,
+   "cached_tokens": null,
+   "cache_n": null,
+   "completion_tokens": null,
+   "error": null,
+   "phone": 1,
+   "turn": 0
+  },
+  {
+   "ttft_ms": null,
+   "total_ms": 10510,
+   "prompt_tokens": null,
+   "cached_tokens": null,
+   "cache_n": null,
+   "completion_tokens": null,
+   "error": null,
+   "phone": 1,
+   "turn": 1
+  }
+ ]
+}

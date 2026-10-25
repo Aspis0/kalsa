@@ -1,0 +1,22 @@
+[workspace]
+
+[package]
+name = "lab-browser-rs"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Spike: the lab harness speaking to kalsa-browser over line-delimited JSON"
+
+# The repository workspace lists its members explicitly (Cargo.toml:3-22), so this
+# directory is not a member of it. The empty [workspace] table above makes that
+# decision ours rather than the root's: cargo would otherwise walk up, find the
+# repository root and refuse to build a crate it was not told about.
+[dependencies]
+# The one parser, the one snapshot rule and the one Enter rule. This crate keeps
+# none of its own: a fix in the product lands in the lab in the same build.
+kalsa-browser = { path = "../../crates/kalsa-browser" }
+# The same pin the product uses, for the Page the session hands back.
+playwright-rs = "=0.20.1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "io-std", "io-util", "time"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

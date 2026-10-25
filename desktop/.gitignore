@@ -1,0 +1,26 @@
+/target
+**/target
+.DS_Store
+src-tauri/gen/schemas
+
+# llama-server logs at -lv 5 print the prompts themselves. They are evidence for a
+# measurement, never something this repo may carry. The file name is not a guarantee:
+# the model-switch runs wrote prompts into switched-*.log, which a server*.log rule
+# never saw. So every log here is out, and committing one is an explicit `git add -f`.
+dev/results/**/*.log
+
+# The agent runners keep their per-machine settings beside the checkout. That is
+# tooling state, not this project's: whoever clones the repo runs their own
+# agents, or none.
+.zcode/
+
+# Python bytecode from the dev/ tools. Not this project's: a test importing a
+# module leaves a __pycache__ beside it, and a blanket `git add .` would carry it.
+__pycache__/
+
+# Vite output of the stream-app preview build; regenerated on every build.
+chat/.stream-app-dist/
+
+# The mail sidecar copied in by scripts/build-mail-sidecar.sh for a packaged build.
+# It is built from this workspace each time, so the copy is never a source file.
+src-tauri/binaries/

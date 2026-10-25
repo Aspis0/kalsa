@@ -1,0 +1,285 @@
+// The chat's page: its header and list, the thread, the composer, the files panel —
+// everything the chat LOOKS like, rendered from the state `useChat` holds in
+// the shell (the hook outlives this page's unmounts; see the draft's note
+// there). No chat logic lives here: every handler is the hook's.
+
+import { Composer } from "../components/Composer";
+import { Icon } from "../components/Icon";
+import "../components/NoticeBanner.css";
+import { EmptyState } from "../components/EmptyState";
+import { IMAGE_TOKENS } from "../lib/attachments";
+import { Panel } from "../components/Panel";
+import { SendConfirm } from "../components/mail/SendConfirm";
+import { ChatHeader } from "../components/ChatHeader";
+import { ChatList } from "../components/ChatList";
+import { Thread } from "../components/Thread";
+import { useBrain } from "./useBrain";
+import { VisionOffer } from "../components/VisionOffer";
+import { useLanguage } from "../i18n/useLanguage";
+import type { Chat } from "./useChat";
+import type { MailCardItem } from "../lib/mail/types";
+
+export function ChatSurface({ chat, restartedAt }: { chat: Chat; restartedAt: number | null }) {
+  const { table } = useLanguage();
+  const t = table.shell;
+  const brain = useBrain();
+  const {
+    active,
+    activeId,
+    conversations,
+    streamingIds,
+    streaming,
+    failures,
+    tails,
+    listOpen,
+    setListOpen,
+    dragging,
+    setDragging,
+    attachFiles,
+    attachFromDisk,
+    attachStatus,
+    attachBusy,
+    refusal,
+    setRefusal,
+    setup,
+    credentialMessage,
+    effectiveSettings,
+    thinking,
+    thinkingSupported,
+    saveThinking,
+    browse,
+    setBrowse,
+    vision,
+    visionOfferBytes,
+    visionFlow,
+    visionStep,
+    askVision,
+    dismissVision,
+    enableVision,
+    pendingImages,
+    removeImage,
+    draft,
+    setDraft,
+    send,
+    stop,
+    retry,
+    selectConversation,
+    newConversation,
+    removeConversation,
+    renameConversation,
+    removeAttachment,
+    pending,
+    creating,
+    attachments,
+    ctxInfo,
+    convoTokens,
+    panelOpen,
+    setPanelOpen,
+    mailOpen,
+    mailOpening,
+    setMailOpen,
+    openMail,
+    mailDrafts,
+    saveMailDraft,
+    typeMailDraft,
+    mailSend,
+    setMailSend,
+    mailSent,
+    mailDone,
+    mailMarkInFlight,
+    openSurface,
+  } = chat;
+  const empty = !active || active.messages.length === 0;
+  // The reply is written by the chat model, not by the page: one press sends a
+  // turn that names the mail, and the draft it writes lands as a card under
+  // that turn. The pane closes because the turn is the thing to read now — a
+  // card in the chat and the mail still beside it would be two of one mail.
+  const askDraft = (item: MailCardItem): void => {
+    if (!send(table.mail.askDraft(), table.mail.askDraftNote(item.id), item.subject, item.id)) return;
+    setPanelOpen(false);
+    setMailOpen(null);
+  };
+
+  return (
+    <div className="chat-page">
+      <ChatHeader
+        title={active ? active.title || t.untitled : t.newConversation}
+        listOpen={listOpen}
+        onToggleList={() => setListOpen((open) => !open)}
+        filesOpen={active ? panelOpen : null}
+        onToggleFiles={() => setPanelOpen((open) => !open)}
+        onNew={newConversation}
+      />
+      <ChatList
+        open={listOpen}
+        onOpen={() => setListOpen(true)}
+        onClose={() => setListOpen(false)}
+        conversations={conversations}
+        activeId={activeId}
+        streamingIds={streamingIds}
+        onSelect={selectConversation}
+        onNew={newConversation}
+        onRename={renameConversation}
+        onDelete={removeConversation}
+      />
+      <div className="chat-layout">
+        <div
+          className="main-col"
+          onDragOver={(event) => {
+            if (event.dataTransfer?.types.includes("Files")) {
+              event.preventDefault();
+              setDragging(true);
+            }
+          }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={(event) => {
+            event.preventDefault();
+            setDragging(false);
+            if (event.dataTransfer?.files.length) void attachFiles(event.dataTransfer.files);
+          }}
+        >
+          {dragging ? (
+            <div className="drop-overlay" aria-hidden="true">
+              <span>{t.dropToAttach}</span>
+            </div>
+          ) : null}
+          {refusal ? (
+            <div className="notice-banner is-warn" role="alert">
+              <span className="notice-banner-icon">
+                <Icon name="alert" size={20} />
+              </span>
+              <div className="notice-banner-text">
+                <b>{refusal.names.includes(",") ? t.tooMuchPlural(refusal.names) : t.tooMuchSingular(refusal.names)}</b>
+                <span>{t.refusalBody}</span>
+              </div>
+              <button type="button" className="notice-banner-btn" onClick={() => setRefusal(null)}>
+                {t.dismiss}
+              </button>
+            </div>
+          ) : null}
+          {empty ? (
+            <EmptyState
+              setup={setup}
+              credentialMessage={credentialMessage}
+              onOpenExperts={() => openSurface("experts")}
+              onOpenHome={() => openSurface("brain")}
+              onOpenDevices={() => openSurface("devices")}
+            />
+          ) : (
+            <Thread
+              messages={active.messages}
+              streaming={streaming}
+              failures={failures}
+              tails={tails}
+              onRetry={retry}
+              onTurnOn={() => void brain.act()}
+              restartedAt={restartedAt}
+              onMiniappState={chat.saveMiniappState}
+              awaitingOk={chat.gateShown !== null}
+              mailOpen={mailOpen?.item.id ?? null}
+              onOpenMail={(item) => {
+                void openMail(item);
+                setPanelOpen(true);
+              }}
+              onReplyMail={askDraft}
+              onSendMail={setMailSend}
+              mailSent={mailSent}
+              mailDrafts={mailDrafts}
+              onSaveMail={saveMailDraft}
+              onOpenMailSettings={() => openSurface("mail")}
+            />
+          )}
+          {attachStatus ? (
+            <p className="attach-status" role="status">
+              {attachBusy ? <span className="tool-spin" aria-hidden="true" /> : null}
+              {attachStatus}
+            </p>
+          ) : null}
+          {visionFlow ? (
+            <VisionOffer
+              phase={visionFlow}
+              step={visionStep}
+              onDownload={() => void enableVision()}
+              onNotNow={dismissVision}
+              onRetry={() => void enableVision()}
+            />
+          ) : null}
+          <Composer
+            thinking={thinkingSupported ? thinking : null}
+            onThinking={saveThinking}
+            browse={browse}
+            onBrowse={setBrowse}
+            streaming={streaming}
+            opening={pending || creating}
+            // An attach reading for THIS conversation holds Send: the reading
+            // line stays visible above, and the words stay in the box for the
+            // next Enter. Another conversation's attach never blocks here.
+            sendBlocked={attachBusy}
+            draft={draft}
+            onDraftChange={setDraft}
+            onSend={send}
+            onStop={stop}
+            onAttach={(files) => void attachFiles(files)}
+            acceptsImages={vision}
+            acceptsVideos={vision}
+            visionOfferBytes={visionOfferBytes}
+            onOfferVision={askVision}
+            images={pendingImages.map((chip) => ({
+              id: chip.id,
+              url: chip.url,
+              kind: chip.kind,
+              ...(chip.kind === "video" && chip.compressing
+                ? { label: table.composer.compressing(Math.round(chip.progress * 100)) }
+                : {}),
+            }))}
+            onRemoveImage={removeImage}
+            docs={attachments.filter((a) => a.active)}
+            onRemoveDoc={removeAttachment}
+            onPinDoc={chat.setAttachmentPinned}
+          />
+        </div>
+        <Panel
+          open={panelOpen && active !== null}
+          attachments={attachments}
+          contextTokens={ctxInfo && ctxInfo.endpoint === effectiveSettings.endpoint ? ctxInfo.nctx : null}
+          historyTokens={convoTokens}
+          imageCount={
+            pendingImages.length +
+            pendingImages.reduce(
+              (sum, chip) => sum + (chip.kind === "video" ? chip.frames.length : 0),
+              0,
+            )
+          }
+          imageTokens={
+            (pendingImages.length +
+              pendingImages.reduce(
+                (sum, chip) => sum + (chip.kind === "video" ? chip.frames.length : 0),
+                0,
+              )) *
+            IMAGE_TOKENS
+          }
+          onRemove={removeAttachment}
+          onPin={chat.setAttachmentPinned}
+          onReattach={(id) => {
+            if (!activeId) return;
+            const found = attachments.find((a) => a.id === id);
+            if (found) chat.reattachAttachment(activeId, id);
+          }}
+          onAttachFile={(path, name) => void attachFromDisk(path, name)}
+          mail={mailOpen}
+          mailOpening={mailOpening}
+          mailDrafts={mailDrafts}
+          mailSent={mailSent}
+          onMailReply={typeMailDraft}
+          onMailAskDraft={askDraft}
+          onMailSend={setMailSend}
+          onClose={() => {
+            setPanelOpen(false);
+            setMailOpen(null);
+          }}
+        />
+        <SendConfirm pending={mailSend} onClose={() => setMailSend(null)} onSent={mailDone} onBusy={mailMarkInFlight} />
+      </div>
+    </div>
+  );
+}

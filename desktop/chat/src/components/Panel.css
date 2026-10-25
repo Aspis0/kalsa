@@ -1,0 +1,256 @@
+/* The files panel beside the chat (mockups 11-chat-states-files-attached and
+   -files-browser): two tabs, then this conversation's files or the computer's. */
+
+.panel {
+  display: flex;
+  flex: none;
+  /* Three tabs with whole words and a mail body to read: the old 400px cut
+     "In questa chat" into "In questa ...". */
+  width: 452px;
+  min-height: 0;
+  padding: 18px 20px;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  background: var(--card);
+  border-left: 1px solid var(--line);
+}
+
+/* Wide, the panel is a column of the page: the open state decides whether it
+   is on screen at all; the narrow slide-over below keeps it laid out. */
+.panel:not(.panel-open) {
+  display: none;
+}
+
+.panel-backdrop {
+  display: none;
+}
+
+.panel-head {
+  display: flex;
+  flex: none;
+  margin-bottom: 6px;
+  align-items: center;
+  gap: 10px;
+}
+
+.panel-tabs {
+  display: flex;
+  flex: 1;
+  padding: 4px;
+  gap: 4px;
+  background: var(--rail);
+  border-radius: 22px;
+}
+
+.panel-tab {
+  flex: 1;
+  height: 38px;
+  padding: 0 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--tx2);
+  background: transparent;
+  border: 0;
+  border-radius: 19px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.panel-tab.is-on {
+  color: var(--tx);
+  background: var(--card);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.panel-tab:focus-visible,
+.panel-close:focus-visible {
+  border-radius: 19px;
+}
+
+.panel-close {
+  display: grid;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  place-items: center;
+  color: var(--tx3);
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+}
+
+.panel-close:hover {
+  color: var(--tx);
+  background: var(--rail);
+}
+
+.panel-context,
+.budget-unknown,
+.budget-almost,
+.budget-over {
+  flex: none;
+  margin: 0;
+  padding: 14px 18px;
+  color: var(--tx2);
+  background: var(--rail);
+  border-radius: 16px;
+  font-size: 15px;
+  line-height: 22px;
+}
+
+.budget-over {
+  color: var(--err-ink);
+}
+
+.panel-empty {
+  margin: 4px 0;
+  color: var(--tx2);
+  font-size: 15px;
+  line-height: 22px;
+}
+
+.panel-sub {
+  flex: none;
+  margin: 10px 0 0;
+  color: var(--tx3);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.panel-list {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  flex-direction: column;
+  list-style: none;
+}
+
+.panel-row {
+  display: flex;
+  padding: 10px 4px;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.panel-icon {
+  display: grid;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  color: var(--ac-tx);
+  background: var(--ac-soft);
+  border-radius: 10px;
+}
+
+.panel-icon-quiet {
+  color: var(--tx2);
+  background: var(--rail);
+}
+
+.panel-file {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.panel-name {
+  overflow: hidden;
+  color: var(--tx);
+  font-size: 15px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel-meta {
+  color: var(--tx3);
+  font-size: 13px;
+}
+
+.panel-remove,
+.panel-reattach,
+.panel-pin {
+  display: inline-flex;
+  flex: none;
+  height: 34px;
+  padding: 0 12px;
+  align-items: center;
+  gap: 6px;
+  color: var(--tx2);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 17px;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.panel-remove:hover,
+.panel-reattach:hover,
+.panel-pin:hover {
+  border-color: var(--ac);
+}
+
+.panel-pin.is-pinned {
+  color: var(--ac-tx);
+  background: var(--ac-soft);
+  border-color: var(--ac-soft);
+}
+
+.panel-remove:focus-visible,
+.panel-reattach:focus-visible,
+.panel-pin:focus-visible {
+  border-radius: 17px;
+}
+
+/* The panel's foot, under everything else (mockup 11-chat-states-files-attached). */
+.panel-keep-note {
+  display: flex;
+  margin: auto 0 0;
+  padding-top: 8px;
+  align-items: center;
+  gap: 8px;
+  color: var(--tx3);
+  font-size: 14px;
+  line-height: 21px;
+}
+
+@media (max-width: 1200px) {
+  .panel-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: block;
+    background: rgba(var(--ink-rgb), 0.35);
+  }
+
+  .panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 61;
+    width: min(400px, 88vw);
+    background: var(--card);
+    box-shadow: -8px 0 32px rgba(var(--ink-rgb), 0.18);
+    transform: translateX(105%);
+    transition: transform 0.3s cubic-bezier(0.22, 0.9, 0.24, 1);
+  }
+
+  /* The slide-over keeps its closed panel laid out: this is the page-wide
+     hide above, later in the source so it wins inside this range — the
+     off-screen panel is what the open transition slides in from. */
+  .panel:not(.panel-open) {
+    display: flex;
+  }
+
+  .panel-open {
+    transform: none;
+  }
+}

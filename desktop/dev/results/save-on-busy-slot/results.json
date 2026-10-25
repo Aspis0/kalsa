@@ -1,0 +1,231 @@
+{
+  "engine_sha256": "c748bac0942dc196a7dd1bcddb50ceb53f8fff6381c1b354cc5ecdc5ce801abc",
+  "model": "/Users/marco/Library/Application Support/kalsa-brain/runtime/models/Trinity-Nano-Preview-Q4_K_M.gguf",
+  "model_sha256": "287562a3824ce2277e2c71cfcc70248b2d90f7fa342a4779979e0bf3e37ad546",
+  "door_patience_ms": 10000,
+  "loadavg_before": [
+    6.81103515625,
+    4.8642578125,
+    4.4306640625
+  ],
+  "arms": {
+    "8192": {
+      "ctx_size": 8192,
+      "save_into_a_live_turn": {
+        "status": 200,
+        "wall_ms": 34166.8,
+        "timed_out": false,
+        "n_saved": 2529,
+        "n_written": 79745656,
+        "save_ms": 50.198,
+        "file_bytes": 79745656,
+        "door_would_give_up": true,
+        "clock": {
+          "gen_start": 292874.737,
+          "gen_end": 292911.863,
+          "save_start": 292877.746,
+          "save_end": 292911.913,
+          "save_ended_after_turn": true,
+          "save_began_during_turn": true
+        },
+        "turn": {
+          "status": 200,
+          "wall_ms": 37126.3,
+          "prompt_n": 5,
+          "cache_n": 595,
+          "predicted_n": 1930,
+          "predicted_per_second": 52.03586196150975
+        },
+        "engine_lines": [
+          {
+            "slot": 0,
+            "line": "task -1 | selected slot by id (0)"
+          },
+          {
+            "slot": 0,
+            "line": "task 31 | restored context checkpoint (pos_min = 0, pos_max = 595, n_tokens = 596, n_past = 595, size = 12.994 MiB)"
+          },
+          {
+            "slot": null,
+            "line": "0.47.872.851 I srv  save_slot_ch: appended 1 context checkpoint(s) (12.994 MiB)"
+          }
+        ]
+      },
+      "idle_save_after_the_turn": {
+        "status": 200,
+        "wall_ms": 42.1,
+        "timed_out": false,
+        "n_saved": 603,
+        "n_written": 32013724,
+        "save_ms": 41.353,
+        "file_bytes": 32013724,
+        "door_would_give_up": false,
+        "turn_cache_n": 595
+      },
+      "argv": [
+        "/Users/marco/Projects/kalsallama/build/bin/llama-server",
+        "-m",
+        "/Users/marco/Library/Application Support/kalsa-brain/runtime/models/Trinity-Nano-Preview-Q4_K_M.gguf",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "19341",
+        "--parallel",
+        "1",
+        "--ctx-size",
+        "8192",
+        "--cache-type-k",
+        "q8_0",
+        "--cache-type-v",
+        "q8_0",
+        "--n-gpu-layers",
+        "all",
+        "--threads",
+        "4",
+        "--threads-batch",
+        "4",
+        "--batch-size",
+        "2048",
+        "--ubatch-size",
+        "512",
+        "--no-webui",
+        "-lv",
+        "4",
+        "--slot-save-path",
+        "/tmp/kalsa-save-on-busy/ctx8192/slots",
+        "--ctx-checkpoints",
+        "1",
+        "--cache-ram",
+        "0",
+        "--sleep-idle-seconds",
+        "300"
+      ],
+      "chat_tokens": 600,
+      "n_predict": 1930,
+      "kb_per_token_after_the_turn": 51.85,
+      "kb_per_token_busy": 30.79,
+      "verdict": {
+        "save_on_busy": "deferred",
+        "why": "the save answered only after the turn it arrived in had ended",
+        "the_door_would_have_given_up": true,
+        "saved_the_whole_turn": true
+      }
+    },
+    "16384": {
+      "ctx_size": 16384,
+      "save_into_a_live_turn": {
+        "status": 200,
+        "wall_ms": 33900.5,
+        "timed_out": false,
+        "n_saved": 2523,
+        "n_written": 79699864,
+        "save_ms": 63.341,
+        "file_bytes": 79699864,
+        "door_would_give_up": true,
+        "clock": {
+          "gen_start": 292923.374,
+          "gen_end": 292960.222,
+          "save_start": 292926.384,
+          "save_end": 292960.285,
+          "save_ended_after_turn": true,
+          "save_began_during_turn": true
+        },
+        "turn": {
+          "status": 200,
+          "wall_ms": 36847.4,
+          "prompt_n": 5,
+          "cache_n": 595,
+          "predicted_n": 1924,
+          "predicted_per_second": 52.27096408832548
+        },
+        "engine_lines": [
+          {
+            "slot": 0,
+            "line": "task -1 | selected slot by id (0)"
+          },
+          {
+            "slot": 0,
+            "line": "task 31 | restored context checkpoint (pos_min = 0, pos_max = 595, n_tokens = 596, n_past = 595, size = 12.994 MiB)"
+          },
+          {
+            "slot": null,
+            "line": "0.48.127.979 I srv  save_slot_ch: appended 1 context checkpoint(s) (12.994 MiB)"
+          }
+        ]
+      },
+      "idle_save_after_the_turn": {
+        "status": 200,
+        "wall_ms": 43.1,
+        "timed_out": false,
+        "n_saved": 603,
+        "n_written": 32013724,
+        "save_ms": 42.514,
+        "file_bytes": 32013724,
+        "door_would_give_up": false,
+        "turn_cache_n": 595
+      },
+      "argv": [
+        "/Users/marco/Projects/kalsallama/build/bin/llama-server",
+        "-m",
+        "/Users/marco/Library/Application Support/kalsa-brain/runtime/models/Trinity-Nano-Preview-Q4_K_M.gguf",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "19341",
+        "--parallel",
+        "1",
+        "--ctx-size",
+        "16384",
+        "--cache-type-k",
+        "q8_0",
+        "--cache-type-v",
+        "q8_0",
+        "--n-gpu-layers",
+        "all",
+        "--threads",
+        "4",
+        "--threads-batch",
+        "4",
+        "--batch-size",
+        "2048",
+        "--ubatch-size",
+        "512",
+        "--no-webui",
+        "-lv",
+        "4",
+        "--slot-save-path",
+        "/tmp/kalsa-save-on-busy/ctx16384/slots",
+        "--ctx-checkpoints",
+        "1",
+        "--cache-ram",
+        "0",
+        "--sleep-idle-seconds",
+        "300"
+      ],
+      "chat_tokens": 600,
+      "n_predict": 1924,
+      "kb_per_token_after_the_turn": 51.85,
+      "kb_per_token_busy": 30.85,
+      "verdict": {
+        "save_on_busy": "deferred",
+        "why": "the save answered only after the turn it arrived in had ended",
+        "the_door_would_have_given_up": true,
+        "saved_the_whole_turn": true
+      }
+    }
+  },
+  "engine_commits": {},
+  "file_weight": {
+    "kb_per_token_by_ctx": {
+      "8192": 51.85,
+      "16384": 51.85
+    },
+    "moves_with_the_context": false,
+    "reading": "the weight per token is not a constant of the tier: it is a function of the context size the engine was launched with, so the panel's disk line has to be derived from the engine's own figure"
+  },
+  "loadavg_after": [
+    7.75537109375,
+    5.91455078125,
+    4.89501953125
+  ]
+}

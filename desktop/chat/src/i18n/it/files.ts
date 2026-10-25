@@ -1,0 +1,28 @@
+// Tradotto dal copy inglese approvato.
+
+export const FILES = {
+    "panelAria": "File",
+    "tabsAria": "Pannello dei file",
+    "filesTab": "File",
+    "attachedTab": "In questa chat",
+    "closeAria": "Chiudi il pannello",
+    "empty": "Aggiungi un documento a questa conversazione. Trascinalo qui, premi «Allega un file» oppure scegline uno da File.",
+    "remove": "Rimuovi",
+    "reattach": "Riallega",
+    "pinName": "Tieni",
+    "pinDoc": "«Tieni» invia il file con ogni messaggio.",
+    "previouslyAttached": "Allegati in precedenza",
+    "readNext": "Letti con il prossimo messaggio",
+    "onePage": "1 pagina",
+    "pages": (count: number) => `${count} pagine`,
+    "budgetUnknown": "Kalsa non riesce a verificare se questi file ci stanno, quindi potrebbe non usarli tutti.",
+    "budgetAlmostFull": "Questa conversazione è quasi piena, quindi Kalsa potrebbe non leggere tutto. Togli un file o apri una nuova conversazione.",
+    "budgetOver": "Troppo contenuto per Kalsa in una volta. Togli un file o accorcia il messaggio.",
+    "unsupportedKind": "Kalsa non può leggere questo tipo di file. Usa un file di testo, PDF, Word o PowerPoint.",
+    "unsupportedLegacy": (app: string) => `Questo file è in un formato obsoleto. Aprilo in ${app}, salvane una nuova copia e allega quella.`,
+    "tooBig": "Questo file è troppo grande per Kalsa. Prova uno più piccolo.",
+    "unreadable": "Kalsa non è riuscita a leggere questo file. Potrebbe essere danneggiato o protetto da password.",
+    "emptyFile": "Questo file è vuoto.",
+    "noText": "Kalsa non ha trovato testo in questo file. Le scansioni non si possono ancora leggere.",
+    "couldNotOpen": "Kalsa non è riuscita ad aprire questo file. Sceglilo di nuovo.",
+  };

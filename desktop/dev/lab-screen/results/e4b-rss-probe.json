@@ -1,0 +1,1293 @@
+{
+  "name": "e4b-rss-probe",
+  "model": "gemma-4-E4B-it-Q4_K_M",
+  "base": "http://127.0.0.1:8150",
+  "widths": [
+    1920
+  ],
+  "thinking": false,
+  "langs": [
+    "it"
+  ],
+  "zoom": false,
+  "rows": [
+    {
+      "image": "gh-llamacpp",
+      "file": "github-llamacpp-1920.png",
+      "class": "web",
+      "dense": false,
+      "sha256": "bb4fc1d129208663a32e635e075e6f56f6d5b072c88b158b71017610a6a82f1a",
+      "native": [
+        1920,
+        1080
+      ],
+      "task": "A-code",
+      "variant": "A-it",
+      "width": 1920,
+      "request": {
+        "model": "gemma-4-E4B-it-Q4_K_M",
+        "temperature": 0,
+        "max_tokens": 300,
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        },
+        "system": "Sei una guida per lo schermo. Guardi la schermata e dici dove cliccare. Non agisci al posto dell'utente.\nRispondi SOLO con un oggetto JSON, senza altro testo:\n{\"label\": \"<testo dell'elemento come appare>\", \"grid\": \"<una di: top-left, top-center, top-right, middle-left, middle-center, middle-right, bottom-left, bottom-center, bottom-right>\", \"x\": <numero 0-1>, \"y\": <numero 0-1>, \"instruction\": \"<una frase in italiano>\"}\nSe l'elemento non c'è: {\"label\": null, \"grid\": null, \"x\": null, \"y\": null, \"instruction\": \"<cosa manca>\"}",
+        "user": "Obiettivo: scaricare il codice di questo progetto. Dove devo cliccare?",
+        "image": "data:image/…(base64 truncated)"
+      },
+      "status": 200,
+      "wallMs": 5432,
+      "timings": {
+        "promptN": 1119,
+        "cacheN": 0,
+        "totalN": 1119,
+        "promptMs": 3812.838,
+        "predictedN": 52,
+        "predictedMs": 1582.264
+      },
+      "reply": "{\"label\": \"Code\", \"grid\": \"top-center\", \"x\": 0.65, \"y\": 0.24, \"instruction\": \"Clicca su 'Code' per scaricare il codice del progetto.\"}",
+      "score": {
+        "formatOk": true,
+        "refused": false,
+        "labelOk": true,
+        "labelStrict": true,
+        "hasPoint": true,
+        "strict": false,
+        "tolerant": true,
+        "gridOk": true,
+        "wrongElement": false
+      }
+    },
+    {
+      "image": "gh-llamacpp",
+      "file": "github-llamacpp-1920.png",
+      "class": "web",
+      "dense": false,
+      "sha256": "bb4fc1d129208663a32e635e075e6f56f6d5b072c88b158b71017610a6a82f1a",
+      "native": [
+        1920,
+        1080
+      ],
+      "task": "A-code",
+      "variant": "twin-A",
+      "width": 1920,
+      "timings": {
+        "promptN": 197,
+        "cacheN": 0,
+        "totalN": 197,
+        "promptMs": 488.916,
+        "predictedN": 50,
+        "predictedMs": 1373.47
+      },
+      "wallMs": 1865,
+      "status": 200
+    },
+    {
+      "image": "wiki-home",
+      "file": "wiki-en-home-1920.png",
+      "class": "web",
+      "dense": false,
+      "sha256": "95648971f7ac6865cdde7964420a7fe23b6af16334497009bc002b6f5ab20f5b",
+      "native": [
+        1920,
+        1080
+      ],
+      "task": "A-search",
+      "variant": "A-it",
+      "width": 1920,
+      "request": {
+        "model": "gemma-4-E4B-it-Q4_K_M",
+        "temperature": 0,
+        "max_tokens": 300,
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        },
+        "system": "Sei una guida per lo schermo. Guardi la schermata e dici dove cliccare. Non agisci al posto dell'utente.\nRispondi SOLO con un oggetto JSON, senza altro testo:\n{\"label\": \"<testo dell'elemento come appare>\", \"grid\": \"<una di: top-left, top-center, top-right, middle-left, middle-center, middle-right, bottom-left, bottom-center, bottom-right>\", \"x\": <numero 0-1>, \"y\": <numero 0-1>, \"instruction\": \"<una frase in italiano>\"}\nSe l'elemento non c'è: {\"label\": null, \"grid\": null, \"x\": null, \"y\": null, \"instruction\": \"<cosa manca>\"}",
+        "user": "Obiettivo: scrivere il termine da cercare su Wikipedia. Dove devo cliccare?",
+        "image": "data:image/…(base64 truncated)"
+      },
+      "status": 200,
+      "wallMs": 5151,
+      "timings": {
+        "promptN": 1119,
+        "cacheN": 0,
+        "totalN": 1119,
+        "promptMs": 3751.594,
+        "predictedN": 51,
+        "predictedMs": 1361.464
+      },
+      "reply": "{\"label\": \"Search\", \"grid\": \"top-center\", \"x\": 0.5, \"y\": 0.03, \"instruction\": \"Clicca sul pulsante Cerca per avviare la ricerca.\"}",
+      "score": {
+        "formatOk": true,
+        "refused": false,
+        "labelOk": true,
+        "labelStrict": false,
+        "hasPoint": true,
+        "strict": false,
+        "tolerant": false,
+        "gridOk": true,
+        "wrongElement": false
+      }
+    },
+    {
+      "image": "wiki-home",
+      "file": "wiki-en-home-1920.png",
+      "class": "web",
+      "dense": false,
+      "sha256": "95648971f7ac6865cdde7964420a7fe23b6af16334497009bc002b6f5ab20f5b",
+      "native": [
+        1920,
+        1080
+      ],
+      "task": "A-search",
+      "variant": "twin-A",
+      "width": 1920,
+      "timings": {
+        "promptN": 197,
+        "cacheN": 0,
+        "totalN": 197,
+        "promptMs": 491.032,
+        "predictedN": 57,
+        "predictedMs": 1638.785
+      },
+      "wallMs": 2133,
+      "status": 200
+    },
+    {
+      "image": "hn-front",
+      "file": "hn-front-1920.png",
+      "class": "web",
+      "dense": true,
+      "sha256": "138d3713363f24fa58e0a075e52288b2dd8d999f84d9bf256dbd91e57a0ef43d",
+      "native": [
+        1920,
+        1080
+      ],
+      "task": "A-new",
+      "variant": "A-it",
+      "width": 1920,
+      "request": {
+        "model": "gemma-4-E4B-it-Q4_K_M",
+        "temperature": 0,
+        "max_tokens": 300,
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        },
+        "system": "Sei una guida per lo schermo. Guardi la schermata e dici dove cliccare. Non agisci al posto dell'utente.\nRispondi SOLO con un oggetto JSON, senza altro testo:\n{\"label\": \"<testo dell'elemento come appare>\", \"grid\": \"<una di: top-left, top-center, top-right, middle-left, middle-center, middle-right, bottom-left, bottom-center, bottom-right>\", \"x\": <numero 0-1>, \"y\": <numero 0-1>, \"instruction\": \"<una frase in italiano>\"}\nSe l'elemento non c'è: {\"label\": null, \"grid\": null, \"x\": null, \"y\": null, \"instruction\": \"<cosa manca>\"}",
+        "user": "Obiettivo: andare alla pagina delle notizie più recenti usando il menu in alto. Dove devo cliccare?",
+        "image": "data:image/…(base64 truncated)"
+      },
+      "status": 200,
+      "wallMs": 5248,
+      "timings": {
+        "promptN": 1125,
+        "cacheN": 0,
+        "totalN": 1125,
+        "promptMs": 3726.895,
+        "predictedN": 58,
+        "predictedMs": 1493.272
+      },
+      "reply": "{\"label\": \"new\", \"grid\": \"top-center\", \"x\": 0.25, \"y\": 0.02, \"instruction\": \"Clicca su 'new' nel menu in alto per andare alla pagina delle notizie più recenti.\"}",
+      "score": {
+        "formatOk": true,
+        "refused": false,
+        "labelOk": true,
+        "labelStrict": true,
+        "hasPoint": true,
+        "strict": false,
+        "tolerant": false,
+        "gridOk": false,
+        "wrongElement": false
+      }
+    },
+    {
+      "image": "hn-front",
+      "file": "hn-front-1920.png",
+      "class": "web",
+      "dense": true,
+      "sha256": "138d3713363f24fa58e0a075e52288b2dd8d999f84d9bf256dbd91e57a0ef43d",
+      "native": [
+        1920,
+        1080
+      ],
+      "task": "A-new",
+      "variant": "twin-A",
+      "width": 1920,
+      "timings": {
+        "promptN": 203,
+        "cacheN": 0,
+        "totalN": 203,
+        "promptMs": 481.944,
+        "predictedN": 49,
+        "predictedMs": 1347.856
+      },
+      "wallMs": 1832,
+      "status": 200
+    },
+    {
+      "image": "saucedemo-login",
+      "file": "saucedemo-login-1920.png",
+      "class": "web",
+      "dense": false,
+      "sha256": "253b2a41878e5cc1ae70e70529ab7907a612fd74d5ddc3454b7be480d5a8c3a2",
+      "native": [
+        1920,
+        1080
+      ],
+      "task": "A-login",
+      "variant": "A-it",
+      "width": 1920,
+      "request": {
+        "model": "gemma-4-E4B-it-Q4_K_M",
+        "temperature": 0,
+        "max_tokens": 300,
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        },
+        "system": "Sei una guida per lo schermo. Guardi la schermata e dici dove cliccare. Non agisci al posto dell'utente.\nRispondi SOLO con un oggetto JSON, senza altro testo:\n{\"label\": \"<testo dell'elemento come appare>\", \"grid\": \"<una di: top-left, top-center, top-right, middle-left, middle-center, middle-right, bottom-left, bottom-center, bottom-right>\", \"x\": <numero 0-1>, \"y\": <numero 0-1>, \"instruction\": \"<una frase in italiano>\"}\nSe l'elemento non c'è: {\"label\": null, \"grid\": null, \"x\": null, \"y\": null, \"instruction\": \"<cosa manca>\"}",
+        "user": "Obiettivo: dopo aver scritto nome utente e password, dove clicco per inviare il modulo?. Dove devo cliccare?",
+        "image": "data:image/…(base64 truncated)"
+      },
+      "status": 200,
+      "wallMs": 4979,
+      "timings": {
+        "promptN": 1129,
+        "cacheN": 0,
+        "totalN": 1129,
+        "promptMs": 3729.693,
+        "predictedN": 47,
+        "predictedMs": 1236.444
+      },
+      "reply": "{\"label\": \"Login\", \"grid\": \"center\", \"x\": 0.5, \"y\": 0.45, \"instruction\": \"Clicca sul pulsante Login per inviare il modulo.\"}",
+      "score": {
+        "formatOk": true,
+        "refused": false,
+        "labelOk": true,
+        "labelStrict": true,
+        "hasPoint": true,
+        "strict": false,
+        "tolerant": false,
+        "gridOk": false,
+        "wrongElement": false
+      }
+    },
+    {
+      "image": "saucedemo-login",
+      "file": "saucedemo-login-1920.png",
+      "class": "web",
+      "dense": false,
+      "sha256": "253b2a41878e5cc1ae70e70529ab7907a612fd74d5ddc3454b7be480d5a8c3a2",
+      "native": [
+        1920,
+        1080
+      ],
+      "task": "A-login",
+      "variant": "twin-A",
+      "width": 1920,
+      "timings": {
+        "promptN": 207,
+        "cacheN": 0,
+        "totalN": 207,
+        "promptMs": 486.552,
+        "predictedN": 52,
+        "predictedMs": 1481.839
+      },
+      "wallMs": 1971,
+      "status": 200
+    },
+    {
+      "image": "webscraper-shop",
+      "file": "webscraper-shop-1920.png",
+      "class": "web",
+      "dense": false,
+      "sha256": "7f35d69a23ab86368e3090c4ba1638f7583870c6f8cf95df7b1a04d0d4f5f110",
+      "native": [
+        1920,
+        1080
+      ],
+      "task": "A-cloud",
+      "variant": "A-it",
+      "width": 1920,
+      "request": {
+        "model": "gemma-4-E4B-it-Q4_K_M",
+        "temperature": 0,
+        "max_tokens": 300,
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        },
+        "system": "Sei una guida per lo schermo. Guardi la schermata e dici dove cliccare. Non agisci al posto dell'utente.\nRispondi SOLO con un oggetto JSON, senza altro testo:\n{\"label\": \"<testo dell'elemento come appare>\", \"grid\": \"<una di: top-left, top-center, top-right, middle-left, middle-center, middle-right, bottom-left, bottom-center, bottom-right>\", \"x\": <numero 0-1>, \"y\": <numero 0-1>, \"instruction\": \"<una frase in italiano>\"}\nSe l'elemento non c'è: {\"label\": null, \"grid\": null, \"x\": null, \"y\": null, \"instruction\": \"<cosa manca>\"}",
+        "user": "Obiettivo: accedere al cloud di Web Scraper. Dove devo cliccare?",
+        "image": "data:image/…(base64 truncated)"
+      },
+      "status": 200,
+      "wallMs": 5072,
+      "timings": {
+        "promptN": 1119,
+        "cacheN": 0,
+        "totalN": 1119,
+        "promptMs": 3737.172,
+        "predictedN": 52,
+        "predictedMs": 1313.861
+      },
+      "reply": "{\"label\": \"Cloud login\", \"grid\": \"top-right\", \"x\": 0.9, \"y\": 0.14, \"instruction\": \"Clicca su Cloud login per accedere al cloud di Web Scraper.\"}",
+      "score": {
+        "formatOk": true,
+        "refused": false,
+        "labelOk": true,
+        "labelStrict": true,
+        "hasPoint": true,
+        "strict": false,
+        "tolerant": false,
+        "gridOk": true,
+        "wrongElement": false
+      }
+    },
+    {
+      "image": "webscraper-shop",
+      "file": "webscraper-shop-1920.png",
+      "class": "web",
+      "dense": false,
+      "sha256": "7f35d69a23ab86368e3090c4ba1638f7583870c6f8cf95df7b1a04d0d4f5f110",
+      "native": [
+        1920,
+        1080
+      ],
+      "task": "A-cloud",
+      "variant": "twin-A",
+      "width": 1920,
+      "timings": {
+        "promptN": 197,
+        "cacheN": 0,
+        "totalN": 197,
+        "promptMs": 481.288,
+        "predictedN": 51,
+        "predictedMs": 1435.274
+      },
+      "wallMs": 1919,
+      "status": 200
+    },
+    {
+      "image": "wiki-edit-dense",
+      "file": "wiki-edit-dense-1920.png",
+      "class": "web",
+      "dense": true,
+      "sha256": "3db36e2926e49a62a35236744038f32cc34e2f239ccafdd46d81d19216f4acf4",
+      "native": [
+        1920,
+        1080
+      ],
+      "task": "A-submit",
+      "variant": "A-it",
+      "width": 1920,
+      "request": {
+        "model": "gemma-4-E4B-it-Q4_K_M",
+        "temperature": 0,
+        "max_tokens": 300,
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        },
+        "system": "Sei una guida per lo schermo. Guardi la schermata e dici dove cliccare. Non agisci al posto dell'utente.\nRispondi SOLO con un oggetto JSON, senza altro testo:\n{\"label\": \"<testo dell'elemento come appare>\", \"grid\": \"<una di: top-left, top-center, top-right, middle-left, middle-center, middle-right, bottom-left, bottom-center, bottom-right>\", \"x\": <numero 0-1>, \"y\": <numero 0-1>, \"instruction\": \"<una frase in italiano>\"}\nSe l'elemento non c'è: {\"label\": null, \"grid\": null, \"x\": null, \"y\": null, \"instruction\": \"<cosa manca>\"}",
+        "user": "Obiettivo: inviare una richiesta di modifica di questo articolo. Dove devo cliccare?",
+        "image": "data:image/…(base64 truncated)"
+      },
+      "status": 200,
+      "wallMs": 5138,
+      "timings": {
+        "promptN": 1121,
+        "cacheN": 0,
+        "totalN": 1121,
+        "promptMs": 3712.436,
+        "predictedN": 55,
+        "predictedMs": 1399.825
+      },
+      "reply": "{\"label\": \"Submit an edit request\", \"grid\": \"center\", \"x\": 0.5, \"y\": 0.58, \"instruction\": \"Clicca su 'Submit an edit request' per inviare una richiesta di modifica.\"}",
+      "score": {
+        "formatOk": true,
+        "refused": false,
+        "labelOk": true,
+        "labelStrict": true,
+        "hasPoint": true,
+        "strict": false,
+        "tolerant": false,
+        "gridOk": false,
+        "wrongElement": false
+      }
+    },
+    {
+      "image": "wiki-edit-dense",
+      "file": "wiki-edit-dense-1920.png",
+      "class": "web",
+      "dense": true,
+      "sha256": "3db36e2926e49a62a35236744038f32cc34e2f239ccafdd46d81d19216f4acf4",
+      "native": [
+        1920,
+        1080
+      ],
+      "task": "A-submit",
+      "variant": "twin-A",
+      "width": 1920,
+      "timings": {
+        "promptN": 199,
+        "cacheN": 0,
+        "totalN": 199,
+        "promptMs": 492.088,
+        "predictedN": 55,
+        "predictedMs": 1447.676
+      },
+      "wallMs": 1942,
+      "status": 200
+    },
+    {
+      "image": "github-cpython",
+      "file": "github-cpython-1920.png",
+      "class": "web",
+      "dense": false,
+      "sha256": "0b6da67d490a201240a08db2bbd06bb533b427b18f5a2eaa43d2412e454d7f3e",
+      "native": [
+        1920,
+        1080
+      ],
+      "task": "A-code",
+      "variant": "A-it",
+      "width": 1920,
+      "request": {
+        "model": "gemma-4-E4B-it-Q4_K_M",
+        "temperature": 0,
+        "max_tokens": 300,
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        },
+        "system": "Sei una guida per lo schermo. Guardi la schermata e dici dove cliccare. Non agisci al posto dell'utente.\nRispondi SOLO con un oggetto JSON, senza altro testo:\n{\"label\": \"<testo dell'elemento come appare>\", \"grid\": \"<una di: top-left, top-center, top-right, middle-left, middle-center, middle-right, bottom-left, bottom-center, bottom-right>\", \"x\": <numero 0-1>, \"y\": <numero 0-1>, \"instruction\": \"<una frase in italiano>\"}\nSe l'elemento non c'è: {\"label\": null, \"grid\": null, \"x\": null, \"y\": null, \"instruction\": \"<cosa manca>\"}",
+        "user": "Obiettivo: scaricare il codice del progetto come file ZIP. Dove devo cliccare?",
+        "image": "data:image/…(base64 truncated)"
+      },
+      "status": 200,
+      "wallMs": 5186,
+      "timings": {
+        "promptN": 1121,
+        "cacheN": 0,
+        "totalN": 1121,
+        "promptMs": 3732.239,
+        "predictedN": 57,
+        "predictedMs": 1427.099
+      },
+      "reply": "{\"label\": \"Code\", \"grid\": \"top-center\", \"x\": 0.65, \"y\": 0.32, \"instruction\": \"Clicca sul pulsante 'Code' per scaricare il codice del progetto come file ZIP.\"}",
+      "score": {
+        "formatOk": true,
+        "refused": false,
+        "labelOk": true,
+        "labelStrict": true,
+        "hasPoint": true,
+        "strict": false,
+        "tolerant": false,
+        "gridOk": true,
+        "wrongElement": false
+      }
+    },
+    {
+      "image": "github-cpython",
+      "file": "github-cpython-1920.png",
+      "class": "web",
+      "dense": false,
+      "sha256": "0b6da67d490a201240a08db2bbd06bb533b427b18f5a2eaa43d2412e454d7f3e",
+      "native": [
+        1920,
+        1080
+      ],
+      "task": "A-code",
+      "variant": "twin-A",
+      "width": 1920,
+      "timings": {
+        "promptN": 199,
+        "cacheN": 0,
+        "totalN": 199,
+        "promptMs": 481.113,
+        "predictedN": 55,
+        "predictedMs": 1438.917
+      },
+      "wallMs": 1922,
+      "status": 200
+    },
+    {
+      "image": "docs-python-funcs",
+      "file": "docs-python-funcs-1920.png",
+      "class": "web",
+      "dense": true,
+      "sha256": "85dffc3c546a6a2d43520cb51fdb9ba1d980c4497722617568c95557b0e28469",
+      "native": [
+        1920,
+        1080
+      ],
+      "task": "A-search",
+      "variant": "A-it",
+      "width": 1920,
+      "request": {
+        "model": "gemma-4-E4B-it-Q4_K_M",
+        "temperature": 0,
+        "max_tokens": 300,
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        },
+        "system": "Sei una guida per lo schermo. Guardi la schermata e dici dove cliccare. Non agisci al posto dell'utente.\nRispondi SOLO con un oggetto JSON, senza altro testo:\n{\"label\": \"<testo dell'elemento come appare>\", \"grid\": \"<una di: top-left, top-center, top-right, middle-left, middle-center, middle-right, bottom-left, bottom-center, bottom-right>\", \"x\": <numero 0-1>, \"y\": <numero 0-1>, \"instruction\": \"<una frase in italiano>\"}\nSe l'elemento non c'è: {\"label\": null, \"grid\": null, \"x\": null, \"y\": null, \"instruction\": \"<cosa manca>\"}",
+        "user": "Obiettivo: cercare una parola nella documentazione. Dove devo cliccare?",
+        "image": "data:image/…(base64 truncated)"
+      },
+      "status": 200,
+      "wallMs": 5206,
+      "timings": {
+        "promptN": 1118,
+        "cacheN": 0,
+        "totalN": 1118,
+        "promptMs": 3729.707,
+        "predictedN": 55,
+        "predictedMs": 1451.667
+      },
+      "reply": "{\"label\": \"Quick search\", \"grid\": \"top-right\", \"x\": 0.85, \"y\": 0.02, \"instruction\": \"Clicca nella casella di ricerca per inserire la parola che vuoi cercare.\"}",
+      "score": {
+        "formatOk": true,
+        "refused": false,
+        "labelOk": true,
+        "labelStrict": true,
+        "hasPoint": true,
+        "strict": false,
+        "tolerant": true,
+        "gridOk": true,
+        "wrongElement": false
+      }
+    },
+    {
+      "image": "docs-python-funcs",
+      "file": "docs-python-funcs-1920.png",
+      "class": "web",
+      "dense": true,
+      "sha256": "85dffc3c546a6a2d43520cb51fdb9ba1d980c4497722617568c95557b0e28469",
+      "native": [
+        1920,
+        1080
+      ],
+      "task": "A-search",
+      "variant": "twin-A",
+      "width": 1920,
+      "timings": {
+        "promptN": 196,
+        "cacheN": 0,
+        "totalN": 196,
+        "promptMs": 485.913,
+        "predictedN": 54,
+        "predictedMs": 1457.759
+      },
+      "wallMs": 1946,
+      "status": 200
+    },
+    {
+      "image": "wiki-italy",
+      "file": "wiki-italy-1920.png",
+      "class": "web",
+      "dense": false,
+      "sha256": "2ad4ceda756b301feafda3ffed09abb57c7d500e395c0295cfb1e1c8b9e23a8b",
+      "native": [
+        1920,
+        1080
+      ],
+      "task": "A-lang",
+      "variant": "A-it",
+      "width": 1920,
+      "request": {
+        "model": "gemma-4-E4B-it-Q4_K_M",
+        "temperature": 0,
+        "max_tokens": 300,
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        },
+        "system": "Sei una guida per lo schermo. Guardi la schermata e dici dove cliccare. Non agisci al posto dell'utente.\nRispondi SOLO con un oggetto JSON, senza altro testo:\n{\"label\": \"<testo dell'elemento come appare>\", \"grid\": \"<una di: top-left, top-center, top-right, middle-left, middle-center, middle-right, bottom-left, bottom-center, bottom-right>\", \"x\": <numero 0-1>, \"y\": <numero 0-1>, \"instruction\": \"<una frase in italiano>\"}\nSe l'elemento non c'è: {\"label\": null, \"grid\": null, \"x\": null, \"y\": null, \"instruction\": \"<cosa manca>\"}",
+        "user": "Obiettivo: leggere questo articolo in un'altra lingua. Dove devo cliccare?",
+        "image": "data:image/…(base64 truncated)"
+      },
+      "status": 200,
+      "wallMs": 5226,
+      "timings": {
+        "promptN": 1120,
+        "cacheN": 0,
+        "totalN": 1120,
+        "promptMs": 3716.279,
+        "predictedN": 59,
+        "predictedMs": 1476.192
+      },
+      "reply": "{\"label\": \"322 languages\", \"grid\": \"top-right\", \"x\": 0.8, \"y\": 0.21, \"instruction\": \"Clicca su '322 languages' per leggere questo articolo in un'altra lingua.\"}",
+      "score": {
+        "formatOk": true,
+        "refused": false,
+        "labelOk": true,
+        "labelStrict": true,
+        "hasPoint": true,
+        "strict": false,
+        "tolerant": false,
+        "gridOk": true,
+        "wrongElement": false
+      }
+    },
+    {
+      "image": "wiki-italy",
+      "file": "wiki-italy-1920.png",
+      "class": "web",
+      "dense": false,
+      "sha256": "2ad4ceda756b301feafda3ffed09abb57c7d500e395c0295cfb1e1c8b9e23a8b",
+      "native": [
+        1920,
+        1080
+      ],
+      "task": "A-lang",
+      "variant": "twin-A",
+      "width": 1920,
+      "timings": {
+        "promptN": 198,
+        "cacheN": 0,
+        "totalN": 198,
+        "promptMs": 482.019,
+        "predictedN": 56,
+        "predictedMs": 1468.255
+      },
+      "wallMs": 1953,
+      "status": 200
+    },
+    {
+      "image": "wiki-login",
+      "file": "wiki-login-1920.png",
+      "class": "web",
+      "dense": false,
+      "sha256": "59e9b131ed0e8997968855292741f33fac08bfe6e2e3ee4b48a061cd76a2b946",
+      "native": [
+        1920,
+        1080
+      ],
+      "task": "A-login",
+      "variant": "A-it",
+      "width": 1920,
+      "request": {
+        "model": "gemma-4-E4B-it-Q4_K_M",
+        "temperature": 0,
+        "max_tokens": 300,
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        },
+        "system": "Sei una guida per lo schermo. Guardi la schermata e dici dove cliccare. Non agisci al posto dell'utente.\nRispondi SOLO con un oggetto JSON, senza altro testo:\n{\"label\": \"<testo dell'elemento come appare>\", \"grid\": \"<una di: top-left, top-center, top-right, middle-left, middle-center, middle-right, bottom-left, bottom-center, bottom-right>\", \"x\": <numero 0-1>, \"y\": <numero 0-1>, \"instruction\": \"<una frase in italiano>\"}\nSe l'elemento non c'è: {\"label\": null, \"grid\": null, \"x\": null, \"y\": null, \"instruction\": \"<cosa manca>\"}",
+        "user": "Obiettivo: dopo aver scritto nome utente e password, dove clicco per entrare?. Dove devo cliccare?",
+        "image": "data:image/…(base64 truncated)"
+      },
+      "status": 200,
+      "wallMs": 5095,
+      "timings": {
+        "promptN": 1126,
+        "cacheN": 0,
+        "totalN": 1126,
+        "promptMs": 3719.528,
+        "predictedN": 51,
+        "predictedMs": 1358.42
+      },
+      "reply": "{\"label\": \"Log in\", \"grid\": \"middle-center\", \"x\": 0.33, \"y\": 0.33, \"instruction\": \"Clicca sul pulsante 'Log in' per accedere.\"}",
+      "score": {
+        "formatOk": true,
+        "refused": false,
+        "labelOk": true,
+        "labelStrict": true,
+        "hasPoint": true,
+        "strict": true,
+        "tolerant": true,
+        "gridOk": false,
+        "wrongElement": false
+      }
+    },
+    {
+      "image": "wiki-login",
+      "file": "wiki-login-1920.png",
+      "class": "web",
+      "dense": false,
+      "sha256": "59e9b131ed0e8997968855292741f33fac08bfe6e2e3ee4b48a061cd76a2b946",
+      "native": [
+        1920,
+        1080
+      ],
+      "task": "A-login",
+      "variant": "twin-A",
+      "width": 1920,
+      "timings": {
+        "promptN": 204,
+        "cacheN": 0,
+        "totalN": 204,
+        "promptMs": 483.995,
+        "predictedN": 49,
+        "predictedMs": 1294.425
+      },
+      "wallMs": 1781,
+      "status": 200
+    },
+    {
+      "image": "github-login",
+      "file": "github-login-1920.png",
+      "class": "web",
+      "dense": false,
+      "sha256": "e5adfe7fbd1815c3d7abf21616aa78fda905d71d611afab5a6e5f85fedeb98a7",
+      "native": [
+        1920,
+        1080
+      ],
+      "task": "A-signin",
+      "variant": "A-it",
+      "width": 1920,
+      "request": {
+        "model": "gemma-4-E4B-it-Q4_K_M",
+        "temperature": 0,
+        "max_tokens": 300,
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        },
+        "system": "Sei una guida per lo schermo. Guardi la schermata e dici dove cliccare. Non agisci al posto dell'utente.\nRispondi SOLO con un oggetto JSON, senza altro testo:\n{\"label\": \"<testo dell'elemento come appare>\", \"grid\": \"<una di: top-left, top-center, top-right, middle-left, middle-center, middle-right, bottom-left, bottom-center, bottom-right>\", \"x\": <numero 0-1>, \"y\": <numero 0-1>, \"instruction\": \"<una frase in italiano>\"}\nSe l'elemento non c'è: {\"label\": null, \"grid\": null, \"x\": null, \"y\": null, \"instruction\": \"<cosa manca>\"}",
+        "user": "Obiettivo: dopo aver scritto username e password, dove clicco per accedere?. Dove devo cliccare?",
+        "image": "data:image/…(base64 truncated)"
+      },
+      "status": 200,
+      "wallMs": 5122,
+      "timings": {
+        "promptN": 1124,
+        "cacheN": 0,
+        "totalN": 1124,
+        "promptMs": 3708.964,
+        "predictedN": 55,
+        "predictedMs": 1399.496
+      },
+      "reply": "{\"label\": \"Sign in\", \"grid\": \"center\", \"x\": 0.5, \"y\": 0.54, \"instruction\": \"Clicca sul pulsante 'Sign in' per accedere dopo aver inserito username e password.\"}",
+      "score": {
+        "formatOk": true,
+        "refused": false,
+        "labelOk": true,
+        "labelStrict": true,
+        "hasPoint": true,
+        "strict": false,
+        "tolerant": false,
+        "gridOk": false,
+        "wrongElement": false
+      }
+    },
+    {
+      "image": "github-login",
+      "file": "github-login-1920.png",
+      "class": "web",
+      "dense": false,
+      "sha256": "e5adfe7fbd1815c3d7abf21616aa78fda905d71d611afab5a6e5f85fedeb98a7",
+      "native": [
+        1920,
+        1080
+      ],
+      "task": "A-signin",
+      "variant": "twin-A",
+      "width": 1920,
+      "timings": {
+        "promptN": 202,
+        "cacheN": 0,
+        "totalN": 202,
+        "promptMs": 487.797,
+        "predictedN": 50,
+        "predictedMs": 1485.71
+      },
+      "wallMs": 1976,
+      "status": 200
+    },
+    {
+      "image": "python-home",
+      "file": "python-home-1920.png",
+      "class": "web",
+      "dense": true,
+      "sha256": "5ba349bbacc341d7b2be4f58fa9ea5e014bbfe5f80a7ede8fdc74d3d4753362b",
+      "native": [
+        1920,
+        1080
+      ],
+      "task": "A-downloads",
+      "variant": "A-it",
+      "width": 1920,
+      "request": {
+        "model": "gemma-4-E4B-it-Q4_K_M",
+        "temperature": 0,
+        "max_tokens": 300,
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        },
+        "system": "Sei una guida per lo schermo. Guardi la schermata e dici dove cliccare. Non agisci al posto dell'utente.\nRispondi SOLO con un oggetto JSON, senza altro testo:\n{\"label\": \"<testo dell'elemento come appare>\", \"grid\": \"<una di: top-left, top-center, top-right, middle-left, middle-center, middle-right, bottom-left, bottom-center, bottom-right>\", \"x\": <numero 0-1>, \"y\": <numero 0-1>, \"instruction\": \"<una frase in italiano>\"}\nSe l'elemento non c'è: {\"label\": null, \"grid\": null, \"x\": null, \"y\": null, \"instruction\": \"<cosa manca>\"}",
+        "user": "Obiettivo: aprire la pagina Downloads dal menu in alto. Dove devo cliccare?",
+        "image": "data:image/…(base64 truncated)"
+      },
+      "status": 200,
+      "wallMs": 4922,
+      "timings": {
+        "promptN": 1120,
+        "cacheN": 0,
+        "totalN": 1120,
+        "promptMs": 3720.662,
+        "predictedN": 47,
+        "predictedMs": 1173.029
+      },
+      "reply": "{\"label\": \"Downloads\", \"grid\": \"top-center\", \"x\": 0.25, \"y\": 0.15, \"instruction\": \"Clicca su Downloads nel menu in alto.\"}",
+      "score": {
+        "formatOk": true,
+        "refused": false,
+        "labelOk": true,
+        "labelStrict": true,
+        "hasPoint": true,
+        "strict": false,
+        "tolerant": false,
+        "gridOk": true,
+        "wrongElement": false
+      }
+    },
+    {
+      "image": "python-home",
+      "file": "python-home-1920.png",
+      "class": "web",
+      "dense": true,
+      "sha256": "5ba349bbacc341d7b2be4f58fa9ea5e014bbfe5f80a7ede8fdc74d3d4753362b",
+      "native": [
+        1920,
+        1080
+      ],
+      "task": "A-downloads",
+      "variant": "twin-A",
+      "width": 1920,
+      "timings": {
+        "promptN": 198,
+        "cacheN": 0,
+        "totalN": 198,
+        "promptMs": 488.56,
+        "predictedN": 45,
+        "predictedMs": 1192.444
+      },
+      "wallMs": 1683,
+      "status": 200
+    },
+    {
+      "image": "mdn-button",
+      "file": "mdn-button-1920.png",
+      "class": "web",
+      "dense": true,
+      "sha256": "68c02e6feff75fe46c17a266e0c65aad926646ede9ca431aa3a0439516019bc8",
+      "native": [
+        1920,
+        1080
+      ],
+      "task": "A-reset",
+      "variant": "A-it",
+      "width": 1920,
+      "request": {
+        "model": "gemma-4-E4B-it-Q4_K_M",
+        "temperature": 0,
+        "max_tokens": 300,
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        },
+        "system": "Sei una guida per lo schermo. Guardi la schermata e dici dove cliccare. Non agisci al posto dell'utente.\nRispondi SOLO con un oggetto JSON, senza altro testo:\n{\"label\": \"<testo dell'elemento come appare>\", \"grid\": \"<una di: top-left, top-center, top-right, middle-left, middle-center, middle-right, bottom-left, bottom-center, bottom-right>\", \"x\": <numero 0-1>, \"y\": <numero 0-1>, \"instruction\": \"<una frase in italiano>\"}\nSe l'elemento non c'è: {\"label\": null, \"grid\": null, \"x\": null, \"y\": null, \"instruction\": \"<cosa manca>\"}",
+        "user": "Obiettivo: azzerare il codice di esempio della demo. Dove devo cliccare?",
+        "image": "data:image/…(base64 truncated)"
+      },
+      "status": 200,
+      "wallMs": 5216,
+      "timings": {
+        "promptN": 1121,
+        "cacheN": 0,
+        "totalN": 1121,
+        "promptMs": 3774.904,
+        "predictedN": 55,
+        "predictedMs": 1418.331
+      },
+      "reply": "{\"label\": \"Reset\", \"grid\": \"top-right\", \"x\": 0.83, \"y\": 0.48, \"instruction\": \"Clicca su 'Reset' per azzerare il codice di esempio della demo.\"}",
+      "score": {
+        "formatOk": true,
+        "refused": false,
+        "labelOk": true,
+        "labelStrict": true,
+        "hasPoint": true,
+        "strict": false,
+        "tolerant": false,
+        "gridOk": false,
+        "wrongElement": false
+      }
+    },
+    {
+      "image": "mdn-button",
+      "file": "mdn-button-1920.png",
+      "class": "web",
+      "dense": true,
+      "sha256": "68c02e6feff75fe46c17a266e0c65aad926646ede9ca431aa3a0439516019bc8",
+      "native": [
+        1920,
+        1080
+      ],
+      "task": "A-reset",
+      "variant": "twin-A",
+      "width": 1920,
+      "timings": {
+        "promptN": 199,
+        "cacheN": 0,
+        "totalN": 199,
+        "promptMs": 490.158,
+        "predictedN": 53,
+        "predictedMs": 1433.967
+      },
+      "wallMs": 1926,
+      "status": 200
+    },
+    {
+      "image": "win11-taskmgr",
+      "file": "win11-task-manager-1370.png",
+      "class": "windows",
+      "dense": false,
+      "sha256": "3a80a4f2fb1147b84400795cebfdb327eae3d5972ea5a279567c957af4a0e9bf",
+      "native": [
+        1370,
+        1080
+      ],
+      "task": "A-clipchamp-first",
+      "variant": "A-it",
+      "width": 1370,
+      "request": {
+        "model": "gemma-4-E4B-it-Q4_K_M",
+        "temperature": 0,
+        "max_tokens": 300,
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        },
+        "system": "Sei una guida per lo schermo. Guardi la schermata e dici dove cliccare. Non agisci al posto dell'utente.\nRispondi SOLO con un oggetto JSON, senza altro testo:\n{\"label\": \"<testo dell'elemento come appare>\", \"grid\": \"<una di: top-left, top-center, top-right, middle-left, middle-center, middle-right, bottom-left, bottom-center, bottom-right>\", \"x\": <numero 0-1>, \"y\": <numero 0-1>, \"instruction\": \"<una frase in italiano>\"}\nSe l'elemento non c'è: {\"label\": null, \"grid\": null, \"x\": null, \"y\": null, \"instruction\": \"<cosa manca>\"}",
+        "user": "Obiettivo: Clipchamp non risponde. Qual è il primo passo per chiuderlo da Gestione attività?. Dove devo cliccare?",
+        "image": "data:image/…(base64 truncated)"
+      },
+      "status": 200,
+      "wallMs": 4043,
+      "timings": {
+        "promptN": 878,
+        "cacheN": 0,
+        "totalN": 878,
+        "promptMs": 2668,
+        "predictedN": 53,
+        "predictedMs": 1351.155
+      },
+      "reply": "{\"label\": \"Clipchamp (9)\", \"grid\": \"middle-left\", \"x\": 0.15, \"y\": 0.37, \"instruction\": \"Clicca su Clipchamp (9) per selezionarlo.\"}",
+      "score": {
+        "formatOk": true,
+        "refused": false,
+        "labelOk": true,
+        "labelStrict": true,
+        "hasPoint": true,
+        "strict": false,
+        "tolerant": false,
+        "gridOk": false,
+        "wrongElement": false
+      }
+    },
+    {
+      "image": "win11-taskmgr",
+      "file": "win11-task-manager-1370.png",
+      "class": "windows",
+      "dense": false,
+      "sha256": "3a80a4f2fb1147b84400795cebfdb327eae3d5972ea5a279567c957af4a0e9bf",
+      "native": [
+        1370,
+        1080
+      ],
+      "task": "A-clipchamp-first",
+      "variant": "twin-A",
+      "width": 1370,
+      "timings": {
+        "promptN": 209,
+        "cacheN": 0,
+        "totalN": 209,
+        "promptMs": 534.585,
+        "predictedN": 51,
+        "predictedMs": 1405.863
+      },
+      "wallMs": 1943,
+      "status": 200
+    },
+    {
+      "image": "win10-scale-settings",
+      "file": "win10-scale-settings.jpg",
+      "class": "windows",
+      "dense": false,
+      "sha256": "2589caa96cb59f0e82e534e86c477bcafe0ca7e9b35b58a9db740fb26538419c",
+      "native": [
+        1172,
+        718
+      ],
+      "task": "A-resolution",
+      "variant": "A-it",
+      "width": 1172,
+      "request": {
+        "model": "gemma-4-E4B-it-Q4_K_M",
+        "temperature": 0,
+        "max_tokens": 300,
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        },
+        "system": "Sei una guida per lo schermo. Guardi la schermata e dici dove cliccare. Non agisci al posto dell'utente.\nRispondi SOLO con un oggetto JSON, senza altro testo:\n{\"label\": \"<testo dell'elemento come appare>\", \"grid\": \"<una di: top-left, top-center, top-right, middle-left, middle-center, middle-right, bottom-left, bottom-center, bottom-right>\", \"x\": <numero 0-1>, \"y\": <numero 0-1>, \"instruction\": \"<una frase in italiano>\"}\nSe l'elemento non c'è: {\"label\": null, \"grid\": null, \"x\": null, \"y\": null, \"instruction\": \"<cosa manca>\"}",
+        "user": "Obiettivo: cambiare la risoluzione dello schermo. Dove devo cliccare?",
+        "image": "data:image/…(base64 truncated)"
+      },
+      "status": 200,
+      "wallMs": 3575,
+      "timings": {
+        "promptN": 558,
+        "cacheN": 0,
+        "totalN": 558,
+        "promptMs": 1766.31,
+        "predictedN": 63,
+        "predictedMs": 1790.822
+      },
+      "reply": "{\"label\": \"1366 x 768 (Recommended)\", \"grid\": \"middle-center\", \"x\": 0.5, \"y\": 0.55, \"instruction\": \"Clicca sul menu a discesa della risoluzione dello schermo per cambiarla.\"}",
+      "score": {
+        "formatOk": true,
+        "refused": false,
+        "labelOk": false,
+        "labelStrict": false,
+        "hasPoint": true,
+        "strict": false,
+        "tolerant": false,
+        "gridOk": false,
+        "wrongElement": true
+      }
+    },
+    {
+      "image": "win10-scale-settings",
+      "file": "win10-scale-settings.jpg",
+      "class": "windows",
+      "dense": false,
+      "sha256": "2589caa96cb59f0e82e534e86c477bcafe0ca7e9b35b58a9db740fb26538419c",
+      "native": [
+        1172,
+        718
+      ],
+      "task": "A-resolution",
+      "variant": "twin-A",
+      "width": 1172,
+      "timings": {
+        "promptN": 196,
+        "cacheN": 0,
+        "totalN": 196,
+        "promptMs": 491.216,
+        "predictedN": 52,
+        "predictedMs": 1435.418
+      },
+      "wallMs": 1929,
+      "status": 200
+    },
+    {
+      "image": "win10-scale-settings",
+      "file": "win10-scale-settings.jpg",
+      "class": "windows",
+      "dense": false,
+      "sha256": "2589caa96cb59f0e82e534e86c477bcafe0ca7e9b35b58a9db740fb26538419c",
+      "native": [
+        1172,
+        718
+      ],
+      "task": "A-textsize",
+      "variant": "A-it",
+      "width": 1172,
+      "request": {
+        "model": "gemma-4-E4B-it-Q4_K_M",
+        "temperature": 0,
+        "max_tokens": 300,
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        },
+        "system": "Sei una guida per lo schermo. Guardi la schermata e dici dove cliccare. Non agisci al posto dell'utente.\nRispondi SOLO con un oggetto JSON, senza altro testo:\n{\"label\": \"<testo dell'elemento come appare>\", \"grid\": \"<una di: top-left, top-center, top-right, middle-left, middle-center, middle-right, bottom-left, bottom-center, bottom-right>\", \"x\": <numero 0-1>, \"y\": <numero 0-1>, \"instruction\": \"<una frase in italiano>\"}\nSe l'elemento non c'è: {\"label\": null, \"grid\": null, \"x\": null, \"y\": null, \"instruction\": \"<cosa manca>\"}",
+        "user": "Obiettivo: cambiare la dimensione del testo e delle app. Dove devo cliccare?",
+        "image": "data:image/…(base64 truncated)"
+      },
+      "status": 200,
+      "wallMs": 3384,
+      "timings": {
+        "promptN": 560,
+        "cacheN": 0,
+        "totalN": 560,
+        "promptMs": 1612.228,
+        "predictedN": 63,
+        "predictedMs": 1746.373
+      },
+      "reply": "{\"label\": \"125%\", \"grid\": \"middle-center\", \"x\": 0.5, \"y\": 0.65, \"instruction\": \"Clicca sul menu a discesa accanto a 125% per cambiare la dimensione del testo e delle app.\"}",
+      "score": {
+        "formatOk": true,
+        "refused": false,
+        "labelOk": true,
+        "labelStrict": true,
+        "hasPoint": true,
+        "strict": false,
+        "tolerant": false,
+        "gridOk": true,
+        "wrongElement": false
+      }
+    },
+    {
+      "image": "win10-scale-settings",
+      "file": "win10-scale-settings.jpg",
+      "class": "windows",
+      "dense": false,
+      "sha256": "2589caa96cb59f0e82e534e86c477bcafe0ca7e9b35b58a9db740fb26538419c",
+      "native": [
+        1172,
+        718
+      ],
+      "task": "A-textsize",
+      "variant": "twin-A",
+      "width": 1172,
+      "timings": {
+        "promptN": 198,
+        "cacheN": 0,
+        "totalN": 198,
+        "promptMs": 491.338,
+        "predictedN": 53,
+        "predictedMs": 1492.363
+      },
+      "wallMs": 1986,
+      "status": 200
+    },
+    {
+      "image": "win-generic-error",
+      "file": "win-generic-error-dialog.png",
+      "class": "windows",
+      "dense": false,
+      "sha256": "a778498236abdf46661aee9d70283054092cef8f71b493e5b4febc5935692748",
+      "native": [
+        304,
+        230
+      ],
+      "task": "A-cancel",
+      "variant": "A-it",
+      "width": 304,
+      "request": {
+        "model": "gemma-4-E4B-it-Q4_K_M",
+        "temperature": 0,
+        "max_tokens": 300,
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        },
+        "system": "Sei una guida per lo schermo. Guardi la schermata e dici dove cliccare. Non agisci al posto dell'utente.\nRispondi SOLO con un oggetto JSON, senza altro testo:\n{\"label\": \"<testo dell'elemento come appare>\", \"grid\": \"<una di: top-left, top-center, top-right, middle-left, middle-center, middle-right, bottom-left, bottom-center, bottom-right>\", \"x\": <numero 0-1>, \"y\": <numero 0-1>, \"instruction\": \"<una frase in italiano>\"}\nSe l'elemento non c'è: {\"label\": null, \"grid\": null, \"x\": null, \"y\": null, \"instruction\": \"<cosa manca>\"}",
+        "user": "Obiettivo: annullare l'operazione senza confermarla. Dove devo cliccare?",
+        "image": "data:image/…(base64 truncated)"
+      },
+      "status": 200,
+      "wallMs": 2166,
+      "timings": {
+        "promptN": 283,
+        "cacheN": 0,
+        "totalN": 283,
+        "promptMs": 779.761,
+        "predictedN": 50,
+        "predictedMs": 1381.382
+      },
+      "reply": "{\"label\": \"Cancel\", \"grid\": \"bottom-right\", \"x\": 0.8, \"y\": 0.85, \"instruction\": \"Clicca su Cancel per annullare l'operazione.\"}",
+      "score": {
+        "formatOk": true,
+        "refused": false,
+        "labelOk": true,
+        "labelStrict": true,
+        "hasPoint": true,
+        "strict": true,
+        "tolerant": true,
+        "gridOk": true,
+        "wrongElement": false
+      }
+    },
+    {
+      "image": "win-generic-error",
+      "file": "win-generic-error-dialog.png",
+      "class": "windows",
+      "dense": false,
+      "sha256": "a778498236abdf46661aee9d70283054092cef8f71b493e5b4febc5935692748",
+      "native": [
+        304,
+        230
+      ],
+      "task": "A-cancel",
+      "variant": "twin-A",
+      "width": 304,
+      "timings": {
+        "promptN": 201,
+        "cacheN": 0,
+        "totalN": 201,
+        "promptMs": 484.655,
+        "predictedN": 53,
+        "predictedMs": 1453.232
+      },
+      "wallMs": 1940,
+      "status": 200
+    },
+    {
+      "image": "win10-dhcp-config",
+      "file": "win10-dhcp-config.png",
+      "class": "windows",
+      "dense": false,
+      "sha256": "dd868e5eb1124e497e285e7015951cfb36055c5f5d59c36df6b5012e27ac3358",
+      "native": [
+        692,
+        201
+      ],
+      "task": "A-save",
+      "variant": "A-it",
+      "width": 692,
+      "request": {
+        "model": "gemma-4-E4B-it-Q4_K_M",
+        "temperature": 0,
+        "max_tokens": 300,
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        },
+        "system": "Sei una guida per lo schermo. Guardi la schermata e dici dove cliccare. Non agisci al posto dell'utente.\nRispondi SOLO con un oggetto JSON, senza altro testo:\n{\"label\": \"<testo dell'elemento come appare>\", \"grid\": \"<una di: top-left, top-center, top-right, middle-left, middle-center, middle-right, bottom-left, bottom-center, bottom-right>\", \"x\": <numero 0-1>, \"y\": <numero 0-1>, \"instruction\": \"<una frase in italiano>\"}\nSe l'elemento non c'è: {\"label\": null, \"grid\": null, \"x\": null, \"y\": null, \"instruction\": \"<cosa manca>\"}",
+        "user": "Obiettivo: salvare queste impostazioni. Dove devo cliccare?",
+        "image": "data:image/…(base64 truncated)"
+      },
+      "status": 200,
+      "wallMs": 2146,
+      "timings": {
+        "promptN": 276,
+        "cacheN": 0,
+        "totalN": 276,
+        "promptMs": 807.369,
+        "predictedN": 49,
+        "predictedMs": 1334.37
+      },
+      "reply": "{\"label\": \"Save\", \"grid\": \"bottom-right\", \"x\": 0.83, \"y\": 0.92, \"instruction\": \"Clicca su Salva per salvare le impostazioni.\"}",
+      "score": {
+        "formatOk": true,
+        "refused": false,
+        "labelOk": true,
+        "labelStrict": true,
+        "hasPoint": true,
+        "strict": false,
+        "tolerant": false,
+        "gridOk": true,
+        "wrongElement": false
+      }
+    },
+    {
+      "image": "win10-dhcp-config",
+      "file": "win10-dhcp-config.png",
+      "class": "windows",
+      "dense": false,
+      "sha256": "dd868e5eb1124e497e285e7015951cfb36055c5f5d59c36df6b5012e27ac3358",
+      "native": [
+        692,
+        201
+      ],
+      "task": "A-save",
+      "variant": "twin-A",
+      "width": 692,
+      "timings": {
+        "promptN": 194,
+        "cacheN": 0,
+        "totalN": 194,
+        "promptMs": 507.456,
+        "predictedN": 48,
+        "predictedMs": 1382.547
+      },
+      "wallMs": 1892,
+      "status": 200
+    }
+  ]
+}

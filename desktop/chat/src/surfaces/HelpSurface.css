@@ -1,0 +1,122 @@
+/* Help (mockups 10-help*): a contents list on the left, one section on the right.
+   No divider lines: the list's active pill and the section heading say where you are. */
+
+.help-page {
+  width: min(1180px, 100%);
+  margin: 0 auto;
+  padding: 52px 0 48px;
+  box-sizing: border-box;
+  color: var(--tx);
+}
+
+.help-title {
+  margin: 0 0 18px;
+  font-family: var(--font-display);
+  font-size: 38px;
+  line-height: 44px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.help-layout {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 48px;
+  align-items: start;
+}
+
+.help-index {
+  display: flex;
+  flex-direction: column;
+}
+
+.help-index-item {
+  display: flex;
+  height: 46px;
+  padding: 0 16px;
+  align-items: center;
+  color: var(--tx2);
+  background: transparent;
+  border: 0;
+  border-radius: 23px;
+  font-family: var(--font-ui);
+  font-size: 16px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.help-index-item:hover {
+  color: var(--tx);
+}
+
+.help-index-item[aria-current="true"] {
+  color: var(--tx);
+  background: var(--ac-soft);
+  font-weight: 650;
+}
+
+.help-index-item:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.help-body {
+  max-width: 780px;
+  min-width: 0;
+  padding-top: 70px;
+}
+
+.help-body > h3 {
+  margin: 0 0 14px;
+  font-family: var(--font-display);
+  font-size: 30px;
+  line-height: 36px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.help-body > p {
+  margin: 0 0 12px;
+  font-size: 18px;
+  line-height: 29px;
+}
+
+.help-body ul {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.help-body li {
+  position: relative;
+  margin-bottom: 12px;
+  padding-left: 26px;
+  font-size: 18px;
+  line-height: 29px;
+}
+
+.help-body li::before {
+  content: "";
+  position: absolute;
+  top: 12px;
+  left: 6px;
+  width: 8px;
+  height: 8px;
+  background: var(--ring);
+  border-radius: 50%;
+}
+
+.help-body strong {
+  font-weight: 650;
+}
+
+.help-body .report-card {
+  margin-top: 22px;
+}
+
+.help-body .help-sources {
+  margin: 40px 0 0;
+  color: var(--tx3);
+  font-size: 14px;
+  line-height: 22px;
+}

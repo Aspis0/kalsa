@@ -1,0 +1,633 @@
+/* The Phones page (mockup 09-phones-*). Its classes are the ones the page
+   has always drawn; the rules that once lived in surfaces.css moved here
+   with them, so the shared vocabulary keeps only what other pages use. */
+
+/* The page's motion tempos, set on the page root: the numbers live in
+   motion.ts, the two only CSS needs are declared here. */
+.surface-page.phones-page {
+  --beat-draw-ms: 400ms;
+  --beat-dot-ms: 1200ms;
+  width: min(1000px, 100% - 48px);
+  margin: 0 auto;
+  padding: 52px 0 32px;
+}
+
+.surface-page.phones-page h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 38px;
+  line-height: 44px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.phones-lead {
+  margin: 6px 0 0;
+  color: var(--tx2);
+  font-size: 19px;
+  line-height: 28px;
+}
+
+.surface-page.phones-page .surface-headline {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 21px;
+  line-height: 30px;
+  font-weight: 650;
+}
+
+.surface-page.phones-page .surface-sentence {
+  margin: 0;
+  color: var(--tx2);
+  font-size: 19px;
+  line-height: 28px;
+}
+
+.surface-page.phones-page .surface-quiet {
+  margin: 8px 0 0;
+  color: var(--tx2);
+  font-size: 15px;
+  line-height: 22px;
+}
+
+.phones-note {
+  margin: 8px 0 0;
+  color: var(--tx3);
+  font-size: 15px;
+  line-height: 22px;
+}
+
+/* A refusal under the rows: said once, kept until the next press. */
+.phones-note.is-warn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--warn-ink);
+}
+
+/* A status or a choice that needs the owner, drawn as one banner. */
+.surface-page.phones-page .phones-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 760px;
+  margin-top: 22px;
+  padding: 14px 18px;
+  border-radius: 18px;
+  background: var(--ac-soft);
+  color: var(--ac-tx);
+}
+
+.surface-page.phones-page .phones-banner .surface-sentence {
+  color: var(--ac-tx);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 24px;
+}
+
+/* A state that is a whole message: the off page, the error pages. */
+.phones-card {
+  display: flex;
+  max-width: 760px;
+  margin-top: 30px;
+  padding: 22px 24px;
+  align-items: flex-start;
+  gap: 16px;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: var(--card);
+}
+
+/* A failure is tinted (09-phones-error); "Kalsa is off" is not one. */
+.phones-card.is-failed {
+  background: var(--err-wash);
+  border-color: var(--err-line);
+}
+
+.phones-card-icon {
+  display: grid;
+  flex: none;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  color: var(--tx2);
+  background: var(--rail);
+  border-radius: 50%;
+}
+
+.phones-card.is-failed .phones-card-icon {
+  color: var(--err-ink);
+  background: var(--err-soft);
+}
+
+.phones-card-body {
+  min-width: 0;
+}
+
+.surface-page.phones-page .phones-card .surface-headline {
+  font-family: inherit;
+  font-size: 19px;
+  line-height: 26px;
+}
+
+.surface-page.phones-page .phones-card .surface-sentence {
+  margin-top: 4px;
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.surface-page.phones-page .phones-card .surface-actions {
+  margin-top: 14px;
+}
+
+.surface-page.phones-page .phones-card .surface-actions .btn-primary,
+.surface-page.phones-page .phones-card .surface-actions .btn-quiet {
+  height: 46px;
+  padding: 0 20px;
+  border-radius: 23px;
+  font-size: 16px;
+}
+
+.surface-page.phones-page .surface-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 22px 0 0;
+}
+
+.surface-page.phones-page .surface-actions .btn-primary,
+.surface-page.phones-page .surface-actions .btn-quiet {
+  height: 52px;
+  padding: 0 24px;
+  border-radius: 26px;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.surface-page.phones-page .btn-primary,
+.surface-page.phones-page .btn-quiet {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.phones-more {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 12px;
+}
+
+.phones-more > * {
+  flex-basis: 100%;
+}
+
+.phones-more > .surface-actions {
+  flex-basis: auto;
+}
+
+/* The square: the code on the left, the steps and the invitation on the
+   right. Before the code is ready the left holds a spinner and its line. */
+.phones-square {
+  display: grid;
+  grid-template-columns: 360px minmax(0, 1fr);
+  gap: 48px;
+  align-items: start;
+  margin-top: 30px;
+}
+
+.phones-qr-card {
+  display: grid;
+  place-items: center;
+  width: 360px;
+  height: 360px;
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  background: #fff;
+  box-shadow: 0 18px 40px -24px var(--sh);
+}
+
+.phones-qr-card:has(.phones-wait) {
+  background: var(--card);
+}
+
+.phones-qr-card .surface-qr {
+  width: 300px;
+  margin: 0;
+}
+
+.phones-qr-card .surface-qr svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.phones-wait {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 40px;
+  text-align: center;
+}
+
+.surface-page.phones-page .phones-wait .surface-sentence {
+  max-width: 240px;
+  color: var(--tx3);
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.phones-spin {
+  width: 36px;
+  height: 36px;
+  border: 4px solid var(--ac-soft);
+  border-top-color: var(--ac);
+  border-radius: 50%;
+}
+
+.phones-side {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.phones-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  margin: 0;
+  padding: 0;
+  counter-reset: phone-step;
+  list-style: none;
+}
+
+.phones-steps li {
+  position: relative;
+  padding-left: 52px;
+  font-size: 18px;
+  line-height: 27px;
+  counter-increment: phone-step;
+}
+
+.phones-steps li::before {
+  content: counter(phone-step);
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--ac-soft);
+  color: var(--ac-tx);
+  font-weight: 700;
+}
+
+.phones-steps p {
+  margin: 0;
+}
+
+.phones-page .phones-steps .surface-sentence {
+  color: var(--tx);
+  font-size: 18px;
+  line-height: 27px;
+}
+
+.phones-page .phones-steps .surface-quiet {
+  margin-top: 4px;
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.phones-invite-box {
+  margin-top: 26px;
+  padding: 20px 22px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: var(--card);
+}
+
+.phones-invite-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 650;
+}
+
+.phones-invite-box .surface-actions {
+  margin-top: 14px;
+}
+
+/* The list of phones: one card, a row per phone, a line between rows. */
+.surface-devices {
+  display: flex;
+  flex-direction: column;
+  margin: 26px 0 0;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  overflow: hidden;
+}
+
+.surface-page.phones-page .surface-devices .surface-device,
+.surface-page.phones-page .surface-devices .surface-invite {
+  display: grid;
+  /* The status and the buttons take implicit columns, so a row with fewer
+     of them keeps no empty gap at its right edge. */
+  grid-template-columns: 46px minmax(0, 1fr);
+  grid-auto-columns: auto;
+  column-gap: 16px;
+  align-items: center;
+  position: relative;
+  min-height: 78px;
+  padding: 16px 22px;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+}
+
+.surface-devices .surface-device:first-child,
+.surface-devices .surface-invite:first-child {
+  border-top: 0;
+}
+
+.phones-icon {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  background: var(--rail);
+  color: var(--tx2);
+}
+
+.phones-icon.is-live {
+  background: var(--ac-soft);
+  color: var(--ac-tx);
+}
+
+.surface-device-name,
+.surface-invite-name {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: end;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 17px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The rename field, where the name was: the same cell, the same weight, so
+   the row does not jump when the field closes over the name. */
+.surface-page.phones-page .surface-devices .surface-device-rename {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: end;
+  width: 100%;
+  min-width: 0;
+  padding: 2px 8px 4px;
+  color: var(--tx);
+  background: var(--bg);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  font-size: 17px;
+  font-weight: 650;
+}
+
+.surface-page.phones-page .surface-devices .surface-device-rename:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* A row's own two decisions sit together, the pencil first. */
+.surface-page.phones-page .surface-devices .btn-quiet {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+/* An invite has no detail line: its one line sits across both rows. */
+.surface-invite-name {
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+
+.surface-device-detail {
+  margin-top: 4px;
+  grid-column: 2;
+  grid-row: 2;
+  align-self: start;
+  color: var(--tx2);
+  font-size: 15px;
+  line-height: 22px;
+}
+
+.surface-page.phones-page .surface-devices .btn-primary,
+.surface-page.phones-page .surface-devices .btn-quiet {
+  grid-row: 1 / span 2;
+  height: 44px;
+  padding: 0 18px;
+  border-radius: 22px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.phones-status {
+  grid-row: 1 / span 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ac-tx);
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.phones-status-check {
+  width: 14px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* The live dot: a phone the door is serving right now, on the icon's corner. */
+.surface-device-live {
+  position: absolute;
+  left: 52px;
+  top: 12px;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--ac);
+  box-shadow: 0 0 0 3px var(--card);
+}
+
+/* The invitation link: selectable, only when the clipboard refused it. */
+.surface-link {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  height: 50px;
+  margin: 14px 0 6px;
+  padding: 0 16px;
+  border: 1.5px solid var(--ac);
+  border-radius: 16px;
+  background: var(--bg);
+  color: var(--tx);
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 15px;
+}
+
+/* The beat after Allow: the check draws its stroke once beside the sentence. */
+.surface-check {
+  width: 0.8em;
+  height: 0.7em;
+  margin-right: 0.3rem;
+  vertical-align: -0.05em;
+}
+
+.surface-check-path {
+  fill: none;
+  stroke: var(--ac);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 16;
+  stroke-dashoffset: 0;
+}
+
+/* The waiting row's wash, at rest: it stands even when nothing animates. */
+.surface-device.is-waiting {
+  isolation: isolate;
+}
+
+.surface-device.is-waiting::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  border-radius: inherit;
+  background: rgba(var(--surface-muted-rgb), 0.35);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .surface-check-path {
+    animation: surface-check-draw var(--beat-draw-ms) ease-out;
+  }
+
+  @keyframes surface-check-draw {
+    from {
+      stroke-dashoffset: 16;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+
+  /* A row that needs the owner breathes: only the wash's opacity moves. */
+  .surface-device.is-waiting::after {
+    animation: surface-row-breath var(--beat-ms) ease-in-out infinite;
+  }
+
+  @keyframes surface-row-breath {
+    0%,
+    100% {
+      opacity: 0.45;
+    }
+    50% {
+      opacity: 0.9;
+    }
+  }
+
+  /* The reverse of the fold: a waiting row that newly appears unfolds into
+     the list. The page drops the class once the entrance has played. */
+  .surface-device.is-entering {
+    overflow: hidden;
+    animation: surface-row-unfold var(--beat-unfold-ms) ease;
+  }
+
+  @keyframes surface-row-unfold {
+    from {
+      max-height: 0;
+      padding-top: 0;
+      padding-bottom: 0;
+      border-top-width: 0;
+      border-bottom-width: 0;
+      opacity: 0;
+    }
+    to {
+      max-height: 5rem;
+    }
+  }
+
+  .surface-device-live {
+    animation: surface-live var(--beat-ms) ease-in-out infinite;
+  }
+
+  @keyframes surface-live {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.35;
+    }
+  }
+
+  /* The claiming sentence's three dots, staggered into one wave. */
+  .surface-connecting {
+    display: inline-flex;
+    gap: 3px;
+    margin-left: 0.4rem;
+    vertical-align: 0.12em;
+  }
+
+  .surface-connecting span {
+    width: 3px;
+    height: 3px;
+    border-radius: 999px;
+    background: var(--tx2);
+    animation: surface-dot var(--beat-dot-ms) ease-in-out infinite;
+  }
+
+  .surface-connecting span:nth-child(2) {
+    animation-delay: calc(var(--beat-dot-ms) / 6);
+  }
+
+  .surface-connecting span:nth-child(3) {
+    animation-delay: calc(var(--beat-dot-ms) / 3);
+  }
+
+  @keyframes surface-dot {
+    0%,
+    100% {
+      opacity: 0.25;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+
+  .phones-spin {
+    animation: phones-spin 1s linear infinite;
+  }
+
+  @keyframes phones-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+}

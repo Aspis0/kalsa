@@ -1,0 +1,55 @@
+/* Sampling (mockups 17-advanced-sampling, 17-advanced-sampling-error): the
+   groups fold, one open at a time, each saying how many settings it holds. */
+
+.sampling-group {
+  border-top: 1px solid var(--line);
+}
+
+.sampling-group:first-child {
+  border-top: 0;
+}
+
+.sampling-group-toggle {
+  display: flex;
+  width: 100%;
+  height: 44px;
+  padding: 0;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--tx);
+  background: transparent;
+  border: 0;
+  font-size: 17px;
+  font-weight: 650;
+  text-align: left;
+}
+
+.sampling-group-toggle em {
+  margin-left: 10px;
+  color: var(--tx3);
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 500;
+}
+
+.sampling-group-body {
+  padding: 0 0 12px;
+  row-gap: 8px;
+}
+
+.sampling-field {
+  min-width: 0;
+}
+
+.sampling-field input {
+  height: 38px;
+}
+
+.sampling-field input[aria-invalid="true"] {
+  border-color: var(--err-ink);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--err-ink) 18%, transparent);
+}
+
+.sampling-field .experts-error {
+  margin-top: 6px;
+}

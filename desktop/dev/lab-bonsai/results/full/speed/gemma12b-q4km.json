@@ -1,0 +1,35 @@
+{
+ "label": "gemma12b-q4km",
+ "runs": [
+  {
+   "ttft_s": 18.573,
+   "total_s": 24.143,
+   "decode_tok_s_client": 12.21,
+   "decode_tok_s_server": 12.21,
+   "prompt_tokens": 3181,
+   "prompt_tok_s_server": 171.96,
+   "completion_tokens": 69
+  },
+  {
+   "ttft_s": 17.16,
+   "total_s": 21.155,
+   "decode_tok_s_client": 12.27,
+   "decode_tok_s_server": 12.26,
+   "prompt_tokens": 3181,
+   "prompt_tok_s_server": 192.56,
+   "completion_tokens": 50
+  },
+  {
+   "ttft_s": 17.724,
+   "total_s": 22.811,
+   "decode_tok_s_client": 12.19,
+   "decode_tok_s_server": 12.19,
+   "prompt_tokens": 3181,
+   "prompt_tok_s_server": 181.1,
+   "completion_tokens": 63
+  }
+ ],
+ "median_ttft_s": 17.724,
+ "median_decode_tok_s_client": 12.21,
+ "median_decode_tok_s_server": 12.21
+}

@@ -1,0 +1,29 @@
+[package]
+name = "kalsa-tune"
+description = "Which launch settings run fastest on this machine with this model: measured, never assumed"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# The rounds run disposable servers through kalsa-runtime's seam and read
+# their own answers; the decision and its record stay pure, tested with
+# injected lifetimes and no hardware.
+[dependencies]
+kalsa-launch = { path = "../kalsa-launch" }
+kalsa-runtime = { path = "../kalsa-runtime" }
+# The engine's credential, read and never minted: every request this crate
+# sends to a server carries it, and the server it talks to is the app's own.
+kalsa-supervisor = { path = "../kalsa-supervisor" }
+# The workspace's own pair: ureq blocks like kalsa-download does (no async
+# runtime on the old laptops this runs on), serde_json parses the answer.
+serde_json = "1"
+ureq = "2"
+# 128 random bits per lifetime nonce, the door's own choice for ids: this
+# is identity against some other server on our freed port, not secrecy.
+getrandom = "0.3"
+
+# The real-server test builds its own candidates and argv, so it needs the
+# same two crates the crate itself names.
+[dev-dependencies]
+kalsa-launch = { path = "../kalsa-launch" }
+kalsa-runtime = { path = "../kalsa-runtime" }

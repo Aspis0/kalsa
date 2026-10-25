@@ -1,0 +1,161 @@
+/* Shared vocabulary for the ported surfaces (Brain, Models, Server,
+   Devices). Chat's own tokens and button classes only. */
+
+/* One column for the whole app: the surfaces take the chat's own measure, so
+   the writing bar starts as wide as the column its first message lands in and
+   the brain→chat morph has almost nothing to stretch (THE-BRAIN-IS-THE-HOME
+   §3: the bar you typed into IS the thing you said). `--measure` is the chat's
+   prose measure; the 4rem is the padding each side of it, as in Composer.css
+   and Thread.css. */
+.surface-page {
+  width: min(calc(var(--measure) + 4rem), 100%);
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+/* The way back from a page reached through Home (mockup 07-ai-page). */
+.surface-back {
+  display: inline-flex;
+  margin: 0 0 14px;
+  padding: 0;
+  align-items: center;
+  gap: 4px;
+  color: var(--ac-tx);
+  background: none;
+  border: 0;
+  font-weight: 600;
+}
+
+.surface-eyebrow {
+  margin: 0 0 0.4rem;
+  color: var(--silence);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.surface-page h2 {
+  margin: 0 0 0.25rem;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 600;
+}
+
+.surface-verdict {
+  margin: 0.5rem 0 0.25rem;
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 600;
+}
+
+.surface-headline {
+  margin: 0.9rem 0 0.25rem;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.surface-sentence {
+  margin: 0 0 1rem;
+  color: var(--silence);
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+/* The sentence and its wordless companion (the claiming dots) share one
+   line; a state with no companion is just the sentence, alone. */
+.surface-sentence-line {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.surface-sentence-line .surface-sentence {
+  flex: 1;
+}
+
+.surface-quiet {
+  margin: 0.6rem 0 0;
+  color: var(--silence);
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+
+.surface-note {
+  margin: 0 0 1rem;
+  color: var(--danger);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.surface-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0.25rem 0 1rem;
+}
+
+.surface-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+}
+
+.surface-metric {
+  min-width: 0;
+  padding: 0.6rem 0.7rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.surface-metric-label,
+.surface-metric-detail {
+  display: block;
+  color: var(--silence);
+  font-size: 0.72rem;
+}
+
+.surface-metric-value {
+  display: block;
+  margin: 0.15rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.surface-metric-value.is-positive {
+  color: var(--accent);
+}
+
+/* The walk's view (SetupProgress): one centred column — the headline, the bar
+   (WalkBar.css), the line, the test count and the once-only note. The full
+   first-run screen sets its own sizes in FirstRun.css. */
+.surface-walk {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.walk-line {
+  margin: 12px 0 0;
+  color: var(--tx2);
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.walk-small,
+.walk-once {
+  margin: 4px 0 0;
+  color: var(--tx3);
+  font-size: 14px;
+  line-height: 21px;
+}
+
+/* The advanced panel's log-folder row: the button above its one
+   explanatory line. */
+.log-folder {
+  margin-top: 1.5rem;
+}

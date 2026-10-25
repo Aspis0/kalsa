@@ -1,0 +1,130 @@
+/* Design tokens: Hearth (dev/mockups-v4/RULES.md). Cream paper and sage, the
+   same names in both themes; only the values change. Type is system-only
+   (offline rule). */
+
+:root {
+  --bg: #f4f1e9;
+  --rail: #ece8dd;
+  --card: #fbfaf5;
+  --line: #ddd7c8;
+  --tx: #23261e;
+  --tx2: #53584a;
+  --tx3: #646a5b;
+  --ac: #3f6b3a;
+  --ac-ink: #ffffff;
+  --ac-soft: #e2e8d4;
+  --ac-tx: #3a6334;
+  --ring: #74b266;
+  --ring-glow: rgba(116, 178, 102, 0.45);
+  --track: #e2dccc;
+  --face1: #ffffff;
+  --face2: #efebe0;
+  --bezel: #e6e1d3;
+  --sh: rgba(80, 70, 40, 0.28);
+  --warn-fill: #f3e3c8;
+  --warn-ink: #7a5418;
+  /* The problem ring and its icon keep these values in both themes, as the
+     mockups draw them. */
+  --warn-ring: #d9a443;
+  --warn-face: #9a6a1c;
+  --err-ink: #9b3b2e;
+  /* An error card's wash, edge and icon disc (09-phones-error). */
+  --err-wash: #fbf1ee;
+  --err-line: #ebcfc8;
+  --err-soft: #f6ddd7;
+  /* The Delete button, the same in both themes. */
+  --danger-fill: #9b3b2e;
+
+  /* The names the screens not yet redrawn still read, pointed at Hearth. */
+  --page: var(--bg);
+  --surface: var(--card);
+  --surface-muted: var(--rail);
+  --border: var(--line);
+  --border-strong: var(--line);
+  --ink: var(--tx);
+  --ink-soft: var(--tx2);
+  --silence: var(--tx3);
+  --accent: var(--ac);
+  --accent-hover: var(--ac-tx);
+  --accent-pressed: var(--ac-tx);
+  --accent-ink: var(--ac-ink);
+  --selection: var(--ac-soft);
+  --danger: var(--err-ink);
+  --ink-rgb: 35, 38, 30;
+  --surface-muted-rgb: 236, 232, 221;
+
+  /* The room's name colors, one slot per household member in a stable
+     order (see lib/roomColors.ts), plus Kalsa's own green. Each slot is
+     one hue in two lightness tunings — this block is the light tuning —
+     and every value clears WCAG AA against --bg, which is what the
+     names sit on; scripts/name-contrast.mjs computes it. */
+  --room-name-kalsa: #1f5f4e;
+  --room-name-1: #316cb5;
+  --room-name-2: #7b5aae;
+  --room-name-3: #b04d59;
+  --room-name-4: #926100;
+  --room-name-5: #0074a5;
+  /* The same hues as quiet bubble washes — a message's tinted background —
+     light enough that the ink stays past AA on them; scripts/
+     name-contrast.mjs computes ink-on-tint for both themes. */
+  --room-tint-kalsa: #d8f5e7;
+  --room-tint-1: #deefff;
+  --room-tint-2: #f0e8ff;
+  --room-tint-3: #ffe4e5;
+  --room-tint-4: #f9ebd3;
+  --room-tint-5: #d6f2ff;
+
+  --font-ui: -apple-system, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", system-ui;
+  --font-display: -apple-system, "SF Pro Display", "Segoe UI Variable Display", "Segoe UI", system-ui;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+
+  --measure: 72ch;
+  --radius: 14px;
+  --focus-ring: 2px solid var(--ac);
+}
+
+[data-theme="dark"] {
+  --bg: #191a16;
+  --rail: #131410;
+  --card: #22241e;
+  --line: #33362d;
+  --tx: #eeece3;
+  --tx2: #bebfb0;
+  --tx3: #a2a494;
+  --ac: #a9cf8e;
+  --ac-ink: #16220f;
+  --ac-soft: #2a3423;
+  --ac-tx: #b8da9f;
+  --ring: #8fd07a;
+  --ring-glow: rgba(143, 208, 122, 0.35);
+  --track: #2c2f27;
+  --face1: #34372f;
+  --face2: #25281f;
+  --bezel: #121310;
+  --sh: rgba(0, 0, 0, 0.6);
+  --warn-fill: #3a3022;
+  --warn-ink: #e8c489;
+  --err-ink: #f0a08f;
+  --err-wash: #2b2220;
+  --err-line: #4a322c;
+  --err-soft: #3d2a25;
+
+  --ink-rgb: 238, 236, 227;
+  --surface-muted-rgb: 19, 20, 16;
+
+  /* The same hues as the light block, lightness tuned for the dark page;
+     the contrast holds here too (scripts/name-contrast.mjs). */
+  --room-name-kalsa: #75b3a0;
+  --room-name-1: #5485c4;
+  --room-name-2: #9076be;
+  --room-name-3: #c26c74;
+  --room-name-4: #a97e2c;
+  --room-name-5: #268fb8;
+  /* The same hues as dark bubble washes, dark enough for the light ink. */
+  --room-tint-kalsa: #10271d;
+  --room-tint-1: #162232;
+  --room-tint-2: #241e30;
+  --room-tint-3: #301a1c;
+  --room-tint-4: #2a200d;
+  --room-tint-5: #0e252f;
+}

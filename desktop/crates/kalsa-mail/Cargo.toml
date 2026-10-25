@@ -1,0 +1,55 @@
+[package]
+name = "kalsa-mail"
+description = "Read-only IMAP mailbox exposed as an MCP server over stdio"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "kalsa_mail"
+path = "src/lib.rs"
+
+[[bin]]
+name = "kalsa-mail"
+path = "src/main.rs"
+
+# rmcp is pinned exactly: 3.x moved five times in ten weeks, and the host pins
+# a hash of our tool definitions, so the SDK must not move under us.
+# Only the server and the stdio transport. No client, no HTTP: nobody uses them.
+# `macros` is deliberately off, so every tool is written out by hand.
+[dependencies]
+rmcp = { version = "=3.5.1", default-features = false, features = ["server", "transport-io"] }
+
+# IMAP has no TLS in async-imap, so the TLS stream is built here and handed to it.
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12", "logging"] }
+# Verifies with the trust store the operating system already has (Keychain, Credential Manager).
+rustls-platform-verifier = "0.7"
+
+base64 = "0.22"
+async-imap = { version = "0.12", default-features = false, features = ["runtime-tokio", "tokio"] }
+mail-parser = { version = "0.11", default-features = false }
+# A real HTML5 parser, pinned exactly like the SDK. A hand-written tokenizer
+# disagrees with every real mail client on unclosed tags, entities and
+# <template>, and a sender only needs the disagreement.
+scraper = "=0.27.0"
+ego-tree = "=0.11.0"
+# Registrable domains from a pinned Public Suffix List snapshot.
+psl = "2.1"
+# Sends the reply the person confirmed. TLS is rustls with the Mozilla roots, so no native-tls
+# enters the graph; the SMTP roots therefore differ from IMAP's operating-system store.
+lettre = { version = "=0.11.23", default-features = false, features = ["smtp-transport", "builder", "tokio1-rustls-tls"] }
+url = "2"
+regex = "1"
+zeroize = { version = "1.9", features = ["derive"] }
+
+chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+rand = { version = "0.9", default-features = false, features = ["std", "std_rng", "thread_rng"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "net", "io-std", "io-util", "time"] }
+
+[dev-dependencies]
+proptest = "=1.12.0"
+tokio = { version = "1", features = ["test-util"] }

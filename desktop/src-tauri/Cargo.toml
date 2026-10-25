@@ -1,0 +1,92 @@
+[package]
+name = "kalsa-brain"
+description = "Desktop app for the Kalsa Brain server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[build-dependencies]
+tauri-build = { version = "2.7", features = [] }
+
+[dependencies]
+# Digest checks over the chosen model's downloaded bytes.
+sha2 = "0.10"
+# The phone chat's request and draft ids: 128 random bits each. Already in the
+# graph through kalsa-door, so no new crate enters it.
+getrandom = "0.3"
+kalsa-catalog = { path = "../crates/kalsa-catalog" }
+kalsa-door = { path = "../crates/kalsa-door" }
+# The file panel's listing, search and read. The whole filesystem is in
+# scope, by the owner's decision of 2026-09-19; the guarded direction is
+# egress, which lives in kalsa-web and the page's CSP.
+kalsa-files = { path = "../crates/kalsa-files" }
+kalsa-launch = { path = "../crates/kalsa-launch" }
+kalsa-download = { path = "../crates/kalsa-download" }
+# The cheap first pass over stores that name blobs by digest, ahead of
+# kalsa-download's generic scan (startup.rs, acquire_model).
+kalsa-reuse = { path = "../crates/kalsa-reuse" }
+kalsa-iroh = { path = "../crates/kalsa-iroh" }
+kalsa-pairing = { path = "../crates/kalsa-pairing" }
+kalsa-room = { path = "../crates/kalsa-room" }
+kalsa-probe = { path = "../crates/kalsa-probe" }
+kalsa-runtime = { path = "../crates/kalsa-runtime" }
+kalsa-tune = { path = "../crates/kalsa-tune" }
+kalsa-sentinel = { path = "../crates/kalsa-sentinel" }
+kalsa-supervisor = { path = "../crates/kalsa-supervisor" }
+# The assistant's web search and page fetch. Requests leave from Rust: the
+# page's content security policy admits its own machine and nothing else.
+kalsa-web = { path = "../crates/kalsa-web" }
+# The mail sidecar is an MCP server; the host starts it, pins it and calls it.
+kalsa-mcp = { path = "../crates/kalsa-mcp" }
+# The mail password lives in the OS keychain only: macOS Keychain and Windows
+# Credential Manager, the native backends and nothing else.
+keyring = { version = "=3.6.3", default-features = false, features = ["apple-native", "windows-native"] }
+# The password is wiped from memory once it has been handed on. Deserialising
+# straight into the wrapper keeps the form's copy out of a plain String.
+zeroize = { version = "1.9", features = ["serde"] }
+# The log facade every crate writes through; the app installs the one sink
+# (logging.rs) at startup. `std` is not the crate default in this graph —
+# tauri turns it off — and set_boxed_logger needs the alloc it implies.
+log = { version = "0.4", features = ["std"] }
+serde = { version = "1", features = ["derive"] }
+# The two pairing messages on the wire, and the DTO the page reads.
+serde_json = "1"
+tauri = { version = "2.12", features = [] }
+# The desktop updater: checks the update server and installs a signed
+# artifact (updater.rs). The page never talks to it; Rust does.
+tauri-plugin-updater = "2.13"
+# The report upload's HTTP client — the same one kalsa-download already
+# runs every download on, so nothing new enters the graph.
+ureq = "2"
+# Unpacking the browser driver archive, which we assemble as a .tar.gz on every
+# platform so one extractor serves all three (browser/unpack.rs). Both crates
+# are already in the graph through playwright-rs.
+tar = "0.4"
+flate2 = "1"
+regex = "1"
+# The iroh road runs on tokio; the app owns the executor (see road.rs).
+tokio = { version = "1", features = ["rt-multi-thread", "time", "sync"] }
+
+# The machine's RAM, for the catalog's memory budget.
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = [
+    "Win32_Foundation",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Memory",
+    # CurrentVersion keys behind `os_description`: the build the machine
+    # runs, past GetVersionExW's unmanifested-compat lie.
+    "Win32_System_Registry",
+    "Win32_System_Threading",
+    "Win32_System_SystemInformation",
+] }
+
+[dev-dependencies]
+# The test's own road from a link back to the code inside it: the page never
+# sees a code, so only a test ever decodes one.
+base64 = "0.22"
+# The tool definitions the sidecar serves, for the pin drift check.
+kalsa-mail = { path = "../crates/kalsa-mail" }
+kalsa-browser = { path = "../crates/kalsa-browser" }

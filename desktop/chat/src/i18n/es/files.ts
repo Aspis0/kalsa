@@ -1,0 +1,28 @@
+// Traducido del copy inglés aprobado.
+
+export const FILES = {
+    "panelAria": "Archivos",
+    "tabsAria": "Panel de archivos",
+    "filesTab": "Archivos",
+    "attachedTab": "En este chat",
+    "closeAria": "Cerrar el panel",
+    "empty": "Añade un documento a esta conversación. Suéltalo aquí, pulsa «Adjuntar un archivo» o elige uno en Archivos.",
+    "remove": "Quitar",
+    "reattach": "Adjuntar de nuevo",
+    "pinName": "Mantener",
+    "pinDoc": "Mantener envía el archivo con cada mensaje.",
+    "previouslyAttached": "Adjuntos antes",
+    "readNext": "Se leen con tu próximo mensaje",
+    "onePage": "1 página",
+    "pages": (count: number) => `${count} páginas`,
+    "budgetUnknown": "Kalsa no puede comprobar si estos archivos caben, así que puede que no use todos.",
+    "budgetAlmostFull": "Esta conversación está casi llena: puede que Kalsa no lo lea todo. Quita un archivo o abre una conversación nueva.",
+    "budgetOver": "Es demasiado para Kalsa de una vez. Quita un archivo o acorta el mensaje.",
+    "unsupportedKind": "Kalsa no puede leer este tipo de archivo. Usa un archivo de texto, PDF, Word o PowerPoint.",
+    "unsupportedLegacy": (app: string) => `Este archivo está en un formato antiguo. Ábrelo en ${app}, guarda una copia nueva y adjunta esa.`,
+    "tooBig": "Este archivo es demasiado grande para Kalsa. Prueba uno más pequeño.",
+    "unreadable": "Kalsa no pudo leer este archivo. Puede estar dañado o protegido con contraseña.",
+    "emptyFile": "Este archivo está vacío.",
+    "noText": "Kalsa no encontró palabras en este archivo. Si es un escaneo, aún no puede leerlo.",
+    "couldNotOpen": "Kalsa no pudo abrir este archivo. Vuelve a elegirlo.",
+  };

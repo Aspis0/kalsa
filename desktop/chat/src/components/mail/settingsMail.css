@@ -1,0 +1,273 @@
+/* Mail's own page in Settings: the account rows with the same inner padding
+   as the app's other settings rows, and what Kalsa may do with the mailbox —
+   written for everyone, not tucked away for experts. */
+
+.mail-back {
+  display: inline-flex;
+  margin: -8px 0 20px;
+  padding: 0;
+  align-items: center;
+  gap: 5px;
+  color: var(--ac-tx);
+  background: none;
+  border: none;
+  font-family: inherit;
+  font-size: 14.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* The first label sat against the card's top edge; every field now keeps the
+   breathing room the app's own settings rows have. */
+.mail-settings-fields {
+  padding-top: 18px;
+}
+
+/* What this machine has linked, and the help that waits before any typing. */
+.mail-linked {
+  display: flex;
+  margin: 18px 24px 0;
+  align-items: center;
+  gap: 7px;
+  color: var(--ac-tx);
+  font-size: 13.5px;
+  line-height: 20px;
+}
+
+.mail-linked.is-none {
+  color: var(--tx2);
+}
+
+.mail-help {
+  margin: 14px 24px 0;
+}
+
+.mail-help-line {
+  margin: 0 0 6px;
+  color: var(--tx2);
+  font-size: 13.5px;
+  line-height: 20px;
+}
+
+.mail-help-toggle {
+  display: inline-flex;
+  padding: 0;
+  align-items: center;
+  gap: 5px;
+  color: var(--ac-tx);
+  background: none;
+  border: none;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mail-field {
+  display: flex;
+  padding: 0 24px;
+  margin-bottom: 12px;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--tx2);
+  font-size: 14px;
+}
+
+/* The eye sits at the right end of the password field, inside it. */
+.mail-field-with-eye {
+  position: relative;
+  display: block;
+}
+
+.mail-field-with-eye input {
+  padding-right: 44px;
+}
+
+.mail-eye {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  display: flex;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(-50%);
+  color: var(--tx2);
+  background: none;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.mail-eye:hover {
+  color: var(--tx);
+  background: var(--card);
+}
+
+.mail-field input {
+  width: 100%;
+  height: 42px;
+  box-sizing: border-box;
+  padding: 0 13px;
+  color: var(--tx);
+  background: var(--bg);
+  border: 1.5px solid var(--line);
+  border-radius: 11px;
+  font-family: inherit;
+  font-size: 15px;
+}
+
+.mail-field input:focus-visible {
+  border-color: var(--ac);
+  outline: none;
+}
+
+.mail-field small {
+  color: var(--tx3);
+  font-size: 12.5px;
+}
+
+.mail-settings-actions {
+  display: flex;
+  padding: 4px 24px 2px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mail-settings-block,
+.mail-note {
+  display: flex;
+  padding: 0 24px;
+  margin: 12px 0;
+  align-items: center;
+  gap: 7px;
+  color: var(--warn-ink);
+  font-size: 13.5px;
+  line-height: 20px;
+}
+
+.mail-note {
+  color: var(--tx2);
+}
+
+.mail-note.is-warn {
+  color: var(--warn-ink);
+}
+
+.mail-subjects {
+  margin: 12px 24px 18px;
+  padding: 12px 14px;
+  list-style: none;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  color: var(--tx);
+  font-size: 14.5px;
+  line-height: 23px;
+}
+
+/* Three promises, read as words. They are not verdicts about the owner's
+   mailbox, so none of them is dressed as a warning: the colours mark the three
+   answers, not a severity. */
+.mail-perms {
+  display: flex;
+  padding: 2px 24px 20px;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.mail-perm {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  color: var(--tx);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.mail-perm::before {
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  background: var(--tx3);
+  content: "";
+}
+
+.mail-perm.is-allow::before {
+  background: var(--ac);
+}
+
+.mail-perm.is-ask::before {
+  background: var(--warn-face);
+}
+
+/* Whose phones may read the mailbox: one row per phone, the name the app
+   gives that device and a switch at the right end. */
+.mail-phones {
+  margin: 0;
+  padding: 4px 24px 20px;
+  list-style: none;
+}
+
+.mail-phone {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mail-phone-name {
+  color: var(--tx);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+/* The switch the app draws everywhere else (AdvancedPanel), on this page's
+   own row: a checkbox, so the keyboard and the screen reader get it for
+   free, dressed as the pill the owner has seen all along. */
+.mail-phone-switch {
+  position: relative;
+  width: 50px;
+  height: 30px;
+  margin: 0;
+  flex: 0 0 auto;
+  background: #cfc8b6;
+  border-radius: 15px;
+  cursor: pointer;
+  appearance: none;
+}
+
+.mail-phone-switch::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 24px;
+  height: 24px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  content: "";
+}
+
+.mail-phone-switch:checked {
+  background: var(--ac);
+}
+
+.mail-phone-switch:checked::after {
+  left: 23px;
+}
+
+.mail-phone-switch:focus-visible {
+  border-radius: 15px;
+  outline: 2px solid var(--ac);
+  outline-offset: 2px;
+}
+
+.mail-phone-switch:disabled {
+  cursor: default;
+  opacity: 0.6;
+}

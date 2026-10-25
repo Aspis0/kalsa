@@ -1,0 +1,174 @@
+import { mkdtemp } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { build } from "../chat/node_modules/esbuild/lib/main.js";
+
+// Every path is relative to this file, never to a home directory: the
+// renderer must run from any checkout, and the bundle never lands in one.
+const checkout = fileURLToPath(new URL("..", import.meta.url));
+const chat = join(checkout, "chat");
+const dir = await mkdtemp(join(tmpdir(), "i18n3-"));
+const out = join(dir, "tables.mjs");
+await build({
+  entryPoints: [join(chat, "src/i18n/index.ts")],
+  bundle: true, format: "esm", platform: "node", target: "node20",
+  outfile: out, nodePaths: [join(chat, "node_modules")],
+  loader: { ".css": "empty" }, logLevel: "silent",
+});
+const mod = await import(`${pathToFileURL(out).href}?c=${Date.now()}`);
+
+
+/** Example values for the function keys, keyed by the flattened path so
+    two areas may share a leaf name without sharing an example. Every number
+    goes through `num`, which formats it in the language being rendered, so
+    a card never shows another language's separators; a clause or join that
+    is itself a table's output is composed from that table. */
+const EXAMPLES = {
+  "room.answering": (fn) => fn("Marco"),
+  "room.queueNext": (fn) => fn("Marco"),
+  "room.youAre": (fn) => fn("Marco"),
+  "room.queueThen": (fn, areaTable) => fn("Marco", areaTable.listJoin(["Luca", "Sofia"])),
+  "room.readLast": (fn) => `${fn(1)} / ${fn(5)}`,
+  "room.listJoin": (fn) => fn(["Luca", "Sofia"]),
+  "thread.thoughtFor": (fn, _area, num) => fn(num(3.4, 1)),
+  "tools.read": (fn) => fn("example.com"),
+  "tools.didNotRun": (fn) => fn("web_search"),
+  "tools.ran": (fn) => fn("web_search"),
+  "tools.gateWhy": (fn, areaTable) => fn(areaTable.documentsAttached(2)),
+  "tools.documentsAttached": (fn) => fn(2),
+  "tools.moreWaiting": (fn) => fn(2),
+  "tools.findingFrom": (fn) => fn("report.pdf"),
+  "tools.turnEnded": (fn) => fn("length"),
+  "tools.argumentsNotValid": (fn) => fn("web_search"),
+  "advanced.whatItDoes": (fn) => fn("Context size"),
+  "advanced.explanationAria": (fn) => fn("Context size"),
+  "sidebar.noMatch": (fn) => fn("cena"),
+  "sidebar.capped": (fn, _area, num) => fn(num(150), num(240)),
+  "files.pages": (fn) => fn(12),
+  "files.unsupportedLegacy": (fn) => fn("Word"),
+  "setup.downloadQ": (fn, _area, num) => fn(`${num(4.7, 1)} GB`),
+  "setup.needsFiles": (fn) => fn("gemma"),
+  "setup.needsFile": (fn) => fn("gemma"),
+  "setup.ofTotal": (fn, _area, num) => fn(num(1.2, 1), num(4.7, 1), "GB"),
+  "setup.receivedSoFar": (fn, _area, num) => fn(`${num(1.2, 1)} GB`),
+  "setup.pickingUp": (fn, areaTable, num) => fn(areaTable.ofTotal(num(1.2, 1), num(4.7, 1), "GB")),
+  "setup.stepOf": (fn) => fn(1, 2),
+  "setup.minutesLeft": (fn) => fn(4),
+  "setup.withMinutesLeft": (fn, areaTable, num) => fn(areaTable.ofTotal(num(1.2, 1), num(4.7, 1), "GB"), 4),
+  "setup.withLongWait": (fn, areaTable, num) => fn(areaTable.ofTotal(num(1.2, 1), num(4.7, 1), "GB")),
+  "setup.attempt": (fn) => fn(2, 6),
+  "machine.running": (fn) => fn("gemma"),
+  "machine.speedRange": (fn, _area, num) => fn(num(12, 1), num(24, 1)),
+  "machine.speedAbout": (fn, _area, num) => fn(num(12, 1)),
+  "machine.speedFast": (fn, _area, num) => fn(num(45)),
+  "machine.speedSteady": (fn, _area, num) => fn(num(15)),
+  "machine.speedSlow": (fn, _area, num) => fn(num(8)),
+  "shell.tooMuchPlural": (fn) => fn("a.pdf, b.pdf"),
+  "shell.tooMuchSingular": (fn) => fn("a.pdf"),
+  "machine.speedMeasured": (fn, _area, num) => fn(num(12, 1)),
+  "machine.detailMeasured": (fn, areaTable) => fn(areaTable.thisComputerMachine),
+  "machine.onDisk": (fn, _area, num) => fn(`${num(4.7, 1)} GiB`),
+  "machine.confirmSwitch": (fn, _area, num) => fn("gemma", `${num(4.7, 1)} GiB`),
+  "machine.startAgainOn": (fn) => fn("gemma"),
+  "devices.waitingNamed": (fn, areaTable) => fn("Pixel 9", areaTable.owedPending),
+  "devices.waitingCount": (fn, areaTable) => fn(2, areaTable.undeliveredClause),
+  "devices.mixedOne": (fn, areaTable) => fn(3, areaTable.undeliveredClause),
+  "devices.mixedMany": (fn, areaTable) => fn(3, 2, areaTable.undeliveredClause),
+  "devices.savedPending": (fn) => fn("Pixel 9"),
+  "devices.worksWith": (fn) => fn("Pixel 9"),
+  "devices.worksWithCount": (fn) => fn(2),
+  "devices.worksWithCountPending": (fn) => fn(2),
+  "devices.deviceLabel": (fn) => fn(5),
+  "devices.connectedSentence": (fn) => fn("Pixel 9"),
+  "devices.pairingAgain": (fn) => fn("Pixel 9"),
+  "devices.runForTailscale": (fn) => fn("tailscale serve --bg 8080"),
+  "invite.expires": (fn) => fn("17:30"),
+  "invite.tomorrowAt": (fn) => fn("17:30"),
+  "invite.copiedUntil": (fn, areaTable) => fn(areaTable.tomorrowAt("17:30")),
+  "knobs.autoIs": (fn, _area, num) => fn(num(1)),
+  "knobs.mustBeFinite": (fn) => fn("Temperature", "abc"),
+  "knobs.mustBeWhole": (fn) => fn("Top K", "2.5"),
+  "knobs.mustBeBetween": (fn) => fn("Top P", "0", "1", "5"),
+  "advanced.automaticWith": (fn, _area, num) => fn(num(4096)),
+  "advanced.maximumWith": (fn, _area, num) => fn(num(4096)),
+  "advanced.contextNoAutomatic": (fn, _area, num) => fn(num(4096)),
+  "advanced.contextFull": (fn, _area, num) => fn(num(4096), num(4096), num(4096)),
+  "advanced.contextCost": (fn, _area, num) => fn(num(4096), "1 GiB"),
+  "advanced.automaticNumber": (fn, _area, num) => fn(num(2048)),
+  "advanced.automaticReadLater": (fn) => fn("batch size"),
+  "advanced.cacheAutomatic": (fn) => fn("q8_0"),
+  "advanced.idleMinutes": (fn, _area, num) => fn(num(5)),
+  "advanced.idleSeconds": (fn, _area, num) => fn(num(90)),
+  "advanced.valuesInForce": (fn, areaTable, num) => fn({
+    lead: areaTable.inForce,
+    context: num(4096),
+    batch: num(512),
+    ubatch: num(128),
+    kv: "q8_0",
+    flash: "on",
+    gpu: "all",
+    threads: num(8),
+    idle: `${num(300)} ${areaTable.secondsWord}`,
+    tune: "",
+  }),
+  "advanced.doorLocal": (fn, _area, num) => fn(num(8131)),
+  "advanced.runForTailscale": (fn) => fn("tailscale serve --bg 8131 · tailscale serve --bg --https=8443 8134"),
+  "advanced.deskMoved": (fn, _area, num) => fn(num(51990)),
+  "advanced.whatItDoes": (fn) => fn("Temperatura"),
+  "advanced.explanationAria": (fn) => fn("Temperatura"),
+  "browser.skippedEntries": (fn, _area, num) => fn(num(3)),
+  "rust.pairing.pairing.phone_with_ai": (fn) => fn({ gb: 2 }),
+  "browser.searchingIn": (fn) => fn("/Users/marco"),
+  "browser.skippedSome": (fn, _area, num) => fn(num(12)),
+  "markdown.withAlt": (fn) => fn("un gatto"),
+  "markdown.from": (fn) => fn("esempio.com"),
+  "shell.backTo": (fn) => fn("Home"),
+  "shell.dontFit": (fn) => fn("a.pdf, b.pdf"),
+  "shell.doesntFit": (fn) => fn("a.pdf"),
+  "shell.readingOne": (fn) => fn("book.pdf"),
+  "shell.readingMany": (fn) => fn(3),
+  "shell.attachedOne": (fn) => fn("book.pdf"),
+  "shell.attachedMany": (fn) => fn(3),
+};
+
+/** One rendered value per function key: the path's own example when one is
+    named, and one plain word for the rest — a card needs a value, never a
+    computation. `num` formats figures in the language being rendered. */
+const RENDER_CASES = (path, areaTable, num) => {
+  const example = EXAMPLES[path];
+  if (example) return (fn) => example(fn, areaTable, num);
+  return (fn) => fn("…");
+};
+
+function collect(table, lang) {
+  const rows = [];
+  const seen = new Set();
+  const num = (value, digits = 0) =>
+    new Intl.NumberFormat(lang, digits ? { minimumFractionDigits: digits, maximumFractionDigits: digits } : undefined).format(value);
+  const walk = (node, area, areaTable) => {
+    for (const [key, value] of Object.entries(node)) {
+      const path = area ? `${area}.${key}` : key;
+      // A flattened key naming two rows would make the rendered card
+      // ambiguous, so the walk refuses to continue past the first repeat.
+      if (seen.has(path)) throw new Error(`duplicate flattened key: ${path}`);
+      seen.add(path);
+      if (typeof value === "function") {
+        // A function key renders with its own area's table — queueThen
+        // borrows its area's listJoin to build {rest}.
+        rows.push([path, RENDER_CASES(path, areaTable, num)((...args) => value(...args))]);
+      } else if (typeof value === "string") {
+        rows.push([path, value]);
+      } else if (value !== null && typeof value === "object") {
+        walk(value, path, value);
+      }
+    }
+  };
+  walk(table, "", table);
+  return rows;
+}
+
+const english = collect(mod.TABLES.en, "en");
+const others = {};
+for (const lang of ["it", "es", "fr", "zh"]) others[lang] = collect(mod.TABLES[lang], lang);
+console.log(JSON.stringify({ english, others }));

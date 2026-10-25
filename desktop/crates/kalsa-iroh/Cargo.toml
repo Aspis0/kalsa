@@ -1,0 +1,42 @@
+[package]
+name = "kalsa-iroh"
+description = "Direct iroh (QUIC) road to the authenticated loopback door"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+# Pinned exactly on purpose; see the upgrade header at the top of
+# src/transport.rs — the one file allowed to import the iroh crate.
+iroh = "=1.2.0"
+# LAN discovery: the endpoint announces its direct addresses and resolves
+# LAN peers by node id, so a phone finds the door with n0 unreachable.
+# Pinned exactly like iroh, for the same upgrade-discipline reason.
+iroh-mdns-address-lookup = "=0.6.0"
+# One WARN when mDNS cannot start: the door must come up regardless.
+tracing = "0.1"
+# The pump and the accept loop are async; iroh runs on tokio.
+tokio = { version = "1", features = ["rt", "net", "io-util", "time"] }
+# The node secret key is stored as 64 hex characters, owner-only.
+hex = "0.4"
+# The 32 key bytes are drawn from the operating system's entropy pool.
+getrandom = "0.3"
+
+# Windows-only: the node key file's protected DACL (owner-only access).
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    # The SDDL converter lives in `Security::Authorization`, not `Security`.
+    "Win32_Security_Authorization",
+    # The process token that names the current user.
+    "Win32_System_Threading",
+] }
+
+[dev-dependencies]
+# The round-trip test runs the real door as the tunnel's upstream.
+kalsa-door = { path = "../kalsa-door" }
+# The engine key the door is built with, named where it is owned.
+kalsa-supervisor = { path = "../kalsa-supervisor" }
+# #[tokio::test] and the multi-thread flavor the endpoint's tasks need.
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

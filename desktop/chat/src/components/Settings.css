@@ -1,0 +1,405 @@
+/* The Settings page (mockups 08 and 15): a 720px column of cards. The
+   settings-* names are this page's; the update sheet borrows its buttons. */
+
+.settings-page {
+  width: min(768px, 100%);
+  margin: 0 auto;
+  padding: 56px 24px 32px;
+  box-sizing: border-box;
+}
+
+.settings-page h2 {
+  margin: 0 0 22px;
+  color: var(--tx);
+  font-family: var(--font-display);
+  font-size: 38px;
+  line-height: 44px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.settings-group {
+  margin: 0 0 18px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  overflow: hidden;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 70px;
+  padding: 14px 24px;
+  box-sizing: border-box;
+}
+
+.settings-row + .settings-row,
+.settings-rownote + .settings-row {
+  border-top: 1px solid var(--line);
+}
+
+.settings-row-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.settings-row-title {
+  color: var(--tx);
+  font-size: 17px;
+  line-height: 24px;
+  font-weight: 650;
+}
+
+.settings-row-hint {
+  margin-top: 2px;
+  color: var(--tx2);
+  font-size: 15px;
+  line-height: 23px;
+}
+
+.settings-ok {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
+  color: var(--ac-tx);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.settings-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 0;
+  color: var(--ac-tx);
+  background: none;
+  border: 0;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* The AI row's way to the AI page sits where the other rows keep their control. */
+.settings-more.settings-ai {
+  flex: none;
+  align-self: center;
+  margin-top: 0;
+  font-size: 17px;
+}
+
+.settings-rownote {
+  margin: -6px 0 0;
+  padding: 0 24px 18px;
+  color: var(--tx2);
+  font-size: 15px;
+  line-height: 23px;
+}
+
+.settings-rownote p {
+  margin: 0;
+  padding: 14px 16px;
+  background: var(--rail);
+  border-radius: 14px;
+}
+
+.settings-err {
+  display: block;
+  margin-top: 4px;
+  color: var(--err-ink);
+  font-size: 15px;
+  line-height: 23px;
+}
+
+.settings-seg {
+  display: inline-flex;
+  flex: none;
+  gap: 2px;
+  padding: 4px;
+  background: var(--rail);
+  border-radius: 999px;
+}
+
+.settings-seg button {
+  height: 40px;
+  padding: 0 16px;
+  color: var(--tx2);
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.settings-seg button[aria-pressed="true"] {
+  color: var(--tx);
+  background: var(--card);
+  box-shadow: 0 2px 8px -4px var(--sh);
+}
+
+.settings-select {
+  position: relative;
+  flex: none;
+}
+
+.settings-select select {
+  height: 44px;
+  padding: 0 40px 0 16px;
+  color: var(--tx);
+  background: var(--card);
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  appearance: none;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.settings-select .icon {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  color: var(--tx2);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.settings-switch {
+  position: relative;
+  flex: none;
+  width: 58px;
+  height: 34px;
+  margin: 0;
+  background: #cfc8b6;
+  border-radius: 17px;
+  appearance: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.settings-switch::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 28px;
+  height: 28px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+  transition: transform 0.15s ease;
+}
+
+.settings-switch:checked {
+  background: var(--ac);
+}
+
+.settings-switch:checked::after {
+  transform: translateX(24px);
+}
+
+.settings-switch:focus-visible,
+.settings-seg button:focus-visible,
+.settings-select select:focus-visible,
+.settings-more:focus-visible,
+.settings-btn:focus-visible {
+  outline: 2px solid var(--ac);
+  outline-offset: 3px;
+}
+
+.settings-update {
+  margin: 0 24px 20px;
+  padding: 16px 18px;
+  background: var(--ac-soft);
+  border-radius: 18px;
+}
+
+.settings-update.is-failed {
+  background: var(--err-wash);
+}
+
+.settings-update-title {
+  display: block;
+  color: var(--tx);
+  font-size: 17px;
+  font-weight: 650;
+}
+
+/* What's new has its own line under the title (15-update-states-busy). */
+.settings-update .settings-more {
+  display: flex;
+  margin-top: 8px;
+  font-size: 17px;
+}
+
+.settings-update.is-failed .settings-update-title {
+  color: var(--err-ink);
+}
+
+.settings-update-busy {
+  color: var(--tx2);
+  font-size: 15px;
+  line-height: 23px;
+}
+
+.settings-update-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.settings-progress {
+  display: block;
+  width: 100%;
+  height: 12px;
+  margin-top: 10px;
+  background: var(--card);
+  border: 0;
+  border-radius: 6px;
+  appearance: none;
+}
+
+.settings-progress::-webkit-progress-bar {
+  background: var(--card);
+  border-radius: 6px;
+}
+
+.settings-progress::-webkit-progress-value {
+  background: var(--ac);
+  border-radius: 6px;
+}
+
+.settings-progress::-moz-progress-bar {
+  background: var(--ac);
+  border-radius: 6px;
+}
+
+.settings-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 18px;
+  color: var(--tx);
+  background: var(--card);
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.settings-btn.is-primary {
+  height: 46px;
+  color: var(--ac-ink);
+  background: var(--ac);
+  border-color: var(--ac);
+}
+
+.settings-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.settings-spin {
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: settings-spin 0.9s linear infinite;
+}
+
+@keyframes settings-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-spin {
+    animation: none;
+  }
+}
+
+.settings-lede {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 20px 0 0;
+  color: var(--tx3);
+  font-size: 15px;
+}
+
+.release-notes {
+  margin: 8px 0 0;
+  padding: 0;
+  color: var(--tx2);
+  list-style: none;
+}
+
+.release-notes li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  line-height: 27px;
+}
+
+.release-notes li::before {
+  content: "";
+  flex: none;
+  width: 6px;
+  height: 6px;
+  background: var(--ring);
+  border-radius: 50%;
+}
+
+/* A failed install's own words, behind Show details (15-update-states-failed). */
+.update-details {
+  margin-top: 6px;
+  color: var(--tx2);
+  font-size: 14px;
+  line-height: 21px;
+}
+
+.update-details summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ac-tx);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+
+.update-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.update-details p {
+  margin: 6px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.update-details code {
+  font: 13px/20px ui-monospace, Menlo, monospace;
+}

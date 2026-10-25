@@ -1,0 +1,28 @@
+[package]
+name = "kalsa-room"
+description = "The room's store: one persisted transcript, member display names, and a subscribe primitive"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+# The transcript's lines and the names file are plain, versioned JSON.
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# The room's own identity and its transcript epochs are random once and
+# kept: 16 bytes from the operating system's entropy pool each.
+getrandom = "0.3"
+# A media upload is verified whole, against the digest it declared, before
+# it is published: the same sha2 the door holds.
+sha2 = "0.10"
+# The names file rides the pairing store's owner-only atomic publication
+# (temp beside the target, restricted, flushed, renamed) rather than growing
+# a second one whose permissions could drift apart from the credential's.
+kalsa-pairing = { path = "../kalsa-pairing" }
+# The app's log facade: a media clear and a healed index are the shelf's own
+# events, and the owner's report reads them from the one log file the shell
+# installs the logger for. This crate only writes lines.
+log = "0.4"
+unicode-properties = { version = "0.1.4", features = ["general-category"] }
+# The local calendar day a call was posted on, read once at post and kept.
+chrono = { version = "0.4", default-features = false, features = ["clock"] }

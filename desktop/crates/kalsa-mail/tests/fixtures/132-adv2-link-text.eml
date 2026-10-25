@@ -1,0 +1,15 @@
+Message-ID: <adv2-link-text.300115790@mail-servizi-banca.example.net>
+Date: Tue, 13 Oct 2026 21:10:00 -0400
+From: "Servizio Clienti Banca" <comunicazioni@mail-servizi-banca.example.net>
+To: <mariarossi@example.it>
+Subject: Aggiornamento informativa privacy
+MIME-Version: 1.0
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+<!doctype html>
+<html><body style="font-family:Arial">
+<p>Abbiamo aggiornato l'informativa sul trattamento dei dati.</p>
+<p>Per leggerla e confermare la presa visione usa il link qui sotto:</p>
+<p><a href="https://intesasanpaolo-verifica.example.net/privacy">intesasanpaolo.example.it/privacy</a></p>
+</body></html>

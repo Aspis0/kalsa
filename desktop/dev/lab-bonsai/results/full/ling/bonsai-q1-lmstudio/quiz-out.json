@@ -1,0 +1,145 @@
+[
+ {
+  "content": "",
+  "reasoning_chars": 9066,
+  "finish": "length",
+  "tok_s": 16.0,
+  "prompt_tok_s": 81.5,
+  "tokens": 4096,
+  "wall_s": 256.6,
+  "lang": "it",
+  "q": "Un treno parte da Milano alle 14:40 e arriva a Roma alle 17:55. Un secondo treno parte da Roma alle 15:10 e arriva a Milano alle 18:20. Le due città distano 570 km e i treni viaggiano a velocità costante. A che ora si incrociano? Mostra il ragionamento in breve."
+ },
+ {
+  "content": "",
+  "reasoning_chars": 16155,
+  "finish": "length",
+  "tok_s": 16.2,
+  "prompt_tok_s": 65.7,
+  "tokens": 4096,
+  "wall_s": 253.4,
+  "lang": "it",
+  "q": "Spiega la differenza tra 'gli ho detto' e 'le ho detto' e correggi questa frase: 'Se avrei saputo che venivi, ti avrei aspettato.'"
+ },
+ {
+  "content": "",
+  "reasoning_chars": 14441,
+  "finish": "length",
+  "tok_s": 16.6,
+  "prompt_tok_s": 54.5,
+  "tokens": 4096,
+  "wall_s": 248.1,
+  "lang": "it",
+  "q": "Riassumi in tre frasi il significato del canto V dell'Inferno di Dante, citando un verso esatto."
+ },
+ {
+  "content": "Oggetto: Segnalazione infiltrazione d'acqua dal piano superior\n\nGentile Amministrazione,\n\nVi informo di una continua infiltrazione d'acqua riscontrata nel mio appartamento [n. X], [indirizzo], derivata dal piano [n. X+1]. Sostengo già danni alla muraglia e al soffitto.\n\nPrego di coordinare una visita tecnico-legal e la subsequenti riparazione. Mi trovo a disponibilità per un appuntamento.\n\nCordiali saluti,\n[Nome], [Contatti]",
+  "reasoning_chars": 7757,
+  "finish": "stop",
+  "tok_s": 17.1,
+  "prompt_tok_s": 59.4,
+  "tokens": 2466,
+  "wall_s": 144.9,
+  "lang": "it",
+  "q": "Scrivi una mail formale (max 80 parole) al condominio per segnalare un'infiltrazione d'acqua dal piano di sopra."
+ },
+ {
+  "content": "**Différence grammaticale et sémantique :**\n\n- **`je mangerai`** est au **futur simple** (1er persona singular). Il indique une action qui se produira dans le futur, souvent avec une certaine **certitude, intention, plan ou prédiction**. C'est le tense utilisé pour parler de ce qu'on attend qu'arrive.\n- **`je mangerais`** est au **conditionnel simple** (1er persona singular). Il décrit une situation **hypothétique, imaginaire ou possible**. Il est typiquement utilisé dans des contextes de souhait, de conseil, ou de condition (`si je mangerais...`). Il suppose une situation qui ne se produit pas encore ou qui ne serait pas réelle.\n\n🔑 **En résumé** : le futur indique ce qui *va* avoir lieu ; le conditionnel explore ce qui *pourrait* avoir lieu ou ce qu'on souhaite.\n\n---\n\n**Exemples de phrases correctes :**\n\n- `je mangerai` : « Je mangerai un dîner tôt ce soir. » *(intention/certitude)*\n- `je mangerais` : « Je mangerais de la viande si j'étais plus fruché. » *(situation hypothétique/conditionnelle)*",
+  "reasoning_chars": 3124,
+  "finish": "stop",
+  "tok_s": 16.5,
+  "prompt_tok_s": 66.8,
+  "tokens": 1059,
+  "wall_s": 64.7,
+  "lang": "fr",
+  "q": "Explique la différence entre « je mangerais » et « je mangerai », puis écris une phrase correcte avec chacun."
+ },
+ {
+  "content": "Voici le calcul détaillé, étape par étape :\n\n**1. Nombre total de tenures sans restriction**  \nChaque tenue se compose de 1 chemise, 1 pantalon et 1 paire de chaussures. Par le principe des produits, on multiply les nombres de choix :  \n\\[ 3 \\times 4 \\times 2 = 24 \\text{ tenures possibles} \\]\n\n**2. Application de la contrainte**  \nOn refuse le couple *chemise rouge + pantalon vert*. Pour ce couple spécifique, il n'y a pas de restriction sur les chaussures, donc chaque paire peut l'accompagner.  \nNombre de tenures interdites :  \n\\[ 1 \\text{ (rouge)} \\times 1 \\text{ (vert)} \\times 2 \\text{ (chaussures)} = 2 \\text{ tenures exclues} \\]\n\n**3. Soustraction**  \n\\[ 24 - 2 = 22 \\text{ tenures autorisées} \\]\n\n---\n\n✅ **Vérification par addition des cas** (méthode constructuelle) :  \n- Avec la **chemise rouge** : on peut choisir les 3 pantalons non verts × 2 chaussures = \\(1 \\times 3 \\times 2 = 6\\) tenures.  \n- Avec les **2 autres chemises** : aucune restriction avec les pantalons → \\(2 \\times 4 \\times 2 = 16\\) tenures.  \nSomme : \\(6 + 16 = 22\\) tenures.\n\n**Conclusion** : Tu peux composer **22 tenures différentes** en respectant ta contrainte.",
+  "reasoning_chars": 2697,
+  "finish": "stop",
+  "tok_s": 16.5,
+  "prompt_tok_s": 72.1,
+  "tokens": 1111,
+  "wall_s": 68.0,
+  "lang": "fr",
+  "q": "Si j'ai 3 chemises, 4 pantalons et 2 paires de chaussures, mais que je refuse de porter la chemise rouge avec le pantalon vert, combien de tenues différentes puis-je composer ? Justifie."
+ },
+ {
+  "content": "Un CDD (contrat à durée déterminée) est signé pour une durée fixe et se termine automatiquement, tandis qu'un CDI (contrat à durée indéfinie) est ouvert et s'auto-renouve tant que l'employé reste present. En cas de dismissal, le CDI oblige généralement un préavis de 40 jours et des indemnités de fin de contrat, alors que le CDD ne déclenche des indemnités que s'il est terminé à son expiration ou après 12 mois sans extension. Les CDI confèrent également des droits sociaux et des obligations de sécurité plus durables, et certains CDD peuvent être convertis en CDI par accord ou par décision administrative. Cette distinction structure les garanties, les délais et les protections du travail en France.",
+  "reasoning_chars": 2332,
+  "finish": "stop",
+  "tok_s": 17.8,
+  "prompt_tok_s": 59.0,
+  "tokens": 741,
+  "wall_s": 42.2,
+  "lang": "fr",
+  "q": "Quelle est la différence juridique entre un CDD et un CDI en France ? Réponds en quatre phrases maximum."
+ },
+ {
+  "content": "**含义**  \n“画蛇添足”是指犯了错误或出现差错后，为辩解而编造理由，不承认失误。该成语原指古代一位画家被客户指责他画蛇时多画了一只脚，他狡辩说“我画蛇，添了足”，后世遂用它比喻错误后制造借口。\n\n**例句**  \n考试挂考了，他并没有反思复习不足，反而说“自己那天太疲惫，无法集中，不是因为根本没复习”，这才是典型的画蛇添足。",
+  "reasoning_chars": 2006,
+  "finish": "stop",
+  "tok_s": 17.4,
+  "prompt_tok_s": 55.8,
+  "tokens": 802,
+  "wall_s": 46.6,
+  "lang": "zh",
+  "q": "请用简体中文解释成语“画蛇添足”的意思，并造一个句子。"
+ },
+ {
+  "content": "这是一个经典的工作量/工作效率问题，核心思想是**将“注满水池”设为 1 单位工作量**，计算各水管的 hourly（每小时）效率，然后求和求平均。\n\n### 📝 计算过程\n\n1. **确定各管的单次工作效率**（单位：水池/小时）\n   - 甲管注满速度：`1 ÷ 6 = 1/6`\n   - 乙管注满速度：`1 ÷ 4 = 1/4`\n   - 丙管放空速度：`1 ÷ 12 = 1/12`（因为是出水，对注满起负作用，故设为 `-1/12`）\n\n2. **计算三管同时工作的净效率**\n   净效率 = 甲管效率 + 乙管效率 − 丙管效率  \n           = `1/6 + 1/4 − 1/12`  \n           （通分，公分母为 12）  \n           = `2/12 + 3/12 − 1/12`  \n           = `(2 + 3 − 1) / 12`  \n           = `4/12 = 1/3` 水池/小时\n\n3. **计算注满所需时间**\n   时间 = 总工作量 ÷ 净效率  \n         = `1 ÷ (1/3)`  \n         = `3` 小时\n\n✅ **验证**（可选）：3小时内，甲注满 `3×1/6=0.5` 水池，乙注满 `3×1/4=0.75` 水池，丙放空 `3×1/12=0.25` 水池。净注满量 `0.5 + 0.75 − 0.25 = 1` 水池，符合题意。\n\n### 🎯 最终答案\n三管同时打开，注满水池需要 **3 小时**。",
+  "reasoning_chars": 3270,
+  "finish": "stop",
+  "tok_s": 17.3,
+  "prompt_tok_s": 70.2,
+  "tokens": 1751,
+  "wall_s": 102.1,
+  "lang": "zh",
+  "q": "一个水池有两个进水管和一个出水管。甲管单独注满需要6小时，乙管单独注满需要4小时，丙管单独放空需要12小时。三管同时打开，几小时注满？请写出计算过程。"
+ },
+ {
+  "content": "儒家主张“治国即修己”，以礼义为纲、以仁德为本，认为君主必须以身作则，通过建立严密的道德秩序与社会制度来治理天下，追求显式的外部秩序与稳定。\n道家则主张“无为而为”，认为治国之道在于顺应道法、减少干预，致力于简易政治与低重轻税，使众生回归天然状态，追求隐式的内部自由与和谐。\n综上，儒家治国重在“制”与“正”，用制度规范维持外部秩序; 道家治国重在“任”与“简”，用简化行政保障内在自由。",
+  "reasoning_chars": 4337,
+  "finish": "stop",
+  "tok_s": 16.1,
+  "prompt_tok_s": 48.6,
+  "tokens": 1913,
+  "wall_s": 119.2,
+  "lang": "zh",
+  "q": "用三句话比较儒家和道家对“治国”的看法。"
+ },
+ {
+  "content": "La diferencia entre **ser** y **estar** con adjetivos como *aburrido* y *listo* se basa en lo **definitorio/permanente** vs. lo **temporal/situacional**:\n\n### 🔹 Con `ser` → estado fijo, inherente o cualidad estable\nSe usa cuando la adjetivación describe una característica que no cambia ni depende de un momento dado.\n- **`ser + aburrido`**: indica que algo tiene esa naturaleza por definición o por su contenido.\n- **`ser + listo`**: se usa para señalar una cualidad estable, una habilidad adquirida o un estado definitorio.\n\n✅ **Ejemplo:**  \n> `Esta serie de televisión es aburrida.`  \n> (Su naturaleza o trama lo hace así permanentemente, no solo hoy).  \n> `Soy listo para trabajar sin preparar.`  \n> (Describe una cualidad estable y propia, no solo en este instante).\n\n---\n\n### 🔹 Con `estar` → estado temporal o situacional\nSe usa cuando la condición cambia con el tiempo, depende del contexto o ocurre en un momento concreto.\n- **`estar + aburrido`**: ocurre en una situación específica o en un instante dado.\n- **`estar + listo`**: se refiere a una disponibilidad o preparación que es momentánea.\n\n✅ **Ejemplo:**  \n> `Está aburrido hoy porque la reunión no tiene sentido.`  \n> (Solo lo está así en este momento o situación; mañana quizás cambie).  \n> `Estoy listo para salir.`  \n> (En este instante sí, pero quizás mañana haya que preparar primero).\n\n---\n\n### 📌 Nota clave con `listo`\n- `Ser listo` tiende a referirse a una cualidad o disposición estable (`Es un hombre listo` = ágil/preparado; `Ser listo para la vida` = tener la capacidad natural).\n- `Estar listo` enfatiza la disponibilidad en un momento dado (`Estoy listo para el examen` = ahora sí, aunque mañana quizás lo reponga).\n\n### 💡 Regla práctica\n- Si el estado es una **característica propia o definida** → `ser`\n- Si el estado es una **condición que puede cambiar** → `estar`\n\nAmbas formas son gramaticalmente correctas en español; la elección depende exclusivamente del matiz semántico que desees transmitir.",
+  "reasoning_chars": 6807,
+  "finish": "stop",
+  "tok_s": 17.5,
+  "prompt_tok_s": 58.4,
+  "tokens": 2324,
+  "wall_s": 133.3,
+  "lang": "es",
+  "q": "Explica la diferencia entre 'ser' y 'estar' con 'aburrido' y 'listo', con un ejemplo de cada uno."
+ },
+ {
+  "content": "Aquí tienes el desglose paso a paso de los cálculos:\n\n**1. Gasto inicial (15% de los ahorros)**\n- `15% de 1.200 € = 0,15 × 1.200 = 180 €`\n- **Quedante:** `1.200 € - 180 € = 1.020 €`\n\n**2. División del resto entre invertir y dejar en caja**\n- **Invertido (1/3 de lo que queda):** `1.020 € ÷ 3 = 340 €`\n- **No invertido (2/3 de lo que queda):** `1.020 € - 340 € = 680 €`  \n*(Este monto permanece como efectivo y no genera intereses)*\n\n**3. Interés simple generado sobre el monto invertido**\n- Fórmula: `I = P × r × t`\n- `P = 340 €`\n- `r = 4% anual = 0,04`\n- `t = 18 meses = 18 ÷ 12 = 1,5 años`\n- `I = 340 × 0,04 × 1,5 = 20,40 €`\n\n**4. Total final**\n- Sin invertir: `680 €`\n- Invertido + intereses: `340 € + 20,40 € = 360,40 €`\n- **Total:** `680 € + 360,40 € = **1.040,40 €**`\n\n✅ **Tienes `1.040,40 €` al final del plazo.**",
+  "reasoning_chars": 3011,
+  "finish": "stop",
+  "tok_s": 17.9,
+  "prompt_tok_s": 73.4,
+  "tokens": 1660,
+  "wall_s": 93.7,
+  "lang": "es",
+  "q": "Tengo 1.200 € ahorrados. Gasto el 15 %, luego invierto un tercio de lo que queda al 4 % anual de interés simple durante 18 meses. ¿Cuánto dinero tengo en total al final? Muestra los cálculos."
+ },
+ {
+  "content": "",
+  "reasoning_chars": 11830,
+  "finish": "length",
+  "tok_s": 16.5,
+  "prompt_tok_s": 60.5,
+  "tokens": 4096,
+  "wall_s": 248.6,
+  "lang": "es",
+  "q": "Escribe un poema de cuatro versos con rima consonante sobre el mar Mediterráneo."
+ }
+]

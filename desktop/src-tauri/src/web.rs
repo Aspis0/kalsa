@@ -1,0 +1,314 @@
+//! The assistant's two web tools, as commands the page can call.
+//!
+//! The request goes out from here, in Rust, and never from the webview: the
+//! page's content security policy admits `connect-src` to this machine only,
+//! and a search engine is not a reason to widen it. `ureq` is already the
+//! workspace's HTTP client (see `kalsa-download`).
+//!
+//! The blocking call runs on a background thread for the same reason the model
+//! download does: the window has to keep drawing while the network is slow.
+//! `Err` carries a sentence, which is what the page shows and what the model
+//! reads as the tool's answer — a failed search must never end the turn.
+//!
+//! Stop reaches all the way in here. Each call is given an id by the page, and
+//! `brain_web_stop` sets that call's flag; the crate checks it before every
+//! request and between reads. What it cannot do is interrupt a socket already
+//! waiting in a read — no HTTP client in this crate can be withdrawn mid-read —
+//! so a stopped call ends at its next step, or when the read times out.
+//!
+//! Two commands here are not calls: they are the one-time notice the page
+//! shows before this install's first search, which needs the provider's name
+//! from the code that sends the query, and an answer that outlives the window.
+
+use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
+
+use serde::Serialize;
+use tauri::{AppHandle, Manager, State};
+
+/// The web calls that are running, by the id the page gave them.
+#[derive(Default)]
+pub(crate) struct WebCalls(Mutex<HashMap<u64, Arc<AtomicBool>>>);
+
+impl WebCalls {
+    fn start(&self, id: u64) -> Arc<AtomicBool> {
+        let stop = Arc::new(AtomicBool::new(false));
+        if let Ok(mut calls) = self.0.lock() {
+            calls.insert(id, Arc::clone(&stop));
+        }
+        stop
+    }
+
+    fn finish(&self, id: u64) {
+        if let Ok(mut calls) = self.0.lock() {
+            calls.remove(&id);
+        }
+    }
+
+    fn stop(&self, id: u64) {
+        if let Ok(mut calls) = self.0.lock() {
+            if let Some(flag) = calls.remove(&id) {
+                flag.store(true, Ordering::Relaxed);
+            }
+        }
+    }
+}
+
+/// A web command's refusal: a stable code the page renders in the owner's
+/// language, and the English sentence the model reads — the wire language
+/// is English whatever the interface speaks, so `text` is the tool result
+/// the model gets. Provider words and HTTP statuses never travel.
+#[derive(Clone, Debug, serde::Serialize)]
+pub(crate) struct WebCommandError {
+    code: String,
+    text: String,
+}
+
+impl WebCommandError {
+    fn new(code: &str, text: &str) -> Self {
+        Self { code: code.into(), text: text.into() }
+    }
+
+    fn from_web(error: kalsa_web::WebError, searching: bool) -> Self {
+        let (code, text) = match (&error, searching) {
+            (kalsa_web::WebError::Oversize, _) => (
+                "web.page_too_long",
+                "That page is too long for Kalsa to read.",
+            ),
+            (_, true) => (
+                "web.search_failed",
+                "Kalsa couldn't search the web just now. Try again.",
+            ),
+            (_, false) => (
+                "web.page_failed",
+                "Kalsa couldn't open that page. Try again.",
+            ),
+        };
+        crate::telemetry::events::web_failure(&error, searching);
+        Self::new(code, text)
+    }
+}
+
+/// Search the web for `query` and return what the model will read.
+#[tauri::command]
+pub(crate) async fn brain_web_search(
+    id: u64,
+    query: String,
+    calls: State<'_, WebCalls>,
+) -> Result<String, WebCommandError> {
+    crate::telemetry::transition("web", "tool_call");
+    let stop = calls.start(id);
+    let outcome =
+        tauri::async_runtime::spawn_blocking(move || kalsa_web::search(&query, &stop)).await;
+    calls.finish(id);
+    match outcome {
+        Ok(Ok(text)) => Ok(text),
+        Ok(Err(error)) => Err(WebCommandError::from_web(error, true)),
+        Err(_) => Err(WebCommandError::new(
+            "web.search_failed",
+            "Kalsa couldn't search the web just now. Try again.",
+        )),
+    }
+}
+
+/// Open one page and return the text on it. The address gate lives in
+/// `kalsa-web`: loopback, private and inward-resolving addresses are refused
+/// before the request.
+#[tauri::command]
+pub(crate) async fn brain_web_fetch(
+    id: u64,
+    url: String,
+    calls: State<'_, WebCalls>,
+) -> Result<String, WebCommandError> {
+    crate::telemetry::transition("web", "tool_call");
+    let stop = calls.start(id);
+    let outcome = tauri::async_runtime::spawn_blocking(move || kalsa_web::fetch(&url, &stop)).await;
+    calls.finish(id);
+    match outcome {
+        Ok(Ok(text)) => Ok(text),
+        Ok(Err(error)) => Err(WebCommandError::from_web(error, false)),
+        Err(_) => Err(WebCommandError::new(
+            "web.page_failed",
+            "Kalsa couldn't open that page. Try again.",
+        )),
+    }
+}
+
+/// Stop a web call the page is no longer waiting for.
+#[tauri::command]
+pub(crate) fn brain_web_stop(id: u64, calls: State<WebCalls>) {
+    calls.stop(id);
+}
+
+/// The one-time notice's whole state in one answer: which service this build
+/// searches with, and whether this install has been told. The name is the
+/// provider's own (`kalsa_web::provider_name`), never a string the page
+/// carries — a release that answers with another service changes this
+/// sentence by changing the code that sends the query.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct SearchNotice {
+    provider: &'static str,
+    answered: bool,
+}
+
+/// What the owner would be told before their first search, and whether they
+/// already have been. A data directory this build cannot reach reads as
+/// unanswered: the notice then stands in front of the first search rather
+/// than never being shown at all.
+#[tauri::command]
+pub(crate) fn brain_web_search_notice(app: AppHandle) -> SearchNotice {
+    SearchNotice {
+        provider: kalsa_web::provider_name(),
+        answered: app
+            .path()
+            .app_data_dir()
+            .is_ok_and(|dir| notice::answered(&dir)),
+    }
+}
+
+/// Keep the answer: this install's first search has been told. A write the
+/// disk refuses is reported rather than swallowed, so the page is not left
+/// believing an answer it never stored.
+#[tauri::command]
+pub(crate) fn brain_web_search_notice_answered(app: AppHandle) -> Result<(), &'static str> {
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|_| "the search notice could not be saved")?;
+    notice::answer(&dir).map_err(|_| "the search notice could not be saved")
+}
+
+/// The stored answer to that notice: a file in the data directory whose
+/// PRESENCE is the answer, like the unclean-exit marker beside it
+/// (`instance::session_marker`) and the projector on disk for the vision
+/// offer. A flag kept anywhere else could disagree with what the owner was
+/// told, and ask again after a yes.
+mod notice {
+    use std::path::Path;
+
+    const NAME: &str = "search.notice";
+
+    pub(super) fn answered(dir: &Path) -> bool {
+        dir.join(NAME).exists()
+    }
+
+    /// The bytes carry nothing: presence is the whole answer, so a write that
+    /// lands half-finished still counts — the one thing a torn write cannot
+    /// do here is ask the owner twice.
+    pub(super) fn answer(dir: &Path) -> std::io::Result<()> {
+        std::fs::write(dir.join(NAME), b"1")
+    }
+}
+
+/// Open an address in this computer's browser, after checking it with the gate
+/// `web_fetch` uses.
+///
+/// The page asks for this instead of carrying an `href`. A Tauri webview does
+/// not reach the system browser on its own, and the grant that would let it —
+/// an opener or shell permission — would let the page hand an arbitrary string
+/// to the operating system. These addresses come from arguments a model
+/// invented, so the answer is not "trust the page to have checked": it is a
+/// command that checks, here, every time, and only then hands the address over.
+#[tauri::command]
+pub(crate) fn brain_open_url(url: String) -> Result<(), WebCommandError> {
+    open_checked(&url)
+}
+
+/// The check and the hand-off, apart from the command so that the refusal can
+/// be tested without opening anything. **Only refused addresses belong in a
+/// test**: anything that gets past the gate really does reach the browser.
+fn open_checked(url: &str) -> Result<(), WebCommandError> {
+    kalsa_web::openable(url).map_err(|error| WebCommandError::from_web(error, false))?;
+    open_in_browser(url).map_err(|_| {
+        WebCommandError::new(
+            "web.open_failed",
+            "This computer couldn't open the link.",
+        )
+    })
+}
+
+/// Hand the address to whatever this computer opens http(s) links with.
+///
+/// No shell is involved, so the address is one argument and cannot become part
+/// of a command line. The child is reaped on its own thread: `open` returns at
+/// once, but a click must not wait for a browser, and a dropped child would
+/// stay a zombie for as long as the app lives. The Windows launcher is the one
+/// path here that this session could not try.
+fn open_in_browser(url: &str) -> std::io::Result<()> {
+    #[cfg(target_os = "macos")]
+    let opener = "open";
+    #[cfg(target_os = "windows")]
+    let opener = "explorer";
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    let opener = "xdg-open";
+
+    let child = std::process::Command::new(opener)
+        .arg(url)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()?;
+    std::thread::spawn(move || {
+        let mut child = child;
+        let _ = child.wait();
+    });
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{notice, open_checked};
+
+    /// What the page may ask to open, and what it may not. Every address here
+    /// is refused before anything is spawned, so this test opens nothing.
+    #[test]
+    fn an_address_the_gate_refuses_never_reaches_the_system() {
+        for address in [
+            "javascript:alert(1)",
+            "file:///etc/passwd",
+            "data:text/html,<h1>hi</h1>",
+            "http://127.0.0.1:8130/v1/models",
+            "http://localhost:8130/",
+            "http://192.168.1.1/",
+            "http://169.254.169.254/latest/meta-data/",
+            "http://[::1]:8130/",
+            "http://foo.127.0.0.1.nip.io:8130/",
+        ] {
+            match open_checked(address) {
+                Err(said) => {
+                    assert_eq!(said.code, "web.page_failed", "{address}: {said:?}");
+                    assert_eq!(
+                        said.text,
+                        "Kalsa couldn't open that page. Try again.",
+                        "{address}: the private address reads as any other page failure"
+                    );
+                }
+                Ok(()) => panic!("{address} was handed to this computer's browser"),
+            }
+        }
+    }
+
+    /// The notice is unanswered on a computer that has never searched, and
+    /// answered on one that has — the file is the whole memory of it, so a
+    /// second read has to see the same answer as the first.
+    #[test]
+    fn the_first_search_notice_is_remembered_once_the_file_lands() {
+        let dir = std::env::temp_dir().join(format!(
+            "kalsa-search-notice-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("a clock")
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).expect("a scratch directory");
+        assert!(!notice::answered(&dir), "a fresh install has not been told");
+        notice::answer(&dir).expect("the answer is kept");
+        assert!(notice::answered(&dir), "the file's presence IS the answer");
+        notice::answer(&dir).expect("answering twice is not an error");
+        assert!(notice::answered(&dir));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+}

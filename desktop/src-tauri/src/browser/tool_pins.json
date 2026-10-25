@@ -1,0 +1,11 @@
+{
+  "binaries": {},
+  "tools": {
+    "browser.browser_click": "00fd7e29d5ef20aa27bf9de7528d01cc63448a18ebe159f35e0314b07d8384f6",
+    "browser.browser_find": "59bc4df1f4266a976c1abcb3e7022d21c4d5a44ecd15fb7d6a68f5cc87307d1a",
+    "browser.browser_open": "bd5ca12acfb26422c04b0359dd7b6db7e8f6bd2684a34d5b3445c0ba146b61d6",
+    "browser.browser_read": "c729ef2b6cf44fdfd8f14cf29e55e14edd5f202285d26a0ce4448db1b70d579d",
+    "browser.browser_screenshot": "5e950f1a1850c9cca63064e39e2eb9e4f4d7fc2e206986c8d268ca9b65da6e3d",
+    "browser.browser_type": "b78d47a932af01a2550f6f58442d39291463c578d0ed596fec0ca1bbce071e29"
+  }
+}

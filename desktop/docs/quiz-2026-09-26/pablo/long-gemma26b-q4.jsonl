@@ -1,0 +1,12 @@
+{"depth": 10, "seed": 1, "pass": true, "prompt_tokens": 4519, "refusal": false, "answer": "Il tuo cane si chiama **Pablo**."}
+{"depth": 25, "seed": 1, "pass": true, "prompt_tokens": 11386, "refusal": false, "answer": "Il tuo cane si chiama **Pablo**!"}
+{"depth": 50, "seed": 1, "pass": true, "prompt_tokens": 22720, "refusal": false, "answer": "Il tuo cane si chiama Pablo."}
+{"depth": 75, "seed": 1, "pass": true, "prompt_tokens": 33966, "refusal": false, "answer": "Il tuo cane si chiama Pablo!"}
+{"depth": 100, "seed": 1, "pass": true, "prompt_tokens": 44584, "refusal": false, "answer": "Il tuo cane si chiama **Pablo**."}
+{"depth": 120, "seed": 1, "pass": true, "prompt_tokens": 53077, "refusal": false, "answer": "Il tuo cane si chiama Pablo."}
+{"depth": 10, "seed": 2, "pass": true, "prompt_tokens": 4534, "refusal": false, "answer": "Il tuo cane si chiama **Pablo**."}
+{"depth": 25, "seed": 2, "pass": true, "prompt_tokens": 11153, "refusal": false, "answer": "Il tuo cane si chiama **Pablo**."}
+{"depth": 50, "seed": 2, "pass": true, "prompt_tokens": 22450, "refusal": false, "answer": "Il tuo cane si chiama Pablo."}
+{"depth": 75, "seed": 2, "pass": true, "prompt_tokens": 33736, "refusal": false, "answer": "Il tuo cane si chiama Pablo!"}
+{"depth": 100, "seed": 2, "pass": true, "prompt_tokens": 44901, "refusal": false, "answer": "Il tuo cane si chiama Pablo!"}
+{"depth": 120, "seed": 2, "pass": true, "prompt_tokens": 53922, "refusal": false, "answer": "Il tuo cane si chiama Pablo."}

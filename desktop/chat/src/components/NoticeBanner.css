@@ -1,0 +1,65 @@
+/* A notice across the top of the page (RULES.md "Banner"): a round icon, the
+   words, its buttons. */
+
+.notice-banner {
+  display: flex;
+  margin: 18px 28px 0;
+  padding: 16px 18px 16px 20px;
+  align-items: center;
+  gap: 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.notice-banner-icon {
+  display: grid;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  color: var(--ac-tx);
+  background: var(--ac-soft);
+  border-radius: 50%;
+}
+
+.notice-banner.is-warn .notice-banner-icon {
+  color: var(--warn-ink);
+  background: var(--warn-fill);
+}
+
+.notice-banner-text {
+  flex: 1;
+  min-width: 0;
+  color: var(--tx2);
+}
+
+.notice-banner-text b {
+  display: block;
+  color: var(--tx);
+  font-size: 17px;
+  font-weight: 650;
+}
+
+.notice-banner-btn {
+  flex: none;
+  height: 44px;
+  padding: 0 18px;
+  color: var(--tx);
+  background: transparent;
+  border: 1.5px solid var(--line);
+  border-radius: 22px;
+  font-size: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.notice-banner-btn:hover {
+  border-color: var(--ac);
+}
+
+.notice-banner-btn:focus-visible {
+  border-radius: 22px;
+}

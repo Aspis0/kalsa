@@ -1,0 +1,825 @@
+import { TOOL_STOPPED } from "./types";
+import { normalizeMiniapp } from "./miniapp/normalize";
+import { mailCount, normalizeMail } from "./mail/normalize";
+import { isMailRun } from "./mail/runs";
+import { isBrowserRun } from "./browser/runs";
+import { isBrowserCode } from "./browser/codes";
+import { nothingSaid } from "./browser/recap";
+import type { Recap } from "./browser/recap";
+import type { ChatErrorKind } from "./chat";
+import type {
+  ChatMessage,
+  Conversation,
+  ConversationMeta,
+  MessageImage,
+  MessageVideo,
+  ToolRun,
+} from "./types";
+import type { Attachment, AttachmentKind } from "./attachments";
+
+/**
+ * The ONLY module that knows where conversations live. The rest of the app
+ * talks to a ConversationStore; a future backend replaces createStore()
+ * without touching any component.
+ *
+ * Shape (v2): an INDEX of capped metadata (one small key, read for every
+ * list/search) plus one key PER CONVERSATION for its messages. The list and
+ * the search never touch a message payload.
+ *
+ * Deliberate deviation, documented: list() returns ConversationMeta[], not
+ * Conversation[] — returning full payloads from list() would nullify the
+ * split above. Method names and the single-seam rule are unchanged.
+ */
+export interface ConversationStore {
+  /** Index only. Never parses a message payload. */
+  list(): ConversationMeta[];
+  /** Full conversation; messages validated on read. */
+  get(id: string): Conversation | undefined;
+  /** Whether the chat is in the index: a cheap answer, no payload read. */
+  has(id: string): boolean;
+  put(conversation: Conversation): void;
+  remove(id: string): void;
+  /** Retitle without touching the message payload (index-only). */
+  rename(id: string, title: string): void;
+  /** Attachments of one conversation (active and history). Small; no cache. */
+  getAttachments(convId: string): Attachment[];
+  /** Insert or replace one attachment; history beyond 20 falls off. */
+  putAttachment(convId: string, attachment: Attachment): void;
+  /** Detach into history (kept, re-attachable) — never deletes the text. */
+  removeAttachment(convId: string, attachmentId: string): void;
+  /** Last persist failure, if any, as the code "storage-full"; the shell
+      owns the sentence. Null after a successful write. */
+  getWriteError(): string | null;
+  clearWriteError(): void;
+  subscribe(listener: () => void): () => void;
+}
+
+export function uid(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `${Date.now().toString(36)}-${Math.floor(Math.random() * 1e9).toString(36)}`;
+}
+
+const PREFIX = "crescent-chat.";
+const INDEX_KEY = "crescent-chat.index.v2";
+const MIGRATED_KEY = "crescent-chat.migrated.v2";
+const OLD_KEY = "crescent-chat.conversations.v1";
+
+function attachKey(convId: string): string {
+  return `crescent-chat.attach.${convId}.v2`;
+}
+
+// The kinds cleanAttachment admits on reload. This list must hold every
+// AttachmentKind or the attachment silently fails to come back — csv was
+// the one that proved the rule.
+const ATTACH_KINDS: AttachmentKind[] = ["txt", "md", "csv", "pdf", "docx", "pptx"];
+
+function cleanAttachment(value: unknown): Attachment | null {
+  if (typeof value !== "object" || value === null) return null;
+  const a = value as Record<string, unknown>;
+  if (typeof a.id !== "string" || !a.id) return null;
+  if (typeof a.name !== "string" || !a.name) return null;
+  if (typeof a.text !== "string") return null;
+  if (!ATTACH_KINDS.includes(a.kind as AttachmentKind)) return null;
+  if (typeof a.chars !== "number" || typeof a.tokens !== "number") return null;
+  if (typeof a.attachedAt !== "number" || typeof a.active !== "boolean") return null;
+  if (a.pages !== undefined && typeof a.pages !== "number") return null;
+  return {
+    id: a.id,
+    name: a.name,
+    kind: a.kind as AttachmentKind,
+    ...(typeof a.pages === "number" ? { pages: a.pages } : {}),
+    chars: a.chars,
+    tokens: a.tokens,
+    text: a.text,
+    attachedAt: a.attachedAt,
+    active: a.active,
+    // An attachment stored before pinning existed is pinned: its behaviour
+    // — riding the system message every turn — must not change under it.
+    pinned: typeof a.pinned === "boolean" ? a.pinned : true,
+  };
+}
+// The failure kinds cleanMessage admits on reload. This list must hold every
+// ChatErrorKind, or a failed row comes back without its sentence and Retry.
+const FAILED_KINDS: ChatErrorKind[] = [
+  "network",
+  "unauthorized",
+  "http",
+  "bad-response",
+  "truncated",
+  "timeout",
+  "oversize",
+  "aborted",
+];
+
+const PREVIEW_CHARS = 140;
+const SEARCH_CHARS = 500;
+/** Every conversation payload key starts with this; nothing else may. */
+const MSG_PREFIX = "crescent-chat.msgs.";
+/**
+ * How long an unnamed payload is left alone before the sweep may take it. Long
+ * enough that a write in progress in another window, or a page loading while
+ * one is, is never mistaken for junk; short enough that the junk the sweep is
+ * for — left by an older build — is gone the first time the store opens.
+ */
+const SWEEP_GRACE_MS = 60_000;
+
+function msgKey(id: string): string {
+  return `${MSG_PREFIX}${id}.v2`;
+}
+
+/**
+ * Whether the index **on disk** names this conversation. The index in memory is
+ * the wrong question: a write the disk refused still lands there for the rest
+ * of the session, so asking it would call an unfiled conversation filed.
+ */
+function namedOnDisk(id: string): boolean {
+  try {
+    const raw = localStorage.getItem(INDEX_KEY);
+    if (!raw) return false;
+    const parsed: unknown = JSON.parse(raw);
+    return (
+      Array.isArray(parsed) && parsed.some((meta) => (meta as { id?: unknown }).id === id)
+    );
+  } catch {
+    return false;
+  }
+}
+
+function isValidMessage(value: unknown): value is ChatMessage {
+  if (typeof value !== "object" || value === null) return false;
+  const m = value as Record<string, unknown>;
+  return (
+    typeof m.id === "string" &&
+    m.id.length > 0 &&
+    (m.role === "user" || m.role === "assistant") &&
+    typeof m.content === "string"
+  );
+}
+
+/** What is kept of a browser note read back off disk.
+ *
+ * **A note is only ever this app's own account of what it did** — see
+ * `browser/recap.ts`. Anything carrying a path, a query or a fragment is
+ * therefore not one of ours, and dropping it here means a stranger's site cannot
+ * get a token out of a URL and onto a disk through an outcome, whatever wrote it
+ * and however old the write was.
+ *
+ * **The fence is taken off first.** The note reaches the disk fenced, the way
+ * any page text does, and a closing marker is a slash of this app's own making:
+ * judged whole, every fenced note carries one and every one of them was being
+ * dropped. What is judged is what the note says.
+ */
+function cleanNote(value: unknown): string {
+  if (typeof value !== "string" || value === "") return "";
+  const said = value.replace(/<\/?kalsa-page-[0-9a-f]+>/g, "");
+  return /[/?#]/.test(said) ? "" : value;
+}
+
+function cleanMessage(value: unknown): ChatMessage | null {
+  if (!isValidMessage(value)) return null;
+  const browserNote = cleanNote(value.browserNote);
+  return {
+    id: value.id,
+    role: value.role,
+    content: value.content,
+    createdAt: typeof value.createdAt === "number" ? value.createdAt : 0,
+    ...(typeof value.stopped === "boolean" ? { stopped: value.stopped } : {}),
+    ...(typeof value.reasoning === "string" && value.reasoning
+      ? { reasoning: value.reasoning }
+      : {}),
+    ...(typeof value.reasoningMs === "number" ? { reasoningMs: value.reasoningMs } : {}),
+    ...(typeof value.sentOn === "string" && value.sentOn ? { sentOn: value.sentOn } : {}),
+    ...(typeof value.mailNote === "string" && value.mailNote ? { mailNote: value.mailNote } : {}),
+    ...(browserNote ? { browserNote } : {}),
+    // **The armed flag rides the message.** It is a fact about the turn — this
+    // one was the browser's — and the badge that says so is drawn from it, so
+    // without this line the badge dies at the first reload.
+    ...(value.browserMode === true ? { browserMode: true } : {}),
+    ...(typeof value.mailId === "string" && value.mailId ? { mailId: value.mailId } : {}),
+    ...(typeof value.mailSubject === "string" && value.mailSubject
+      ? { mailSubject: value.mailSubject.slice(0, 500) }
+      : {}),
+    ...(typeof value.failed === "string" && (FAILED_KINDS as readonly string[]).includes(value.failed)
+      ? { failed: value.failed as ChatErrorKind }
+      : {}),
+    // **The flag that says the turn was closed for space rides the message**,
+    // like the armed one: the line that says so is drawn from it, so without
+    // this line it dies at the first reload and a reloaded chat claims a
+    // complete answer where the turn stopped reading.
+    ...(value.closedForSpace === true ? { closedForSpace: true } : {}),
+    // **The count of turns the fit left behind rides the message too**, for
+    // the same reason: the line says how many, and a field this list does not
+    // name is gone at the first reload.
+    ...(typeof value.prunedTurns === "number" && value.prunedTurns > 0
+      ? { prunedTurns: value.prunedTurns }
+      : {}),
+    ...(Array.isArray(value.toolRuns) ? cleanToolRuns(value.toolRuns) : {}),
+    ...(Array.isArray(value.images) ? cleanImages(value.images) : {}),
+    ...(Array.isArray(value.videos) ? cleanVideos(value.videos) : {}),
+    ...cleanBoundDocs(value),
+  };
+}
+
+/** The documents a user turn bound to itself, read back as ids plus their
+    measured weight. A weight that is not a number leaves the ids riding
+    unweighed — the wire still renders them; the fit just under-counts that
+    one turn, which is the lesser evil next to dropping the binding. */
+function cleanBoundDocs(value: { docs?: unknown; docTokens?: unknown }): { docs?: string[]; docTokens?: number } {
+  if (!Array.isArray(value.docs)) return {};
+  const ids = value.docs.filter((id): id is string => typeof id === "string" && id !== "");
+  if (ids.length === 0) return {};
+  return {
+    docs: ids,
+    ...(typeof value.docTokens === "number" ? { docTokens: value.docTokens } : {}),
+  };
+}
+
+/** Video references read back whole or not at all: a half one would offer a
+    player with no shape. The frames are image references of their own; a
+    missing frame blob is the wire's business, never a dropped video. */
+function cleanVideos(value: unknown[]): { videos?: MessageVideo[] } {
+  const videos: MessageVideo[] = [];
+  for (const video of value) {
+    if (typeof video !== "object" || video === null) continue;
+    const v = video as Record<string, unknown>;
+    if (typeof v.id !== "string" || !v.id) continue;
+    if (typeof v.width !== "number" || typeof v.height !== "number") continue;
+    if (typeof v.durationMs !== "number") continue;
+    const frames = Array.isArray(v.frames) ? cleanImages(v.frames).images : undefined;
+    videos.push({
+      id: v.id,
+      width: v.width,
+      height: v.height,
+      durationMs: v.durationMs,
+      ...(v.notKept === true ? { notKept: true } : {}),
+      frames: frames ?? [],
+    });
+  }
+  return videos.length > 0 ? { videos } : {};
+}
+
+/** Image references read back whole or not at all: a half one would render a
+    thumbnail with no shape. The bytes they name live in IndexedDB; a missing
+    blob is the UI's placeholder, never a dropped message. */
+function cleanImages(value: unknown[]): { images?: MessageImage[] } {
+  const images: MessageImage[] = [];
+  for (const image of value) {
+    if (typeof image !== "object" || image === null) continue;
+    const i = image as Record<string, unknown>;
+    if (typeof i.id !== "string" || !i.id) continue;
+    if (typeof i.width !== "number" || typeof i.height !== "number") continue;
+    if (typeof i.mime !== "string" || !i.mime) continue;
+    images.push({ id: i.id, width: i.width, height: i.height, mime: i.mime });
+  }
+  return images.length > 0 ? { images } : {};
+}
+
+/** Tool runs read back from disk are kept only if whole: a half-written run
+    would render as a call with no answer, which reads like a broken tool.
+
+    A carried miniapp is re-normalized on the way in and out: the loaded
+    shape is the one the renderer can draw, and a stored blob that fails
+    normalization is dropped from the run, never a crash in the thread.
+
+    `running` is a live state, not a stored one. `put` and `get` both come
+    through here, so a run on its way to disk is already marked interrupted —
+    otherwise a crash while a tool was in flight would leave "Searching the
+    web…" on screen forever after the next reload. */
+function cleanToolRuns(value: unknown[]): { toolRuns?: ToolRun[] } {
+  const runs: ToolRun[] = [];
+  for (const run of value) {
+    if (typeof run !== "object" || run === null) continue;
+    const r = run as Record<string, unknown>;
+    if (typeof r.id !== "string" || typeof r.name !== "string") continue;
+    if (typeof r.arguments !== "string" || typeof r.result !== "string") continue;
+    if (r.state !== "running" && r.state !== "ok" && r.state !== "failed" && r.state !== "refused") continue;
+    const miniapp = r.miniapp === undefined ? null : normalizeMiniapp(r.miniapp);
+    // The envelope stays in the record the app reads; `forDisk` is what keeps
+    // it off localStorage. What reaches disk is the count it stood for.
+    const mail = r.mail === undefined ? null : normalizeMail(r.mail);
+    const code = storedCode(r.name, r.resultCode);
+    const recap = normalizeRecap(r.recap);
+    runs.push({
+      id: r.id,
+      name: r.name,
+      arguments: r.arguments,
+      // A run still marked running is one the app died beside; its answer
+      // never came, so the result says that as a code the UI words itself.
+      // A record that already holds a sentence keeps it as it is.
+      result: r.state === "running" && r.result === "" ? TOOL_STOPPED : r.result,
+      state: r.state === "running" ? "failed" : r.state,
+      ...(miniapp ? { miniapp } : {}),
+      ...(mail ? { mail } : {}),
+      ...(typeof r.mailShown === "number" && r.mailShown >= 0 ? { mailShown: Math.round(r.mailShown) } : {}),
+      // How many pages a search read is a fact about the turn, not its text: the
+      // kept result is a prefix, and the card must still say what was read.
+      ...(typeof r.pagesRead === "number" && r.pagesRead > 0 ? { pagesRead: Math.round(r.pagesRead) } : {}),
+      // A picture came with this call: the flag is a fact about the turn, and it
+      // is what lets the record say the model read the page.
+      ...(r.picture === true ? { picture: true } : {}),
+      // The refusal's code is how the screen words a failure; dropping it here
+      // would make a notice vanish on the next store write. **Judged against
+      // the closed set first**: this field is a string in `localStorage`, so
+      // whatever was last written there is what comes back, and the window
+      // looks its sentence up by it.
+      ...(code === undefined ? {} : { resultCode: code }),
+      // **The turn's own line about what it did**: counts, and the only part
+      // of the turn kept that says something about the turn rather than about
+      // one call. The words are built when the line is drawn.
+      ...(recap === null ? {} : { recap }),
+    });
+  }
+  return runs.length > 0 ? { toolRuns: runs } : {};
+}
+
+/** The code a stored run keeps: the browser's own closed set for a browser run,
+    because that is what the window words itself by, and whatever the mailbox or
+    the web gate gave it otherwise — those two have tables of their own and drop
+    a word they have no sentence for on their own. */
+function storedCode(name: string, code: unknown): string | undefined {
+  if (typeof code !== "string" || code === "") return undefined;
+  return isBrowserRun(name) && !isBrowserCode(code) ? undefined : code;
+}
+
+/**
+ * What Kalsa did, read back into one closed shape.
+ *
+ * **A record off the disk is data, not a record**: every field is checked and
+ * every count is rounded, because a number that came back as `NaN` is a line
+ * that renders as "NaN fields" and a name that came back as an address is a
+ * stranger's words on the window. Null is a run whose recap is not one, and it
+ * is dropped rather than drawn as zeroes.
+ */
+function normalizeRecap(value: unknown): Recap | null {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
+  const said = value as Record<string, unknown>;
+  const count = (key: string): number => {
+    const n = said[key];
+    return typeof n === "number" && Number.isFinite(n) && n > 0 ? Math.round(n) : 0;
+  };
+  const flag = (key: string): boolean => said[key] === true;
+  const opened = count("opened");
+  const typed = count("typed");
+  const clicked = count("clicked");
+  const waiting = count("waiting");
+  const sent = count("sent");
+  const recap: Recap = {
+    opened,
+    // The hosts are already gone by the time this reads one: `forDisk` strips
+    // them, so a line drawn after a reload says "a site" and says nothing false.
+    asked: "",
+    hosts: [],
+    read: count("read"),
+    detail: count("detail"),
+    typed,
+    clicked,
+    tried: flag("tried"),
+    clickInterrupted: flag("clickInterrupted"),
+    waiting,
+    sent,
+    declined: count("declined"),
+    expired: count("expired"),
+    gone: count("gone"),
+    unsendable: count("unsendable"),
+    unclear: count("unclear"),
+    sentTo: [],
+    stopped: flag("stopped"),
+  };
+  return nothingSaid(recap) ? null : recap;
+}
+
+/**
+ * The copy that reaches localStorage. A sender, a subject, a gist and a body
+ * are a stranger's words and this store is the browser's disk, so the mail
+ * envelope goes and the count it stood for takes its place: a reloaded chat
+ * says how many cards the turn drew and offers none of them. A draft goes the
+ * same way — it was never sent, and rewriting it costs the owner less than
+ * storing it would.
+ */
+export function forDisk(messages: ChatMessage[]): unknown[] {
+  return messages.map((message) => {
+    // The subject is a stranger's words: the thread shows it while the chat is
+    // open and the disk keeps none of it.
+    const { mailSubject: _subject, ...shown } = message;
+    if (message.toolRuns === undefined) return shown;
+    return {
+      ...shown,
+      toolRuns: message.toolRuns.map((run) => {
+        const count = run.mail === undefined ? undefined : mailCount(run.mail);
+        if (!isMailRun(run.name) && !isBrowserRun(run.name)) {
+          return count === undefined ? run : { ...run, mailShown: count };
+        }
+        if (isBrowserRun(run.name)) {
+          // A page is a stranger's words and localStorage is the browser's disk.
+          // The run keeps its name and the counts it stood for, and nothing
+          // else: no arguments (an address, which may carry a query), no result
+          // (the page), and no count of lines that would say how much was read.
+          // **And no host in the turn's own line**, for the same reason the
+          // arguments go: an address is something the model wrote. The line is
+          // still true without it — it says "a site" where it said the name.
+          const { arguments: _args, result: _result, ...rest } = run;
+          return {
+            ...rest,
+            arguments: "",
+            result: "",
+            ...(run.recap ? { recap: { ...run.recap, asked: "", hosts: [], sentTo: [] } } : {}),
+          };
+        }
+        // A mail run keeps its name and its count, never its arguments or its
+        // result: a body was read into one, a reply written into the other.
+        // The count is what the thread words for the owner after a reload.
+        const { arguments: _args, result: _result, mail: _mail, ...rest } = run;
+        return {
+          ...rest,
+          arguments: "",
+          result: "",
+          ...(count === undefined ? {} : { mailShown: count }),
+        };
+      }),
+    };
+  });
+}
+
+function cleanMeta(value: unknown): ConversationMeta | null {
+  if (typeof value !== "object" || value === null) return null;
+  const m = value as Record<string, unknown>;
+  if (typeof m.id !== "string" || m.id.length === 0) return null;
+  if (typeof m.title !== "string") return null;
+  return {
+    id: m.id,
+    title: m.title,
+    createdAt: typeof m.createdAt === "number" ? m.createdAt : 0,
+    updatedAt: typeof m.updatedAt === "number" ? m.updatedAt : 0,
+    preview: typeof m.preview === "string" ? m.preview : "",
+    search: typeof m.search === "string" ? m.search : "",
+    hasMessages: m.hasMessages === true,
+  };
+}
+
+function plainPreview(text: string): string {
+  const noFences = text.replace(/```[\s\S]*?```/g, (block) => {
+    const inner = block
+      .replace(/```\w*\n?|\n?```$/g, "")
+      .trim()
+      .split("\n");
+    return inner[0] ?? "";
+  });
+  return noFences
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/`([^`]*)`/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/^>\s?/gm, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function describe(messages: ChatMessage[]): Pick<ConversationMeta, "preview" | "search" | "hasMessages"> {
+  const texts = messages.map((m) => m.content.trim()).filter((t) => t.length > 0);
+  const preview = plainPreview(texts.at(-1) ?? "").slice(0, PREVIEW_CHARS);
+  const recent = texts.slice(-2).join("\n");
+  return { preview, hasMessages: texts.length > 0, search: recent.slice(-SEARCH_CHARS) };
+}
+
+function metaFor(conversation: Conversation): ConversationMeta {
+  const clean = conversation.messages
+    .map(cleanMessage)
+    .filter((m): m is ChatMessage => m !== null);
+  const described = describe(clean);
+  const searchBase = `${conversation.title}\n${described.search}`.slice(-SEARCH_CHARS);
+  return {
+    id: conversation.id,
+    title: conversation.title,
+    createdAt: conversation.createdAt,
+    updatedAt: conversation.updatedAt,
+    preview: described.preview,
+    search: searchBase,
+    hasMessages: described.hasMessages,
+  };
+}
+
+export function createStore(): ConversationStore {
+  let index: ConversationMeta[] | null = null;
+  let writeError: string | null = null;
+  const listeners = new Set<() => void>();
+  const payloadCache = new Map<string, ChatMessage[]>();
+
+  function notify(): void {
+    listeners.forEach((l) => l());
+  }
+
+  function readIndex(): ConversationMeta[] {
+    if (index === null) {
+      migrateOnce();
+      const loaded = loadIndex();
+      if (loaded === null) {
+        // Nothing is cached and nothing is swept: the list reads as empty
+        // because we cannot see it, and that is not a reason to delete
+        // anything. The next read tries again, so a repaired index comes back
+        // and the payloads are still there.
+        return [];
+      }
+      index = loaded;
+      sweepOrphans(index);
+    }
+    return index;
+  }
+
+  /**
+   * Payloads the index does not name. A key like that is a conversation nothing
+   * can open, nothing ever rewrites and nothing ever removes — and it keeps
+   * consuming the quota that stopped the write in the first place. The undo in
+   * `put` stops new ones appearing; this clears any left by an older build, or
+   * by a write that failed between the two keys.
+   *
+   * Only unnamed payloads older than `SWEEP_GRACE_MS` are touched. `put` writes
+   * the payload and the index in two statements, and a second window (or a
+   * reload) that reads the index between them would otherwise see a fresh,
+   * unnamed payload and delete a conversation another window is in the middle
+   * of filing. Whether the two writes can be observed apart is a timing
+   * argument nobody should have to rely on; a grace period means they cannot be
+   * punished even if they are.
+   */
+  function sweepOrphans(named: ConversationMeta[]): void {
+    try {
+      const wanted = new Set(named.map((meta) => msgKey(meta.id)));
+      const cutoff = Date.now() - SWEEP_GRACE_MS;
+      const orphans: string[] = [];
+      for (let at = 0; at < localStorage.length; at += 1) {
+        const key = localStorage.key(at);
+        if (key === null || !key.startsWith(MSG_PREFIX) || wanted.has(key)) continue;
+        if (newestMessage(key) < cutoff) orphans.push(key);
+      }
+      for (const key of orphans) localStorage.removeItem(key);
+    } catch {
+      // Storage that cannot be read cannot be swept; nothing else to do.
+    }
+  }
+
+  /**
+   * When this payload was last written to, as far as it can say. A payload with
+   * no readable messages has no date, and 0 makes it the oldest thing on the
+   * machine — which is what it is: there is nothing in it to keep.
+   */
+  function newestMessage(key: string): number {
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw === null) return 0;
+      const parsed: unknown = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return 0;
+      return parsed.reduce((newest, message) => {
+        const at = (message as { createdAt?: unknown })?.createdAt;
+        return typeof at === "number" && at > newest ? at : newest;
+      }, 0);
+    } catch {
+      return 0;
+    }
+  }
+
+  /**
+   * The index, or null when there is nothing readable there. The difference is
+   * what stops the orphan sweep from deleting real work: an index that says
+   * "these conversations" is evidence, and an index we cannot read is not
+   * evidence of anything — least of all that every payload should go.
+   */
+  function loadIndex(): ConversationMeta[] | null {
+    try {
+      const raw = localStorage.getItem(INDEX_KEY);
+      if (raw === null) return null;
+      const parsed: unknown = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return null;
+      return parsed
+        .map(cleanMeta)
+        .filter((m): m is ConversationMeta => m !== null)
+        .sort((a, b) => b.updatedAt - a.updatedAt);
+    } catch {
+      return null;
+    }
+  }
+
+  function readPayload(id: string): ChatMessage[] {
+    const cached = payloadCache.get(id);
+    if (cached) return cached;
+    try {
+      const raw = localStorage.getItem(msgKey(id));
+      if (!raw) return [];
+      const parsed: unknown = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      const clean = parsed.map(cleanMessage).filter((m): m is ChatMessage => m !== null);
+      payloadCache.set(id, clean);
+      return clean;
+    } catch {
+      return [];
+    }
+  }
+
+  /** One-shot v1 -> v2 migration. Never repeats (flag), never loses data:
+      the old key is removed only after the new index reads back whole. */
+  function migrateOnce(): void {
+    try {
+      if (localStorage.getItem(MIGRATED_KEY) === "1") return;
+      const raw = localStorage.getItem(OLD_KEY);
+      if (!raw) {
+        localStorage.setItem(MIGRATED_KEY, "1");
+        return;
+      }
+      const parsed: unknown = JSON.parse(raw);
+      if (!Array.isArray(parsed)) {
+        localStorage.setItem(MIGRATED_KEY, "1");
+        return;
+      }
+      const metas: ConversationMeta[] = [];
+      for (const item of parsed) {
+        if (typeof item !== "object" || item === null) continue;
+        const c = item as Record<string, unknown>;
+        if (typeof c.id !== "string" || c.id.length === 0 || !Array.isArray(c.messages)) continue;
+        const messages = c.messages.map(cleanMessage).filter((m): m is ChatMessage => m !== null);
+        const meta = metaFor({
+          id: c.id,
+          // No placeholder is persisted: an empty title renders the
+          // shell's own word for it, in whatever language is chosen.
+          title: typeof c.title === "string" ? c.title : "",
+          createdAt: typeof c.createdAt === "number" ? c.createdAt : 0,
+          updatedAt: typeof c.updatedAt === "number" ? c.updatedAt : 0,
+          messages,
+        });
+        localStorage.setItem(msgKey(meta.id), JSON.stringify(forDisk(messages)));
+        payloadCache.set(meta.id, messages);
+        metas.push(meta);
+      }
+      metas.sort((a, b) => b.updatedAt - a.updatedAt);
+      localStorage.setItem(INDEX_KEY, JSON.stringify(metas));
+      const check: unknown = JSON.parse(localStorage.getItem(INDEX_KEY) ?? "[]");
+      if (!Array.isArray(check) || check.length !== metas.length) return;
+      localStorage.removeItem(OLD_KEY);
+      localStorage.setItem(MIGRATED_KEY, "1");
+    } catch {
+      // Anything failed: flag unset, old key kept, retried on next load.
+    }
+  }
+
+  function writeThrough(mutator: () => void): boolean {
+    try {
+      mutator();
+      writeError = null;
+      return true;
+    } catch {
+      writeError = "storage-full";
+      return false;
+    }
+  }
+
+  if (typeof window !== "undefined") {
+    // A second window wrote: drop every cache so the next read sees it.
+    window.addEventListener("storage", (event) => {
+      if (event.key !== null && !event.key.startsWith(PREFIX)) return;
+      index = null;
+      payloadCache.clear();
+      notify();
+    });
+  }
+
+  return {
+    list() {
+      return [...readIndex()];
+    },
+    get(id) {
+      const meta = readIndex().find((m) => m.id === id);
+      if (!meta) return undefined;
+      return {
+        id: meta.id,
+        title: meta.title,
+        createdAt: meta.createdAt,
+        updatedAt: meta.updatedAt,
+        messages: [...readPayload(id)],
+      };
+    },
+    has(id) {
+      return readIndex().some((m) => m.id === id);
+    },
+    put(conversation) {
+      const messages = conversation.messages
+        .map(cleanMessage)
+        .filter((m): m is ChatMessage => m !== null);
+      const meta = metaFor({ ...conversation, messages });
+      const ok = writeThrough(() => {
+        localStorage.setItem(msgKey(meta.id), JSON.stringify(forDisk(messages)));
+        const rest = readIndex().filter((m) => m.id !== meta.id);
+        const next = [meta, ...rest].sort((a, b) => b.updatedAt - a.updatedAt);
+        try {
+          localStorage.setItem(INDEX_KEY, JSON.stringify(next));
+        } catch (error) {
+          // The index is what makes the payload reachable. Writing the index
+          // first instead would be worse — a listed conversation that opens
+          // empty — so the payload is undone, but only when nothing names it:
+          // for a conversation the index already knows, the payload on disk is
+          // still reachable and holds the newest turn.
+          if (!namedOnDisk(meta.id)) localStorage.removeItem(msgKey(meta.id));
+          throw error;
+        }
+        index = next;
+        payloadCache.set(meta.id, messages);
+      });
+      if (!ok) {
+        // Keep the session coherent in memory even though the disk refused.
+        const rest = readIndex().filter((m) => m.id !== meta.id);
+        index = [meta, ...rest].sort((a, b) => b.updatedAt - a.updatedAt);
+        payloadCache.set(meta.id, messages);
+      }
+      notify();
+    },
+    remove(id) {
+      const ok = writeThrough(() => {
+        localStorage.removeItem(msgKey(id));
+        localStorage.removeItem(attachKey(id));
+        const next = readIndex().filter((m) => m.id !== id);
+        localStorage.setItem(INDEX_KEY, JSON.stringify(next));
+        index = next;
+      });
+      if (!ok) {
+        index = readIndex().filter((m) => m.id !== id);
+      }
+      payloadCache.delete(id);
+      notify();
+    },
+    rename(id, title) {
+      // Index-only: the search field is always "title\nbody", so the body
+      // half survives the retitle without loading the payload.
+      const ok = writeThrough(() => {
+        const next = readIndex().map((m) =>
+          m.id === id
+            ? { ...m, title, updatedAt: Date.now(), search: `${title}\n${m.search.split("\n").slice(1).join("\n")}` }
+            : m,
+        );
+        localStorage.setItem(INDEX_KEY, JSON.stringify(next));
+        index = next;
+      });
+      if (!ok) {
+        index = readIndex().map((m) => (m.id === id ? { ...m, title } : m));
+      }
+      notify();
+    },
+    getAttachments(convId) {
+      try {
+        const raw = localStorage.getItem(attachKey(convId));
+        if (!raw) return [];
+        const parsed: unknown = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return [];
+        return parsed
+          .map(cleanAttachment)
+          .filter((a): a is Attachment => a !== null)
+          .sort((a, b) => b.attachedAt - a.attachedAt);
+      } catch {
+        return [];
+      }
+    },
+    putAttachment(convId, attachment) {
+      const clean = cleanAttachment(attachment);
+      // A chat deleted while its documents were still being read gets none back.
+      if (!clean || !this.has(convId)) return;
+      const next = [clean, ...this.getAttachments(convId).filter((a) => a.id !== clean.id)].sort(
+        (a, b) => b.attachedAt - a.attachedAt,
+      );
+      const active = next.filter((a) => a.active);
+      // The cap prunes history nobody points at. A document a stored message
+      // still binds is kept however old: that message renders its block on
+      // the wire and weighs it as history, and pruning the record would
+      // leave the count paying for text the wire no longer carries.
+      const referenced = new Set(
+        (this.get(convId)?.messages ?? []).flatMap((m) => m.docs ?? []),
+      );
+      const history = next.filter((a) => !a.active);
+      const bound = history.filter((a) => referenced.has(a.id));
+      const loose = history.filter((a) => !referenced.has(a.id)).slice(0, 20);
+      const capped = [...active, ...bound, ...loose];
+      writeThrough(() => {
+        localStorage.setItem(attachKey(convId), JSON.stringify(capped));
+      });
+      notify();
+    },
+    removeAttachment(convId, attachmentId) {
+      if (!this.has(convId)) return;
+      const next = this.getAttachments(convId).map((a) =>
+        a.id === attachmentId ? { ...a, active: false } : a,
+      );
+      writeThrough(() => {
+        localStorage.setItem(attachKey(convId), JSON.stringify(next));
+      });
+      notify();
+    },
+    getWriteError() {
+      return writeError;
+    },    clearWriteError() {
+      writeError = null;
+      notify();
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+  };
+}

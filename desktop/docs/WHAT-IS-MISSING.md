@@ -1,0 +1,990 @@
+# What is missing, 2026-09-20
+
+*Updated 2026-09-20, after an afternoon spent re-reading this list against the code
+instead of adding to it. §7 closed for real; §12, §13 and §17 were corrected; and
+four sections were added (§18–§21). Two other reversals are the reason for the
+re-read: §5's whole premise and the addendum's conclusion had both been built while
+this list said they did not exist. Each claim names the commit or the `file:line`
+that backs it, so it can be checked instead of believed.*
+
+The reversals deserve saying plainly, because they are the interesting part. The
+door has had its own bounded, refusing queue and a resume policy for a route that
+dies mid-answer since 2026-09-16 (`29b63d0`, `2f3c5ac`) — this list was updated on
+the 18th and still said neither existed. The code was ahead of its own defect list
+in both cases, and no audit found it; only re-reading did. A plan that is not
+re-read against the code starts describing a program that no longer exists. The
+list can become false by omission while every sentence in it still sounds plausible.
+
+**Read §14 first.** A first screen that offers a model the app has never fetched is
+wrong at the exact moment the owner first trusts it, and nothing else on this list
+is wrong at a moment that matters that much. (2026-09-24: both rows it named are now
+fetched and run by the app's own walk; what the first screen offers on a smaller machine
+is still unwalked.)
+
+**Then read §4 and the unbuilt half of §12 as one item.** The phone join is the
+product's whole premise, and its two halves have never met: the desktop side is
+built and tested in isolation, the phone app lives on `origin/main` with no shared
+history with this repository, and no QR has ever been scanned end to end.
+
+**Then §2**, which blocks any multi-device work, because the server we ship will
+not refuse for us.
+
+Everything else follows those. Written by reading the code rather than the notes.
+Ordered by what blocks the product, not by what is interesting.
+
+## 1. There is one credential, for everybody — CLOSED
+
+`crates/kalsa-door/src/lib.rs:127` holds exactly one:
+
+```rust
+    credential: [u8; TOKEN_BYTES],
+```
+
+So every paired phone presents the same secret. You cannot tell two devices apart,
+you cannot revoke one without breaking all of them, and you cannot show the owner
+who is connected. This is the item that turns the app from "mine" into "something I
+can give to my family", and nothing in the code started it.
+
+**Closed by `02a2139`** — `crates/kalsa-door/src/devices.rs` now holds one credential per
+device, compared in constant time with no early exit, folded into a single branch so the
+loop cannot leak *which* device matched through timing. The credential field is private,
+`Debug` is not derived on anything holding one, and the whole thing was proven by mutation:
+breaking the comparison leaves it compiling and turns the tests red.
+
+What it unlocked is bigger than revocation: the door can now answer *who*, which is the
+precondition for every multi-device surface — profiles, "busy with X", per-person turn
+rotation, and the room.
+
+## 2. Slots wrap instead of refusing — silently
+
+At the tag we ship (b10950), `tools/server/server-context.cpp:1521`:
+
+```cpp
+// note: allow id_slot to be out of bounds (wrap around)
+id_slot = id_slot % slots.size();
+```
+
+With several devices, the fifth client of a four-slot server lands in slot 0 —
+the same slot as the first. No error anywhere: the two people simply evict each
+other's prompt cache and each sees the other's context vanish. There is no `id_slot`
+anywhere in our code. Any multi-device work has to own the mapping from device to
+slot and refuse when there is no room, because the server will not refuse for us.
+
+**Still open, but no longer only on paper.** It was the acceptance criterion of the
+multi-device measurement (done, `d6daf16`, `85a7b75`): one conversation's tokens
+must never appear in another's, tested with a marker string and a tokenized
+shared-prefix length rather than by reading upstream's intentions. See
+`HOUSEHOLD-RULES.md` §1.
+
+One warning for whoever greps this file for roofs: the door caps its own held
+answers at `MAX_JOBS` 64 (`crates/kalsa-door/src/lib.rs:86`), and that is a
+different thing — a roof on the jobs the door keeps, not a mapping from device to
+slot. It refuses a sixty-fifth answer; it never refuses a fifth person, because
+nothing in our code has decided who a fifth person is.
+
+## 3. The compute-buffer budget on a large dense model — CLOSED
+
+The morning's first item was the 512 MiB budget on a large dense model. Today's
+numbers came from Trinity, and Trinity flatters us: it is a sliding-window model.
+
+```
+llama_kv_cache: size = 119.00 MiB (16384 cells, 14 layers)
+llama_kv_cache_iswa: SWA, size = 2560 cells → 55.78 MiB (2560 cells, 42 layers)
+```
+
+**14 layers of 56** hold the full window; the other 42 stay at 2560 cells no matter
+how big the context gets. A dense model has no sliding window — every layer is a
+full-window layer. Reading today's 175 MiB at 16k as if it were a constant would
+under-predict a dense row by something like four times. The measurement is still
+owed, and the whole "how much context can we offer per person" question sits on it.
+
+**Closed by `8aefd76`, `e0652c7` and `31cc0d8`** (`COMPUTE-BUFFERS-DENSE.md`). Gemma 4 12B —
+a real dense row, 48 layers, no sliding window — was downloaded, pinned by sha256, and
+measured. The 512 MiB budget holds at ubatch 512 with 2.95x of margin and is breached at
+2048 on the GPU buffer alone, so **ubatch is capped at 1024**, lower on smaller machines.
+
+The finding that outlived the measurement: the per-token KV cost is **affine, not linear**.
+A sliding-window model's cost per token falls as context grows, so no scalar constant can
+carry it. `ASSUMED_KV_BYTES_PER_TOKEN` is a fixture for the tests, never a predictor.
+
+## 4. iroh on the mobile network
+
+Tailscale is now measured on the SIM (see `BRIDGE-ON-THE-MOBILE-NETWORK.md`): direct
+every time, median 55 ms, never a relay. iroh — the transport we would actually ship,
+because its relays can be ours — has never been on a mobile network.
+`crates/kalsa-iroh/tests/roundtrip.rs` runs both endpoints in one process over
+loopback with relays disabled (`:92`), so it proves the tunnel and the door and
+nothing about NAT. Even the `#[ignore]`d test that dials the real n0 lookup and
+relay infrastructure (`:160`) still runs both endpoints in one process — it
+pretends the internet, it does not cross one. What is missing is a harness with two
+real endpoints on two real networks. (2026-09-25: one manual run crossed two
+real networks once — `IROH-REAL-NETWORKS-2026-09-25.md` — a harness is still
+what is missing.)
+
+### What is possible now: the desk over iroh
+
+The endpoint accepts a second ALPN, `kalsa/pair-desk/1`, and routes streams
+carrying it to the pairing desk's bound loopback socket while door streams
+(`kalsa/door-tunnel/1`) still go to the door — one ALPN per QUIC connection,
+so the lanes cannot cross, and `crates/kalsa-iroh/tests/roundtrip.rs` pins
+all three claims: a desk stream is answered by the desk, a door stream
+leaves the desk untouched, and a desk lane with no desk behind it refuses
+cleanly instead of hanging. A phone with the node id from the square can now
+`POST /pair/claim` and `/pair/complete` over the road it will later chat on.
+
+What the lane opens is gated only by the desk itself, and that is worth
+saying plainly: while the road is on, anyone who knows the node id can reach
+the ceremony's two endpoints. Wrong code, absent offer, spent completion, a
+cancelled link, a desk that is not serving — one uniform 403, the session
+unchanged by a miss; the protection is the 128-bit one-time code, compared
+in constant time, never the tunnel. Two windows carry those codes: the
+square on screen lives two minutes, an invitation lives a day, and each
+code is good for one claim either way — after which the owner's Allow is
+what admits the phone. No lockout exists, and none was added: the attempts
+are bounded in throughput by the desk's acceptor (four workers, an
+eight-deep queue, twelve sockets), not in count, and 2^128 guesses against
+either window is not the threat being managed.
+
+**A known denial, declared rather than fixed for the alpha.** The desk's
+acceptor holds twelve sockets — `MAX_CONNECTIONS = WORKERS (4) + QUEUE (8)`
+(`src-tauri/src/transport.rs:27-31`, refused past that at `:319-321`) — and
+the road hands each iroh identity `STREAMS_PER_PEER` = 2 streams per lane
+(`crates/kalsa-iroh/src/transport.rs:63`). A node id costs nothing to mint,
+so six free identities holding two desk streams each fill all twelve with
+unfinished heads, and the owner's correct-code claim is then refused with
+the same 403 as a wrong one for as long as the spammer keeps the twelve
+refilled. Each socket dies after 30 s (`connection_expired`,
+`src-tauri/src/transport.rs:419-421`), but a fresh desk stream from the
+same identities replaces it at once, so that bound costs the spammer
+nothing but re-dialing. The later fix, named here so it is not mistaken
+for an oversight: open the desk lane only while an offer is live — QR on
+screen, 120 s — leaving nothing to reach the rest of the time. Until then
+an owner who opens Pair while a spammer holds the desk walks into a 403 on
+a correct code; declared here rather than papered over.
+
+**And with Tailscale up on the Mac, the road can quietly ride Tailscale.**
+Measured in `IROH-REAL-NETWORKS-2026-09-25.md` (Run B): the Mac's 100.x
+address showed up as a "direct" path and iroh took it, carrying road
+traffic over the tailnet; Run C had to bring Tailscale down to keep the road
+off it. iroh 1.2's `AddrFilter` cannot exclude one address — there is no
+per-address or per-range ban — so the only way to keep the 100.x path out
+today is to turn Tailscale off while the road is open, and a road that
+needs a machine-wide switch off is a road nobody will keep off.
+
+Still unproven, and unchanged: none of this has ever crossed a mobile
+network. The tests above run both endpoints in one process over loopback
+with relays disabled — they prove the routing and the refusal, nothing
+about NAT, relays, or a SIM.
+
+## 5. What happens when the route dies mid-answer — the door decided, and this list did not notice
+
+The road measurement that opened this section still stands: five unreachable
+stretches, the longest about ten seconds. Idle, that is invisible. Mid-stream, it
+is a half-written answer. What the section then said — *no resume, no reconnect
+policy, no decision* — was no longer true when it was written. `2f3c5ac`
+(2026-09-16, "an answer belongs to the job, not to the socket") built the policy
+while this list, updated on the 18th, still said there was none.
+
+What the door does now is concrete. A request carrying `Last-Event-ID` never reaches
+the upstream; it is answered out of the door's own record of the job it names
+(`crates/kalsa-door/src/proxy.rs:100`). Generation is independent of attachment:
+"If that client dies the thread does not: an answer keeps being made whether or not
+anybody listens" (`crates/kalsa-door/src/stream.rs:5-7`). The decision this section
+demanded — whether the server keeps generating into a cache while the phone is gone
+— was made when that thread stopped dying with its socket.
+
+Whether a client may rejoin is `resume_decision`
+(`crates/kalsa-door/src/jobs.rs:201`). A job already fully seen is refused rather
+than re-served as an empty stream; the comment gives the reason: "an empty 200
+promises an end that never comes." Resume is owner-checked too. Another device's
+valid credential is refused with the same words as a lost job, so the device that may
+not resume "learns nothing about whether it exists" (`jobs.rs:203-206`). A finished
+answer stays resumable for ten minutes (`JOB_RETENTION`,
+`crates/kalsa-door/src/lib.rs:82`; its comment is at `:80-81`): "A phone may be
+away for minutes; it is not away forever."
+
+What is still open is narrower than what stood here before, and it is two things.
+The desktop chat does not reach the model through the door — it talks to the
+loopback server directly, and moving it behind the door is half of the decision
+recorded in §12, still unbuilt — so the resume policy covers the phones and not
+the desktop's own stream. And nothing on the phone side has ever been exercised
+against a real dropped route: the policy has met tests in one process, not the
+road.
+
+## 6. The desktop chat and the desktop app are one program — CLOSED
+
+The chat is now the kalsa-brain frontend. The four wizard panels became the four
+surfaces in `chat/src/surfaces/`, and `src-tauri/tauri.conf.json` serves the generated
+`chat/dist/` output. Its build commands run `npm run dev` and `npm run build` in `chat/`.
+
+The old vanilla frontend and its two harnesses are removed. `dev/states-react.mjs` and
+`dev/smoke-react.mjs` now render the 39 review states and enforce the copy rules.
+
+## 7. Attachments: the browser half was being built, the native half was not — CLOSED
+
+Closed by `485aa48` (the engine wired) and `0197a1f` (the panel). Four commands
+exist and are registered in the handler list at `src-tauri/src/main.rs:906-909`:
+`brain_files_roots` (`src-tauri/src/files.rs:60`), `brain_files_list` (`:83`),
+`brain_files_read` (`:100`), `brain_files_search` (`:247`). The page calls them
+from `chat/src/lib/files.ts:66,70,76,83` and listens to the search event at
+`chat/src/components/FilesBrowser.tsx:72`. A real click reaches the engine, and
+what it shows is the owner's own disk, not an upload list.
+
+This section was the repo's named example of its own recurring defect — *code that
+is correct and never connected* — and the closure is held by a test written in
+those words. `the_file_commands_are_reachable_and_registered`
+(`src-tauri/src/files.rs:352`) reads the handler list out of `main.rs`'s source,
+because a command missing from `generate_handler!` "is dead to the page and
+nothing else would notice" (`files.rs:346-350`). Its failure message is the phrase
+itself — "correct code, connected to nothing" (`files.rs:367-370`) — and it catches
+a command the page asks for that the binary never registered.
+
+The boundary this section described — canonicalize, then compare whole path
+components against a few document folders — does not exist any more at all. The
+owner removed it on the record: *"togli qualsiasi protezione. Stiamo parlando di
+modelli locali. La protezione è solo ad uscire, e in futuro un sandbox se fa
+coding."* `crates/kalsa-files/src/lib.rs:12` now reads: **"The whole filesystem is
+in scope."** The guarded direction is the one that LEAVES the machine, and that
+guard is new since this section was written — what it does not cover is §19 below.
+
+(The lesson stays on the record, because it cost a hostile reading to learn: being
+unwired hid four real defects until someone read the crate that way — `1001ce1`,
+tests 8 → 23 — and passing tests on unwired code said less than they looked like
+they said.)
+
+## 8. The phone's conversations and the PC's are not the same conversations
+
+The decision says the PC is the store of record and the phone a client with a cache.
+There is no protocol. Not urgent while one person uses one device; it becomes the
+whole product the moment §1 exists.
+
+## 9. The upstream model router exists — and its admission policy is not ours
+
+b10950 ships a real router (`tools/server/server-models.cpp`): a parent process, one child
+server per model, `POST /models/load`, LRU unloading. Changing model in a household does not
+have to mean killing everything, which is better news than the design assumed.
+
+But `common/common.h:686`:
+
+```cpp
+    int models_max = 4;                 // maximum number of models to load simultaneously
+```
+
+It counts models. It does not weigh them. Four Gemma 4 12B children is 28 GB of weights on a
+16 GB machine and the router will allow it, because nothing in it knows what a model costs.
+Our catalog does know — it carries the bytes. Admission stays with us; the router is a
+mechanism we drive, never a policy we inherit. Nothing of this is wired yet: nothing
+of ours calls `/models/load` or passes `--models-dir`, and we launch one child with
+`--parallel 1` (`crates/kalsa-launch/src/argv.rs:84`).
+
+## 10. The room is designed and not built
+
+`HOUSEHOLD-RULES.md` §4–§5: a shared conversation with the AI inside it, one turn at a time
+because a shared history generated concurrently stops being reproducible, ordered by rotation
+between people with at most one pending prompt each, ties to whoever waited longest, and the
+turn order shown to everyone. The AI hears the whole room and pays at the moment it is
+addressed, so nothing is prefilled for chatter.
+
+None of it exists in code. What it needs first is §1 (done) and a queue that is
+ours — the addendum below: the queue now exists and refuses, but the sentences it
+owes a waiting device do not.
+
+## 11. Two numbers — one taken, one now unblocked
+
+- **The cost of a switch — TAKEN, and it depends on size** (`dev/results/multi-device-shape/SWITCH-A/results.json`,
+  committed `85a7b75`). Alternating between two conversations on one slot is free only while
+  both fit the 384 MiB prompt cache. At ~1.9k tokens the return costs **0.15 s** and
+  `cached_tokens` stays at 1862. At ~7.5k it costs **4.51 s** and at ~14.7k **9.62 s**, both
+  with `cached_tokens` **0** — the second conversation evicts the first, and coming back pays
+  the whole prefill again.
+  So rotation-per-turn is the right policy for short exchanges and the wrong one for
+  documents: past roughly 2k tokens per person, a turn policy must serve several prompts from
+  one conversation before yielding. Note this is conversation switching on ONE model; changing
+  the model is the other thing entirely and kills every slot and cache in the house.
+- **The cost of self-summarisation.** Seconds for the big model to write a ~200-token summary
+  of ~4k tokens of room history, which is what decides whether the window problem needs a
+  second small model at all (`HOUSEHOLD-RULES.md` §6). It was blocked while the GPU was busy
+  with the multi-device measurement; that measurement is done (`d6daf16`, `85a7b75`), so
+  nothing blocks it now except someone taking it.
+
+## 12. The brain's own screen — the fields are CLOSED, the PC is a device, the seats are not drawn
+
+**Re-read on 2026-09-25: the rest of this section is stale on its central claim.** The PC registers
+itself as the first device (`kalsa-pairing` `store.rs` `enrol_host`, label `HOST_LABEL` = "This
+computer"; `src-tauri/src/main.rs` `take_own_seat`), and the desktop chat reaches the model through the
+door with that device's credential (`main.rs` `brain_host_credential`; `chat/src/surfaces/useBrain.ts`,
+"the page's own chat is a device at the door"). `9ce4fa2` and `0e11504` pin that the host cannot be
+forgotten and that its credential leaves by no other DTO. What is still open is drawing the four seats
+on the first screen, which is an owner decision (`docs/NIGHT-RUN-2026-09-25.md` §5). The text below is the
+record as it stood.
+
+`docs/THE-BRAIN-IS-THE-HOME.md` sets the design intent: which model is loaded, whether it
+is warm, how many of the four seats are taken and by whom. The two fields that first blocked
+that screen are wired into state (`src-tauri/src/main.rs:545-553`), not merely declared.
+
+**Both fields closed, 2026-09-18. The seats are not.** The model's name ships in the
+brain's own state (`model: Option<String>` declared at `src-tauri/src/main.rs:500`,
+assigned from `brain.model_dto().display_name` at `main.rs:546-550`), and `active_devices()`
+returns a list the door keeps current: an authenticated request enters presence
+(`crates/kalsa-door/src/proxy.rs:94`). The screen draws the machine, what it would run,
+speed and context length, with no phone paired (`79e391c`, `e162187`, `dc0979c`, `b361eb6`).
+It does not draw occupancy:
+`ServerSurface.tsx:45-49` renders `{connectedText(deviceCount > 0)}` under the label
+"Devices", and `useBrain.ts:233-234` says "Your phone is using this computer right now."
+The first screen shows a boolean, not four seats; the open item is drawing them, not
+reporting them. `THE-BRAIN-IS-THE-HOME.md:162-165` still has it open, and
+its "today it does not" predates `proxy.rs:94`.
+
+**The monogamy is gone too, found while re-reading on 2026-09-20.** The store holds
+several devices (`crates/kalsa-pairing/src/store.rs:192`; production adds go through
+`add_device_with_delivery` at `:397`, `load_devices` at `:855`) and the DTO carries the list
+— `devices: Vec<PairedDeviceDto>` (`src-tauri/src/pairing.rs:122`) — beside the older
+singular `phone: Option<String>` (`pairing.rs:119`).
+`brain_pairing_replace` and `brain_pairing_keep` are gone, replaced by
+`brain_pairing_forget_device` (`src-tauri/src/main.rs:1745`) and `brain_pairing_forget`
+(`main.rs:1824`): a second phone is no longer a conflict to settle; it can be dismissed one
+at a time. `ModelDto`
+is no longer only `{ chosen: bool }` — `chosen` is still there at `main.rs:1063`, beside
+`display_name` and `reason` (`main.rs:1064-1065`) — and `phone_connected: Option<bool>` is
+gone in favour of `active_devices: Option<Vec<ActiveDeviceDto>>`
+(`src-tauri/src/metrics.rs:80`). The
+old monogamy is history; it stays in this record because its replacement is still
+half-true in the code.
+
+What is NOT closed is the decision this section recorded, still the larger half:
+**the PC does not register itself as a device.** Outside the store's own tests, the only
+caller of the add path is the phone ceremony (`src-tauri/src/pairing.rs:581`). Every device
+arrived by QR; the machine running the server walked in nowhere. So the screen draws no
+seats at all — one boolean, not four — even though the door reports authenticated presence
+(`proxy.rs:94`); `DevicesSurface.tsx:420` lists who is *paired*, not who is busy.
+Installing Kalsa desktop still leaves the house empty until a phone pairs — the exact
+opposite of what was decided.
+
+**Decided 2026-09-17, and it reorders the work.** The desktop chat will reach the model
+*through the door*, like the phones, not `127.0.0.1` directly — one place that knows who is
+speaking, instead of two counters that must agree. So the PC is a device of the household,
+and pairing must hold several devices first: one job, in that order. The first half has
+happened — the store holds several devices, and the page can list them — and it was the
+easy half. **Installing Kalsa desktop registers the PC as the first device automatically** —
+no QR for the machine the server runs on, so the house is never empty and "four seats, one
+of them yours" is true from first launch — is still entirely unbuilt, and so is the desktop
+chat's road through the door.
+
+Two things to get right while doing it, both easy to get silently wrong:
+
+- **Where the PC's own credential lives.** On disk, on the same machine. That adds no local
+  risk — whoever reaches the computer already reaches the model. But with the internet road
+  on, it is a remote access key: restrictive permissions, and never in a log, an error
+  string, or a backup. `dd4a12d` made that a test for prompts; this is the same rule for a
+  new file.
+- **What label the PC gets.** The hostname is what the owner recognises, and on a Mac it
+  usually contains their own name. Labels now cross into the page (`c7a4e88`). Fine inside
+  one house, but it should be chosen knowingly; "This computer" is the neutral answer.
+
+This is §1's gap arriving from the other side. The door knows *who* and now says so
+(`pairing.rs:141`, `metrics.rs:45`) — but only phones have ever asked. Until the PC
+joins, the first screen's promise of a seat that is the owner's rests on a device the
+code has never created, which is worse than showing none.
+
+## 13. A measured decode overrides the prediction, and one of the two was not measured where the app lives
+
+`crates/kalsa-catalog/src/candidate.rs:151` gives a measured rate priority over every
+prediction when the backend matches:
+
+```rust
+    Some(measured) if measured.backend == input.backend => Prediction::Measured {
+```
+
+So on any Metal machine -- the development Mac included -- the figure in the row is not an
+estimate the reader can discount. It is stated as fact, and it carries the machine string
+with it, which is the whole point of `MeasuredDecode`: *"a rate is a fact about one machine,
+never a property of the model"* (`manifest.rs:63-68`).
+
+Two rows carry one today, and their conditions do not match:
+
+    Trinity   62.7  tok/s   ... context 4096, 2026-09-14
+    Gemma     20.44 tok/s   ... context 512,  2026-09-17
+
+Decode slows as the cache grows, and the chooser's context rule has changed since
+this paragraph was written. It no longer claims that the chooser funds at least
+4096: the Gemma row's own comment says that the old explanation was wrong because
+"the chooser funds none of them" (`crates/kalsa-catalog/src/manifest.rs:843-844`).
+The choice prices at its one-token context, while the page uses the funded context
+capped at 8192 and at the model's trained length
+(`src-tauri/src/capability.rs:68-78`; `crates/kalsa-launch/src/policy.rs:87-95`).
+Trinity was measured where the app runs. Gemma's 512 is still a best-case figure
+from the manifest, stated beside the row, inviting a comparison neither number
+supports.
+
+There is also a chance the label is simply wrong: `31cc0d8`'s message measures compute
+buffers at **ubatch** 512 and contexts up to 16k, never at context 512. Whether the run was
+done at a context nobody uses, or done properly and described with the wrong word, cannot be
+settled by reading -- only by measuring again.
+
+**Half of this moved, 2026-09-18.** The card no longer invites the comparison blind: a
+measured rate keeps its figure but names its machine, its full provenance sits in the
+working under it, and every predicted speed is now priced at a context the row can
+actually hold — `min(8192, what the machine funds)`, itself capped at what the model was
+trained for (`dc0979c`). The old `>= 4096` chooser claim corrected itself into this
+funded-context rule, so the two numbers no longer sit in one column pretending to
+share conditions.
+
+**One thing the section did not know when it was written, found 2026-09-20:** the
+machine measures its real decode every session and throws the answer away, as far as
+prediction goes. `src-tauri/src/metrics.rs:112` records it —
+`state.latest_decode = Some(tokens_per_second);` — and it reaches the page in the
+DTO at `:135`, where the brain shows it. It never reaches `MeasuredDecode`: the
+rows in the manifest are static, written by hand after a measured run, and nothing
+feeds the runtime figure back into `candidate.rs`'s choice. So the app holds a
+fresh, true, this-machine rate in memory at the exact moment it predicts a speed
+from a table, and predicts from the table anyway.
+
+The half that did not move is the one that needs a GPU: Gemma's *"context 512"* is still
+either a run nobody uses or a run described with the wrong word, and only measuring again
+settles it.
+
+Not urgent: the owner has said the catalog does not matter yet. It matters the moment a
+second machine reads these numbers, because that is the point at which a figure without its
+conditions becomes a promise the product cannot keep. `fa498bf` is the last time a number
+outlived its baseline here, and it had to be retired from three documents.
+
+## 14. The two Gemma rows added on 2026-09-18 are fetched and run by the app's own walk — what the first screen offers is still open
+
+*As written between 2026-09-18 and 2026-09-20, before the walk below:* an afternoon went into what the screen
+*says*. Nothing went into whether what it says can be done. Two rows were added to the
+catalog — Gemma 4 E4B and Gemma 4 26B-A4B, the second a 14.4 GB QAT download — and both were
+verified the only way a desk can verify them: the pinned commit, the byte count and the
+sha256 answer 200 from the live API, and the architecture is present in llama.cpp b10950.
+Neither had ever been downloaded or launched, and the models directory held Qwen3.6-35B-A3B,
+Trinity-Nano, gemma-4-12B-it and stories260K. A first screen that offers a model the app
+cannot actually fetch is worse than one that offers nothing, because it is wrong at the
+moment the owner trusts it. The walk existed and was phone-free (`startup.rs:choose_model`
+calls `largest_that_runs_well` when `phone` is `None`), but it had not been run end to end
+against the catalog.
+
+**Walked for real on 2026-09-24, for both rows: the fetch half is closed.**
+`src-tauri/src/real_walk.rs` (`71d528f` … `4d5fab1`) is an `#[ignore]`d test that walks the
+app's own order for one row, named by the repo the row's FILE is pinned to (for the 26B that
+is `google/gemma-4-26B-A4B-it-qat-q4_0-gguf`, not the row's `google/gemma-4-26B-A4B-it`). It
+stores the row as the owner's choice through `options::save` and measures the machine with the
+real probe. It calls `startup::run` on the real runtime root, starts `PreparedStart.server`
+through the supervisor, and asks one chat question. Three asserts tell an honoured choice from
+a fallback: the reason is `CHOSEN_REASON`, and the launch record carries the row's display name
+and pinned digest. A `placed by` line says whether the file was downloaded or reused. The command:
+
+```text
+KALSA_BRAIN_REAL_WALK=<file repo> cargo test -p kalsa-brain real_walk -- --ignored --nocapture
+```
+
+- Gemma 4 E4B: first downloaded by the app on `71d528f`, before the `placed by` line existed.
+  On `d181140`, with the file moved aside by the orchestrator first, the walk printed
+  `placed by: download (4977171584 bytes this run)`.
+- Gemma 4 26B-A4B: downloaded by the app on `71d528f`, 14 439 363 584 bytes. That run went red
+  at the chat step (the trap below), after the file was placed.
+- The last real runs, the 26B on the tip `4d5fab1` and the E4B on the tree committed as
+  `3cfc7a2` (`4d5fab1` changed comments only), each found its file already on disk and answered
+  one question.
+- The orchestrator's own checks, which are not on disk: `shasum -a 256` of both files matches
+  the catalog pins (`85a896a0…1fab87` and `3eca3b8f…eca51d`), and the E4B re-download was
+  `cmp`-identical to the held copy.
+- A trap it found: the 26B is a thinking model. With a 16-token cap it spent every token in
+  `reasoning_content` and returned an empty `content` with `finish_reason: "length"`. The test's
+  question now gets room to finish and asserts `finish_reason == "stop"` with a non-empty
+  `content`. By default the desktop chat sends no `max_tokens`: it is a knob, unset unless the
+  owner sets it (`chat/src/lib/knobs/sampling.ts:347`). It picks the reasoning out of the
+  answer (`chat/src/lib/streamRound.ts:49-58`) and hands it on to be shown (`:193`).
+- The mutations, as recorded in the commit messages: a `choose_model` that ignores the stored
+  choice goes red on the honoured-choice assert (`71d528f`), and a cap of 16 tokens goes red on
+  the finish assert (`52d2377`).
+
+What stays open: the walk proves the planner for one device, no phone and a temporary options
+file. It does not prove what the first screen offers on a machine where one of these rows IS
+the automatic answer, a smaller machine than this one. No run of that is recorded. That open
+half still outranks every item above it that is not already closed.
+
+## 15. The measurement is now a record on disk — the live launch is still unchecked
+
+*As it stood on 2026-09-20 (first written on 2026-09-18):* the measurement lived only in memory
+(`measurement: Mutex<Option<Measurement>>` in `src-tauri/src/main.rs`), so every launch re-measured a machine that had not changed. (Corrected on 2026-09-24: the
+measuring ran at the first turn-on of each launch, inside `brain_start`, not at the launch
+itself. Until then the capability read `Unmeasured`. The "about ten seconds" this section used
+to give is not backed by any recorded measurement.) `Measurement` derived only `Clone` and `Debug`. What it needed was "not a
+cache but a record: the figures, the build's optimisation level, the backend, and the date, so
+a stale one can be recognised rather than trusted."
+
+**Built on 2026-09-24 (`3749b18`, `2fbe72f`, `c721e14`, `a7b9cd2`).** `src-tauri/src/measurement.rs`
+writes `measurement.json` beside `pairing.json`. It is written atomically, as a temp file in the
+same directory followed by a rename. It holds the whole `Measurement` (kalsa-probe now derives
+serde on it), the time the probe FINISHED, the probe's `OPT_LEVEL`, the app version, the RAM,
+and the chip's brand string (`sysctl machdep.cpu.brand_string` on macOS, `None` elsewhere). At
+startup the record seeds the in-memory slot only when every clause of `describes_this_machine`
+holds:
+- the probe called the reading reliable;
+- the optimisation level and the app version are the same;
+- the RAM, the detected backend and the chip name are the same;
+- the reading is at most 30 days old;
+- it is not dated more than an hour in the future.
+
+The machine's facts are read only after a record parses. A failing record is ignored at startup, never deleted; the next reliable measurement
+overwrites it. The 30-day window is a constant in the source (`MAX_AGE_SECS`), chosen by the
+orchestrator on 2026-09-24 and not a setting; changing it is the owner's call. The Models
+page no longer promises a measurement at every turn-on (`chat/src/surfaces/ModelsSurface.tsx`).
+gpt-6-luna reviewed `3749b18`, `2fbe72f` and `c721e14` (NOT FIT, NOT FIT, then FIT WITH CORRECTIONS). `a7b9cd2`
+changes only comments, copy and one test, and the orchestrator checked it against those corrections.
+The mutations are in the commit messages.
+
+Declared, not fixed:
+- Off macOS there is no chip name. A CPU swap with the same RAM and backend reuses the record.
+- On macOS the brand string names a chip family, not its GPU-core configuration.
+- The record is consulted only at startup, so a hardware change made with the app open waits
+  for the next launch.
+- Two racing saves: the last rename wins.
+- A crash between write and rename leaves a temp file that nothing sweeps.
+- No test proves that the rename is atomic.
+- Only the latest record is kept, so readings still cannot be compared across runs.
+- An OS update that changes the brand string re-measures until a reliable reading is saved,
+  which is safe.
+
+**Not yet verified:** the real launch. The record must appear after the first turn-on, and a
+relaunch must skip the measurement. The one attempt, on 2026-09-24, could not press the button,
+because a screen capture came back black.
+
+## 16. The second option played by weaker rules than the first — CLOSED
+
+`crates/kalsa-catalog/src/choice.rs` — `quicker_alternative` filtered on fit and floor and
+nothing else: no `capability_basis`, no `expected_but_unmeasured`, no `SAME_CLASS_BAND`, no
+phone. So the row it offered beside a pick could be one the chooser's own walk would refuse.
+Confirmed by audit, reproduced on a 16 GiB Metal machine with a wall-powered phone: `choose`
+picks Gemma 4 12B on capability, and the row beside it, Trinity Nano at 62.7 tok/s, earns none
+of the three and would not be started.
+
+The first telling of this called it "the product refuses outright while the card offers it as
+a second option", and that shape was never reachable: the card builds its second option from
+the prediction of the row it is showing (`decode.and_then`,
+`src-tauri/src/capability.rs:271`), and a refusal carries no such row. What reached a screen
+was the pick with an unjustified row beside it, which is what the test below covers.
+
+Closed by the `justification` gate in `crates/kalsa-catalog/src/choice.rs` — uncommitted
+at the time of writing, committed since as `6099684` — so the closure is checkable both
+by hash and by name: four tests in `crates/kalsa-catalog/tests/selection.rs` are what
+hold it. The rule is that the second option is held to the bar of the row it sits
+beside, and there are only two bars because there are only two roads to a first
+option:
+
+- **A phone is paired.** The first option came from `choose`, which admits a candidate only
+  with a justification — `capability_basis`, else `expected_but_unmeasured`, else the
+  battery-powered `SAME_CLASS_BAND` relief. The second option must clear the same gate.
+- **No phone.** The first option came from `largest_that_runs_well`, which applies no
+  justification at all, because no comparison was made. The second option applies none either:
+  demanding one of it would be this same bug from the other side, a row held to a standard its
+  neighbour never faced.
+
+One road applies the gate and the other does not, which is the point rather than a gap. The
+three-branch decision lives in one function, `justification`, and the road a paired phone takes
+applies it to both rows: `choose` to every candidate it walks, and `quicker_alternative` to the
+row beside the pick, which it asks only `if input.phone` is `Some`. The phone-free road asks
+neither row to justify itself and never calls the function at all. `choose` needs the value it
+answers with, so the function answers the `Justification` and not a bool. The speed rule is
+unchanged: the most model that still decodes `QUICK_SPEED_ADVANTAGE` times faster than the row
+on the page, compared at its pessimistic end.
+
+The audit's machine is the test that matters,
+`a_pick_is_not_offered_a_second_option_that_earns_nothing`: 16 GiB of unified memory at
+120 GB/s and a 4B phone on the wall socket, where the walk succeeds and picks Gemma 4 12B on
+capability. Trinity Nano is the only fitting row clearing the speed bar (62.7 tok/s against
+the pick's 20.4), and it earns nothing — 6B of mixture is below the size an expectation is
+credited at, publishes no dense equivalence, and a wall socket justifies no relief — so it is
+no longer offered. The test asserts those three branches, not only the answer, and the phone's
+battery flag is what decides the third: on battery the row is legitimate relief and there is
+no defect.
+
+The refusal-shaped case is kept as a property of the helper rather than a screen,
+`a_refused_machine_offers_no_second_option_either` — a refusal never shows a second option, so
+it asserts only that asking beside one answers nothing. Two tests then hold the rule from both
+sides: `without_a_phone_the_second_option_keeps_the_only_bar_there_is` still offers the same
+row with nothing paired, and `a_phone_on_battery_still_earns_the_quicker_row_its_place` offers
+it when the phone is on battery, on the relief the walk itself would grant.
+
+## 17. Small things the audits confirmed — five of six fixed, the sixth narrower than it looked
+
+Each was reproduced against the code, none was load-bearing, all were cheap. Between
+the last update and this one, five of the six were fixed. The sixth turned out to be
+narrower than the audit made it look.
+
+- The two content security policies did not agree, and the webview enforces their
+  intersection. `chat/index.html` claimed `connect-src 'self' http: https: ws: wss:` — any
+  origin, any scheme — while `app.security.csp` in `src-tauri/tauri.conf.json` had no
+  `connect-src` at all and so fell back to `default-src 'self'`. `'self'` is
+  `tauri://localhost`, so all three frontend fetches in `chat/src/lib/chat.ts` were blocked
+  in a built binary, the chat completion included; the server was answering the whole time
+  (verified by curl: 200, `Access-Control-Allow-Origin: tauri://localhost`). No test could
+  see it, because node and Playwright talk to the server without passing through a webview.
+  **Fixed.** Both policies now name the identical local-only list — `chat/index.html:16`
+  and `src-tauri/tauri.conf.json:24` carry the same `connect-src` (`'self'`, `ipc:`,
+  `http://ipc.localhost`, the two loopback hosts) — and `chat/scripts/csp-consistency.mjs`
+  fails if they drift, if either one stops admitting the local server, or if either is
+  widened back to a scheme-wide source. No websocket was in use, so `ws:`/`wss:` are gone.
+- `chat/scripts/shots.mjs` waited for the chat's empty state as the landing view. Since
+  the brain became the home it never appears, so the harness timed out. Broken before
+  2026-09-18's work and unrelated to it. **Fixed** — `chat/scripts/shots.mjs:115-123`:
+  the harness now opens the app and clicks through the travelling bar's Chat button when
+  it is on screen, and its comment records why the old wait stopped working.
+- The contract test wrote `chat/scripts/capability-contract.json` and asserted nothing:
+  drift showed up as a dirty tree, never as a red suite. **Fixed** —
+  `src-tauri/src/contract.rs` panics on drift, and `UPDATE_CONTRACT=1` is the one
+  deliberate way to rewrite (`contract.rs:5`, `:27-35`); `39aeb2f` made the guard fail on
+  dead commands instead of printing them. The module is gated `#[cfg(test)]`
+  (`src-tauri/src/main.rs:13-14`), and both of its tests — reached from
+  `src-tauri/src/capability.rs:539` and `src-tauri/src/options.rs:596` — were re-checked
+  on 2026-09-20 and still run and can fail.
+- A `trained_context_tokens` of `Some(0)` would be reported as *"not enough memory"*,
+  blaming the machine for a header we parsed wrong. **Fixed** —
+  `trained_context_unreadable` (`crates/kalsa-launch/src/policy.rs:186`), refused before
+  the arithmetic with its own variant, `ChosenModelContextUnreadable`
+  (`src-tauri/src/startup.rs:490`), one of `2642cc3`'s three.
+- `soc.rs` would answer `"Apple M4 Ultra"` with the bare M4's 120 GB/s — 6.8x short.
+  M4 is the one family with no Ultra row. No such chip has shipped. **Fixed** — exact
+  match only (`crates/kalsa-probe/src/soc.rs:84`), pinned by the test
+  `an_ultra_of_a_family_without_an_ultra_row_is_not_answered_by_the_bare_chip`
+  (`soc.rs:127`). Also `2642cc3`.
+- Under StrictMode a second `brain_progress` listener is registered and never
+  unsubscribed. **Narrower now, not gone.** Cleanup exists — the unsubscribe is stored
+  and called when the last listener leaves (`chat/src/surfaces/useBrain.ts:115`, `:126`)
+  — but under StrictMode's mount→unmount→mount both `listen()` promises resolve after
+  the second listener has registered, so both resolve with `listeners.size > 0`, the
+  second overwrites `offProgress`, and the first unsubscribe is dropped. One dangling
+  `brain_progress` listener per hot reload. Dev builds only.
+
+## 18. Turning the server off can say "Off" while the server is still running — narrowed on 2026-09-22, not closed
+
+*As written on 2026-09-20, against the code of that day (`1aa02a5`; its line numbers are
+dropped here, because none of them still points at what it named):* `supervisor.rs` set `ServerState::Stopped` on
+every path out of `stop`. Two of those paths signalled nothing. An adopted server whose
+recorded pid the state file no longer vouched for was left alone, because the
+`if current == pid` body was simply skipped. An adopted-blind server, where no pid was ever
+recorded, had nothing to signal at all. Its own comment said it: "Left running by necessity …
+Only a stop that stays stopped leaks it, until reboot". A spawned child and an adopted pid the
+lock still covered were said to be properly terminated and reaped. That was not true either:
+`f1df191`'s message records a `let _ =` that swallowed the second wait, so a stop could
+declare success while the engine was alive. The two in-between shapes leaked. So
+"Off" was a claim about the app's state, not the machine's: the weights could stay resident,
+holding the port, while every surface said the server was off. There were two honest
+repairs. One: stop claiming Off when nothing was signalled, and say what happened. Two: find
+the server by port, verify its identity, and end it.
+
+**Re-read on 2026-09-24: the first repair was built on 2026-09-22 (`f1df191`, `ae78761`,
+`f9d8861`), and this section did not notice.** What `stop` does now, read at `4d5fab1`:
+
+- With nothing of ours owned, it ends `Stopped` with nothing to prove
+  (`crates/kalsa-supervisor/src/supervisor.rs:484`: "nothing of ours owned: nothing to prove
+  gone"). That is the path a second stop takes.
+- With a server owned, it collects one witness for the process and probes the port.
+  `presence::settle` (`crates/kalsa-supervisor/src/presence.rs:101-106`) then ends it
+  `Stopped` in exactly three cases: our own child was reaped; a known pid is now dead and the
+  port refuses; or no pid was ever recorded and the port refuses. In every other case it ends
+  `Failed { reason: StopUnconfirmed }`, carrying what was measured (`supervisor.rs:598-603`).
+- For the two in-between shapes, that means:
+  - An adopted pid the state file no longer vouches for is not signalled (`:530-546`).
+    - If that pid is still alive, the stop ends `StopUnconfirmed`, and "Off" is not claimed.
+    - If it is dead and the port refuses, the stop ends `Stopped`, which the screen shows as "Off"; no line
+      is printed (the print at `:589` is guarded by `:588`) and no record is written (it counts as proven).
+  - An adopted-blind server is never signalled.
+    - If its port refuses, the stop ends `Stopped`, without any proof about the process.
+      When no start failure is held, the screen then shows "Off" and "This computer is not
+      running anything right now." (`chat/src/surfaces/useBrain.ts:348-349`).
+    - If its port answers, or the probe cannot tell (a timeout, or a network error short of
+      a refusal: `Presence::Unknown`, `presence.rs:28-37`), the stop ends `StopUnconfirmed`.
+- A stop that reaches `settle` without being proven on both halves tries to write a suspicion
+  record, `<state file>.orphan`, beside the state file (`ae78761`, `supervisor.rs:591-597`).
+  Proven on both halves means the process was reaped or a known pid is dead, and the port
+  refuses. The write is best effort (`let _ =`). The next start recovers the record, replaces
+  it, or keeps it when something else still holds the port (`crates/kalsa-supervisor/src/suspect.rs:19-20`).
+- `f9d8861` answers a dead worker's drain in `Supervisor::state()` instead of leaving it
+  `Stopping`. By its own commit message, `Watch::state()` still reads `Stopping` for such a
+  drain.
+
+**Closed on 2026-09-25 (`f3cacdc`, `7b77116`, `a9e0023`): the first bullet below.** A stop that follows
+an unconfirmed stop now probes the port, with the prior state carried on the command, and writes Stopped
+only if the port refuses. The bullet is kept as the record of how it stood.
+
+What stays open:
+- **A second stop would claim "Off" with nothing checked.** The first stop takes what was
+  owned (`owned.take()`, `supervisor.rs:485`), whatever it ends in, so a second stop command
+  after a `StopUnconfirmed` would take the `:484` path and end `Stopped` without probing
+  anything. The normal screen does not offer it: a failed state's button is "Try again",
+  which starts (`chat/src/surfaces/useBrain.ts:386-387`, `:449-456`). It is a trap for any
+  future caller, not a path the owner can take today.
+- **"Off" can also be claimed without proof** for an adopted-blind server whose port refuses.
+- **The stop does not signal either in-between shape's process**, so a server that is still
+  alive keeps its weights resident, whatever the screen says. A later start may adopt a live
+  pid again (`take_over`, `supervisor.rs:700-705`), and a stop after that can signal it.
+- **The second repair is still the owner's choice:** end the server by port once its identity
+  is verified.
+- **The screen's words for `StopUnconfirmed` disagree with each other.** The sentence says the
+  server "could not be confirmed gone … so the app has not reported it as off"
+  (`src-tauri/src/failure.rs:236-238`), while the headline of every failed state is "Stopped"
+  (`chat/src/surfaces/useBrain.ts:387`).
+
+## 19. What the outgoing gate does not cover
+
+Shipped in `0197a1f`: while a document is attached, every web search and every
+fetched URL is shown to the owner before it leaves. The detectors: IBANs (mod-97
+through `ibantools`, `chat/src/lib/webgate/sensitive.ts:1,77`), phone numbers
+(`chat/src/lib/webgate/sensitive.ts:1,120-125`), cards (Luhn, not a bare pattern —
+`chat/src/lib/webgate/sensitive.ts:83`), twenty key formats ported from gitleaks' own rule set
+(`chat/src/lib/webgate/secretRules.ts:2-6`), an entropy catch-all
+(`chat/src/lib/webgate/sensitive.ts:129`), and
+any six-word run copied verbatim out of an attachment
+(`chat/src/lib/webgate/copied.ts:98`). The owner sees the text and refuses it or
+lets it go.
+
+The limits below are deliberate, and they are written down because they are the
+kind of thing a later reader mistakes for an oversight:
+
+- **Paraphrase defeats the copied-text half.** Six verbatim words survive
+  rewording; the copied-text detector does not. The owner accepted that in writing
+  on 2026-09-19: *"Se parafrasa amen, è un limite"* (`crates/kalsa-files/src/scope.rs:4-6`,
+  the precedent where the owner records the boundary).
+- **No detector for national ID, tax or passport numbers**, and no global library
+  exists for them — the code says so itself (`chat/src/lib/webgate/sensitive.ts:10-12`),
+  and a wrong validator would be worse than none.
+- **No postal-address detector.** An address is not one string but six words in a
+  row, which is the copied-text half's exact shape — so addresses are covered
+  incidentally, and only when copied verbatim (`chat/src/lib/webgate/sensitive.ts:11-13`).
+- **The outgoing text reaches `localStorage` before the owner answers.** The user
+  and empty assistant messages are stored before the assistant runs
+  (`chat/src/App.tsx:593-603`), and the live turn is written through on each update
+  (`App.tsx:416-434`), so the tool call sits in the conversation store while the
+  dialog is still asking. This is out of scope by the owner's rule, stated where
+  the file boundary came off: the guarded direction is the one that LEAVES the
+  machine (`crates/kalsa-files/src/lib.rs:16-17`). Nothing sends the conversation
+  store to the door, to the phone, or to the network; the store's keys never leave
+  the page.
+
+## 20. The CSP guard checks one directive
+
+`chat/scripts/csp-consistency.mjs` parses every directive in both policies and
+inspects one: `connectSources` (`chat/scripts/csp-consistency.mjs:42-43`) reads
+`connect-src`, falling back to `default-src`, and every assertion in the script is
+about that one pipe. Everything else it parses — `script-src`, `worker-src`,
+`frame-src` — is never looked at.
+
+This matters more than it did when the guard was written, because of what §17's
+first item taught: node and Playwright cannot see what the webview enforces, and
+that intersection bug lived exactly in the blindness. PDF extraction now runs in a
+worker (`chat/src/lib/attachments.ts:2,98` — pdf.js's worker, loaded by URL), so a
+`worker-src` that diverges between `chat/index.html` and `src-tauri/tauri.conf.json`
+— or a build where neither admits the worker — would break attachments in a built
+binary and pass this guard with a green tick. The guard would report the one thing
+it checks, about the one directive that happens to be fine.
+
+The repair is the same shape as the first one: assert the directives a built binary
+actually exercises, not only the one that once bit.
+
+## 21. The Models page has no decided future
+
+`chat/src/surfaces/ModelsSurface.tsx` is still routed (`chat/src/App.tsx:975`), and
+the owner has said it can disappear. Nothing has decided what that means, and two
+things live only there: the per-start reason sentence — the chooser's own words for
+why THIS start chose what it chose (`ModelsSurface.tsx:60`) — and the advanced
+launch controls, the context, batch and ubatch overrides, rendered through
+`<AdvancedPanel>` (`ModelsSurface.tsx:95`; the three fields are
+`chat/src/components/AdvancedPanel.tsx:214-216`). The running model's name is not unique to the page; the home already shows it
+(`chat/src/surfaces/BrainSurface.tsx:137`).
+
+So the open question is narrow: not whether the page goes, but *where those two
+things go if it does*. The reason sentence is the only place the choice explains
+itself after the fact; the overrides are the only place the launch argv is anybody's
+to change. Deleting the page without an answer takes both with it, and nothing else
+on this list would notice.
+
+## 22. Windows GPU detection runs a tool Windows 11 24H2 and 25H2 no longer ship — it may refuse every model there
+
+**Run on two Windows machines on 2026-09-25; see `docs/NIGHT-RUN-2026-09-25.md`.** The read-only capture
+(`dev/windows-gpu-capture.ps1`) recorded both producers on each machine:
+- on the Surface (25H2) `wmic` is absent and the PowerShell query answered;
+- on the Lenovo `wmic` is present and answered.
+
+The `AdapterRAM` risk below was real: the Lenovo's RTX 4050 read 4293918720, and the registry supplied
+6 439 305 216. It is now sized from the registry's `qwMemorySize` (`7fef63b` … `a18678e`).
+
+The "never compiled" item below is superseded: `cargo test -p kalsa-runtime` builds and runs natively on
+the Surface, per the coders' Surface runs recorded in `ac3e35c` and `5fce639`. The real walk passes on both machines. The Lenovo's card budget refused
+every row, and the processor fallback (`e6eb5b3`, `47984d1`) now runs the model on the CPU instead. Still
+open: Windows on ARM, which is the owner's call. The text below is the record as it stood.
+
+`crates/kalsa-probe/src/detect.rs:46` detects the Windows GPU by running
+`wmic path win32_VideoController get name,AdapterRAM`. When the command fails, it answers
+`Backend::Unknown` (`:49-54`). Microsoft's WMIC page (learn.microsoft.com, "Last updated on
+2026-08-20") says: "Starting in August 2026, Windows 11, versions 24H2 and 25H2 no longer
+include the Windows Management Instrumentation Command-line (WMIC) utility and it can’t be added
+back as a Feature on Demand (FoD)." It adds that WMI itself remains supported. On those versions the command cannot run, and until the fallback below every machine was
+detected as `Unknown`. Older supported versions that still ship WMIC keep running it first; the parser change
+below applies to them too.
+
+What `Unknown` leads to, read in the code:
+- The runtime tries the Vulkan build, then the CPU build
+  (`crates/kalsa-runtime/src/candidates.rs:53`).
+- If Vulkan wins, the budget becomes a card whose memory could not be read
+  (`src-tauri/src/startup.rs:410-420`). The catalog then REFUSES the machine rather than
+  guess: "This computer has a graphics card whose memory could not be read, …"
+  (`crates/kalsa-catalog/src/choice.rs:602-612`).
+- If the CPU build wins, the CPU budget stands. The CPU build wins only when the Vulkan build
+  cannot be fetched or fails its probe (`crates/kalsa-runtime/src/decide.rs:136-156`). A
+  Vulkan build that probes well is kept, and the refusal does not retry on the CPU.
+- The Vulkan build carries a CPU backend, so a PC with no usable GPU can take the Vulkan path
+  too. It is then refused with words about a graphics card it may not have. The refusal's
+  advice to run on the CPU only has no control on the normal screen.
+
+So on a current Windows 11 PC where the Vulkan build runs, the first turn-on may refuse to
+pick any model at all. This was found by reading, on 2026-09-24, and has not been run on a
+Windows machine. It is the first thing to check in the Surface and Lenovo measurements that are
+still owed. The WMI API behind the command is still there, so the repair is to read the same class
+without the removed tool. There are two call sites: this one, and the engine verdict's
+fingerprint, which reads `DriverVersion` through `wmic` too
+(`crates/kalsa-runtime/src/verdict.rs:52-66`). Without WMIC, and before the fallback below, that read `"unknown"`, so a driver change no
+longer invalidated a saved verdict.
+
+**A fallback was built on 2026-09-24 (`0e22de3`, `889df3f`, `03cca32`, `b451c45`, `fb19101`,
+`41d39ee`, `740d9d2`); none of it has run on Windows.** In both call sites, `wmic` still runs first, exactly as before. Only when it cannot run, does not succeed, overruns its 10 s deadline, or prints no row the check recognises (a header plus a second non-empty line; or no version
+line), the same WMI class is asked through `powershell -NoProfile -NonInteractive -Command
+"Get-CimInstance Win32_VideoController | ForEach-Object { … }"`. That command prints one line
+of text per controller, with no `Format-Table`. What else changed:
+- One runner, `crates/kalsa-probe/src/run.rs`, spawns each producer and bounds it to a 10 s deadline, checked every 50 ms after the spawn; a child found already
+exited is taken even if the check comes after the deadline, and reading its stdout is outside
+the bound. A producer still running at the check is killed and reaped, and decodes lossily, on the working assumption that Windows consoles write in the OEM
+code page (unverified: see below). It is tested on macOS with real child processes, including a
+  sleeper that is killed at a 200 ms deadline, and a check that its pid is gone.
+- The detection and the driver versions are cached per process, but only when they answered.
+  An absent answer is asked again, at up to about 2×10 s per call site each time. The PowerShell
+  answer is validated too (`fb19101`). An empty, whitespace-only or lone-number answer is absent, not the CPU. A number followed by
+any second token ("3221225472 6600") still counts as a controller line. A line of prose cannot be told from a controller name, though. So a successful run
+  that prints prose on stdout is read as a controller, parsed, and cached. The same holds for `wmic`'s header plus any second non-empty line. This is declared in the code (`41d39ee`), not guarded.
+- The parser now takes the memory only from a row's first token, and only when that token is
+  a number. It keeps the whole name otherwise, so "NVIDIA T400" with no memory value is still
+  a discrete card. A zero `AdapterRAM` reads as an unknown size. The old parser read a
+  numberless "AMD Radeon RX 6600" row as a 6600-byte card.
+- deepseek reviewed `0e22de3`, `889df3f` and `03cca32`: NOT FIT, then FIT WITH CORRECTIONS
+  twice. `b451c45` applied those corrections and only the orchestrator checked it. gpt-6-luna then
+  found the unvalidated PowerShell answer while reviewing this section. deepseek reviewed its fix `fb19101` in the session (FIT WITH CORRECTIONS, with the prose
+  residual as its one finding; no commit message records it). `41d39ee` changes comments and
+  one test name, and `740d9d2` makes two of those comments exact; the orchestrator checked
+  both.
+
+Still open, all of it Windows-only:
+- **No run on a real Windows machine.** Neither the PowerShell line nor the `wmic` path has
+  run on one.
+- **`kalsa-runtime`'s Windows code was never compiled.** Its cross-check from this Mac stops
+  in `ring`'s C build script. `kalsa-probe`'s Windows code does compile
+  (`cargo check -p kalsa-probe --target x86_64-pc-windows-msvc`).
+- **The encoding of `wmic`'s piped output is unverified.** No real capture exists in the repo.
+  If it is UTF-16LE, the detection's header check fails and PowerShell answers even where
+`wmic` works: slower, but not wrong. The driver-version check accepts any line that starts with
+a digit, so UTF-16 version rows might count as an answer and stop the fallback. That is
+conditional on the same unverified encoding.
+- **`AdapterRAM` is a 32-bit field, so VRAM above 4 GiB is never read.** A saturated or zero reading becomes an unknown size. When no other discrete row gives a
+valid size, the machine is `DiscreteGpu` of unknown memory, and with a Vulkan winner that is
+still the refusal above.
+  A reading just under the 32-bit limit, such as 4293918720, is taken as a real size, although
+it may be a larger card reported short: the parser cannot tell the two apart. A card of 4 GiB
+or more can only be sized truly from another source, such as the registry's
+  `HardwareInformation.qwMemorySize`, which was not verified here.
+- **No engine build exists for Windows on ARM.** `crates/kalsa-runtime/src/assets.rs` knows only
+  `MacArm64`, `MacX64` and `WindowsX64`, so a native ARM64 build on a Snapdragon X Elite PC gets no candidate at all. (An x64 build
+running under emulation reports `WindowsX64` and gets the x64 candidates; that path was not
+examined.)
+  Whether to publish one is the owner's call.
+
+## Not missing, deliberately
+
+Retrieval and embeddings on the PC (measured: full context is cheaper than a
+download — `DESKTOP-FEATURES-ALREADY-OURS.md` §7). A catalog gate threshold (the
+owner holds that number). Model-authored HTML without isolation (six critical CVEs
+say do not, §8 of the same doc).
+
+---
+
+## Addendum: yes there was a queue, and it was the wrong one — ours now exists, and it refuses
+
+Asked by the owner, 2026-09-17: what happens when two people prompt at the same time,
+and could the app show that the AI is currently busy with a named person.
+
+Read in the server we ship (b10950, `tools/server/`), not assumed:
+
+```cpp
+// server-context.cpp:2405
+// if no slot is available, we defer this task for processing later
+queue_tasks.defer(std::move(task));
+```
+
+```cpp
+// server-queue.h:25
+    std::deque<server_task> queue_tasks_deferred;
+```
+
+So a request that finds every slot busy is **deferred, not refused**, and when a slot
+frees exactly one deferred task is popped — FIFO, except a task that asked for the slot
+that just freed jumps ahead (`server-queue.cpp:90-108`).
+
+Two properties of that queue decide the design:
+
+1. **It is unbounded.** Nothing in the code caps the deque. Ten phones against a
+   one-slot server means ten held HTTP connections and a tenth person waiting behind
+   nine complete answers, with no error and no notice. On a phone that is
+   indistinguishable from a broken app.
+2. **It is silent.** Nothing on the wire tells a waiting client that it is waiting, or
+   where it is in the line. The only observability is Prometheus text on `/metrics`:
+   `requests_processing` and `requests_deferred` (`server-task.cpp:1578-1584`) — two
+   global counters with no identity attached.
+
+Both are still true of the server we ship, and both are still the reason its policy
+could not be inherited.
+
+**The queue is now partly ours — and the half that exists is the half this addendum
+said had to be.** The door has run its own since `29b63d0` (2026-09-16):
+`crates/kalsa-door/src/server.rs:41` — `let (sender, receiver) =
+mpsc::sync_channel(QUEUE);` — and when the queue is full the door refuses on the
+spot (`server.rs:154-157`, where the full send calls `reject_busy`) instead of
+deferring and hanging. The roofs sit together
+in `crates/kalsa-door/src/lib.rs:73-86`: `WORKERS` 4, `QUEUE` 8, `MAX_CONNECTIONS`
+12, and `MAX_JOBS` 64, whose comment gives its reason — "so kept answers alone can
+never grow without bound either". Upstream defers; ours refuses. That is the
+opposite policy, on purpose.
+
+What is still missing is the half the owner actually asked about. The door knows
+*who* — one credential per device since `02a2139` — and the waiting queue exists in
+the same process, and neither reaches the page as a sentence: there is no "busy
+with X", no "you are next", no per-device queue position anywhere in the code. The
+knowledge is all in one place; only the words are missing.
+
+Constraints this must respect, all already measured:
+- `id_slot` out of range is **not** refused, it wraps (`server-context.cpp:1521`). If
+  the door assigns slots it must never emit an out-of-range one, because the server
+  will silently put two people in the same slot.
+- Slot count is not a trade-off any more, it is settled: **one slot per person, or
+  thrash.** Measured at four phones, warm reuse and median TTFT move together, and one
+  slot plus our own queue loses on both at once -- it is the slowest shape *and* the one
+  where reuse is not merely worse but zero, twelve of twelve requests reprefilled:
+
+  | four phones | warm reuse | median TTFT | total KV |
+  |---|---:|---:|---:|
+  | one slot + our queue | 0.00 | 4.99 s | 174.8 MiB |
+  | two slots, fewer than users | 0.12 | 3.47 s | 230.6 MiB |
+  | auto (unified KV) | 0.73 | 2.54 s | 308.7 MiB |
+  | four slots, one each | 0.97 | 0.64 s | 342.1 MiB |
+
+  Oversubscription does not degrade reuse, it collapses it: two slots for four people
+  score 0.12, barely better than having one. The **21x** figure was real but answered a
+  different question -- it compared `--parallel 1` against *auto* slots with unified KV.
+  Explicit `--parallel N` is a third configuration nobody had run, and it beats both.
+- The binding constraint is the context floor, not the queue. Slots divide the context
+  and a request over its slot's share is **refused with HTTP 400, not truncated**: at
+  `-c 16384` with four slots, a 3 878-token conversation runs warm and a 4 225-token one
+  never starts. The SWA half of the KV replicates per slot (42 layers: 55.78 MiB at one
+  slot, 223.12 MiB at four) while the 14 dense layers divide. So 16k on this Mac *is*
+  four people, and the door's job is to refuse the fifth -- admission, not queueing.
+- A profile is a human label on a device credential, so it costs almost nothing now
+  that per-device credentials exist (`02a2139`). But "busy with X" is itself a
+  disclosure: it may show a **name**, never the prompt, never the content, and the
+  active label needs a timeout so a device that vanished mid-stream does not hold it
+  forever.

@@ -1,0 +1,41 @@
+[package]
+name = "kalsa-door"
+description = "Authenticated loopback door for the Kalsa Brain OpenAI endpoint"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+# The bearer credential is fixed-size and compared without a timing branch.
+subtle = "2"
+# The log facade: the app installs the one file sink.
+log = "0.4"
+# 128 random bits per job id: a resume id nobody can guess its way into.
+getrandom = "0.3"
+# The per-device cache salt: a labeled SHA-256 of the credential, derived
+# once when the entry is built and never stored or printed anywhere.
+sha2 = "0.10"
+# The door rewrites the upstream's /props JSON before relaying it — the
+# model path leaves the machine and every other field stays.
+serde_json = "1"
+# The room turn's images ride to the engine as data: URIs; base64 is the
+# one encoding they arrive in.
+base64 = "0.22"
+# The Room's pre-send content gate: the phone's patterns, run without
+# lookahead (the gate splits those into two searches).
+regex = "1"
+# The gate folds accents before it matches, as the phone's NFKD step does.
+unicode-normalization = "0.1"
+# The room the door serves behind /kalsa/room/: the store and its live
+# stream, with the door adding the credential and the wire.
+kalsa-room = { path = "../kalsa-room" }
+# The engine's credential, which the door reads and never mints: every head
+# it writes upstream carries it, and the engine refuses its routes without it.
+# The type, not a String, so no struct
+# here can be derived into printing it.
+kalsa-supervisor = { path = "../kalsa-supervisor" }
+
+[dev-dependencies]
+# The test mints the same public handshake credential the desktop stores.
+kalsa-catalog = { path = "../kalsa-catalog" }
+kalsa-pairing = { path = "../kalsa-pairing" }

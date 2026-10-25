@@ -1,0 +1,96 @@
+//! Owner-only on disk (unix): the transcript, the room's own directory,
+//! the roster, and the damaged-byte copies; the caller's directory left
+//! untouched; and the read-only room a failed recovery leaves behind.
+
+#![cfg(unix)]
+
+use std::fs;
+use std::os::unix::fs::PermissionsExt;
+use std::path::Path;
+
+use super::{log_path, open, scratch, say};
+use crate::{PostError, Room};
+
+fn mode(path: &Path) -> u32 {
+    fs::metadata(path).unwrap().permissions().mode() & 0o777
+}
+
+#[test]
+fn the_room_owns_its_directory_and_never_touches_the_callers() {
+    let data = scratch("permissions_owner_only");
+    let room_dir = data.join("room");
+    // A data directory and a pre-existing transcript both wider than the
+    // room should accept.
+    fs::set_permissions(&data, fs::Permissions::from_mode(0o755)).unwrap();
+    fs::create_dir_all(&room_dir).unwrap();
+    fs::write(
+        log_path(&room_dir),
+        "{\"v\":1,\"kind\":\"member\",\"seq\":1,\"client_msg_id\":\"a\",\"member\":3,\"text\":\"first\",\"time\":100,\"call_ai\":false}\n",
+    )
+    .unwrap();
+    fs::set_permissions(log_path(&room_dir), fs::Permissions::from_mode(0o644)).unwrap();
+
+    let room = Room::open(&data).expect("the room opens and narrows");
+    assert_eq!(mode(&log_path(&room_dir)), 0o600, "a wider transcript is tightened");
+    assert_eq!(mode(&room_dir), 0o700, "the room's own directory is owner-only");
+    assert_eq!(
+        mode(&data),
+        0o755,
+        "the caller's directory is never chmod'ed by the room"
+    );
+
+    room.enroll(3).expect("the device enrolls");
+    room.set_name(room.member_of(3).unwrap(), "Marco")
+        .expect("the name sets");
+    assert_eq!(mode(&room_dir.join("room-roster.json")), 0o600);
+}
+
+#[test]
+fn a_fresh_transcript_is_born_owner_only() {
+    let (room_dir, _room) = open("permissions_fresh");
+    assert_eq!(mode(&log_path(&room_dir)), 0o600);
+    assert_eq!(mode(&room_dir), 0o700);
+}
+
+#[test]
+fn the_damaged_copy_is_owner_only() {
+    let (room_dir, _room) = open("permissions_damaged");
+    fs::write(log_path(&room_dir), "not json at all\n").unwrap();
+    Room::open(room_dir.parent().unwrap()).expect("the recovery runs");
+    let copy = fs::read_dir(&room_dir)
+        .unwrap()
+        .filter_map(|entry| entry.ok().map(|entry| entry.path()))
+        .find(|path| {
+            path.file_name()
+                .is_some_and(|name| name.to_string_lossy().starts_with("room-log.damaged-"))
+        })
+        .expect("the copy exists");
+    assert_eq!(mode(&copy), 0o600);
+}
+
+#[test]
+fn a_recovery_that_cannot_write_serves_reads_and_refuses_posts() {
+    let (room_dir, room) = open("permissions_read_only");
+    say(&room, 3, "m1", "the intact entry");
+    drop(room);
+    // Damage after the intact line, then take the directory's write bit
+    // away: the copy cannot be made, so the recovery cannot land.
+    let mut damaged = fs::read(log_path(&room_dir)).unwrap();
+    damaged.extend_from_slice(b"garbage tail without a newline");
+    fs::write(log_path(&room_dir), &damaged).unwrap();
+    fs::set_permissions(&room_dir, fs::Permissions::from_mode(0o500)).unwrap();
+
+    let room = Room::open(room_dir.parent().unwrap()).expect("the room opens on its intact prefix");
+    assert_eq!(room.newest_page(1, 10).unwrap().messages.len(), 1, "reads serve");
+    let member = room.member_of(3).expect("the roster reads too");
+    assert!(
+        matches!(room.post(member, "m2", "refused", false, &[]), Err(PostError::ReadOnly)),
+        "posts are refused, never appended after garbage"
+    );
+
+    fs::set_permissions(&room_dir, fs::Permissions::from_mode(0o700)).unwrap();
+    drop(room);
+    let repaired = Room::open(room_dir.parent().unwrap()).expect("a reopen retries the recovery");
+    let second = say(&repaired, 3, "m2", "the room continues");
+    assert_eq!(second.seq, 2, "the repaired room appends after the prefix");
+}

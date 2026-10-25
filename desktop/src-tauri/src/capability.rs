@@ -1,0 +1,1507 @@
+//! What the Brain page — the app's home — says about this computer, from
+//! what was already kept: a [`kalsa_probe::Measurement`], the machine's RAM,
+//! and the paired phone.
+//!
+//! Nothing here starts a server, decides a runtime or downloads anything — it
+//! computes, purely, what the catalog would pick. The backend it answers with
+//! is the **detected** one (`measurement.will_run_on`), never a build that
+//! won: `startup::budget_backend` exists for the moment a build has won, but
+//! this preview runs before any walk, so there is no winner and none may be
+//! downloaded. The catalog's refusal is an answer, not an error — an unpaired
+//! phone refuses with words the owner can act on, and they travel untouched.
+
+use std::path::Path;
+
+use serde::Serialize;
+
+use kalsa_catalog::choice::chooser_context_tokens;
+use kalsa_catalog::{
+    choose, largest_that_runs_well, memory_budget, quicker_alternative, rows, runnable_row, usable,
+    ChoiceInput, Decision, DownloadPlan, MemoryBudget, ModelEntry, PhoneModel, Prediction,
+    RefusalReason, RunnableRow, Selection, CHOOSER_CONTEXT_TOKENS, GIB,
+};
+use kalsa_launch::{funded_context, DEFAULT_PARALLEL};
+use kalsa_probe::{Backend, Measurement};
+
+
+/// The phone-free pick's sentence, written for that path: there is no
+/// justification to report, because no comparison was ever made. The true
+/// thing is that this is the row this machine runs best — the big dense row
+/// that cleared its line, and where no line clears the fastest row of any
+/// family but LFM's — and the phone is what would turn it into a comparison.
+pub(crate) const PHONE_FREE_REASON: &str = "This is the model that suits this computer best. \
+Pair your phone and the app can tell you whether it beats what the phone runs.";
+
+/// The reasons as the wire carries them: a stable code the page renders in
+/// the owner's language beside the English sentence a phone client shows.
+/// The approved sentences drop the pair-a-phone invitation — a reason must
+/// not ask for unrelated setup to be understood.
+#[derive(Clone, Debug, serde::Serialize)]
+pub(crate) struct ReasonMessage {
+    pub code: String,
+    pub text: String,
+}
+
+/// The catalog refusal's stable code, by the enum the catalog itself
+/// carries — never derived from the sentence.
+fn catalog_refusal_code(reason: &kalsa_catalog::RefusalReason) -> String {
+    match reason {
+        kalsa_catalog::RefusalReason::PhoneUnknown => "catalog.phone_unknown".into(),
+        kalsa_catalog::RefusalReason::MachineNotMeasured => "catalog.machine_not_measured".into(),
+        kalsa_catalog::RefusalReason::NothingFits => "catalog.nothing_fits".into(),
+        kalsa_catalog::RefusalReason::NothingBetter => "catalog.nothing_better".into(),
+        kalsa_catalog::RefusalReason::NothingFastEnough => "catalog.nothing_fast_enough".into(),
+    }
+}
+
+pub(crate) fn reason_message(reason: &str) -> ReasonMessage {
+    let (code, text) = if reason == PHONE_FREE_REASON {
+        ("model.reason.pick", "Kalsa picked this because it runs well on this computer.")
+    } else if reason == CHOSEN_REASON {
+        ("model.reason.chosen", "You picked this AI.")
+    } else if reason == QUICKER_REASON {
+        ("model.reason.quicker", reason)
+    } else if reason == QUICKER_SMALLER_REASON {
+        ("model.reason.quicker_smaller", reason)
+    } else if reason == BIGGER_REASON {
+        ("model.reason.bigger", reason)
+    } else if reason == MORE_CAPABLE_REASON {
+        ("model.reason.more_capable", reason)
+    } else if reason.starts_with(PROCESSOR_FALLBACK_SENTENCE_PREFIX) {
+        ("model.reason.sized_for_memory", reason)
+    } else {
+        // A catalog sentence nobody classified travels as itself under a
+        // code the page does not translate.
+        ("model.reason.catalog", reason)
+    };
+    ReasonMessage { code: code.into(), text: text.into() }
+}
+
+/// What a composed reason starts with when the processor fallback spoke.
+pub(crate) const PROCESSOR_FALLBACK_SENTENCE_PREFIX: &str =
+    "No model fits this computer's graphics card's memory alone";
+
+/// The sentence for a model the owner picked themselves. It says who decided,
+/// because the whole difference between this row and an automatic one is that
+/// somebody asked for it.
+pub(crate) const CHOSEN_REASON: &str = "You chose this model, so it is the one this computer runs. \
+Choose another, or let this computer choose again, from the same page.";
+
+/// The second option's sentence. It says the trade in the order the owner
+/// needs it: what it gives (speed), what it costs (capability), and which of
+/// the two is the stronger model — never leaving that to be inferred from the
+/// sizes.
+const QUICKER_REASON: &str = "Smaller and much faster: it starts answering sooner. \
+The one above is the more capable of the two.";
+
+/// The second option's sentence when the smaller row is not the faster one:
+/// the size is the fact that stays, and the sentence claims no speed at all.
+const QUICKER_SMALLER_REASON: &str = "Smaller: it needs less memory. \
+The one above is the more capable of the two.";
+
+/// The second option's sentence when it is the bigger row and not the
+/// slower one: the size is said, and no speed direction the numbers do not
+/// show. "Can be" because more model is the ground for more capability,
+/// never a measurement of it.
+const BIGGER_REASON: &str = "Bigger, so it can be more capable. \
+The one above is the smaller of the two.";
+
+/// The second option's sentence when it is the bigger row and the slower
+/// one: the more capable model, traded against the speed the first card
+/// starts with.
+const MORE_CAPABLE_REASON: &str = "More capable, but slower on this computer. \
+The one above starts answering sooner.";
+
+/// The answer the Brain page reads. `Unmeasured` when this run keeps no
+/// measurement of the machine; otherwise the machine's facts and exactly one
+/// of a pick and a refusal.
+#[derive(Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub(crate) enum CapabilityDto {
+    /// An install from before the stored choice is having its model checked
+    /// (`legacy_choice`); the page waits for the answer.
+    Migrating,
+    /// This run has no measurement of the machine kept.
+    /// This run keeps no measurement. It can still hold a stored choice —
+    /// a measurement record may be deleted while the choice survives — and
+    /// that one fact decides the first run's screen, so it travels.
+    Unmeasured {
+        chosen: bool,
+        /// The stored choice's display name, so Home can say what it runs
+        /// while it is off.
+        chosen_model: Option<String>,
+    },
+    Measured {
+        machine: MachineDto,
+        /// Whether a model choice is stored. False marks the first run: the
+        /// home page answers it with the Start flow instead of an automatic
+        /// start.
+        chosen: bool,
+        /// The stored choice's display name, present exactly when `chosen`.
+        chosen_model: Option<String>,
+        /// The stored choice's token, the same value an option's `id`
+        /// carries: the page finds the chosen card by it, never by the
+        /// display name two rows of one model share.
+        chosen_id: Option<String>,
+        /// The catalog's pick, when it has one.
+        model: Option<ModelChoiceDto>,
+        /// The second option: the most model this machine runs clearly faster
+        /// than `model`. `None` when nothing does — offering two rows that
+        /// feel the same is not a choice, and no machine is owed two.
+        quicker: Option<ModelChoiceDto>,
+        /// Why there is no pick, in the refusal's own words. Exactly one of
+        /// `model` and `refusal` is Some.
+        refusal: Option<String>,
+        /// The refusal's stable code, beside the English.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        refusal_code: Option<String>,
+    },
+}
+
+#[derive(Serialize)]
+pub(crate) struct MachineDto {
+    ram_bytes: u64,
+    /// What a model may occupy, and whether the memory it will run in was
+    /// accounted for (`MemoryBudget::gpu_accounted_for` false means a discrete
+    /// card is present but unmeasured — say it, never hide it).
+    budget_bytes: u64,
+    gpu_accounted_for: bool,
+    /// Where a model will decode, in the owner's words — not the enum name.
+    runs_on: String,
+    bandwidth_bytes_per_second: f64,
+    /// Where the rate above comes from, because the three cases need three
+    /// different sentences and a boolean could only tell two of them apart.
+    /// `"measured"` — taken on the path the model will run on. `"floor"` —
+    /// taken on a slower path, so the truth is above it. `"chip"` — the
+    /// machine decodes on a GPU this probe cannot time, so the figure is the
+    /// chip's published bandwidth scaled by a share measured on one like it.
+    /// Saying "measured" for that last one would be a plain lie.
+    bandwidth_basis: &'static str,
+}
+
+#[derive(Serialize)]
+pub(crate) struct ModelChoiceDto {
+    /// The opaque token this row answers to (`startup::model_token`), or `None`
+    /// for a row the backend cannot resolve to exactly one catalog row — a page
+    /// may not offer a choice it cannot name back. It is derived from the four
+    /// fields `startup::chosen_row` matches on, and the page never learns what
+    /// they are.
+    pub(crate) id: Option<String>,
+    name: String,
+    quant: String,
+    /// What downloading this model costs, as one number: its file plus the
+    /// drafter its row ships beside it — the same two files one progress
+    /// bar carries.
+    download_bytes: u64,
+    /// The context this machine would actually fund for the row, from the
+    /// launch arithmetic — never the chooser's one-token pricing, which on
+    /// the screen would read "context window: 1 token". `None` when the row
+    /// cannot fund even one token; the page shows nothing rather than a
+    /// number that lies.
+    context_tokens: Option<u64>,
+    /// The conversation length the `speed` above is priced at: the chooser's
+    /// window, lowered to the row's own trained cap
+    /// ([`ModelEntry::priced_context`]) — the window the rule judged this
+    /// row in, so the number on the page and the number in the rule are one
+    /// number. It travels as a number so the page can say it: a speed
+    /// without the length it was priced at is the empty-cache best case
+    /// wearing a general claim.
+    speed_context_tokens: u64,
+    speed: SpeedDto,
+    /// The tune's measured decode rate for this row on THIS machine, when
+    /// one is recorded. `None` is the ordinary first sight: the number
+    /// exists only after the tune has run.
+    measured: Option<f64>,
+    /// `Selection::plain_reason` — already written for a human, pass it through.
+    reason: String,
+    /// The stable code for that reason, beside the English.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) reason_code: Option<String>,
+    /// `Selection::details` — the full working, for whoever asks.
+    details: String,
+}
+
+#[derive(Serialize, Debug)]
+#[serde(tag = "shape", rename_all = "snake_case")]
+pub(crate) enum SpeedDto {
+    Range { low: f64, high: f64 },
+    AtLeast { value: f64 },
+    Measured { value: f64, machine: String },
+}
+
+/// The catalog's input for one read: the detected backend, this machine's
+/// own figures, and the phone — everything this page knows before any build
+/// has won. Built in one place so the page's answer and the stored-choice
+/// check below are asked the same question.
+fn input_for(measurement: &Measurement, ram_bytes: u64, phone: Option<PhoneModel>) -> ChoiceInput {
+    ChoiceInput {
+        backend: measurement.will_run_on,
+        ram_bytes,
+        bandwidth_bytes_per_second: measurement.decode_bandwidth_bytes_per_second(),
+        bandwidth_is_lower_bound: measurement.bandwidth_is_lower_bound(),
+        compute_flops_per_second: measurement.compute.max(),
+        context_tokens: chooser_context_tokens(ram_bytes),
+        phone,
+    }
+}
+
+/// Whether a stored choice is one this page can still stand behind: the row
+/// its token named runs on this machine, as the page reads it. The walk asks
+/// the same question with the build that won and answers it by stopping the
+/// walk and forgetting the choice — so a choice the walk refuses reads as
+/// the first run again on the home page's next read.
+pub(crate) fn chosen_stands(
+    measurement: &Measurement,
+    ram_bytes: u64,
+    phone: Option<PhoneModel>,
+    stored: Option<&'static ModelEntry>,
+) -> bool {
+    stored.is_some_and(|row| runnable_row(&input_for(measurement, ram_bytes, phone), row).is_some())
+}
+
+/// The budget a row's window is priced from: what this budget may spend on
+/// this row — a card's budget never held the row's host-mapped tensors, so
+/// they are not the card's to spend (`kalsa_catalog::uncharged_host_bytes`,
+/// the rule the launch plan funds with) — minus the drafter this row's plan
+/// carries, the bytes `kalsa_launch::plan` charges when it runs one.
+fn window_budget(budget: MemoryBudget, row: &ModelEntry, download: &DownloadPlan) -> u64 {
+    budget
+        .usable_bytes
+        .saturating_add(kalsa_catalog::uncharged_host_bytes(&budget, row))
+        .saturating_sub(download.drafter.as_ref().map_or(0, |file| file.bytes))
+}
+
+/// The answer, computed. The catalog's input is rebuilt here rather than
+/// borrowed from `startup::choice_input`, whose backend is the budget path of
+/// a build that has won — this preview has no winner, so it hands the catalog
+/// the detected backend and says so. The window is
+/// [`chooser_context_tokens`] for this RAM, the one the real walk prices
+/// candidates at, never a second constant.
+pub(crate) fn dto(
+    measurement: &Measurement,
+    ram_bytes: u64,
+    phone: Option<PhoneModel>,
+    chosen: Option<&'static ModelEntry>,
+    root: &Path,
+) -> CapabilityDto {
+    let input = input_for(measurement, ram_bytes, phone);
+    let budget = memory_budget(input.backend, input.ram_bytes);
+    let machine = MachineDto {
+        ram_bytes: input.ram_bytes,
+        budget_bytes: budget.usable_bytes,
+        gpu_accounted_for: budget.gpu_accounted_for,
+        runs_on: runs_on_words(input.backend),
+        bandwidth_bytes_per_second: input.bandwidth_bytes_per_second,
+        bandwidth_basis: if measurement.decode_bytes_per_second.is_some() {
+            "chip"
+        } else if input.bandwidth_is_lower_bound {
+            "floor"
+        } else {
+            "measured"
+        },
+    };
+    // The pick, its prediction, and the refusal — exactly one of the first and
+    // the last. The prediction travels because the second option is defined
+    // against the row actually on the page, which two different roads reach;
+    // the weights travel because the second card's sentence is checked
+    // against the pick's size, not assumed from either road's shape.
+    let (model, decode, pick_weights, refusal, refusal_code) = match choose(&input) {
+        Decision::Pick(selection) => {
+            let row = chosen_row(&selection);
+            (
+                Some(ModelChoiceDto {
+                    id: row.map(crate::startup::model_token),
+                    name: selection.display_name.to_string(),
+                    quant: selection.quant.to_string(),
+                    download_bytes: selection.download.total_bytes(),
+                    context_tokens: row.and_then(|row| {
+                        funded_context(
+                            row,
+                            window_budget(budget, row, &selection.download),
+                            DEFAULT_PARALLEL,
+                        )
+                    }),
+                    speed_context_tokens: selection.context_tokens,
+                    speed: speed(&selection.decode),
+                    measured: row.and_then(|row| measured_speed(root, row)),
+                    reason: selection.plain_reason.clone(),
+                    reason_code: Some(reason_message(&selection.plain_reason).code),
+                    details: selection.details,
+                }),
+                Some(selection.decode),
+                selection.weights_bytes,
+                None,
+                None,
+            )
+        }
+        Decision::Refuse(refusal) => match refusal.reason {
+            // The commonest first run has no phone paired. `choose` answers
+            // "is this computer an upgrade?" and without a phone that has no
+            // answer; the page asks "what can this computer run?", and that
+            // one is answerable — the row that fits and runs well: the big
+            // dense row that clears its line, and where none does the
+            // fastest row of any family but LFM's.
+            // Every other refusal is a real one and keeps its own words.
+            RefusalReason::PhoneUnknown => match largest_that_runs_well(&input) {
+                Ok(row) => {
+                    (
+                        Some(ModelChoiceDto {
+                            id: Some(crate::startup::model_token(row.entry)),
+                            name: row.entry.display_name.to_string(),
+                            quant: row.entry.quant.to_string(),
+                            download_bytes: row.download.total_bytes(),
+                            context_tokens: funded_context(
+                                row.entry,
+                                window_budget(budget, row.entry, &row.download),
+                                DEFAULT_PARALLEL,
+                            ),
+                            speed_context_tokens: row.entry.priced_context(chooser_context_tokens(ram_bytes)),
+                            speed: speed(&row.decode),
+                            measured: measured_speed(root, row.entry),
+                            reason: PHONE_FREE_REASON.to_string(),
+                            reason_code: Some(reason_message(PHONE_FREE_REASON).code),
+                            // The working quotes the same figure as the line
+                            // above it — this row's own band at the chooser's
+                            // window — so one model cannot carry two speeds
+                            // one click apart.
+                            details: phone_free_details(&row, &row.decode),
+                        }),
+                        Some(row.decode),
+                        row.entry.weights_bytes,
+                        None,
+                        None,
+                    )
+                }
+                // The phone-free question refused for its own reason — the
+                // machine unmeasured, nothing fitting, everything too slow —
+                // and those are the words that answer, not the pair-first
+                // sentence that no longer gates anything.
+                Err(fallback) => (
+                    None,
+                    None,
+                    0,
+                    Some(fallback.explanation),
+                    Some(catalog_refusal_code(&fallback.reason)),
+                ),
+            },
+            _ => (
+                None,
+                None,
+                0,
+                Some(refusal.explanation),
+                Some(catalog_refusal_code(&refusal.reason)),
+            ),
+        },
+    };
+    // Against the row on the page, not against the biggest that fits: with a
+    // phone paired those can differ, and "faster" has to mean faster than
+    // what the owner is looking at. The FIT is the chooser's own question and
+    // travels in `context_tokens`; the band both cards quote is the one the
+    // chooser judged — [`chooser_context_tokens`] — so the bar the second
+    // card must clear and the number the page shows are one number.
+    let quicker = decode
+        .and_then(|prediction| {
+            quicker_alternative(&input, &prediction).map(|row| {
+                let measured = measured_speed(root, row.entry);
+                // The sentence is picked from the facts, so it can never claim a
+                // direction the numbers contradict. Speed, per row: the card
+                // shows a row's own measurement when it has one and the
+                // prediction's pessimistic end when it has not — the sentence
+                // compares those same two numbers. Size: the weights against
+                // the first card's.
+                let pick_measured = model.as_ref().and_then(|choice| choice.measured);
+                let pick_speed = pick_measured.unwrap_or_else(|| prediction.floor());
+                let own_speed = measured.unwrap_or_else(|| row.decode.floor());
+                let faster = own_speed > pick_speed;
+                let reason = match (row.entry.weights_bytes < pick_weights, faster) {
+                    (true, true) => QUICKER_REASON,
+                    (true, false) => QUICKER_SMALLER_REASON,
+                    (false, true) => BIGGER_REASON,
+                    (false, false) => MORE_CAPABLE_REASON,
+                };
+                ModelChoiceDto {
+                    id: Some(crate::startup::model_token(row.entry)),
+                    name: row.entry.display_name.to_string(),
+                    quant: row.entry.quant.to_string(),
+                    download_bytes: row.download.total_bytes(),
+                    context_tokens: funded_context(
+                        row.entry,
+                        window_budget(budget, row.entry, &row.download),
+                        DEFAULT_PARALLEL,
+                    ),
+                    speed_context_tokens: row.entry.priced_context(chooser_context_tokens(ram_bytes)),
+                    speed: speed(&row.decode),
+                    measured,
+                    reason: reason.to_string(),
+                    reason_code: Some(reason_message(reason).code),
+                    details: alternative_details(&row, &row.decode),
+                }
+            })
+        });
+    CapabilityDto::Measured {
+        machine,
+        chosen: chosen.is_some(),
+        chosen_model: chosen.map(|row| row.display_name.to_string()),
+        chosen_id: chosen.map(crate::startup::model_token),
+        model,
+        quicker,
+        refusal,
+        refusal_code,
+    }
+}
+
+/// The tune's own number for a row, when this machine has recorded one:
+/// the record is filed under the row's pinned digest, and the figure is
+/// what this machine measured — it outranks the prediction beside it.
+fn measured_speed(root: &Path, entry: &ModelEntry) -> Option<f64> {
+    let source = usable()
+        .find(|row| {
+            let row = row.entry();
+            row.repo == entry.repo
+                && row.quant == entry.quant
+                && row.weights_bytes == entry.weights_bytes
+        })?
+        .source();
+    let record = kalsa_tune::record::load_by_model(root, source.sha256)?;
+    record.winner.map(|winner| winner.reply.decode_rate)
+}
+
+/// Decode speed as the three shapes the UI can say. `Estimate` is a prefill
+/// shape decode never produces; if one ever arrived, "at least" is the honest
+/// rendering, not a panic.
+fn speed(prediction: &Prediction) -> SpeedDto {
+    match *prediction {
+        Prediction::Range { low, high } => SpeedDto::Range { low, high },
+        Prediction::Floor(value) | Prediction::Estimate(value) => SpeedDto::AtLeast { value },
+        Prediction::Measured {
+            tokens_per_second,
+            machine,
+        } => SpeedDto::Measured {
+            value: tokens_per_second,
+            // The card has one line for this; the row's full provenance —
+            // backend, cache quantisation, context, date — is already in the
+            // working below it, so the label here is the machine's name and
+            // stops at the parenthesis the rest of it opens.
+            machine: machine
+                .split_once(" (")
+                .map_or(machine, |(name, _)| name)
+                .to_string(),
+        },
+    }
+}
+
+/// The backend in the owner's words — the UI does not translate enums.
+fn runs_on_words(backend: Backend) -> String {
+    match backend {
+        Backend::Metal => "the graphics chip".to_string(),
+        Backend::Cpu => "the processor".to_string(),
+        Backend::DiscreteGpu { .. } => "the graphics card".to_string(),
+        Backend::Unknown => "this computer".to_string(),
+    }
+}
+
+/// The catalog row behind the pick, matched on the same identity
+/// `startup::chosen_row` uses — repo alone is not a key — and pinned unique
+/// by the catalog's own test. The row, not the selection, is what the context
+/// arithmetic runs on: the measured per-token cache figure travels there.
+fn chosen_row(selection: &Selection) -> Option<&'static ModelEntry> {
+    rows().find(|entry| {
+        entry.repo == selection.repo
+            && entry.display_name == selection.display_name
+            && entry.quant == selection.quant
+            && entry.weights_bytes == selection.weights_bytes
+    })
+}
+
+/// A row's speed, in the owner's words: the figure, where it comes from, and
+/// whether it was timed somewhere else. Written to be true of any row — the
+/// contradiction it replaces was "62.7 tok/s, measured on an M1 Max … The speed
+/// is a prediction, not a measurement on this machine", which said both things
+/// in one breath.
+fn speed_words(decode: &Prediction) -> String {
+    match *decode {
+        Prediction::Range { low, high } => format!(
+            "Predicted {low:.1}–{high:.1} tok/s, worked out from this computer's memory speed."
+        ),
+        // The rate was measured on a slower path than the model will run on:
+        // a floor, never printed as the rate the model will reach.
+        Prediction::Floor(_) | Prediction::Estimate(_) => {
+            "A floor: timed on a slower path than the model will run on.".to_string()
+        }
+        // The full provenance is kept — this is the drawer, and which backend
+        // and cache produced the figure is what makes it worth quoting.
+        Prediction::Measured {
+            tokens_per_second,
+            machine,
+        } => format!("{tokens_per_second:.1} tok/s, timed on {machine} — not on this machine."),
+    }
+}
+
+/// What one row is, for the drawer: its name, its weight, and where its speed
+/// figure comes from. No claim about being the largest — that belongs to the
+/// pick alone, and this is what the *second* option says, which exists because
+/// it is smaller.
+fn alternative_details(row: &RunnableRow, decode: &Prediction) -> String {
+    format!(
+        "{} — {:.1} GiB of weights. {}",
+        row.entry.display_name,
+        row.entry.weights_bytes as f64 / GIB as f64,
+        speed_words(decode)
+    )
+}
+
+/// The full working for the phone-free pick: what was compared, what was not,
+/// and where its speed figure comes from. Two things are said here and nowhere
+/// else — the machine's own "no phone" sentence, and the fit, which is a fact
+/// about this row on this machine and was being said of both cards.
+fn phone_free_details(row: &RunnableRow, decode: &Prediction) -> String {
+    format!(
+        "No phone is paired, so nothing here is compared to one. {} — {:.1} GiB of weights. \
+         It fits this computer's {:.1} GiB budget. {}",
+        row.entry.display_name,
+        row.entry.weights_bytes as f64 / GIB as f64,
+        row.budget.usable_bytes as f64 / GIB as f64,
+        speed_words(decode)
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use kalsa_launch::Offload;
+
+    const GIB: u64 = 1_073_741_824;
+
+    /// An empty records root, private to one test: tests run in parallel
+    /// inside this binary, and a shared path would have each call wiping
+    /// the others'. These tests read predictions — a tune record nobody
+    /// wrote says nothing.
+    /// Any catalog row, standing in for the owner's stored choice.
+    fn stored_row() -> &'static ModelEntry {
+        rows().next().expect("the catalog has rows")
+    }
+
+    #[test]
+    fn a_stored_choice_travels_as_its_name_and_its_token() {
+        let row = stored_row();
+        let CapabilityDto::Measured { chosen, chosen_model, chosen_id, .. } =
+            dto(&measured(Backend::Cpu), 16 * GIB, None, Some(row), &records_root("stored"))
+        else {
+            panic!("a measured machine answers Measured");
+        };
+        assert!(chosen);
+        assert_eq!(chosen_model.as_deref(), Some(row.display_name));
+        assert_eq!(chosen_id, Some(crate::startup::model_token(row)));
+    }
+
+    fn records_root(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "kalsa-brain-capability-{}-{name}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("mkdir");
+        dir
+    }
+
+    #[test]
+    fn the_json_the_page_reads_is_a_contract_pinned_here() {
+        let dto = CapabilityDto::Measured {
+            // One state the backend can actually produce: a Metal machine
+            // decodes on the graphics chip, and a rate measured on the CPU
+            // path beneath it is then always a floor.
+            machine: MachineDto {
+                ram_bytes: 17 * GIB,
+                budget_bytes: 13 * GIB,
+                gpu_accounted_for: true,
+                runs_on: "the graphics chip".to_string(),
+                bandwidth_bytes_per_second: 197.0e9,
+                bandwidth_basis: "chip",
+            },
+            chosen: true,
+            chosen_model: Some("Liquid LFM 2.5".to_string()),
+            chosen_id: Some("0000000000000001".to_string()),
+            model: Some(ModelChoiceDto {
+                id: Some("0000000000000001".to_string()),
+                name: "Liquid LFM 2.5".to_string(),
+                quant: "Q4_K_M".to_string(),
+                download_bytes: 4_000_000_000,
+                context_tokens: Some(4584),
+                // The LFM family's own cap: the window the chooser prices it at.
+                speed_context_tokens: 32_768,
+                speed: SpeedDto::Range {
+                    low: 12.0,
+                    high: 21.0,
+                },
+                // The tune's own number, when this machine has recorded
+                // one for the row — part of the contract, so the sample
+                // shows it.
+                measured: Some(18.4),
+                reason: "It runs a clearly bigger model than your phone does.".to_string(),
+                reason_code: Some("model.reason.catalog".into()),
+                details: "the full working".to_string(),
+            }),
+            // The second option is part of the contract, so the sample shows
+            // one: a page that never sees the field cannot be trusted to
+            // render it the first time a machine produces one.
+            quicker: Some(ModelChoiceDto {
+                id: Some("0000000000000002".to_string()),
+                name: "Google Gemma 4 E4B".to_string(),
+                quant: "Q4_K_M".to_string(),
+                download_bytes: 4_977_171_584,
+                context_tokens: Some(8192),
+                // Trained past the chooser's window, so the chooser's window
+                // is this row's priced context too.
+                speed_context_tokens: CHOOSER_CONTEXT_TOKENS,
+                speed: SpeedDto::Measured {
+                    value: 62.7,
+                    machine: "an M1 Max".to_string(),
+                },
+                measured: None,
+                reason: QUICKER_REASON.to_string(),
+                reason_code: Some(reason_message(QUICKER_REASON).code),
+                details: "the full working".to_string(),
+            }),
+            refusal: None,
+            refusal_code: None,
+        };
+        let json = serde_json::to_value(&dto).expect("serialise");
+        println!("{}", serde_json::to_string_pretty(&dto).expect("serialise"));
+        assert_eq!(json["kind"], "measured");
+        assert_eq!(json["chosen"], true);
+        assert_eq!(json["chosen_model"], "Liquid LFM 2.5");
+        assert_eq!(json["chosen_id"], json["model"]["id"]);
+        assert_eq!(
+            json["machine"]["ram_bytes"],
+            serde_json::to_value(17 * GIB).unwrap()
+        );
+        assert_eq!(json["machine"]["budget_bytes"], 13 * GIB);
+        assert_eq!(json["machine"]["gpu_accounted_for"], true);
+        assert_eq!(json["machine"]["runs_on"], "the graphics chip");
+        assert_eq!(json["machine"]["bandwidth_basis"], "chip");
+        assert_eq!(json["model"]["name"], "Liquid LFM 2.5");
+        assert_eq!(json["model"]["speed"]["shape"], "range");
+        assert_eq!(json["model"]["speed"]["low"], 12.0);
+        assert_eq!(json["model"]["speed"]["high"], 21.0);
+        assert_eq!(json["model"]["measured"], 18.4);
+        assert_eq!(json["quicker"]["measured"], serde_json::Value::Null);
+        assert_eq!(json["quicker"]["name"], "Google Gemma 4 E4B");
+        assert_eq!(json["quicker"]["speed"]["shape"], "measured");
+        assert_eq!(json["refusal"], serde_json::Value::Null);
+        // refusal_code is skipped while there is no refusal.
+        assert!(json.get("refusal_code").is_none());
+        let mut top_keys: Vec<_> = json.as_object().unwrap().keys().collect();
+        top_keys.sort();
+        assert_eq!(top_keys, ["chosen", "chosen_id", "chosen_model", "kind", "machine", "model", "quicker", "refusal"]);
+        // The exact key sets, so a renamed or added field breaks loudly:
+        // these are the names the frontend reads, and there is no sixth.
+        // Both sides sorted: the contract is the set of names, whatever
+        // order serde_json's map happens to keep.
+        let mut machine_keys: Vec<_> = json["machine"].as_object().unwrap().keys().collect();
+        machine_keys.sort();
+        assert_eq!(
+            machine_keys,
+            [
+                "bandwidth_basis",
+                "bandwidth_bytes_per_second",
+                "budget_bytes",
+                "gpu_accounted_for",
+                "ram_bytes",
+                "runs_on"
+            ]
+        );
+        let mut model_keys: Vec<_> = json["model"].as_object().unwrap().keys().collect();
+        model_keys.sort();
+        assert_eq!(
+            model_keys,
+            [
+                "context_tokens",
+                "details",
+                "download_bytes",
+                "id",
+                "measured",
+                "name",
+                "quant",
+                "reason",
+                "reason_code",
+                "speed",
+                "speed_context_tokens"
+            ]
+        );
+        assert_eq!(json["model"]["reason_code"], "model.reason.catalog");
+        // Both options are the same shape, so one key set governs both.
+        let mut quicker_keys: Vec<_> = json["quicker"].as_object().unwrap().keys().collect();
+        quicker_keys.sort();
+        assert_eq!(quicker_keys, model_keys);
+        let unmeasured = serde_json::to_value(CapabilityDto::Unmeasured {
+            chosen: false,
+            chosen_model: None,
+        })
+        .expect("serialise");
+        assert_eq!(
+            unmeasured,
+            serde_json::json!({ "kind": "unmeasured", "chosen": false, "chosen_model": null })
+        );
+
+        // The fixture the Playwright harness validates against is pinned
+        // here: this test compares what the type now produces against the
+        // stored sample and fails on drift — a stale sample is a red suite,
+        // never a dirty file nobody notices. UPDATE_CONTRACT=1 is the one
+        // deliberate way to rewrite it, and only the sample is replaced:
+        // the hand-written keys beside it say things one sample cannot show.
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../chat/scripts/capability-contract.json");
+        crate::contract::check_sample(
+            &path,
+            "the_json_the_page_reads_is_a_contract_pinned_here",
+            "sample",
+            &json,
+        );
+    }
+
+    #[test]
+    fn every_prediction_shape_maps_to_the_speed_the_page_can_say() {
+        assert!(matches!(
+            speed(&Prediction::Range { low: 12.0, high: 21.0 }),
+            SpeedDto::Range { low, high } if low == 12.0 && high == 21.0
+        ));
+        assert!(matches!(
+            speed(&Prediction::Floor(3.0)),
+            SpeedDto::AtLeast { value } if value == 3.0
+        ));
+        assert!(matches!(
+            speed(&Prediction::Measured {
+                tokens_per_second: 62.7,
+                machine: "an M1 Max",
+            }),
+            SpeedDto::Measured { value, machine } if value == 62.7 && machine == "an M1 Max"
+        ));
+        // The prefill shape has no decode meaning; it degrades to "at least"
+        // instead of panicking a preview that asked for decode.
+        assert!(matches!(
+            speed(&Prediction::Estimate(9.0)),
+            SpeedDto::AtLeast { value } if value == 9.0
+        ));
+    }
+
+    #[test]
+    fn a_recorded_tune_puts_its_own_number_on_the_option() {
+        // The record the tune files for the pick's row is the number the
+        // card quotes: this machine's measurement, not the catalog's
+        // prediction. Absent until a tune has run — the ordinary first
+        // sight — and found by the row's pinned digest alone.
+        let root = records_root("measured");
+        let first = dto(&measured(Backend::Cpu), 16 * GIB, None, None, &root);
+        let CapabilityDto::Measured {
+            model: Some(before),
+            ..
+        } = first
+        else {
+            panic!("a measured machine answers Measured with a pick");
+        };
+        assert_eq!(before.measured, None, "no record, no claim of one");
+
+        let digest = usable()
+            .find(|row| {
+                // Name and quant are the pick's identity: `download_bytes`
+                // is the file plus the row's drafter, so bytes are not the
+                // way back to a row that ships one.
+                let row = row.entry();
+                row.display_name == before.name && row.quant == before.quant
+            })
+            .expect("the pick is on the menu")
+            .source()
+            .sha256;
+        let candidate = kalsa_tune::Candidate {
+            backend: kalsa_runtime::ServerBackend::Cpu,
+            threads: Some(8),
+            offload: Offload::NoGpuBuild,
+            draft: None,
+        };
+        let record = kalsa_tune::record::Record {
+            fingerprint: "the display read does not compare keys".to_string(),
+            winner: Some(kalsa_tune::Winner {
+                candidate,
+                reply: kalsa_tune::Reply::from_rates(1000.0, 23.5).expect("two measurements"),
+            }),
+            trials: vec![(
+                candidate,
+                kalsa_tune::record::Kept::Replied(
+                    kalsa_tune::Reply::from_rates(1000.0, 23.5).expect("two measurements"),
+                ),
+            )],
+        };
+        kalsa_tune::record::save(&root, digest, &record).expect("file the record");
+
+        let again = dto(&measured(Backend::Cpu), 16 * GIB, None, None, &root);
+        let CapabilityDto::Measured {
+            model: Some(after), ..
+        } = again
+        else {
+            panic!("the second read answers the same shape");
+        };
+        assert_eq!(after.measured, Some(23.5), "the tune's number travelled");
+    }
+
+    #[test]
+    fn the_pick_context_is_priced_with_the_drafter_the_pick_will_run() {
+        // The door's context and the launcher's window come from one set of
+        // bytes: this tier's pick ships a drafter, so the preview is the
+        // row's own funded context minus the 98_653_280 bytes the plan
+        // charges, never the drafter-blind figure.
+        let root = records_root("drafter-context");
+        let first = dto(&pair_machine(), 9 * GIB, None, None, &root);
+        let CapabilityDto::Measured {
+            model: Some(pick), ..
+        } = first
+        else {
+            panic!("a measured machine answers Measured with a pick");
+        };
+        assert_eq!(
+            pick.name, "Google Gemma 4 E4B",
+            "the premise: this tier's pick ships a drafter"
+        );
+        let row = rows()
+            .find(|entry| entry.display_name == pick.name && entry.quant == pick.quant)
+            .expect("a catalog row");
+        let usable = memory_budget(Backend::Cpu, 9 * GIB).usable_bytes;
+        let blind = funded_context(row, usable, DEFAULT_PARALLEL).expect("a window");
+        let charged = funded_context(row, usable - 98_653_280, DEFAULT_PARALLEL)
+            .expect("a window with the drafter charged");
+        assert!(charged < blind, "{charged} must be under the blind {blind}");
+        assert_eq!(pick.context_tokens, Some(charged));
+    }
+
+    #[test]
+    fn a_measured_second_option_that_is_not_faster_is_not_called_faster() {
+        // "Smaller and much faster" is the catalog's prediction. Once both
+        // rows carry this machine's own measurements, the sentence follows
+        // the measurements: slower or equal drops the speed claim and says
+        // only what stays true — the size.
+        let root = records_root("quicker-reason");
+        let first = dto(&pair_machine(), 16 * GIB, None, None, &root);
+        let CapabilityDto::Measured {
+            model: Some(pick),
+            quicker: Some(second),
+            ..
+        } = first
+        else {
+            panic!("a 16 GiB machine has both options");
+        };
+        assert!(
+            second.reason.contains("faster"),
+            "with no measurements the prediction's sentence stands: {}",
+            second.reason
+        );
+        assert_eq!(pick.measured, None, "nothing recorded yet");
+
+        let digests: Vec<&'static str> = [pick, second]
+            .into_iter()
+            .map(|option| {
+                usable()
+                    .find(|row| {
+                        let row = row.entry();
+                        row.display_name == option.name
+                            && row.quant == option.quant
+                            && Some(crate::startup::model_token(row)) == option.id
+                    })
+                    .expect("both options are on the menu")
+                    .source()
+                    .sha256
+            })
+            .collect();
+        for (digest, rate) in [(digests[0], 30.0), (digests[1], 20.0)] {
+            let candidate = kalsa_tune::Candidate {
+                backend: kalsa_runtime::ServerBackend::Cpu,
+                threads: Some(8),
+                offload: Offload::NoGpuBuild,
+            draft: None,
+            };
+            let record = kalsa_tune::record::Record {
+                fingerprint: "the display read does not compare keys".to_string(),
+                winner: Some(kalsa_tune::Winner {
+                    candidate,
+                    reply: kalsa_tune::Reply::from_rates(1000.0, rate)
+                        .expect("two measurements"),
+                }),
+                trials: vec![(
+                    candidate,
+                    kalsa_tune::record::Kept::Replied(
+                        kalsa_tune::Reply::from_rates(1000.0, rate).expect("two measurements"),
+                    ),
+                )],
+            };
+            kalsa_tune::record::save(&root, digest, &record).expect("file the record");
+        }
+
+        let again = dto(&pair_machine(), 16 * GIB, None, None, &root);
+        let CapabilityDto::Measured {
+            model: Some(pick),
+            quicker: Some(second),
+            ..
+        } = again
+        else {
+            panic!("the second read answers the same shape");
+        };
+        assert_eq!(pick.measured, Some(30.0));
+        assert_eq!(second.measured, Some(20.0));
+        assert!(
+            !second.reason.contains("faster"),
+            "a slower measurement must not wear the faster claim: {}",
+            second.reason
+        );
+        assert!(
+            second.reason.contains("Smaller"),
+            "the size is still true and still said: {}",
+            second.reason
+        );
+        assert_eq!(
+            second.reason,
+            QUICKER_SMALLER_REASON,
+            "the variant of record, under its own code"
+        );
+        assert_eq!(
+            second.reason_code.as_deref(),
+            Some("model.reason.quicker_smaller")
+        );
+    }
+
+    /// One tune record, filed: the rate a row measured on this machine, the
+    /// only fact `dto` reads back from the records root.
+    fn file_measured_rate(root: &Path, digest: &'static str, rate: f64) {
+        let candidate = kalsa_tune::Candidate {
+            backend: kalsa_runtime::ServerBackend::Cpu,
+            threads: Some(8),
+            offload: Offload::NoGpuBuild,
+            draft: None,
+        };
+        let record = kalsa_tune::record::Record {
+            fingerprint: "the display read does not compare keys".to_string(),
+            winner: Some(kalsa_tune::Winner {
+                candidate,
+                reply: kalsa_tune::Reply::from_rates(1000.0, rate).expect("two measurements"),
+            }),
+            trials: vec![(
+                candidate,
+                kalsa_tune::record::Kept::Replied(
+                    kalsa_tune::Reply::from_rates(1000.0, rate).expect("two measurements"),
+                ),
+            )],
+        };
+        kalsa_tune::record::save(root, digest, &record).expect("file the record");
+    }
+
+    #[test]
+    fn a_measured_pick_is_compared_with_the_number_its_card_shows() {
+        // The card shows each row's own measurement when it has one and the
+        // prediction's floor when it has not; the sentence compares those
+        // displayed numbers, per row. Here only the pick carries a record —
+        // 40.0 against the alternative's 32.6 floor — so the pair is not
+        // called faster even though the two floors alone would say it is.
+        let root = records_root("one-side-measured");
+        let first = dto(&pair_machine(), 16 * GIB, None, None, &root);
+        let CapabilityDto::Measured {
+            model: Some(pick),
+            quicker: Some(second),
+            ..
+        } = first
+        else {
+            panic!("the tier answers with both cards");
+        };
+        assert_eq!(pick.measured, None, "nothing recorded yet");
+        let (pick_floor, own_floor) = match (&pick.speed, &second.speed) {
+            (SpeedDto::Range { low: p, .. }, SpeedDto::Range { low: o, .. }) => (*p, *o),
+            other => panic!("predicted bands on both cards: {other:?}"),
+        };
+        assert!(
+            own_floor > pick_floor,
+            "the premise: the floors alone would call the second card faster"
+        );
+
+        let digest = usable()
+            .find(|row| {
+                let row = row.entry();
+                row.display_name == pick.name
+                    && row.quant == pick.quant
+                    && Some(crate::startup::model_token(row)) == pick.id
+            })
+            .expect("the pick is on the menu")
+            .source()
+            .sha256;
+        file_measured_rate(&root, digest, 40.0);
+
+        let again = dto(&pair_machine(), 16 * GIB, None, None, &root);
+        let CapabilityDto::Measured {
+            model: Some(pick),
+            quicker: Some(second),
+            ..
+        } = again
+        else {
+            panic!("the second read answers the same shape");
+        };
+        assert_eq!(pick.measured, Some(40.0), "the pick's card shows its record");
+        assert_eq!(second.measured, None, "the alternative still shows a floor");
+        assert_eq!(
+            second.reason,
+            QUICKER_SMALLER_REASON,
+            "against the pick's own number the alternative is not faster: {}",
+            second.reason
+        );
+        assert_eq!(
+            second.reason_code.as_deref(),
+            Some("model.reason.quicker_smaller")
+        );
+    }
+
+    #[test]
+    fn an_unpaired_phone_gets_the_largest_model_that_runs_not_a_dead_end() {
+        // The commonest first run: a Mac with no phone paired. The page's
+        // question — what can this computer run? — still has an answer; the
+        // upgrade question is the one that waits for the phone.
+        let suggestion = dto(&measured(Backend::Cpu), 16 * GIB, None, Some(stored_row()), &records_root("unpaired"));
+        let CapabilityDto::Measured {
+            model,
+            refusal,
+            ..
+        } = suggestion
+        else {
+            panic!("a measured machine answers Measured, not Unmeasured");
+        };
+        let choice = model.expect("something runs well on a 16 GiB machine");
+        assert!(refusal.is_none(), "a pick does not carry a refusal");
+        let reason = choice.reason.to_ascii_lowercase();
+        assert!(reason.contains("suits this computer best"), "{reason}");
+        assert!(reason.contains("pair"), "{reason}");
+        assert!(!choice.details.is_empty(), "the working travels too");
+        // And when nothing runs even without the comparison, the phone-free
+        // question's own refusal answers — here, nothing fits — with its
+        // words, not the pair-first sentence that no longer gates anything.
+        let nothing_fits = dto(&measured(Backend::Cpu), 0, None, Some(stored_row()), &records_root("nothing-fits"));
+        let CapabilityDto::Measured { model, refusal, .. } = nothing_fits else {
+            panic!("a measured machine answers Measured, not Unmeasured");
+        };
+        assert!(model.is_none(), "nothing fits, nothing is offered");
+        let spoken = refusal.expect("the fallback refusal keeps its words");
+        assert!(spoken.contains("not worth using"), "{spoken}");
+    }
+
+    #[test]
+    fn a_stored_choice_this_machine_cannot_run_reads_as_the_first_run() {
+        // The home page reads `chosen` to pick between the first run and the
+        // normal page, and the walk holds a stored choice to this same gate.
+        // A choice that would not be honoured must read as no choice, or the
+        // page promises a model the walk refuses.
+        let measurement = measured(Backend::Cpu);
+        let running = largest_that_runs_well(&input_for(&measurement, 64 * GIB, None))
+            .expect("a 64 GiB machine runs something");
+        assert!(
+            chosen_stands(&measurement, 64 * GIB, None, Some(running.entry)),
+            "the row runs here, so the choice stands"
+        );
+        // A machine whose budget is half the row's weights: the row cannot
+        // fit it, so the same stored choice is no choice there.
+        assert!(
+            !chosen_stands(
+                &measured(Backend::Cpu),
+                running.entry.weights_bytes / 2,
+                None,
+                Some(running.entry)
+            ),
+            "a choice this machine cannot run is the first run again"
+        );
+        assert!(
+            !chosen_stands(&measurement, 64 * GIB, None, None),
+            "nothing stored is no choice"
+        );
+    }
+
+    #[test]
+    fn the_preview_shows_the_context_the_machine_funds_not_the_choosers_pricing() {
+        // The chooser prices candidates at one token so it refuses nothing
+        // the machine could fund at a smaller one; displayed, that pricing
+        // reads "context window: 1 token". The pick's context comes from the
+        // launch arithmetic instead.
+        let phone = PhoneModel {
+            weights_bytes: 2_200_000_000,
+            parameters: Some(kalsa_catalog::Parameters::dense(4_000_000_000)),
+            measured_tokens_per_second: None,
+            battery_powered: Some(true),
+        };
+        let dto = dto(&measured(Backend::Cpu), 16 * GIB, Some(phone), Some(stored_row()), &records_root("phone"));
+        let CapabilityDto::Measured {
+            model: Some(choice),
+            ..
+        } = dto
+        else {
+            panic!("a measured machine with a paired phone gets a pick");
+        };
+        assert_ne!(
+            choice.context_tokens,
+            Some(CHOOSER_CONTEXT_TOKENS),
+            "the chooser's pricing constant must never reach the screen"
+        );
+        let context = choice.context_tokens.expect("a funded row shows a context");
+        assert!(context > 1, "a real, funded context: {context}");
+    }
+
+    /// A measurement by hand, so no test runs the probe: 80 GB/s on the CPU
+    /// path, the shape the catalog predicts from.
+    #[test]
+    fn every_speed_is_quoted_at_the_window_the_rule_judged() {
+        // The card used to reprice every band at 8192 tokens while the rule
+        // judged the row at 65_536: the page read 10.5 for a row the floors
+        // saw at 9.0, and the owner could not reconcile the two. Both cards
+        // now carry the chooser's own band and name it, so the number on the
+        // page IS the number the dense floors, the stand-down and the second
+        // card's bar were computed from. What the memory funds travels
+        // separately, in `context_tokens`, which the page says as "up to N
+        // tokens of context" — see the preview test above.
+        for ram in [8, 16, 32, 64] {
+            for backend in [Backend::Cpu, Backend::Metal] {
+                let CapabilityDto::Measured { model, quicker, .. } =
+                    dto(&measured(backend), ram * GIB, None, Some(stored_row()), &records_root("speed-context"))
+                else {
+                    panic!("{ram} GiB: a measured machine answers Measured");
+                };
+                for option in [model, quicker].into_iter().flatten() {
+                    // The name is all the card carries, and every row the
+                    // menu can put here has one display name per cap (the
+                    // LFM family's two files share theirs), so the lookup is
+                    // the row the card means.
+                    let row = rows()
+                        .find(|row| row.display_name == option.name.as_str())
+                        .expect("the card names a row the catalog holds");
+                    assert_eq!(
+                        option.speed_context_tokens,
+                        row.priced_context(chooser_context_tokens(ram * GIB)),
+                        "{ram} GiB: {} was priced at a window the rule did not judge",
+                        option.name
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn an_eight_gib_first_run_prices_the_lighter_file_at_the_small_window() {
+        // No phone: the first-run suggestion is the phone-free pick, and on
+        // 8 GiB that is the lighter LFM file, judged and quoted at the small
+        // window the walk launches it with.
+        let CapabilityDto::Measured { model, .. } =
+            dto(&measured(Backend::Cpu), 8 * GIB, None, Some(stored_row()), &records_root("eight-gib"))
+        else {
+            panic!("a measured machine answers Measured");
+        };
+        let model = model.expect("an 8 GiB machine suggests a model");
+        assert_eq!(
+            (model.name.as_str(), model.quant.as_str()),
+            ("Liquid LFM 2.5", "Q4_K_M")
+        );
+        assert_eq!(model.speed_context_tokens, 16_384);
+    }
+
+    /// The band as the page says it, to one decimal — the same rendering the
+    /// CLI's table prints, which is what the owner compared against.
+    fn band(speed: &SpeedDto) -> String {
+        match *speed {
+            SpeedDto::Range { low, high } => format!("{low:.1}\u{2013}{high:.1}"),
+            _ => panic!("a predicted band, not a measured or floor shape"),
+        }
+    }
+
+    #[test]
+    fn the_surface_card_quotes_the_band_the_rule_judged() {
+        // The owner's numbers: `--ram 15.6 --bandwidth 45.1 --no-phone`,
+        // which the CLI truncates to 15 GiB (`number(..) as u64 * GIB`) —
+        // reproduced here exactly so the card and the CLI are read off the
+        // same machine. Nothing clears its line there, so the stand-down
+        // ranks the cards: Gemma E4B first — LFM is the last resort on this
+        // road exactly as on the second card's bar — and the smaller,
+        // faster LFM Q8 beside it, priced at its own 32 768-token cap (the
+        // E4B 5.6–8.1 at the chooser's 65 536 — the CLI's own figures).
+        let surface = Measurement {
+            decode_bytes_per_second: Some(45.1e9),
+            ..measured(Backend::Cpu)
+        };
+        let suggestion = dto(&surface, 15 * GIB, None, Some(stored_row()), &records_root("surface-window"));
+        let CapabilityDto::Measured { model, quicker, .. } = suggestion else {
+            panic!("a measured machine answers Measured");
+        };
+        let model = model.expect("the tier starts something");
+        assert_eq!(
+            (model.name.as_str(), model.quant.as_str()),
+            ("Google Gemma 4 E4B", "Q4_K_M")
+        );
+        assert_eq!(model.speed_context_tokens, CHOOSER_CONTEXT_TOKENS);
+        assert_eq!(band(&model.speed), "5.6\u{2013}8.1");
+        let second = quicker.expect("a second card beside it");
+        assert_eq!(
+            (second.name.as_str(), second.quant.as_str()),
+            ("Liquid LFM 2.5", "Q8_0")
+        );
+        assert_eq!(second.speed_context_tokens, 32_768);
+        assert_eq!(band(&second.speed), "9.8\u{2013}14.3");
+        // Smaller and faster: the sentence is checked against the facts it
+        // states, and here the facts say exactly what the old fixed string
+        // always claimed.
+        assert_eq!(second.reason, QUICKER_REASON);
+        assert_eq!(second.reason_code.as_deref(), Some("model.reason.quicker"));
+    }
+
+    #[test]
+    fn a_bigger_faster_second_card_says_only_its_size() {
+        // 64 GiB at 800 GB/s, no phone: the dense Qwen 3.8 clears the
+        // big-dense line and leads, and the second card is the 35B MoE —
+        // more weights AND a higher floor than the pick's. "Smaller" would
+        // be a lie and "slower" would be a lie; the sentence claims only
+        // the size.
+        let wide = Measurement {
+            ramp: vec![(2, 800.0e9)],
+            ceiling_bytes_per_second: 800.0e9,
+            ceiling: kalsa_probe::Series::new(vec![800.0e9]),
+            ..measured(Backend::Cpu)
+        };
+        let suggestion = dto(&wide, 64 * GIB, None, Some(stored_row()), &records_root("bigger-faster"));
+        let CapabilityDto::Measured {
+            model: Some(pick),
+            quicker: Some(second),
+            ..
+        } = suggestion
+        else {
+            panic!("a 64 GiB machine answers with both cards");
+        };
+        assert_eq!(
+            (pick.name.as_str(), pick.quant.as_str()),
+            ("Alibaba Qwen 3.8", "Q4_K_M")
+        );
+        assert_eq!(
+            (second.name.as_str(), second.quant.as_str()),
+            ("Alibaba Qwen 3.6", "Q4_K_M")
+        );
+        // The premise, on the weights the cards are built from and the
+        // bands they quote: bigger and faster.
+        let weights_of = |option: &ModelChoiceDto| {
+            usable()
+                .find(|row| {
+                    let row = row.entry();
+                    row.display_name == option.name && row.quant == option.quant
+                })
+                .expect("the card names a row the catalog holds")
+                .entry()
+                .weights_bytes
+        };
+        assert!(
+            weights_of(&second) > weights_of(&pick),
+            "the premise: the second card is the bigger row"
+        );
+        let (SpeedDto::Range { low: pick_low, .. }, SpeedDto::Range { low: own_low, .. }) =
+            (&pick.speed, &second.speed)
+        else {
+            panic!("predicted bands on both cards");
+        };
+        assert!(
+            own_low > pick_low,
+            "the premise: the second card is the faster row"
+        );
+        assert_eq!(second.reason, BIGGER_REASON);
+        assert_eq!(second.reason_code.as_deref(), Some("model.reason.bigger"));
+    }
+
+    #[test]
+    fn a_second_card_bigger_and_slower_says_so() {
+        // The same machine, with a tune record under the second card: its
+        // card shows 10.0 where the pick quotes a 29-and-up band, so the
+        // facts are bigger AND slower, and the sentence names the trade —
+        // the more capable model, but slower on this computer.
+        let root = records_root("bigger-slower");
+        let wide = Measurement {
+            ramp: vec![(2, 800.0e9)],
+            ceiling_bytes_per_second: 800.0e9,
+            ceiling: kalsa_probe::Series::new(vec![800.0e9]),
+            ..measured(Backend::Cpu)
+        };
+        let first = dto(&wide, 64 * GIB, None, Some(stored_row()), &root);
+        let CapabilityDto::Measured {
+            model: Some(_),
+            quicker: Some(second),
+            ..
+        } = first
+        else {
+            panic!("a 64 GiB machine answers with both cards");
+        };
+        let digest = usable()
+            .find(|row| {
+                let row = row.entry();
+                row.display_name == second.name
+                    && row.quant == second.quant
+                    && Some(crate::startup::model_token(row)) == second.id
+            })
+            .expect("the second card is on the menu")
+            .source()
+            .sha256;
+        file_measured_rate(&root, digest, 10.0);
+
+        let again = dto(&wide, 64 * GIB, None, Some(stored_row()), &root);
+        let CapabilityDto::Measured {
+            model: Some(pick),
+            quicker: Some(second),
+            ..
+        } = again
+        else {
+            panic!("the second read answers the same shape");
+        };
+        assert_eq!(second.measured, Some(10.0), "the record is the card's number");
+        let pick_low = match &pick.speed {
+            SpeedDto::Range { low, .. } => *low,
+            other => panic!("a predicted band on the pick: {other:?}"),
+        };
+        assert!(
+            second.measured.unwrap() < pick_low,
+            "the premise: slower than the pick's band"
+        );
+        assert_eq!(second.reason, MORE_CAPABLE_REASON);
+        assert_eq!(second.reason_code.as_deref(), Some("model.reason.more_capable"));
+    }
+
+    #[test]
+    fn every_second_card_sentence_travels_under_its_own_code() {
+        // The page translates the code, so one code per sentence: a variant
+        // riding a quicker code would show in the owner's language as the
+        // faster claim the facts may contradict.
+        assert_eq!(reason_message(QUICKER_REASON).code, "model.reason.quicker");
+        assert_eq!(
+            reason_message(QUICKER_SMALLER_REASON).code,
+            "model.reason.quicker_smaller"
+        );
+        assert_eq!(
+            reason_message(MORE_CAPABLE_REASON).code,
+            "model.reason.more_capable"
+        );
+        assert_eq!(reason_message(BIGGER_REASON).code, "model.reason.bigger");
+    }
+
+    #[test]
+    fn the_first_run_on_the_owners_card_offers_gemma_and_never_sells_the_floor_as_a_rate() {
+        // The Lenovo as measurement.json holds it: 62 460 761 598 B/s timed
+        // on the processor, under a card the model will decode on. The row
+        // that fits that card entirely is the pick, and its speed line is a
+        // lower bound — the processor's figure is never sold as the rate
+        // this model will reach on the card.
+        let lenovo = Measurement {
+            ramp: vec![(2, 62_460_761_598.0)],
+            ceiling_bytes_per_second: 62_460_761_598.0,
+            ceiling: kalsa_probe::Series::new(vec![62_460_761_598.0]),
+            ..measured(Backend::DiscreteGpu {
+                vram_bytes: Some(6_439_305_216),
+            })
+        };
+        let suggestion = dto(&lenovo, 32 * GIB, None, None, &records_root("lenovo-card"));
+        let CapabilityDto::Measured {
+            machine,
+            model,
+            quicker,
+            refusal,
+            ..
+        } = suggestion
+        else {
+            panic!("a measured machine answers Measured");
+        };
+        assert_eq!(machine.bandwidth_basis, "floor");
+        assert!(refusal.is_none(), "a pick does not carry a refusal");
+        let pick = model.expect("the card runs something");
+        assert_eq!(
+            (pick.name.as_str(), pick.quant.as_str()),
+            ("Google Gemma 4 E4B", "Q4_K_M")
+        );
+        assert!(
+            matches!(pick.speed, SpeedDto::AtLeast { .. }),
+            "a floor travels as an at-least, never as a figure"
+        );
+        assert!(
+            pick.details
+                .contains("A floor: timed on a slower path than the model will run on."),
+            "{}",
+            pick.details
+        );
+        let second = quicker.expect("the second card beside the pick");
+        assert_eq!(second.name.as_str(), "Liquid LFM 2.5");
+    }
+
+    #[test]
+    fn only_the_pick_claims_the_fit_and_no_speed_contradicts_itself() {
+        // Two defects in one string, both read off the screen on 2026-09-19: the
+        // working is written for the pick and was applied to both rows, so the
+        // second option — smaller and faster, not the row the pick's facts are
+        // about — claimed the pick's ground; and a figure that was measured was
+        // called a prediction in the same breath ("62.7 tok/s, measured on an M1
+        // Max … The speed is a prediction, not a measurement on this machine").
+        let CapabilityDto::Measured { model, quicker, .. } =
+            dto(&pair_machine(), 16 * GIB, None, Some(stored_row()), &records_root("largest"))
+        else {
+            panic!("a measured machine answers Measured");
+        };
+        let pick = model.expect("a 16 GiB machine runs something");
+        let second = quicker.expect("a 16 GiB machine has something faster");
+
+        assert!(
+            pick.details.contains("It fits this computer's"),
+            "the pick claims its own ground: {}",
+            pick.details
+        );
+        assert!(
+            !second.details.contains("It fits this computer's"),
+            "the alternative claims the pick's ground: {}",
+            second.details
+        );
+        assert!(
+            !second.details.contains("No phone is paired"),
+            "the machine's sentence is said once, not per row: {}",
+            second.details
+        );
+        for option in [&pick, &second] {
+            if matches!(&option.speed, SpeedDto::Measured { .. }) {
+                assert!(
+                    !option.details.contains("prediction"),
+                    "{} was timed and is called a prediction: {}",
+                    option.name,
+                    option.details
+                );
+            }
+        }
+    }
+
+    /// The fixture machine at a bandwidth where the 16 GiB tier has
+    /// both a pick and a second option: at the fixture's 80 GB/s the 12B
+    /// predicts under its small-dense line and nothing clears the bar
+    /// beside whatever is left.
+    fn pair_machine() -> Measurement {
+        Measurement {
+            decode_bytes_per_second: Some(150.0e9),
+            ..measured(Backend::Cpu)
+        }
+    }
+
+    fn measured(backend: Backend) -> Measurement {
+        Measurement {
+            ramp: vec![(2, 80.0e9)],
+            ceiling_bytes_per_second: 80.0e9,
+            // No chip figure in a fixture: the test machine is whatever
+            // `ceiling` says, so the floor rule stays the backend's own.
+            decode_bytes_per_second: None,
+            ceiling: kalsa_probe::Series::new(vec![80.0e9]),
+            plateau_threads: 2,
+            cache: kalsa_probe::Series::new(vec![200.0e9]),
+            compute: kalsa_probe::Series::new(vec![100.0e9]),
+            reliability: kalsa_probe::Reliability {
+                reliable: true,
+                effective_parallelism: None,
+                threads: 2,
+                spread: 0.0,
+                cache_ratio: None,
+                notes: Vec::new(),
+            },
+            measured_on: kalsa_probe::ExecutionPath::Cpu,
+            will_run_on: backend,
+        }
+    }
+}

@@ -1,0 +1,35 @@
+{
+ "label": "bonsai-pq2",
+ "runs": [
+  {
+   "ttft_s": 30.686,
+   "total_s": 39.016,
+   "decode_tok_s_client": 13.21,
+   "decode_tok_s_server": 13.21,
+   "prompt_tokens": 3117,
+   "prompt_tok_s_server": 101.7,
+   "completion_tokens": 111
+  },
+  {
+   "ttft_s": 30.704,
+   "total_s": 37.384,
+   "decode_tok_s_client": 13.32,
+   "decode_tok_s_server": 13.32,
+   "prompt_tokens": 3117,
+   "prompt_tok_s_server": 102.03,
+   "completion_tokens": 90
+  },
+  {
+   "ttft_s": 29.913,
+   "total_s": 37.238,
+   "decode_tok_s_client": 13.38,
+   "decode_tok_s_server": 13.38,
+   "prompt_tokens": 3117,
+   "prompt_tok_s_server": 104.7,
+   "completion_tokens": 99
+  }
+ ],
+ "median_ttft_s": 30.686,
+ "median_decode_tok_s_client": 13.32,
+ "median_decode_tok_s_server": 13.32
+}

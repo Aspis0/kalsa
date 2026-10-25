@@ -1,0 +1,54 @@
+[package]
+name = "kalsa-browser"
+description = "An installed browser driven through its accessibility tree, exposed as an MCP server over stdio"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "kalsa_browser"
+path = "src/lib.rs"
+
+[[bin]]
+name = "kalsa-browser"
+path = "src/main.rs"
+
+# rmcp is pinned exactly, for the reason crates/kalsa-mail/Cargo.toml:16 gives:
+# the host pins a hash of our tool definitions, so the SDK must not move under us.
+# `macros` stays off, so every tool is written out by hand in mcp.rs.
+[dependencies]
+rmcp = { version = "=3.5.1", default-features = false, features = ["server", "transport-io"] }
+
+# Pinned exactly. The driver decides what aria_snapshot and aria-ref mean, so a
+# moving target would make a green build mean nothing. Our build never downloads
+# it (see build.rs and README.md).
+playwright-rs = "=0.20.1"
+
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "io-std", "io-util", "time", "net"] }
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# The snapshot parser peels role / quoted name / inline text out of one line in
+# three different shapes, which is regex work and not worth hand-rolling badly.
+regex = "1"
+url = "2"
+# Already in the lock as a transitive dependency, so this is not a new download:
+# a card's id is what a person is shown and what the host sends back, and a
+# guessable one (`c1`, `c2`) lets one chat answer another's card. 128 bits from
+# the OS, not from a counter.
+getrandom = "0.2"
+# Already in the lock as a transitive dependency (url pulls it in), so this is not
+# a new download: a secret the person typed has to be recognised the way a server
+# would see it, and `%68unter2` is that secret to a server and a different string
+# to us. Comparing raw text is what would let a GET carry one in the clear.
+percent-encoding = "2"
+
+# Already in the lock as a transitive dependency, so this is not a new download:
+# the phone's preview is one JPEG, and the road it crosses carries it as base64.
+base64 = "0.22"
+
+# The proofs that need a window open their own context to show the difference a
+# setting makes, which is the only way to know the test can fail.
+[dev-dependencies]
+playwright-rs = "=0.20.1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "process"] }

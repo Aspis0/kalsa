@@ -1,0 +1,1374 @@
+//! The credential store: the handshake result, on disk, owner-only.
+//!
+//! Publication is atomic, in the spirit of `kalsa-download`'s publish: the
+//! bytes land in a sibling temp file — named for the target, so two targets
+//! can never share one — are flushed with `sync_all`, and only then is the
+//! temp renamed onto the credential's name. Where the filesystem can fsync
+//! a directory, the directory the rename landed in is fsynced after it, and
+//! power loss then cannot roll the name back to the file it pointed at
+//! before; where it cannot, the rename is only as durable as the filesystem
+//! makes it. A reader of the final path sees the old complete file or the
+//! new complete file, never a torn half; a crash mid-write leaves a temp
+//! that the next write replaces, never a credential wedged behind
+//! `AlreadyPaired`.
+//!
+//! Owner-only means two different machines here, and both are said plainly.
+//! On Unix the temp file is created `0600` — owner read and write, nothing
+//! for group or other — and a test checks the mode, not the intention. On
+//! Windows the mode bits do not exist, so the temp is restricted by an
+//! explicit protected DACL (system, administrators, and the current user's
+//! SID get access; Everyone gets nothing) through the raw `windows-sys`
+//! bindings. The ACL is applied before any credential bytes are written. On
+//! Windows every test that saves runs that path, but no test asserts the ACL.
+//!
+//! Refusing is not forbidding. A stored credential is replaced only by the
+//! owner's explicit replacement decision, and that publication is atomic;
+//! [`forget`] is the separate explicit discard operation. `forget` does not
+//! read the file, so a credential too corrupt to `load` is not too corrupt to
+//! be let go.
+//!
+//! The `Stored*` structs are a serialization shell, not a second description
+//! of the phone: `PhoneModel` lives in `kalsa-catalog` and deliberately
+//! carries no `serde`, so this file writes its fields down and every read
+//! rebuilds a `PhoneModel` from them. Every rule about what the phone's
+//! numbers mean keeps living in the catalog; nothing is interpreted here.
+//! The shell itself is shared with the wire (`messages::PhoneFields`) —
+//! same fields on disk and in the completion message, one conversion.
+//!
+//! The store holds SEVERAL devices, one record each, and the format is
+//! versioned. Version 2 is the set; version 1 — the single-device file
+//! every installed copy has today — is read and lifted into a one-device
+//! set on load. Migration happens on READ, never by rewriting: a load has
+//! no business publishing (the shell polls this file once a second), and
+//! the v1 bytes stay exactly where they are until the next legitimate
+//! write publishes the set as v2.
+//!
+//! A record carries a [`DeviceKind`]. A phone is a pairing result and holds
+//! the phone's fields; a host is this machine's own record — a credential,
+//! an id, a label, and no phone fields at all. The reader stays at version
+//! 2: the kind is defaulted to `Phone` on read, so every file written
+//! before the kind existed (v1 and v2 alike) reads back unchanged, and an
+//! older build ignores the added field. A store that holds a HOST is a
+//! different matter, and it is fine that it is: that record has no `phone`
+//! field, so the old build's serde refuses the whole set — it refuses,
+//! deletes nothing, and pairing returns when this build runs again, exactly
+//! the behaviour the v1/v2 probe already has.
+//!
+//! One record also carries whether that phone may read this computer's mail,
+//! and this is the one field whose migration runs the OTHER way. Every field
+//! above defaults toward what an old file's device had; `mail` is an
+//! `Option<bool>` whose absent answer is ALLOWED, because `#[serde(default)]`
+//! on a `bool` would hand every phone of an upgraded install `false` — the
+//! exact opposite of the state it was in — silently, on the first read. A
+//! phone paired from here on is written `Some(false)` instead: off until the
+//! owner says otherwise, one phone at a time. The key is skipped when
+//! absent, so a file this build did not add a field to stays byte for byte
+//! what it was, and the v1 lift writes the same `Some(true)` its missing key
+//! would have read as.
+//!
+//! What an older build does with a v2 file is measured, not guessed. The
+//! old build deserializes its whole single-device record BEFORE it ever
+//! reaches its version check, and a set file has no top-level
+//! `credential_hex` — so its answer is serde's, `StoreError::Serde`
+//! ("missing field `credential_hex`"), never its `Corrupt` version
+//! refusal. Either way the outcome is the one that matters: the old build
+//! refuses, deletes nothing, and pairing comes back when the newer build
+//! runs again. A failed load never destroys the file.
+//!
+//! The write paths also read first — they must, to add to the set without
+//! disturbing ids and labels — so an unreadable store refuses the write
+//! instead of overwriting bytes nobody could understand. This narrows
+//! what `replace` accepts: where an older build would happily publish a
+//! new credential over any file at all, this one requires the file it is
+//! replacing to be legible. The refusal is recoverable by design:
+//! [`forget`] still reads nothing, so an owner can always clear a store
+//! no reader can open, and the next pairing starts from empty.
+//!
+//! All of this assumes a single writing process, and the assumption is
+//! stated rather than hidden: every write is read-modify-write now, so a
+//! second writer cannot merely tear a publication — it can LOSE a device,
+//! by publishing a set that never saw the other writer's record. This
+//! crate locks nothing; ensuring one writer is the application's job.
+//!
+//! Device ids come from the store: one above the highest id in the set as
+//! it stands at that write, so an id is unique within one set and not
+//! forever — forget the record holding the top id and the next pairing
+//! mints that id again, which the store's own
+//! `forgetting_the_highest_id_then_pairing_reuses_it` asserts rather than
+//! forbids. The label is assigned
+//! locally by whoever adds the device — the pairing protocol deliberately
+//! carries no name — and the store only holds what it is given.
+
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+use serde::{Deserialize, Serialize};
+use subtle::ConstantTimeEq;
+use unicode_properties::{GeneralCategoryGroup, UnicodeGeneralCategory};
+
+use crate::error::StoreError;
+use crate::handshake::{Credential, Handshake};
+use crate::messages::{is_install_id, PairingSeal, PhoneFields};
+
+/// The version this build writes.
+const STORE_VERSION: u8 = 2;
+/// The version every installed copy wrote before the store held a set.
+const V1_VERSION: u8 = 1;
+/// The label a device gets when its caller does not name one: the name the
+/// app has always shown for the phone it was paired with.
+const DEFAULT_LABEL: &str = "Paired phone";
+/// The label the host gives its own record. Neutral on purpose: the hostname
+/// is what the owner recognises, but on a Mac it usually contains their own
+/// name, and labels cross into the page.
+pub const HOST_LABEL: &str = "This computer";
+
+/// What a stored device is. A phone is a pairing result; a host is the
+/// machine this store lives on, holding its own credential and no phone
+/// fields. Defaulted to `Phone` so a record written before kinds existed
+/// reads back as the phone it was.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum DeviceKind {
+    #[default]
+    Phone,
+    Host,
+}
+
+impl DeviceKind {
+    /// The page's word for the kind, lowercase like the rest of the DTO's
+    /// vocabulary.
+    pub fn word(self) -> &'static str {
+        match self {
+            Self::Phone => "phone",
+            Self::Host => "host",
+        }
+    }
+}
+
+/// A sealed completion kept beside the credential until the phone confirms it
+/// received the response. It is private-by-construction: callers can create
+/// one only from a signed delivery token, a seal, and the QR's deadline.
+#[derive(Clone, Serialize, Deserialize)]
+pub struct Delivery {
+    token: String,
+    seal: PairingSeal,
+    expires_at: u64,
+}
+
+impl Delivery {
+    pub fn new(token: &str, seal: PairingSeal, expires_at: SystemTime) -> Option<Self> {
+        let mut bytes = [0u8; 16];
+        hex::decode_to_slice(token, &mut bytes).ok()?;
+        let expires_at = expires_at.duration_since(UNIX_EPOCH).ok()?.as_secs();
+        Some(Self {
+            token: token.to_string(),
+            seal,
+            expires_at,
+        })
+    }
+
+    pub fn token(&self) -> &str {
+        &self.token
+    }
+
+    pub fn seal(&self) -> &PairingSeal {
+        &self.seal
+    }
+
+    pub fn expires_at(&self) -> Option<SystemTime> {
+        UNIX_EPOCH.checked_add(Duration::from_secs(self.expires_at))
+    }
+
+    /// The token is a fixed-size, signed delivery identity. Decode both
+    /// values before comparing them so the seal retrieval path does not use a
+    /// variable-time string comparison.
+    pub fn token_matches(&self, presented: &str) -> bool {
+        let mut saved = [0u8; 16];
+        let mut candidate = [0u8; 16];
+        let saved_ok = hex::decode_to_slice(&self.token, &mut saved).is_ok();
+        let candidate_ok = hex::decode_to_slice(presented, &mut candidate).is_ok();
+        saved_ok && candidate_ok && bool::from(saved.ct_eq(&candidate))
+    }
+
+    fn is_valid(&self) -> bool {
+        let Some(expires_at) = self.expires_at() else {
+            return false;
+        };
+        Self::new(self.token.as_str(), self.seal.clone(), expires_at).is_some()
+    }
+}
+
+// No Debug on purpose: the credential travels through these structs in hex.
+
+/// The version-2 shell: one file, several devices.
+#[derive(Serialize, Deserialize)]
+struct StoredV2 {
+    v: u8,
+    devices: Vec<StoredDeviceRecord>,
+}
+
+/// Whether the owner has let this device use its credential at the door.
+/// Absent in every file written before approval existed; serde's `Default`
+/// reads those records as allowed - the same migration shape as `kind`
+/// (no version branch, the reader stays at version 2). A phone added by a
+/// completed ceremony is written `Waiting`; the host record never is.
+///
+/// Only ABSENCE defaults. A record whose approval is any other word fails
+/// the whole v2 read with a serde "unknown variant" error, not a record
+/// read as one or the other - `kind` behaves the same - and the door then
+/// stands down on the store it cannot read (main.rs stops it on a
+/// store-read error). Fail-closed: a half-recognised set is refused whole.
+#[derive(Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+enum Approval {
+    #[default]
+    Allowed,
+    Waiting,
+}
+
+/// One device's record inside the v2 file.
+#[derive(Clone, Serialize, Deserialize)]
+struct StoredDeviceRecord {
+    id: u32,
+    label: String,
+    /// Absent in every file written before kinds existed; serde's `Default`
+    /// reads those records as phones. This is the whole kind migration — no
+    /// version branch, because the reader stays at version 2.
+    #[serde(default)]
+    kind: DeviceKind,
+    #[serde(default)]
+    approval: Approval,
+    credential_hex: String,
+    /// The phone's fields. A host has none, and the field is then absent
+    /// from the file rather than a placeholder; a phone record always
+    /// carries them, as it always did.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    phone: Option<PhoneFields>,
+    #[serde(default)]
+    delivery: Option<Delivery>,
+    /// The phone app's identity for this installation, from the completion's
+    /// top-level `install_id`: how a phone that pairs again is recognised as
+    /// the phone it already is. Absent in every file written before it and
+    /// for every phone that sent none — skipped when absent, so an old file
+    /// stays byte for byte what it was — and never part of a MAC, never
+    /// logged, never handed to the page.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    install_id: Option<String>,
+    /// Whether this phone may read this computer's mail. Absent in every file
+    /// written before the switch existed, and `None` reads as ALLOWED — the
+    /// state every already-paired phone had, which is why this is an
+    /// `Option<bool>` and not a `bool`: `#[serde(default)]` on a bool would
+    /// hand every phone of an upgraded install the opposite answer, silently,
+    /// on the first read. A phone paired from now on carries `Some(false)`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    mail: Option<bool>,
+    /// The name the owner gave this phone, in their own words. Absent is the
+    /// long-standing answer, and the page's own: a phone nobody has named is
+    /// drawn as the number the store gave it, in the reader's language. Never
+    /// a label — that one is minted in English and is never shown — and never
+    /// translated here: the owner's words cross as typed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    name: Option<String>,
+}
+
+/// The version-1 shell, kept for reading: every installed copy has one of
+/// these files, and it must keep loading for as long as anyone runs this
+/// app. Never written again.
+#[derive(Serialize, Deserialize)]
+struct StoredHandshake {
+    v: u8,
+    credential_hex: String,
+    phone: PhoneFields,
+    #[serde(default)]
+    delivery: Option<Delivery>,
+}
+
+/// One paired device, as the store hands it back: its stable id, the label
+/// the owner sees, what it is, and the handshake it paired with — the
+/// credential alone when the device is the host.
+pub struct StoredDevice {
+    pub id: u32,
+    pub label: String,
+    pub kind: DeviceKind,
+    pub handshake: Handshake,
+    /// The sealed response still awaiting this device's confirmation, if any.
+    pub delivery: Option<Delivery>,
+    /// The owner has not allowed this device yet. False for every record
+    /// written before approval existed, and never true for the host.
+    pub waiting: bool,
+    /// The phone app's install identity this record was written with, when
+    /// the ceremony carried one. Matched here in the shell to tell a phone
+    /// that pairs again from a second phone; it never leaves this process —
+    /// no DTO, no event, no log carries it.
+    pub install_id: Option<String>,
+    /// Whether this device may read this computer's mail. The owner's switch,
+    /// one phone at a time: a phone paired from now on is off, and a phone
+    /// paired before this field existed is on — the state it had all along.
+    /// Never false for the host, which is this computer's own record.
+    pub mail: bool,
+    /// The owner's name for this phone, if they gave it one. `None` is the
+    /// ordinary answer and the one every already-paired phone reads back.
+    pub name: Option<String>,
+    /// The phone's marketing model name, cleaned. `None` for a phone that
+    /// declared none, and for every record written before models existed.
+    /// Shown only when the owner has not named the phone; never logged, never
+    /// sent anywhere but the Phones page.
+    pub model: Option<String>,
+}
+
+/// Write the handshake result as the store's first device. The parent
+/// directory must exist; where the app keeps its data is the shell's
+/// business, not the store's.
+///
+/// If the store already holds devices the answer is
+/// [`StoreError::AlreadyPaired`] — a refusal the shell can act on, not an
+/// io error to squint at. The desk parks the completed phone behind it for
+/// the owner's decision; the owner-approved path is [`replace`], and adding
+/// a device without displacing anyone is [`add_device`].
+pub fn persist(handshake: &Handshake, path: &Path) -> Result<(), StoreError> {
+    persist_record(handshake, path, None)
+}
+
+/// Writes `bytes` to `path` through the same owner-only publication the
+/// credential store uses — temp beside the target, restricted to the owner
+/// before the bytes land, renamed into place. The app's sidecar records are
+/// per-user state and ride this instead of a bare `fs::write`.
+pub fn write_owner_only(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    use std::io::Write;
+    let temp = temp_path(path);
+    let result = (|| {
+        let mut file = open_temp(&temp)?;
+        restrict_to_owner(&temp).map_err(store_io)?;
+        file.write_all(bytes)?;
+        file.sync_all()?;
+        publish_temp(&temp, path)
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&temp);
+    }
+    result
+}
+
+fn store_io(error: StoreError) -> std::io::Error {
+    match error {
+        StoreError::Io(e) => e,
+        other => std::io::Error::other(other.to_string()),
+    }
+}
+
+/// Persist a handshake and the sealed response as one atomic record. The
+/// response survives a crash between publication and the phone's retry.
+pub fn persist_with_delivery(
+    handshake: &Handshake,
+    path: &Path,
+    delivery: Delivery,
+) -> Result<(), StoreError> {
+    persist_record(handshake, path, Some(delivery))
+}
+
+fn persist_record(
+    handshake: &Handshake,
+    path: &Path,
+    delivery: Option<Delivery>,
+) -> Result<(), StoreError> {
+    // The single-device entry keeps its exact refusal, and it is not the
+    // duplicate check: the desk parks a newly completed phone behind this
+    // error for the owner to approve, so an existing store never gains a
+    // device through here. The multi-device entry is [`add_device`], which
+    // the desk will adopt together with its own decision flow.
+    let mut records = read_records_or_empty(path)?;
+    if !records.is_empty() {
+        return Err(StoreError::AlreadyPaired);
+    }
+    records.push(record_from(handshake, 0, DEFAULT_LABEL.to_owned(), delivery));
+    write_records(&records, path)
+}
+
+/// Atomically publish a replacement. The old credential remains at `path`
+/// until the complete, owner-only temp file is renamed over it; a write or a
+/// crash before that rename therefore leaves the old credential usable.
+pub fn replace(handshake: &Handshake, path: &Path) -> Result<(), StoreError> {
+    replace_record(handshake, path, None)
+}
+
+/// Atomically replace a handshake and retain its sealed response for retry.
+pub fn replace_with_delivery(
+    handshake: &Handshake,
+    path: &Path,
+    delivery: Delivery,
+) -> Result<(), StoreError> {
+    replace_record(handshake, path, Some(delivery))
+}
+
+fn replace_record(
+    handshake: &Handshake,
+    path: &Path,
+    delivery: Option<Delivery>,
+) -> Result<(), StoreError> {
+    let mut records = read_records_or_empty(path)?;
+    match records.first_mut() {
+        // The single-device API has always meant "the" device, which is the
+        // first record; its id and label survive the replacement, because
+        // the seat does. Its mail switch survives it too, and that is the
+        // point: a replacement re-seats a phone that already has an answer,
+        // and the owner's answer is not something a handshake may overwrite.
+        // How a many-device desk scopes a replacement is that job's decision,
+        // not this function's.
+        Some(record) => {
+            record.kind = kind_of(handshake);
+            record.credential_hex = handshake.credential_hex();
+            record.phone = shell_keeping_model(phone_shell(handshake), record.phone.as_ref());
+            record.delivery = delivery;
+        }
+        None => records.push(record_from(handshake, 0, DEFAULT_LABEL.to_owned(), delivery)),
+    }
+    write_records(&records, path)
+}
+
+fn record_from(
+    handshake: &Handshake,
+    id: u32,
+    label: String,
+    delivery: Option<Delivery>,
+) -> StoredDeviceRecord {
+    StoredDeviceRecord {
+        id,
+        label,
+        kind: kind_of(handshake),
+        approval: Approval::Allowed,
+        credential_hex: handshake.credential_hex(),
+        phone: phone_shell(handshake),
+        delivery,
+        // Filled in by the caller that knows it, the way `approval` is: a
+        // handshake carried here has no phone-side identity of its own.
+        install_id: None,
+        // The new-pairing default, in the one place a record is minted from a
+        // handshake: a phone that arrives today may not read this computer's
+        // mail until the owner says so in Settings → Mail. Conditioned on the
+        // kind because this helper also mints the host's own record, and a
+        // blanket "off" would put a mail switch on this computer.
+        mail: Some(kind_of(handshake) != DeviceKind::Phone),
+        // A phone arrives with no name: the owner gives it one, on this
+        // computer, in the page. Nothing about a handshake can know it.
+        name: None,
+    }
+}
+
+/// The phone's shell as the store keeps it. The model is MAC'd as the phone
+/// declared it and cleaned here, on the way in, with the name's own rules.
+fn phone_shell(handshake: &Handshake) -> Option<PhoneFields> {
+    let model = handshake.model.as_deref().and_then(clean_label);
+    handshake
+        .phone
+        .map(|phone| PhoneFields::of(phone).with_model(model))
+}
+
+/// The phone shell a ceremony leaves on a record that already holds one. A
+/// model is what the phone said about itself, and a re-pair that says nothing
+/// about its model does not un-say the one already stored: the held model
+/// stays unless the ceremony carries its own. `replace()` keeps it like the
+/// name and the mail, because a replacement re-seats the same phone; a
+/// different phone in a seat must clear the model and the name.
+fn shell_keeping_model(
+    incoming: Option<PhoneFields>,
+    held: Option<&PhoneFields>,
+) -> Option<PhoneFields> {
+    let model = incoming
+        .as_ref()
+        .and_then(PhoneFields::model)
+        .map(str::to_owned)
+        .or_else(|| held.and_then(PhoneFields::model).and_then(clean_label));
+    incoming.map(|fields| fields.with_model(model))
+}
+
+/// A handshake without a phone is the host's: the only handshake with no
+/// phone is the one [`Handshake::host`] builds.
+fn kind_of(handshake: &Handshake) -> DeviceKind {
+    match handshake.phone {
+        Some(_) => DeviceKind::Phone,
+        None => DeviceKind::Host,
+    }
+}
+
+/// Adds a device to the store and answers with the record as stored,
+/// including the fresh id the store minted for it: one above the highest id
+/// in the set as it stands now, so it survives restarts while the records
+/// do — but the id a forgotten record held is free again and the next
+/// pairing takes it, as `forgetting_the_highest_id_then_pairing_reuses_it`
+/// asserts.
+///
+/// On duplicates, the honest answer is narrow. Every pairing ceremony mints
+/// a fresh credential, so "the same phone asking twice" and "a new phone"
+/// are indistinguishable here — nothing at this layer can refuse the same
+/// device, and that decision belongs to the layer that runs the ceremony.
+/// What the store can see, it refuses: the same credential stored twice is
+/// [`StoreError::CredentialAlreadyStored`], a caller mistake or a replay,
+/// never a new pairing.
+pub fn add_device(
+    path: &Path,
+    label: &str,
+    handshake: &Handshake,
+) -> Result<StoredDevice, StoreError> {
+    add_device_record(path, label, handshake, None, false, None)
+}
+
+/// [`add_device`], retaining a sealed response for the phone's retry — the
+/// same durability [`persist_with_delivery`] gives the first device: the
+/// record carries the delivery, so a crash between saving the device and
+/// handing it its seal is answered by the retry path instead of a fresh
+/// square. A device added this way completed a ceremony, so it is stored
+/// WAITING for the owner's Allow; [`allow_device`] flips it.
+pub fn add_device_with_delivery(
+    path: &Path,
+    label: &str,
+    handshake: &Handshake,
+    delivery: Delivery,
+) -> Result<StoredDevice, StoreError> {
+    add_device_record(path, label, handshake, Some(delivery), true, None)
+}
+
+fn add_device_record(
+    path: &Path,
+    label: &str,
+    handshake: &Handshake,
+    delivery: Option<Delivery>,
+    waiting: bool,
+    install_id: Option<&str>,
+) -> Result<StoredDevice, StoreError> {
+    let credential_hex = handshake.credential_hex();
+    let mut records = read_records_or_empty(path)?;
+    if records
+        .iter()
+        .any(|record| record.credential_hex == credential_hex)
+    {
+        return Err(StoreError::CredentialAlreadyStored);
+    }
+    let id = next_id(&records)?;
+    let mut record = record_from(handshake, id, label.to_owned(), delivery.clone());
+    record.approval = if waiting {
+        Approval::Waiting
+    } else {
+        Approval::Allowed
+    };
+    record.install_id = install_id.map(str::to_string);
+    // The record carries the mail answer already: `record_from` mints one and
+    // it is the one place that decides — a phone off, a host on. The answer
+    // is read back rather than re-derived, so what this hands the caller and
+    // what the file says cannot come to disagree.
+    let mail = record.mail.unwrap_or(true);
+    let name = record.name.clone();
+    let model = record.phone.as_ref().and_then(PhoneFields::model).map(str::to_owned);
+    records.push(record);
+    write_records(&records, path)?;
+    Ok(StoredDevice {
+        id,
+        label: label.to_owned(),
+        kind: kind_of(handshake),
+        handshake: handshake.clone(),
+        delivery,
+        waiting,
+        install_id: install_id.map(str::to_string),
+        mail,
+        name,
+        model,
+    })
+}
+
+/// Add a completed pairing, WAITING, with the phone's install identity
+/// beside it. Nothing about a seat the owner already approved changes here:
+/// the new credential is a record that waits its turn, and the identity is
+/// what lets [`allow_device`] recognise the phone it belongs to and fold the
+/// two into one seat — at the owner's word, not before it. While that first
+/// record waits, a second ceremony from the same phone takes its place
+/// instead of queueing beside it, so one phone is never two pending records.
+pub fn add_device_with_install(
+    path: &Path,
+    label: &str,
+    handshake: &Handshake,
+    delivery: Delivery,
+    install_id: Option<&str>,
+) -> Result<(), StoreError> {
+    // A malformed identity is no identity: the phone's derivation is never
+    // reproduced here, so the only ids that can ever match are the ones the
+    // wire accepted — anything else behaves exactly like a phone that sent
+    // none and gets a second seat, never somebody else's.
+    let install_id = install_id.filter(|value| is_install_id(value));
+    let mut records = read_records_or_empty(path)?;
+    // A second ceremony while the first is still waiting: the newer one takes
+    // that record's place in this one write — same record, same id and label,
+    // its credential, its declaration and its response — so the older
+    // ceremony's credential leaves the file here, which is its revocation.
+    // An ALLOWED record is never this: a seat the owner admitted changes
+    // only at Allow, and only by folding.
+    if let Some(install) = install_id {
+        if let Some(waiting) = records.iter().position(|record| {
+            record.approval == Approval::Waiting && record.install_id.as_deref() == Some(install)
+        }) {
+            let record = &mut records[waiting];
+            record.credential_hex = handshake.credential_hex();
+            record.kind = kind_of(handshake);
+            record.phone = shell_keeping_model(phone_shell(handshake), record.phone.as_ref());
+            record.delivery = Some(delivery);
+            return write_records(&records, path);
+        }
+    }
+    add_device_record(path, label, handshake, Some(delivery), true, install_id)?;
+    Ok(())
+}
+
+/// One above every id in the set as it stands now: unique within one set,
+/// not unique forever. Forget the record holding the top id and this hands
+/// it straight back — asserted, not forbidden, by
+/// `forgetting_the_highest_id_then_pairing_reuses_it`.
+fn next_id(records: &[StoredDeviceRecord]) -> Result<u32, StoreError> {
+    match records.iter().map(|record| record.id).max() {
+        None => Ok(0),
+        // A silent saturation at u32::MAX would mint a DUPLICATE id, and the
+        // reader refuses a set whose devices share one — one saturation
+        // would cost every pairing the user has. Refusing this one add is
+        // the cheap direction.
+        Some(highest) => highest.checked_add(1).ok_or(StoreError::StoreFull),
+    }
+}
+
+/// Mints and persists this machine's own record: its credential, its label,
+/// its seat in the same store as the phones. The credential comes from the
+/// pairing credential's one generator and is written by the same atomic,
+/// owner-only publication every other credential uses — it lives in this
+/// file, in the `credential_hex` field of its record, and nowhere else.
+///
+/// Idempotent: a store that already holds a host answers with that host and
+/// writes nothing, because the caller may run this on every launch. The
+/// first host takes the id the set's rule mints — 0 in an empty store, one
+/// above the highest id when a phone is already there — and that id never
+/// changes. A host is not a pairing: it displaces nobody and adds no phone
+/// fields.
+pub fn enrol_host(path: &Path) -> Result<StoredDevice, StoreError> {
+    let mut records = read_records_or_empty(path)?;
+    if let Some(existing) = records
+        .iter()
+        .find(|record| record.kind == DeviceKind::Host)
+    {
+        return realize(existing.clone()).map(|(device, _)| device);
+    }
+    let credential = Credential::generate().map_err(|_| StoreError::Entropy)?;
+    let handshake = Handshake::host(credential);
+    let id = next_id(&records)?;
+    records.push(record_from(&handshake, id, HOST_LABEL.to_owned(), None));
+    write_records(&records, path)?;
+    Ok(StoredDevice {
+        id,
+        label: HOST_LABEL.to_owned(),
+        kind: DeviceKind::Host,
+        handshake,
+        delivery: None,
+        install_id: None,
+        // This computer's own record, so there is nothing to switch off: its
+        // mail is the owner's own mail, and no page offers to name it.
+        mail: true,
+        name: None,
+        model: None,
+        // The host record is never waiting: self-enrolment mints it
+        // allowed, on every launch, and realize() refuses a hand edit
+        // that says otherwise.
+        waiting: false,
+    })
+}
+
+/// The store forgets one device and keeps the others. An id that is already
+/// absent is success — including when the store itself is not there, the
+/// same postcondition [`forget`] rests on.
+pub fn forget_device(path: &Path, id: u32) -> Result<(), StoreError> {
+    let mut records = read_records_or_empty(path)?;
+    let before = records.len();
+    records.retain(|record| record.id != id);
+    // Emptiness is checked before "nothing changed": a set holding no
+    // devices must end up as no file, whatever it looked like going in.
+    if records.is_empty() {
+        return forget(path);
+    }
+    if records.len() == before {
+        return Ok(());
+    }
+    write_records(&records, path)
+}
+
+/// The owner pressed Allow: one waiting record flips to allowed and
+/// everyone else keeps its record byte for byte - the same atomic,
+/// temp-then-rename publication every store write uses. A device that was
+/// not waiting (or an id nobody holds) changes nothing and writes nothing,
+/// the way forgetting an unknown id answers Ok.
+///
+/// And when the record being allowed carries the install id of a seat that
+/// is ALREADY allowed, it is not a second phone: the seat keeps its id and
+/// its label, takes this ceremony's credential, declaration and retained
+/// response, and the waiting record is removed — all in this one write. The
+/// old credential leaving the file IS its revocation; until this call the
+/// seat is untouched, so a Deny, an expiry, or no answer at all costs it
+/// nothing.
+pub fn allow_device(path: &Path, id: u32) -> Result<(), StoreError> {
+    let mut records = read_records_or_empty(path)?;
+    let Some(index) = records
+        .iter()
+        .position(|record| record.id == id && record.approval == Approval::Waiting)
+    else {
+        // Not waiting, or an id nobody holds: nothing changes and nothing
+        // is written.
+        return Ok(());
+    };
+    let seat = records[index]
+        .install_id
+        .as_deref()
+        .filter(|value| is_install_id(value))
+        .and_then(|install| {
+            records.iter().position(|record| {
+                record.approval == Approval::Allowed
+                    && record.id != id
+                    && record.install_id.as_deref() == Some(install)
+            })
+        });
+    let Some(seat) = seat else {
+        records[index].approval = Approval::Allowed;
+        return write_records(&records, path);
+    };
+    // The seat takes the ceremony's parts and the waiting record goes: one
+    // phone, one row, one write. What the seat KEEPS is the owner's: its mail
+    // switch and its name, both of which a second ceremony from the same
+    // install has no standing to decide. `seat` and `index` are different
+    // records by construction, and removing `index` first only shifts a seat
+    // that sits behind it.
+    let ceremony = records.remove(index);
+    let seat = if seat > index { seat - 1 } else { seat };
+    let seat = &mut records[seat];
+    seat.credential_hex = ceremony.credential_hex;
+    seat.kind = ceremony.kind;
+    seat.phone = shell_keeping_model(ceremony.phone, seat.phone.as_ref());
+    seat.delivery = ceremony.delivery;
+    write_records(&records, path)
+}
+
+/// The owner's switch: may the phone with this id read this computer's mail.
+/// One record changes, one atomic publication, exactly as [`allow_device`]
+/// writes — and the write is skipped entirely when the record already says
+/// this, so a switch pressed twice does not churn the file.
+///
+/// `true` when this id is a phone in the store, which is the only case where
+/// the answer may have moved: the caller's own copy of the answer has to be
+/// told when it may be believed. The host's own id is not a phone and
+/// changes nothing — its mail is the owner's, and a switch that could turn it
+/// off would turn the desktop's own mailbox off with it. An id nobody holds is
+/// the same answer [`allow_device`] gives an unknown id: nothing to change is
+/// not a failure, but it is also nothing to report.
+pub fn set_phone_mail(path: &Path, id: u32, allowed: bool) -> Result<bool, StoreError> {
+    let mut records = read_records_or_empty(path)?;
+    let Some(record) = records
+        .iter_mut()
+        .find(|record| record.id == id && record.kind == DeviceKind::Phone)
+    else {
+        return Ok(false);
+    };
+    if record.mail == Some(allowed) {
+        return Ok(true);
+    }
+    record.mail = Some(allowed);
+    write_records(&records, path)?;
+    Ok(true)
+}
+
+/// The owner's name for the phone with this id, in their own words. `None`
+/// clears it and the phone goes back to being drawn as the number the store
+/// gave it; a name of only spaces, or of nothing a person could see, is that
+/// same clear.
+///
+/// Characters nobody can see are dropped first — every control, format,
+/// private-use, surrogate and unassigned character (see `invisible`) — because a
+/// name is drawn verbatim and read by a person looking for their own phone.
+/// What survives is then trimmed at both ends and cut to [`NAME_LIMIT`]
+/// CHARACTERS, not bytes: a name is read by a person, and half a `ß` or a
+/// cut-off emoji is not a name. The page caps the field to the same number, so
+/// the cut here is the backstop rather than the everyday path.
+///
+/// As with [`set_phone_mail`]: phones only, the host's own record changes
+/// nothing, the file is not rewritten when the answer is already there, and
+/// `true` means this id was a phone at all — so a caller that keeps its own
+/// copy of the name knows whether it may be believed.
+pub fn set_device_name(path: &Path, id: u32, name: Option<String>) -> Result<bool, StoreError> {
+    let wanted = name.and_then(|said| clean_label(&said));
+    let mut records = read_records_or_empty(path)?;
+    let Some(record) = records
+        .iter_mut()
+        .find(|record| record.id == id && record.kind == DeviceKind::Phone)
+    else {
+        return Ok(false);
+    };
+    if record.name == wanted {
+        return Ok(true);
+    }
+    record.name = wanted;
+    write_records(&records, path)?;
+    Ok(true)
+}
+
+/// What a person reads as a label — an owner's name or a phone's model.
+/// Trimmed, stripped of invisible characters, and cut to [`NAME_LIMIT`]
+/// characters; `None` when nothing a person could see is left. The one
+/// sanitiser for both, so the rules a name obeys are the rules a model obeys.
+pub(crate) fn clean_label(said: &str) -> Option<String> {
+    let short: String = said
+        .trim()
+        .chars()
+        .filter(|c| !invisible(*c))
+        .take(NAME_LIMIT)
+        .collect();
+    if short.is_empty() { None } else { Some(short) }
+}
+
+/// How long an owner's name may be. A phone a person can name in one breath,
+/// and short enough to stay on one row beside its detail.
+const NAME_LIMIT: usize = 40;
+
+/// Whether a character is dropped from a label because nobody can see it, or
+/// because it changes the order of the text after it. That is the Other group
+/// of the Unicode General_Category: Cc (controls), Cf (format: zero-width,
+/// bidi overrides, the tag characters U+E0020..U+E007F), Co (private use),
+/// Cs (surrogates) and Cn (unassigned). The phone drops the same set with
+/// `\p{C}`, so a name the phone signed is a name the desk keeps.
+fn invisible(c: char) -> bool {
+    matches!(c.general_category_group(), GeneralCategoryGroup::Other)
+}
+
+fn write_temp(stored: &impl Serialize, path: &Path) -> Result<(), StoreError> {
+    let temp = temp_path(path);
+    let mut file = open_temp(&temp).map_err(StoreError::Io)?;
+    // On Windows this changes the temp's DACL while it is still empty. No
+    // credential bytes exist during the brief interval before restriction.
+    restrict_to_owner(&temp).map_err(|e| {
+        let _ = fs::remove_file(&temp);
+        e
+    })?;
+    let written = serde_json::to_writer(&mut file, stored)
+        .map_err(StoreError::Serde)
+        .and_then(|()| file.sync_all().map_err(StoreError::Io));
+    if let Err(e) = written {
+        let _ = fs::remove_file(&temp);
+        return Err(e);
+    }
+    Ok(())
+}
+
+/// Publishes the whole set. An empty set is never written: the store's
+/// empty state is no file at all.
+fn write_records(records: &[StoredDeviceRecord], path: &Path) -> Result<(), StoreError> {
+    if records.is_empty() {
+        return forget(path);
+    }
+    let stored = StoredV2 {
+        v: STORE_VERSION,
+        devices: records.to_vec(),
+    };
+    write_temp(&stored, path)?;
+    publish_temp(&temp_path(path), path).map_err(StoreError::Io)
+}
+
+/// Publish a JSON document at `path` the way the store publishes its own
+/// set: sibling temp, `0600` on unix and a protected DACL on Windows,
+/// flushed, then renamed over the name. The invite file carries the codes
+/// behind links the owner has already handed out, so it rides this road
+/// rather than growing a second one whose permissions could drift apart
+/// from the credential's.
+pub(crate) fn publish_json(value: &impl Serialize, path: &Path) -> std::io::Result<()> {
+    write_temp(value, path).map_err(std::io::Error::other)?;
+    publish_temp(&temp_path(path), path)
+}
+
+/// Rename one file onto another, replacing whatever is already there: the
+/// move [`publish_temp`] makes for a publication, on every platform this app
+/// ships on. Windows asks MoveFileEx for write-through, so the entry is on
+/// disk before the call returns. Nothing here removes the SOURCE on error —
+/// the caller decides whether a source that could not move is a temp to
+/// sweep up or a file that must stay exactly where it is.
+fn move_file(from: &Path, to: &Path) -> std::io::Result<()> {
+    #[cfg(unix)]
+    {
+        fs::rename(from, to)
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::ffi::OsStrExt;
+        use windows_sys::Win32::Storage::FileSystem::MoveFileExW;
+
+        let mut source: Vec<u16> = from.as_os_str().encode_wide().collect();
+        source.push(0);
+        let mut destination: Vec<u16> = to.as_os_str().encode_wide().collect();
+        destination.push(0);
+        let ok = unsafe {
+            MoveFileExW(
+                source.as_ptr(),
+                destination.as_ptr(),
+                0x0000_0001 | 0x0000_0008, // replace existing, write through
+            )
+        };
+        if ok == 0 {
+            return Err(std::io::Error::last_os_error());
+        }
+        Ok(())
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        fs::rename(from, to)
+    }
+}
+
+/// Rename `from` onto `to` and make it stick: the same move and the same
+/// platform discipline as a publication — the directory fsynced after it on
+/// unix, write-through on Windows — so a power loss cannot bring the old
+/// name back. Nothing is removed on error: this is for a source that is NOT
+/// a temp file, one that must stay where it is when the move cannot happen.
+pub(crate) fn rename_durable(from: &Path, to: &Path) -> std::io::Result<()> {
+    move_file(from, to)?;
+    #[cfg(unix)]
+    sync_parent(to);
+    Ok(())
+}
+
+fn publish_temp(temp: &Path, path: &Path) -> std::io::Result<()> {
+    // The source is a temp file: a move that failed sweeps it up, because a
+    // half-written temp is this write's own litter.
+    let moved = move_file(temp, path);
+    if moved.is_err() {
+        let _ = fs::remove_file(temp);
+    }
+    // The bytes were synced before the rename; the rename is on disk only
+    // once the DIRECTORY holding it is. A power loss in between rolls the
+    // file back to whatever it said before — for a claim, to a version still
+    // holding a used code. A failure of this last step is not reported: the
+    // rename has already happened, and a caller told its write failed would
+    // roll back a memory state the file has already moved past.
+    #[cfg(unix)]
+    if moved.is_ok() {
+        sync_parent(path);
+    }
+    moved
+}
+
+/// The sibling name the bytes land in before publication: the target's own
+/// FULL name with `.tmp` appended. The extension is deliberately not
+/// replaced — that mapping is not one-to-one: `pairing` and
+/// `pairing.json` both used to stage in `pairing.tmp`, so one document
+/// could be renamed onto the other, and a target already named `*.tmp` was
+/// its own temp (publishing it would have truncated it first).
+fn temp_path(path: &Path) -> PathBuf {
+    let Some(name) = path.file_name() else {
+        // Nothing to extend: a path that cannot name a file. Joining keeps
+        // the temp off the target itself.
+        return path.join(".tmp");
+    };
+    let mut temp = name.to_os_string();
+    temp.push(".tmp");
+    path.with_file_name(temp)
+}
+
+/// fsync the directory an entry was just renamed into, so the rename is
+/// durable. Opening a directory is how unix syncs one; there is no
+/// directory handle to fsync on Windows, where `MoveFileExW` is called with
+/// `MOVEFILE_WRITE_THROUGH` instead (see [`publish_temp`]).
+#[cfg(unix)]
+fn sync_parent(path: &Path) {
+    let parent = match path.parent() {
+        Some(parent) if !parent.as_os_str().is_empty() => parent,
+        _ => Path::new("."),
+    };
+    let _ = fs::File::open(parent).and_then(|directory| directory.sync_all());
+}
+
+#[cfg(unix)]
+fn open_temp(temp: &Path) -> std::io::Result<std::fs::File> {
+    use std::os::unix::fs::OpenOptionsExt;
+    std::fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .mode(0o600)
+        .open(temp)
+}
+
+#[cfg(not(unix))]
+fn open_temp(temp: &Path) -> std::io::Result<std::fs::File> {
+    std::fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(temp)
+}
+
+// Unix achieved owner-only at creation (`0600`); there is nothing further
+// to do, and a test checks the published file's mode.
+#[cfg(unix)]
+fn restrict_to_owner(_temp: &Path) -> Result<(), StoreError> {
+    Ok(())
+}
+
+// Windows: the POSIX mode bits do not exist, so owner-only is done by hand —
+// an explicit *protected* DACL (no inherited ACEs) granting full access to
+// SYSTEM, Administrators and the current user, and nothing to anyone else.
+#[cfg(windows)]
+fn restrict_to_owner(temp: &Path) -> Result<(), StoreError> {
+    use std::os::windows::ffi::OsStrExt;
+    use windows_sys::Win32::Foundation::LocalFree;
+    use windows_sys::Win32::Security::Authorization::
+        ConvertStringSecurityDescriptorToSecurityDescriptorW;
+    use windows_sys::Win32::Security::{
+        GetSecurityDescriptorDacl, SetFileSecurityW, DACL_SECURITY_INFORMATION,
+        PROTECTED_DACL_SECURITY_INFORMATION,
+    };
+
+    const SDDL_REVISION_1: u32 = 1;
+    // The user by SID, not Owner Rights: an elevated process makes
+    // Administrators the owner, and the next unelevated start is not.
+    let user = current_user_sid().map_err(StoreError::Io)?;
+    let sddl: Vec<u16> = format!("D:P(A;;FA;;;SY)(A;;FA;;;BA)(A;;FA;;;{user})")
+        .encode_utf16()
+        .chain(std::iter::once(0))
+        .collect();
+    let mut wide: Vec<u16> = temp.as_os_str().encode_wide().collect();
+    wide.push(0);
+
+    let mut descriptor = std::ptr::null_mut();
+    let ok = unsafe {
+        ConvertStringSecurityDescriptorToSecurityDescriptorW(
+            sddl.as_ptr(),
+            SDDL_REVISION_1,
+            &mut descriptor,
+            std::ptr::null_mut(),
+        )
+    };
+    if ok == 0 {
+        return Err(StoreError::Io(std::io::Error::last_os_error()));
+    }
+    let mut present = 0;
+    let mut defaulted = 0;
+    let mut dacl = std::ptr::null_mut();
+    let ok =
+        unsafe { GetSecurityDescriptorDacl(descriptor, &mut present, &mut dacl, &mut defaulted) };
+    let applied = if ok == 0 || present == 0 || dacl.is_null() {
+        Err(StoreError::Io(std::io::Error::other(
+            "the security descriptor carried no DACL",
+        )))
+    } else {
+        let ok = unsafe {
+            SetFileSecurityW(
+                wide.as_ptr(),
+                DACL_SECURITY_INFORMATION | PROTECTED_DACL_SECURITY_INFORMATION,
+                descriptor,
+            )
+        };
+        if ok == 0 {
+            Err(StoreError::Io(std::io::Error::last_os_error()))
+        } else {
+            Ok(())
+        }
+    };
+    unsafe {
+        LocalFree(descriptor);
+    }
+    applied
+}
+
+/// The SID of the user this process runs as, in SDDL string form.
+#[cfg(windows)]
+fn current_user_sid() -> std::io::Result<String> {
+    use windows_sys::Win32::Foundation::{CloseHandle, LocalFree};
+    use windows_sys::Win32::Security::Authorization::ConvertSidToStringSidW;
+    use windows_sys::Win32::Security::{GetTokenInformation, TokenUser, TOKEN_QUERY, TOKEN_USER};
+    use windows_sys::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
+
+    let mut token = std::ptr::null_mut();
+    if unsafe { OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token) } == 0 {
+        return Err(std::io::Error::last_os_error());
+    }
+    // TOKEN_USER plus the SID it points into; a SID is at most 68 bytes.
+    let mut buffer = [0u64; 32];
+    let mut needed = 0;
+    let queried = unsafe {
+        GetTokenInformation(
+            token,
+            TokenUser,
+            buffer.as_mut_ptr().cast(),
+            std::mem::size_of_val(&buffer) as u32,
+            &mut needed,
+        )
+    };
+    let queried = if queried == 0 { Err(std::io::Error::last_os_error()) } else { Ok(()) };
+    unsafe {
+        CloseHandle(token);
+    }
+    queried?;
+    let user = unsafe { &*buffer.as_ptr().cast::<TOKEN_USER>() };
+    let mut text = std::ptr::null_mut();
+    if unsafe { ConvertSidToStringSidW(user.User.Sid, &mut text) } == 0 {
+        return Err(std::io::Error::last_os_error());
+    }
+    let len = (0..).take_while(|&i| unsafe { *text.add(i) } != 0).count();
+    let sid = String::from_utf16_lossy(unsafe { std::slice::from_raw_parts(text, len) });
+    unsafe {
+        LocalFree(text.cast());
+    }
+    Ok(sid)
+}
+
+/// The computer forgets the phone it was paired with. This is an explicit
+/// discard; normal owner-approved replacement uses [`replace`] and never
+/// needs a delete-first gap.
+///
+/// Forgetting an unpaired computer is doing nothing, successfully: the
+/// postcondition — no credential stored — already holds. And this reads
+/// nothing, so it clears a credential whose file has gone corrupt just as
+/// it clears a healthy one; the decision to forget is the owner's, and the
+/// store does not demand the file be legible to accept it.
+///
+/// The credential lives in TWO places after a crashed write: the store and
+/// its sibling temp — plus, for a crash under the temp name this build
+/// inherited, that same temp under its earlier spelling. All of them go,
+/// because this is the one operation whose entire promise is that the
+/// secret is gone. A file that was never there is success; a file that
+/// exists and cannot be removed is a failure to discard, and saying `Ok`
+/// there would be this function lying about the only thing it promises.
+pub fn forget(path: &Path) -> Result<(), StoreError> {
+    let store = discard(path);
+    let temp = discard(&temp_path(path));
+    let earlier = discard(&path.with_extension("tmp"));
+    store.and(temp).and(earlier)
+}
+
+/// Removes one file. Already gone is success; present but unremovable is
+/// an error.
+fn discard(file: &Path) -> Result<(), StoreError> {
+    match fs::remove_file(file) {
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(StoreError::Io(e)),
+    }
+}
+
+/// Read a handshake result back.
+pub fn load(path: &Path) -> Result<Handshake, StoreError> {
+    load_with_delivery(path).map(|(handshake, _)| handshake)
+}
+
+/// Read the handshake and any response that still needs delivery. The
+/// single-device view of the set: the first record — the one every
+/// installed copy has today.
+///
+/// Only the FIRST record is realized. A later record that cannot be
+/// realized (a phone field that refuses, an invalid delivery) makes
+/// [`load_devices`] fail the whole set while this reader still answers.
+/// The asymmetry is deliberate, and is stated here because two readers of
+/// one file disagreeing otherwise looks like a bug: the desk's view must
+/// keep working no matter what record follows its device in the file, and
+/// the set view must not promise a set it cannot fully deliver.
+pub fn load_with_delivery(path: &Path) -> Result<(Handshake, Option<Delivery>), StoreError> {
+    match read_records_or_empty(path)?.into_iter().next() {
+        Some(record) => realize(record).map(|(device, delivery)| (device.handshake, delivery)),
+        None => Err(empty_store()),
+    }
+}
+
+/// Every paired device, oldest first — a migrated v1 file reads back as its
+/// one device. An absent file is an empty set, not an error: that is the
+/// same "unpaired" the single-device readers report as not-found. Every
+/// device carries its retained delivery, so a reader that must find the
+/// phone in a set can also find what the phone still awaits.
+///
+/// Every record is realized: one bad record fails the whole set, unlike
+/// [`load_with_delivery`], which answers from the first record alone and
+/// says nothing about the rest. Same file, two contracts, on purpose —
+/// see that function's comment before "fixing" either side.
+pub fn load_devices(path: &Path) -> Result<Vec<StoredDevice>, StoreError> {
+    read_records_or_empty(path)?
+        .into_iter()
+        .map(|record| realize(record).map(|(device, _)| device))
+        .collect()
+}
+
+/// An empty set, in the words the existing single-device callers already
+/// understand: not-found is what the shell and the desk match on to mean
+/// "this computer is not paired".
+fn empty_store() -> StoreError {
+    StoreError::Io(std::io::Error::new(
+        std::io::ErrorKind::NotFound,
+        "no device is stored",
+    ))
+}
+
+/// Turns a stored record back into what the app works with, refusing every
+/// way a record can be wrong with the one error, as the single-device load
+/// always did.
+fn realize(record: StoredDeviceRecord) -> Result<(StoredDevice, Option<Delivery>), StoreError> {
+    let credential = Credential::from_hex(&record.credential_hex)
+        .ok_or(StoreError::Corrupt("credential is not 64 hex characters"))?;
+    // The kind decides which fields must be there, and the two never mix: a
+    // phone without its fields and a host with them are both corrupt, not
+    // silently repaired.
+    // Cleaned again on the way out: a file edited by hand is still read with
+    // the rules a name obeys.
+    let model = record
+        .phone
+        .as_ref()
+        .and_then(PhoneFields::model)
+        .and_then(clean_label);
+    let phone = match (record.kind, record.phone) {
+        (DeviceKind::Phone, Some(fields)) => Some(
+            fields
+                .into_phone()
+                .ok_or(StoreError::Corrupt("stored parameters cannot exist"))?,
+        ),
+        (DeviceKind::Phone, None) => {
+            return Err(StoreError::Corrupt(
+                "a phone record carries no phone fields",
+            ))
+        }
+        (DeviceKind::Host, None) => None,
+        (DeviceKind::Host, Some(_)) => {
+            return Err(StoreError::Corrupt("a host record carries phone fields"))
+        }
+    };
+    // The host's record is never waiting: self-enrolment writes it
+    // allowed, so a waiting host can only be a hand edit - and a hand
+    // edit that would leave the door without its own credential refuses
+    // the whole set, exactly like every other record that disagrees with
+    // itself (kind vs fields, delivery shape).
+    if record.kind == DeviceKind::Host && record.approval == Approval::Waiting {
+        return Err(StoreError::Corrupt("a host record waits for approval"));
+    }
+    if record
+        .delivery
+        .as_ref()
+        .is_some_and(|delivery| !delivery.is_valid())
+    {
+        return Err(StoreError::Corrupt("stored delivery is invalid"));
+    }
+    // What a host gets: its credential and nothing a phone would have. What
+    // a phone keeps getting: its declaration, taken as given.
+    let handshake = match phone {
+        Some(phone) => Handshake::new(phone, credential).naming(model.clone()),
+        None => Handshake::host(credential),
+    };
+    Ok((
+        StoredDevice {
+            id: record.id,
+            label: record.label,
+            kind: record.kind,
+            handshake,
+            delivery: record.delivery.clone(),
+            waiting: matches!(record.approval, Approval::Waiting),
+            install_id: record.install_id,
+            // The migration direction, read once: a file written before this
+            // field existed has no answer, and the answer it had all along
+            // is yes.
+            mail: record.mail.unwrap_or(true),
+            // And a file written before names existed names nobody: absent
+            // crosses as absent, which the page draws as the number it has
+            // always drawn.
+            name: record.name,
+            model,
+        },
+        record.delivery,
+    ))
+}
+
+/// The records on disk, in either format the store has ever written, with
+/// the v1 file lifted into a one-device set. The bytes are never rewritten
+/// here — see the module comment on migration.
+fn read_records(path: &Path) -> Result<Vec<StoredDeviceRecord>, StoreError> {
+    let bytes = fs::read(path).map_err(StoreError::Io)?;
+    let probe: VersionProbe = serde_json::from_slice(&bytes).map_err(StoreError::Serde)?;
+    let records = match probe.v {
+        STORE_VERSION => {
+            let stored: StoredV2 = serde_json::from_slice(&bytes).map_err(StoreError::Serde)?;
+            stored.devices
+        }
+        V1_VERSION => {
+            let stored: StoredHandshake = serde_json::from_slice(&bytes).map_err(StoreError::Serde)?;
+            // The lift: the one device keeps the id and the label the app
+            // has been giving it all along, and any delivery still waiting
+            // for the phone's retry travels with it.
+            vec![StoredDeviceRecord {
+                id: 0,
+                label: DEFAULT_LABEL.to_owned(),
+                kind: DeviceKind::Phone,
+                // A v1 record predates approval: it reads back allowed,
+                // exactly as its missing key would default.
+                approval: Approval::Allowed,
+                credential_hex: stored.credential_hex,
+                phone: Some(stored.phone),
+                delivery: stored.delivery,
+                install_id: None,
+                // The other fields a v1 record predates, and they read back
+                // the same way: allowed mail, and no name.
+                mail: Some(true),
+                name: None,
+            }]
+        }
+        _ => return Err(StoreError::Corrupt("unsupported stored version")),
+    };
+    // A set that cannot tell two of its devices apart is corrupt, for the
+    // same reason the door refuses such a set of credentials.
+    for (index, record) in records.iter().enumerate() {
+        for other in &records[..index] {
+            if record.id == other.id {
+                return Err(StoreError::Corrupt("two devices share an id"));
+            }
+            if record.credential_hex == other.credential_hex {
+                return Err(StoreError::Corrupt("two devices share a credential"));
+            }
+        }
+    }
+    Ok(records)
+}
+
+/// The write-side view of the same read: no file yet means an empty set a
+/// first device can be added to.
+fn read_records_or_empty(path: &Path) -> Result<Vec<StoredDeviceRecord>, StoreError> {
+    match read_records(path) {
+        Ok(records) => Ok(records),
+        Err(StoreError::Io(error)) if error.kind() == std::io::ErrorKind::NotFound => {
+            Ok(Vec::new())
+        }
+        Err(error) => Err(error),
+    }
+}
+
+/// The one field the version probe needs; parsing anything bigger before
+/// the version is known would attribute a v1 file's shape errors to v2.
+#[derive(Deserialize)]
+struct VersionProbe {
+    v: u8,
+}
+
+/// Clear the retained response of the record whose delivery matches
+/// `token`, preserving every handshake. The first record is not assumed:
+/// production stores hold the host at record 0, and the phone's retained
+/// response sits further down. A token that matches no record is Ok and
+/// changes nothing - the delivery may already be gone.
+pub fn clear_delivery(path: &Path, token: &str) -> Result<(), StoreError> {
+    let mut records = read_records_or_empty(path)?;
+    let mut changed = false;
+    for record in &mut records {
+        if record
+            .delivery
+            .as_ref()
+            .is_some_and(|delivery| delivery.token_matches(token))
+        {
+            record.delivery = None;
+            changed = true;
+        }
+    }
+    if !changed {
+        return Ok(());
+    }
+    write_records(&records, path)
+}
+
+#[cfg(test)]
+mod model_tests;
+#[cfg(test)]
+mod tests;

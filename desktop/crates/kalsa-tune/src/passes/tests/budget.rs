@@ -1,0 +1,288 @@
+//! The budget's cuts: what a started lifetime keeps, what a shape that
+//! never began leaves behind, and when the record may still be written.
+
+use std::cell::RefCell;
+use std::time::Duration;
+
+use super::*;
+
+/// The budget cut in pass one: the shape that never began is a hole, so
+/// the caller must withhold the record — and the shapes that did begin
+/// keep their first lifetime's numbers, not lost.
+#[test]
+fn a_shape_cut_before_its_first_lifetime_leaves_the_picture_incomplete() {
+    let shapes = vec![on(gpu()), on(cpu(16)), on(cpu(22))];
+    let clock = RefCell::new(0u32);
+    let decodes = RefCell::new(Vec::new());
+    let seen = RefCell::new(Vec::new());
+    let tuned = tune(
+        &shapes,
+        true,
+        &[],
+        Duration::from_secs(60),
+        || {
+            let mut tick = clock.borrow_mut();
+            *tick += 1;
+            if *tick <= 2 {
+                Duration::ZERO
+            } else {
+                Duration::from_secs(60)
+            }
+        },
+        &mut |report| seen.borrow_mut().push(report),
+        &mut |_| {},
+        |_, _| first(100.0, 50.0),
+        |trial, _| {
+            decodes.borrow_mut().push(trial.draft);
+            Ok(vec![50.0])
+        },
+    );
+    assert!(!tuned.complete, "the third shape never ran");
+    assert!(
+        tuned.cut,
+        "the shapes that began had their sweeps cut too: {:?}",
+        tuned.trials
+    );
+    assert!(
+        decodes.borrow().is_empty(),
+        "the budget was spent before any sweep: {:?}",
+        decodes.borrow()
+    );
+    for shape in [gpu(), cpu(16)] {
+        assert!(
+            tuned
+                .trials
+                .iter()
+                .any(|(candidate, kept)| *candidate == shape && matches!(kept, Kept::Replied(_))),
+            "a cut shape keeps its first lifetime's numbers: {:?}",
+            tuned.trials
+        );
+        assert!(
+            !tuned
+                .trials
+                .iter()
+                .any(|(candidate, _)| candidate.threads == shape.threads
+                    && candidate.backend == shape.backend
+                    && candidate.draft.is_some()),
+            "and no drafted lifetime was measured on it"
+        );
+    }
+    assert!(
+        !tuned
+            .trials
+            .iter()
+            .any(|(candidate, _)| *candidate == cpu(22)),
+        "the shape that never began is absent, not invented"
+    );
+    assert_eq!(
+        seen.borrow()
+            .iter()
+            .map(|r| (r.done, r.total, r.candidate, r.cut))
+            .collect::<Vec<_>>(),
+        vec![
+            (0, 12, 1, false),
+            (1, 12, 1, false),
+            (1, 12, 2, false),
+            (2, 12, 2, false),
+            (2, 9, 2, false),
+            (2, 9, 2, true),
+            (2, 9, 2, true),
+        ],
+        "the slower reader's sweep leaves the plan, then the stop names what is owed: {:?}",
+        seen.borrow()
+    );
+}
+
+/// The budget cut between the passes: every shape ran its first lifetime,
+/// so every shape has an entry — but the sweeps never began, and the cut
+/// is the fact the caller needs to let the next start try again.
+#[test]
+fn a_cut_between_the_passes_leaves_every_shape_with_an_entry() {
+    let shapes = vec![on(gpu()), on(cpu(16))];
+    let clock = RefCell::new(0u32);
+    let decodes = RefCell::new(Vec::new());
+    let seen = RefCell::new(Vec::new());
+    let tuned = tune(
+        &shapes,
+        true,
+        &[],
+        Duration::from_secs(60),
+        || {
+            let mut tick = clock.borrow_mut();
+            *tick += 1;
+            if *tick <= 2 {
+                Duration::ZERO
+            } else {
+                Duration::from_secs(60)
+            }
+        },
+        &mut |report| seen.borrow_mut().push(report),
+        &mut |_| {},
+        |_, _| first(100.0, 50.0),
+        |trial, _| {
+            decodes.borrow_mut().push(trial.draft);
+            Ok(vec![50.0])
+        },
+    );
+    assert!(tuned.complete, "both shapes measured their first lifetime");
+    assert!(tuned.cut, "no drafted sweep began, so the tune is cut");
+    assert!(decodes.borrow().is_empty(), "no drafted ask fit the budget");
+    assert_eq!(tuned.trials.len(), 2, "one entry per shape, none a hole");
+    assert!(tuned
+        .trials
+        .iter()
+        .all(|(_, kept)| matches!(kept, Kept::Replied(_))));
+    assert_eq!(
+        tuned.winner.map(|win| win.candidate),
+        Some(gpu()),
+        "the first lifetime's own off reply decides"
+    );
+    assert_eq!(
+        seen.borrow().iter().map(|r| (r.done, r.total, r.candidate, r.cut)).collect::<Vec<_>>(),
+        vec![
+            (0, 8, 1, false),
+            (1, 8, 1, false),
+            (1, 8, 2, false),
+            (2, 8, 2, false),
+            (2, 5, 2, false),
+            (2, 5, 2, true),
+            (2, 5, 2, true),
+        ],
+        "every shape closed, the unswept one's lifetimes left the plan, and the stop owes the sweep: {:?}",
+        seen.borrow()
+    );
+}
+
+/// The cut mid-sweep: the settings that ran stand, the ones behind them
+/// are losers rather than holes, and the scored trials still decide.
+#[test]
+fn a_cut_inside_a_sweep_keeps_what_ran_and_drops_the_rest() {
+    let shapes = vec![on(gpu())];
+    let clock = RefCell::new(0u32);
+    let seen = RefCell::new(Vec::new());
+    let tuned = tune(
+        &shapes,
+        true,
+        &[],
+        Duration::from_secs(60),
+        || {
+            let mut tick = clock.borrow_mut();
+            *tick += 1;
+            if *tick <= 3 {
+                Duration::ZERO
+            } else {
+                Duration::from_secs(60)
+            }
+        },
+        &mut |report| seen.borrow_mut().push(report),
+        &mut |_| {},
+        // The off decode sits below the drafted one, so the settings run
+        // until the budget — not the sweep's stop rule — ends this shape.
+        |_, _| first(100.0, 30.0),
+        |_, _| Ok(vec![50.0]),
+    );
+    assert!(tuned.complete);
+    assert!(tuned.cut, "3 and 4 never began, so the sweep is unfinished");
+    assert_eq!(
+        tuned.trials.len(),
+        3,
+        "the first lifetime, 2 and 3 ran; 4 never began: {:?}",
+        tuned.trials
+    );
+    assert!(tuned.winner.is_some(), "what ran still decides");
+    assert_eq!(
+        seen.borrow()
+            .iter()
+            .map(|r| (r.done, r.total, r.candidate, r.cut))
+            .collect::<Vec<_>>(),
+        vec![
+            (0, 4, 1, false),
+            (1, 4, 1, false),
+            (1, 4, 2, false),
+            (2, 4, 2, false),
+            (2, 4, 3, false),
+            (3, 4, 3, false),
+            (3, 4, 3, true),
+            (3, 4, 3, true),
+        ],
+        "three closes, then the stop — plan intact at four: {:?}",
+        seen.borrow()
+    );
+}
+
+/// A cut on the first shape's sweep ends the whole sweep: the shapes behind
+/// it — which the reading clause leaves unswept anyway — never get their
+/// sweeps, so the plan can never fall below what ran and no subtraction
+/// underflows.
+#[test]
+fn a_cut_ends_the_sweep_and_the_plan_never_falls_below_what_ran() {
+    let shapes = vec![on(gpu()), on(cpu(16)), on(cpu(22))];
+    let clock = RefCell::new(0u32);
+    let seen = RefCell::new(Vec::new());
+    let tuned = tune(
+        &shapes,
+        true,
+        &[],
+        Duration::from_secs(60),
+        || {
+            let mut tick = clock.borrow_mut();
+            *tick += 1;
+            if *tick <= 3 {
+                Duration::ZERO
+            } else {
+                Duration::from_secs(60)
+            }
+        },
+        &mut |report| seen.borrow_mut().push(report),
+        &mut |_| {},
+        |shape, _| {
+            // Every shape's first lifetime runs (ticks 1..3); the
+            // processors read far slower than the card, so their sweeps
+            // leave the plan before the cut ends the sweep.
+            if shape.backend == ServerBackend::Vulkan {
+                first(1000.0, 100.0)
+            } else {
+                first(10.0, 100.0)
+            }
+        },
+        |_, _| Ok(vec![100.0]),
+    );
+    assert!(tuned.complete, "all three first lifetimes ran");
+    assert!(tuned.cut, "the sweep was cut on the first shape");
+    for report in seen.borrow().iter() {
+        assert!(
+            report.total >= report.done,
+            "the plan never falls below what ran: {seen:?}"
+        );
+    }
+    assert_eq!(
+        tuned.trials.len(),
+        3,
+        "three first-lifetime entries, no drafted ones: {:?}",
+        tuned.trials
+    );
+    assert!(tuned
+        .trials
+        .iter()
+        .all(|(candidate, kept)| candidate.draft.is_none() && matches!(kept, Kept::Replied(_))));
+    assert_eq!(
+        seen.borrow()
+            .iter()
+            .map(|r| (r.done, r.total, r.candidate, r.cut))
+            .collect::<Vec<_>>(),
+        vec![
+            (0, 12, 1, false),
+            (1, 12, 1, false),
+            (1, 12, 2, false),
+            (2, 12, 2, false),
+            (2, 12, 3, false),
+            (3, 12, 3, false),
+            (3, 9, 3, false),
+            (3, 6, 3, false),
+            (3, 6, 3, true),
+            (3, 6, 3, true),
+        ],
+        "three closes, the unswept shapes' lifetimes leave the plan, then the stop: {:?}",
+        seen.borrow()
+    );
+}

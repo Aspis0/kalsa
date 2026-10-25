@@ -1,0 +1,14 @@
+0.00.271.425 I llama_kv_cache_iswa: creating non-SWA KV cache, size = 8192 cells
+0.00.271.529 I llama_kv_cache: size =  119.00 MiB (  8192 cells,  14 layers,  2/2 seqs), K (q8_0):   59.50 MiB, V (q8_0):   59.50 MiB
+0.00.271.550 I llama_kv_cache_iswa: creating     SWA KV cache, size = 2560 cells
+0.00.271.630 I llama_kv_cache: size =  111.56 MiB (  2560 cells,  42 layers,  2/2 seqs), K (q8_0):   55.78 MiB, V (q8_0):   55.78 MiB
+0.00.292.275 I sched_reserve:       MTL0 compute buffer size =    45.99 MiB
+0.00.292.278 I sched_reserve:        CPU compute buffer size =    14.68 MiB
+0.00.292.278 I sched_reserve:        CPU compute buffer size =    14.68 MiB
+0.00.694.823 I llama_kv_cache_iswa: creating non-SWA KV cache, size = 8192 cells
+0.00.704.300 I llama_kv_cache: size =  119.00 MiB (  8192 cells,  14 layers,  2/2 seqs), K (q8_0):   59.50 MiB, V (q8_0):   59.50 MiB
+0.00.704.322 I llama_kv_cache_iswa: creating     SWA KV cache, size = 2560 cells
+0.00.712.947 I llama_kv_cache: size =  111.56 MiB (  2560 cells,  42 layers,  2/2 seqs), K (q8_0):   55.78 MiB, V (q8_0):   55.78 MiB
+0.00.735.032 I sched_reserve:       MTL0 compute buffer size =    45.99 MiB
+0.00.735.036 I sched_reserve:        CPU compute buffer size =    14.68 MiB
+0.00.795.511 I srv    load_model: initializing, n_slots = 2, n_ctx_slot = 8192, kv_unified = 'false'

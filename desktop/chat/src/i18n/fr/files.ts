@@ -1,0 +1,28 @@
+// Traduit du copy anglais approuvé.
+
+export const FILES = {
+    "panelAria": "Fichiers",
+    "tabsAria": "Panneau des fichiers",
+    "filesTab": "Fichiers",
+    "attachedTab": "Dans cette discussion",
+    "closeAria": "Fermer le panneau",
+    "empty": "Ajoute un document à cette conversation. Dépose-le ici, appuie sur « Joindre un fichier » ou choisis-en un sous Fichiers.",
+    "remove": "Retirer",
+    "reattach": "Joindre de nouveau",
+    "pinName": "Garder",
+    "pinDoc": "Garder envoie le fichier avec chaque message.",
+    "previouslyAttached": "Joints auparavant",
+    "readNext": "Lus avec ton prochain message",
+    "onePage": "1 page",
+    "pages": (count: number) => `${count} pages`,
+    "budgetUnknown": "Kalsa ne peut pas vérifier si ces fichiers tiennent, donc elle pourrait ne pas tous les utiliser.",
+    "budgetAlmostFull": "Cette conversation est presque pleine : Kalsa risque de ne pas tout lire. Retire un fichier ou ouvre une nouvelle conversation.",
+    "budgetOver": "C'est trop pour Kalsa d'un coup. Retire un fichier ou raccourcis ton message.",
+    "unsupportedKind": "Kalsa ne peut pas lire ce type de fichier. Utilise un fichier texte, PDF, Word ou PowerPoint.",
+    "unsupportedLegacy": (app: string) => `Ce fichier est dans un ancien format. Ouvre-le dans ${app}, enregistre une nouvelle copie et joins-la.`,
+    "tooBig": "Ce fichier est trop grand pour Kalsa. Essaie un plus petit.",
+    "unreadable": "Kalsa n'a pas pu lire ce fichier. Il est peut-être abîmé ou protégé par un mot de passe.",
+    "emptyFile": "Ce fichier est vide.",
+    "noText": "Kalsa n'a trouvé aucun mot dans ce fichier. Si c'est un scan, elle ne peut pas encore le lire.",
+    "couldNotOpen": "Kalsa n'a pas pu ouvrir ce fichier. Rechoisis-le.",
+  };

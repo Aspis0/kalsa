@@ -1,0 +1,229 @@
+import type { ChatErrorKind } from "./chat";
+import type { Recap } from "./browser/recap";
+import type { Miniapp } from "./miniapp/types";
+import type { Mail } from "./mail/types";
+
+export type Role = "user" | "assistant";
+
+/**
+ * One call the model made, kept beside the assistant's answer so the thread can
+ * say what was searched and what came back. The transcript has no `tool` role:
+ * these expand into `role: "tool"` wire messages only when the next request is
+ * built (see `attachments.ts`), and the reload validator never has to know a
+ * third role exists.
+ */
+/** The result a stored run holds when its stream died before it answered:
+    a code the thread renders through the table, never a sentence in one
+    language persisted as data. */
+export const TOOL_STOPPED = "run-stopped";
+
+export interface ToolRun {
+  /** The call's id on the wire, so a running entry becomes the answered one. */
+  id: string;
+  name: string;
+  /** The arguments as the model sent them, as JSON text. */
+  arguments: string;
+  /** What the tool answered — this is what the model read. Bounded upstream. */
+  result: string;
+  /** The stable code a Rust refusal carried, for the screen; the wire
+      and the stored text keep the English the model reads. */
+  resultCode?: string;
+  /** **What Kalsa did in this turn, as counts** (`browser/recap.ts`). It rides
+      the turn's last browser run, because that is the run the thread draws
+      last. **The words are built when the line is drawn**, not stored: a
+      reloaded chat is read in whatever language the person is reading it in,
+      and a sentence kept in the language it was written in would read as
+      foreign. */
+  recap?: Recap;
+  /** A miniapp this call built here. It is rendered in the thread and kept
+      with the conversation; the wire only ever carries `result`. */
+  miniapp?: Miniapp;
+  /** Mail this call drew or wrote: cards from the sidecar's own records, or a
+      draft. Never persisted — `store.ts` keeps a count of the cards and
+      nothing else, because the bodies are a stranger's words and the store
+      writes to localStorage. */
+  mail?: Mail;
+  /** How many mail cards that turn drew, and the only part of them that is
+      kept: a reloaded chat has the count and not the cards. */
+  mailShown?: number;
+  /** **This call brought a picture of the page.** A picture is a read of the
+      page, and the record counts it as one: the model saw the page, so a turn
+      that only had a picture has read something, and a record that said it had
+      read nothing would be wrong in the one way that matters. The bytes are
+      never kept — only the line that says what the picture was of. */
+  picture?: boolean;
+  /** How many pages a search read before it answered, so the card can say so
+      honestly instead of claiming the model did. Nothing when it read none. */
+  pagesRead?: number;
+  /**
+   * `refused` is a call this app would not run: one the stream never named,
+   * one whose tool the request did not offer (a model can ask for
+   * `web_search` with the switch off), one whose turn ended for another
+   * reason, or one with no round left to run in. It is shown to the reader,
+   * and the wire rebuilt from the transcript leaves it out — a call the
+   * request did not offer is not replayed as history, and an unnamed one is
+   * a malformed request.
+   */
+  state: "running" | "ok" | "failed" | "refused";
+}
+
+/**
+ * One picture a user message carries: the reference only. The bytes live in
+ * IndexedDB under `id` (lib/imageStore), so the conversation store never
+ * holds pixels. Audio rides the same shape later, as another mime.
+ */
+export interface MessageImage {
+  id: string;
+  width: number;
+  height: number;
+  mime: string;
+}
+
+/**
+ * One video a user message carries: the reference only. The compressed MP4
+ * lives in IndexedDB under `id` (when it was kept — a full shelf keeps the
+ * frames and says so in `notKept`), and `frames` are the stills the AI
+ * actually sees, each an image reference of its own.
+ */
+export interface MessageVideo {
+  id: string;
+  width: number;
+  height: number;
+  durationMs: number;
+  /** True when the video's own bytes could not be stored (shelf full): the
+      frames stay, the bubble says the video itself wasn't kept. */
+  notKept?: boolean;
+  frames: MessageImage[];
+}
+
+export interface ChatMessage {
+  id: string;
+  role: Role;
+  content: string;
+  createdAt: number;
+  /** True when generation was stopped by the user; content is partial. */
+  stopped?: boolean;
+  /** The model's thinking, kept apart from the answer. Never rendered inline. */
+  reasoning?: string;
+  /** First reasoning delta to first answer delta, milliseconds. Measured, not set. */
+  reasoningMs?: number;
+  /** Tools this answer used, in the order they were called. */
+  toolRuns?: ToolRun[];
+  /** Pictures attached to this user turn, in attach order. */
+  images?: MessageImage[];
+  /** Videos attached to this user turn, in attach order. */
+  videos?: MessageVideo[];
+  /** Which mail this turn is about, shown to the person under their own words
+      and sent nowhere: a subject is a stranger's text and never rides the wire
+      as if it were the person's instruction. */
+  mailSubject?: string;
+  /** The mail this turn was opened for. The app enforces it: a model that
+      answers for another id gets nothing, whoever asked. */
+  mailId?: string;
+  /** An instruction for the model only, riding before this turn's words. It is
+      never rendered and never shown as the person's: an internal id means
+      nothing to a reader, so only the model is told it. */
+  mailNote?: string;
+  /** What became of a request the person was asked about, riding before this
+   *  turn's words and read by the model alone. **It is here because a turn must
+   *  not wait for a person**: they are slower than any tool deadline, so a turn
+   *  that blocked on the card would hang the chat for minutes and Stop would
+   *  have to interrupt it. The sentence rides the next thing the person says
+   *  instead — a moment the model is certainly reading something — and is the
+   *  sidecar's own words, never a payload. Drained once it is carried, so it is
+   *  not told again on a later turn. */
+  browserNote?: string;
+  /** True when this turn was sent armed for the browser: the "Browse for me"
+   *  control was on, so the turn was the browser's and the browser's tools
+   *  were the only ones offered. It rides the message as a badge and survives
+   *  a reload, so the person can still see which turn drove the browser. */
+  browserMode?: boolean;
+  /** Documents bound to this user turn, by attachment id: their text rides
+      the wire as a block before this message's words, and drops with the
+      turn when the fit sheds it. */
+  docs?: string[];
+  /** What the bound documents' block weighs (estTokens of its text), so the
+      fit counts it as history without re-reading the attachments. */
+  docTokens?: number;
+  /** The local date this turn was sent, in English ("Thursday, 8 October
+      2026"). Set once at send and replayed on the wire as stored: a changed
+      byte in an old turn makes the engine re-read the conversation from it. */
+  sentOn?: string;
+  /** The failure this turn ended in, so a reload can show its sentence and
+      Retry again; absent on every turn that did not fail. */
+  failed?: ChatErrorKind;
+  /** This turn was closed for space: the next request would not have fit the
+      window, so the turn answered from what it had read and stopped there.
+      The line is drawn when the thread is drawn, in the language the person
+      is reading in — the flag is what is kept, never a sentence. */
+  closedForSpace?: boolean;
+  /** How many turns the fit left behind to make room for this one: the oldest
+      turns, dropped from what the model reads. A count, never a sentence, and
+      never the wire — the line that says so is drawn from it in the reader's
+      language. Absent when the fit dropped nothing. */
+  prunedTurns?: number;
+}
+
+export interface ConversationMeta {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  /** Capped excerpt of recent text for list display. */
+  preview: string;
+  /** Capped searchable text (title + recent messages). */
+  search: string;
+  hasMessages: boolean;
+}
+
+export interface Conversation {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  messages: ChatMessage[];
+}
+
+export interface ChatSettings {
+  model: string;
+  /**
+   * Whether the assistant may search the web and open pages. The query and the
+   * address leave this computer for a search service on the internet; the
+   * answer comes back into the conversation. On by default, like the phone
+   * (kalsa `src/agent/toolRegistry.ts`), and off means no tools are offered to
+   * the model at all.
+   */
+  webTools: boolean;
+  /**
+   * Whether the model may **see** the page: the browser's picture tool takes
+   * a photograph of the viewport and the model reads it, beside the page's
+   * own text.
+   *
+   * **Off by default, and hidden on purpose.** It is the lever of an A/B: the
+   * tool is offered only in the turns that may see one — the person armed the
+   * browser, this is on, and the engine has eyes — and this switch is the one
+   * that says yes to any of it. Off is the release gate: a build that has not
+   * been asked for this feature never offers it, whatever else is true.
+   */
+  browserVision: boolean;
+  /**
+   * Whether the facts an earlier exchange carried out of the window ride
+   * back in, beside the turn that asked for them. Only the turns the fit
+   * leaves behind are searched, and the picks go in verbatim, stamped with
+   * their turn and role; the recent window is never touched.
+   *
+   * **On by default, and hidden on purpose:** a record that says nothing
+   * about it gets the block, and only an explicit `false` in the record
+   * takes it away.
+   */
+  contextDigest: boolean;
+}
+
+/** The stored settings plus this computer's own door — the only endpoint
+    and token there are. A brain that is not serving leaves the empty
+    strings: "nowhere to send" is a fact the pages must see as a value, not
+    an optional field every caller would have to guard. */
+export interface LiveSettings extends ChatSettings {
+  endpoint: string;
+  token: string;
+}

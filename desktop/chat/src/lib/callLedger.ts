@@ -1,0 +1,244 @@
+import type { BrowserCode, RefusalCode } from "./browser/codes";
+import { isDeterministic, isRefusalCode } from "./browser/codes";
+import { BROWSER_NAMES, BROWSER_SCREENSHOT_NAME } from "./tools/browserTools";
+
+/** Bound browser work and suppress repeated actions; observations stay fresh
+ * because the page can change on its own. */
+export interface Ledger {
+  /** The action that ran in **this** round, and the answer it got. */
+  ran: Map<string, string>;
+  /** The action that failed with a deterministic code, and where it stopped. */
+  failed: Map<string, Failure>;
+  /** Which round this is: every call that can move the page opens the next. */
+  round: number;
+  /** How many browser calls have run this turn, across every round. */
+  spent: number;
+  /** How many pictures of the page this turn has taken. **The count is of the
+   *  calls, not of the bytes**: a picture the body later let go is still a
+   *  picture the turn took, and six is six. */
+  pictures: number;
+}
+
+/**
+ * What a failed action left behind.
+ *
+ * **The code is what the page reads and the stage is where the call stopped.**
+ * The two are separate because the sidecar names no code of its own: every
+ * refusal it raises answers `browser.refused`, and the stage is the only thing
+ * that tells a failure a retry can answer from one that is dead.
+ */
+export interface Failure {
+  /** The code the page reads for this refusal. */
+  code: RefusalCode;
+  /** The sidecar's own stage, when it named one: where the call stopped. */
+  stage?: string;
+}
+
+/**
+ * **The stage that says the driver did not answer the read.** The sidecar
+ * raises it when the page is there and the tree of it could not be taken — and
+ * it is the only stage the ledger treats specially.
+ */
+export const READ_DRIVER = "read_driver";
+
+/**
+ * How many browser calls one turn may run. Past this the rest are refused: a
+ * turn that spends its whole budget on the browser has nothing left to answer
+ * with. It is a bound and not a plan — an ordinary form is an open, a read and
+ * three types and a click, and a bound that refuses that is not a bound but a
+ * bug wearing one.
+ */
+export const BROWSER_CALLS_PER_TURN = 24;
+
+/**
+ * The calls that can leave the page different from how they found it. **Every
+ * one of these opens a new round**: an element reference is only good on the
+ * page it was read from, so nothing read before one of them can be reused
+ * after it.
+ */
+const MOVES = new Set(["browser_open", "browser_click", "browser_type"]);
+
+/** The calls that only look at the page. A read may be asked again, because the
+    page changes on its own and the last answer is not the answer now.
+    **The picture is one of them**: a second picture is a second look at a page
+    that may have moved, and the bytes of the first are not the answer now.
+    The ledger keeps no bytes either way — what it remembers is the line. */
+const LOOKS = new Set(["browser_read", "browser_find", "browser_screenshot"]);
+
+/**
+ * What a call is, as far as "have I already done this" is concerned.
+ *
+ * **Normalized, so that the same action wears the same key however it was
+ * written**: an element reference trimmed, words kept whole because a space is
+ * something a person wrote into a field. Keys are built from sorted names, so
+ * the order the model wrote the properties in cannot make two calls look
+ * different. The fragment stays in the open's key: it is part of the address
+ * the model asked for, and dropping it would call a page and an anchor on it
+ * the same action.
+ */
+export function actionKey(name: string, args: Record<string, unknown>): string {
+  const parts: Record<string, string> = {};
+  if (name === "browser_open" && typeof args.url === "string") parts.url = args.url.trim();
+  if (name === "browser_click" && typeof args.ref === "string") parts.ref = args.ref.trim();
+  if (name === "browser_type") {
+    if (typeof args.ref === "string") parts.ref = args.ref.trim();
+    // The text is not trimmed: a leading space is a keystroke.
+    if (typeof args.text === "string") parts.text = args.text;
+  }
+  if (name === "browser_find" && typeof args.text === "string") parts.text = args.text.trim();
+  // **The line, and the window.** A read of the first line is not a read of the
+  // two hundredth: the two are different texts, and the ledger must not call
+  // them the same action.
+  if (name === "browser_read") {
+    parts.from = String(args.from === undefined ? 0 : args.from);
+    parts.page = String(args.page === undefined ? 1 : args.page);
+  }
+  const sorted = Object.keys(parts)
+    .sort()
+    .map((key) => `${key}=${parts[key]}`)
+    .join("&");
+  return `${name}(${sorted})`;
+}
+
+/** What the loop should do with one call, before anything is asked. */
+export type LedgerVerdict =
+  | { run: true }
+  /** Already run in this round: the answer it got is the answer, again. */
+  | { run: false; code: BrowserCode; answer: string; said: BrowserCode; stage?: undefined }
+  /** Refused, with the code the browser would have refused it with anyway.
+   *  `said` is the reason the call failed the first time: **the page reads
+   *  `code`, the model reads `said`** — the code is one word, and the reason is
+   *  the sentence the model can act on. `stage` is where that call stopped,
+   *  when the sidecar named it: the sentence after an action has to say that
+   *  the action may already have happened. */
+  | { run: false; code: BrowserCode; answer: null; said: RefusalCode; stage?: string };
+
+/** Explicit observations may run again; actions retain their duplicate guard. */
+export function decide(ledger: Ledger, name: string, args: Record<string, unknown>): LedgerVerdict {
+  if (LOOKS.has(name)) {
+    // A read spends a step and runs: the page it reads is the page now.
+    if (ledger.spent >= BROWSER_CALLS_PER_TURN) {
+      return { run: false, code: "browser.too_many_steps", answer: null, said: "browser.too_many_steps" };
+    }
+    return { run: true };
+  }
+  const key = actionKey(name, args);
+  // A key that ran in this round is answered from what it got: asking twice is
+  // a loop in the making.
+  const ran = ledger.ran.get(key);
+  if (ran !== undefined) {
+    return { run: false, code: "browser.already_run", answer: ran, said: "browser.already_run" };
+  }
+  const failed = ledger.failed.get(key);
+  if (failed !== undefined) {
+    // A deterministic action failure stays suppressed until another action
+    // opens a new round. **The reason it failed travels with the refusal**,
+    // so the model is told what happened the first time and not "it failed
+    // again" — and so is the stage it stopped at, which is what tells a read
+    // that did not answer from an action that may already have happened.
+    return { run: false, code: "browser.deterministic", answer: null, said: failed.code, stage: failed.stage };
+  }
+  if (ledger.spent >= BROWSER_CALLS_PER_TURN) {
+    return { run: false, code: "browser.too_many_steps", answer: null, said: "browser.too_many_steps" };
+  }
+  return { run: true };
+}
+
+/** What one call left behind: the answer the model reads, and the failure if it
+    was a refusal. A key that ran after failing has worked, so its old failure
+    goes with it — a stale refusal would deny an attempt that has just succeeded.
+    A call that can move the page opens the next round **before** it is filed,
+    so what it answered is remembered against the page it left behind and the
+    turn it begins is the one a second identical call belongs to. */
+function record(ledger: Ledger, name: string, args: Record<string, unknown>, answer: string, failure?: Failure): void {
+  if (MOVES.has(name)) openedNextRound(ledger);
+  const key = actionKey(name, args);
+  ledger.ran.set(key, answer);
+  if (failure === undefined) ledger.failed.delete(key);
+  else {
+    ledger.ran.delete(key);
+    ledger.failed.set(key, failure);
+  }
+}
+
+/** Charge browser work, including refusals, without caching observations. */
+export function filed(
+  ledger: Ledger,
+  name: string,
+  args: Record<string, unknown>,
+  outcome: { text: string; ok: boolean; resultCode?: string; stage?: string; image?: unknown },
+): void {
+  if (!BROWSER_NAMES.has(name)) return;
+  if (outcome.ok) {
+    ledger.spent += 1;
+    // **A picture is counted as a picture.** The turn's ceiling is on how many
+    // it took, and a body that let the bytes go does not un-take it. A picture
+    // that came with another call — the open's own — is a picture the turn
+    // took all the same.
+    if (name === BROWSER_SCREENSHOT_NAME || outcome.image !== undefined) ledger.pictures += 1;
+    record(ledger, name, args, outcome.text);
+    return;
+  }
+  const code = outcome.resultCode;
+  // **A refusal the browser raised and a refusal the provenance rule raised are
+  // both a step the turn spent.** The rule's own code (`web.link_unseen`) is not
+  // one of the browser's, and it used to be dropped here: the model could ask
+  // for the same unseen address as many times as it liked, and every refusal
+  // cost it nothing. It costs a step now, and the key is remembered — so the
+  // second refusal of the same address is the one that says "click its ref".
+  if (!isRefusalCode(code)) return;
+  // It spent its step — the browser was asked and said no — but it **did not
+  // run**, so there is no answer to reuse and nothing to call dead: a refusal
+  // that can differ next time is allowed to happen again.
+  ledger.spent += 1;
+  // **The ledger's own refusal does not overwrite the reason.** A call that
+  // failed for one reason and is refused again for that same reason keeps
+  // saying it: "you already asked, and it failed with web.link_unseen — click
+  // its ref" is a sentence the model can act on, and "browser.deterministic"
+  // is a word it cannot.
+  if (code === "browser.deterministic") return;
+  const failure: Failure = { code, stage: outcome.stage };
+  // **A read the driver did not answer, after an open, is asked again.** The
+  // open reached the page and the read is what failed: the same open a moment
+  // later can answer, and nothing happened on the page that a retry would
+  // repeat.
+  if (worthAnotherTry(name, failure)) {
+    // **The page may have moved** — the open reached it — so what the last
+    // round read no longer says anything about it. The failed open is not
+    // remembered: the retry must not find an "already run" from the page
+    // before it.
+    openedNextRound(ledger);
+    return;
+  }
+  if (isDeterministic(code)) record(ledger, name, args, outcome.text, failure);
+}
+
+/**
+ * **Whether this failure is worth another try.**
+ *
+ * **Only an open, and only a read the driver did not answer.** After a click
+ * or a type the same failure is another thing entirely: the action may
+ * already have happened, and running it again is not a retry but a second
+ * action. So the answer there is to read the page and see, not to do it again.
+ *
+ * **The other refusals stay dead.** An element the page never printed, an
+ * address the conversation never saw and a page that kept moving all fail the
+ * same way the second time, and the model is told to do something else.
+ */
+function worthAnotherTry(name: string, failure: Failure): boolean {
+  return name === "browser_open" && failure.stage === READ_DRIVER;
+}
+
+/** A call that can leave the page different opens the next round, and what the
+    last one read no longer says anything about it: the answers go, and the
+    failures go with them, because a reference that has stopped working is not
+    evidence that the page is broken. */
+function openedNextRound(ledger: Ledger): void {
+  ledger.round += 1;
+  ledger.ran.clear();
+  ledger.failed.clear();
+}
+
+export function newLedger(): Ledger {
+  return { ran: new Map(), failed: new Map(), round: 0, spent: 0, pictures: 0 };
+}

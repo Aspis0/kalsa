@@ -1,0 +1,126 @@
+import { useEffect, useRef, useState } from "react";
+import { runMailRead } from "../lib/tools/mailCall";
+import { withBody, withDraft, withSent } from "../lib/mail/drafts";
+import type { DraftRecord, Drafts, SentTo } from "../lib/mail/drafts";
+import type { MailCardItem } from "../lib/mail/types";
+import type { OpenMail } from "../components/mail/MailView";
+import type { PendingSend } from "../lib/mail/pending";
+
+/**
+ * Which mail stands open beside the chat, the replies being written to each
+ * mail, and the one press between "Invia" and the command. The dialog is the
+ * ONLY caller of the send command, and it only exists because a person pressed
+ * the button on a card or in the panel: a model can write the words of a reply
+ * and cannot send one.
+ */
+
+export function useMail(conversation: string | null) {
+  const [open, setOpen] = useState<OpenMail | null>(null);
+  /** Whether a read is still running, so the pane can say so instead of
+      saying no mail is open. The read is the slowest call the mailbox makes. */
+  const [opening, setOpening] = useState(false);
+  /** Which read owns the pane. Two «Apri» in a row run one behind the other, and
+      the first answer must not land on top of the mail the second one opened. */
+  const reading = useRef(0);
+  /** The words of every reply in hand, each under the mail it answers. The chat's
+      draft card and the panel's box are two views of the same entry: one reply
+      can never be shown under another mail's name. */
+  const [drafts, setDrafts] = useState<Drafts>({});
+  /** Where each reply went, under the same key, for the same reason. */
+  const [sent, setSent] = useState<SentTo>({});
+  const [send, setSend] = useState<PendingSend | null>(null);
+  /** How many presses of «Invia» are on their way to the server. A confirm with
+      any in flight stays put and cannot be swapped: its answer, sent or refused,
+      is the one thing it still owes the person. */
+  const inFlight = useRef(0);
+
+  /** Drops the read in flight, the mail on screen and the unpressed confirm. One
+      press of the ticket is what every "this answer no longer applies" ends in:
+      a new «Apri», a closed pane, and another chat. */
+  function invalidate(): void {
+    reading.current += 1;
+    setOpening(false);
+    setOpen(null);
+    dropPending();
+  }
+
+  /** A confirm that has not been pressed belongs to the mail and chat it was
+      opened for; once it is pressed it must finish and report. */
+  function dropPending(): void {
+    if (inFlight.current === 0) setSend(null);
+  }
+
+  /** Puts a confirm up or takes one down, but never swaps one out mid-send: the
+      answer that lands belongs to the reply that was pressed. */
+  function offerSend(next: PendingSend | null): void {
+    if (inFlight.current === 0) setSend(next);
+  }
+
+  // The open mail belongs to the chat it was opened in. One hook serves every
+  // chat, so without this a slow read begun in one finishes into the pane of
+  // whichever chat is active when it lands.
+  useEffect(invalidate, [conversation]);
+
+  /** Reads the mail in full and shows it in the panel. The record comes from
+      the sidecar; the body from the fenced text, which is the only copy of it
+      that ever leaves the server. */
+  async function show(item: MailCardItem): Promise<void> {
+    const ticket = reading.current + 1;
+    reading.current = ticket;
+    setOpening(true);
+    const answer = await runMailRead({ id: item.id });
+    if (reading.current !== ticket) return;
+    setOpening(false);
+    setOpen({ item, record: answer.record, body: answer.body, code: answer.code });
+  }
+
+  /** A draft the sidecar wrote, with the address the backend will send to. */
+  function save(id: string, record: DraftRecord): void {
+    setDrafts((before) => withDraft(before, id, record));
+  }
+
+  /** The person typed: only the words of that one mail change. */
+  function type_(id: string, body: string): void {
+    setDrafts((before) => withBody(before, id, body));
+  }
+
+  /** Another mail is another reply. The pending confirmation is about the mail
+      that was on screen, so it goes; the replies already written stay.
+      Closing the pane dismisses the read too: an answer that lands afterwards
+      must not reopen what the person just shut. */
+  function changeMail(next: OpenMail | null): void {
+    if (next === null) return invalidate();
+    setOpen(next);
+    dropPending();
+  }
+
+  /** One send starts (true) or its answer is in (false). Pairs are counted, so
+      two sends overlapping cannot clear each other's hold. */
+  function markInFlight(started: boolean): void {
+    inFlight.current += started ? 1 : -1;
+  }
+
+  function done(id: string, to: string): void {
+    setSend(null);
+    setSent((before) => withSent(before, id, to));
+  }
+
+  return {
+    open,
+    opening,
+    setOpen: changeMail,
+    show,
+    drafts,
+    save,
+    type: type_,
+    sent,
+    send,
+    setSend: offerSend,
+    markInFlight,
+    done,
+  };
+}
+
+export type MailState = ReturnType<typeof useMail>;
+
+export type { OpenMail };

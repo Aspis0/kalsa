@@ -1,0 +1,14 @@
+// The one media viewer, shared by the chat's message pictures and the
+// room's media: the words of the full-view lightbox.
+
+export const VIEWER = {
+  viewerAria: "Media viewer",
+  close: "Close",
+  previous: "Previous",
+  next: "Next",
+  position: (at: number, total: number) => `${at} of ${total}`,
+  enlarge: "View full size",
+  loading: "Loading…",
+  imageUnavailable: "Couldn't load this picture.",
+  videoUnsupported: "This video cannot be played here.",
+};

@@ -1,0 +1,46 @@
+[package]
+name = "kalsa-pairing"
+description = "The QR pairing ceremony: a one-time code, a binding to this computer, and the phone's own description, stored owner-only"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+# Every secret in the ceremony is drawn from the operating system's entropy pool.
+getrandom = "0.3"
+# The one-time code is short enough that a timing oracle is not theoretical.
+subtle = "2"
+# The completion MACs, both directions (secret.rs, messages.rs).
+sha2 = "0.10"
+hmac = "0.12"
+# The QR payload and the stored handshake are plain, versioned JSON.
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# The one place secrets get rendered, for the QR and the credential store.
+hex = "0.4"
+# The invite link: the QR payload behind a `#`, URL-safe and unpadded.
+base64 = "0.22"
+# The Unicode General_Category of a character: which ones a label must drop
+# (store.rs), the same set the phone drops with \p{C}.
+unicode-properties = { version = "0.1.4", default-features = false, features = ["general-category"] }
+# PhoneModel: the phone's shape, filled here and read everywhere else.
+kalsa-catalog = { path = "../kalsa-catalog" }
+# The QR encoder: MIT, forbid(unsafe), no dependencies, one readable file.
+qrcodegen = "1.8.0"
+
+# Windows-only: the credential file's protected DACL (owner-only access).
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    # The SDDL converter lives in `Security::Authorization`, not `Security`.
+    "Win32_Security_Authorization",
+    "Win32_Storage_FileSystem",
+    # The process token that names the current user.
+    "Win32_System_Threading",
+] }
+
+[dev-dependencies]
+# The decoder the round-trip test needs, and nothing else: default features
+# pull an image stack this test does not use.
+rqrr = { version = "0.11.0", default-features = false }

@@ -1,0 +1,30 @@
+isolation np=1 on 18331
+isolation-np1-red-exit=0
+isolation-np1-green-exit=0
+isolation-np1-server-stopped
+isolation np=2 on 18332
+isolation-np2-red-exit=0
+isolation-np2-green-exit=2
+isolation-np2-server-stopped
+cliff CLIFF2-B4 on 18361 (--parallel 4)
+cliff-CLIFF2-B4-sim-exit=1
+cliff-CLIFF2-B4-server-stopped
+cliff CLIFF2-A on 18362 (--parallel 1)
+cliff-CLIFF2-A-sim-exit=0
+cliff-CLIFF2-A-server-stopped
+switch-cost design A on 18351
+switch-cost-A-exit=0
+switch-cost-A-server-stopped
+switch-cost design B2 (4 phones, ~8k docs) on 18352
+switch-cost-B2-exit=0
+switch-cost-B2-server-stopped
+switch-cost unified (2 phones, ~16k docs) on 18353
+switch-cost-U-exit=0
+switch-cost-U-server-stopped
+model-switch-exit=0
+ALL DONE
+--- final re-run after detector fix (red1/green1/red2/green2 logs) ---
+isolation-np1-red-exit=0 (RED-CONFIRMED: bound injection + marker detector)
+isolation-np1-green-exit=0 (GREEN)
+isolation-np2-red-exit=0 (RED-CONFIRMED)
+isolation-np2-green-exit=0 (GREEN, incl. wrap test)

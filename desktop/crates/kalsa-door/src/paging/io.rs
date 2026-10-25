@@ -1,0 +1,283 @@
+//! The pipe to the engine: the three slot actions the tier's policy calls, the
+//! staging name a save is written under, and the sentence a failure gives the
+//! client. Nothing here decides which chat is resident — that is the policy's,
+//! in the parent module — but a restore does record on the slot what its
+//! failure means, because only this side knows whether the engine answered.
+
+use std::fs;
+use std::path::Path;
+use std::time::Instant;
+
+use super::names;
+use super::{answer_json, Residency, Slot};
+use crate::engine::{Call, Engine};
+
+/// The suffix a save is written under until it is known to hold anything. The
+/// engine's own write is already atomic against a crash; this one is about not
+/// needing to be, because a rename over the real file is what would destroy a
+/// chat the slot no longer holds.
+pub(super) const STAGING: &str = ".staging";
+
+const ENGINE: &str = "The engine could not be reached for this chat.";
+const SLOT_REFUSED: &str = "The engine refused to clear this device's slot, so the chat was not opened.";
+const SAVE_REFUSED: &str = "The engine could not save the chat that is open, so it stays as it is.";
+const RESTORE_FAILED: &str =
+    "The chat could not be opened; the chat that was open is back in the slot.";
+const SLOT_EMPTY: &str = "The chat could not be opened; the slot is now empty.";
+const SLOT_UNKNOWN: &str = "The engine could not be reached, so the state of this device's slot is unknown.";
+const FILES: &str = "The door could not put the saved chat in place, so nothing changed.";
+const NO_SLOT: &str = "The door lost track of this device's slot.";
+
+impl ChatError {
+    /// The stable code the webview renders in the owner's language. Every
+    /// saved-chat failure reads the same to the person waiting — the chat
+    /// did not open, try again — and the distinctions live in the codes for
+    /// the log.
+    pub(crate) fn code(&self) -> &'static str {
+        match self {
+            Self::Unreachable => "door.engine_unreachable",
+            Self::Save => "door.save_refused",
+            Self::Restore => "door.restore_failed",
+            Self::Empty => "door.slot_empty",
+            Self::Unknown => "door.slot_unknown",
+            Self::SlotRefused => "door.slot_refused",
+            Self::Files => "door.files",
+            Self::NoSlot => "door.no_slot",
+        }
+    }
+}
+
+/// What a failed action tells the client. The statuses are the door's own
+/// vocabulary — 400 for the client's request, 501 for a door the app never
+/// built the tier into, 502 for the engine — and the sentence is what a UI can
+/// show. `pub(crate)` because the seat handover in `proxy` refuses a request
+/// with the same words the routes answer with.
+pub(crate) enum ChatError {
+    Unreachable,
+    Save,
+    Restore,
+    Empty,
+    Unknown,
+    SlotRefused,
+    Files,
+    NoSlot,
+}
+
+impl ChatError {
+    pub(crate) fn answer(self, origin: Option<&[u8]>) -> Vec<u8> {
+        // The body is JSON — a code the page renders in the owner's
+        // language, and the English sentence a phone client or an unknown
+        // code falls back to. The status stays the protocol's own.
+        let status = match self {
+            Self::NoSlot => 500,
+            _ => 502,
+        };
+        let body = serde_json::json!({ "code": self.code(), "text": self.text() }).to_string();
+        answer_json(status, origin, &body)
+    }
+
+    fn text(&self) -> &'static str {
+        match self {
+            Self::Unreachable => ENGINE,
+            Self::Save => SAVE_REFUSED,
+            Self::Restore => RESTORE_FAILED,
+            Self::Empty => SLOT_EMPTY,
+            Self::Unknown => SLOT_UNKNOWN,
+            Self::SlotRefused => SLOT_REFUSED,
+            Self::Files => FILES,
+            Self::NoSlot => NO_SLOT,
+        }
+    }
+}
+
+/// What a save left behind, and how the caller counts it. The idle tick does
+/// not hold the slot's lock across the engine call — `mark_dirty` takes that
+/// lock at the end of every turn — so the slot can be handed to another chat
+/// while the engine writes, and the rename is the step that has to notice.
+pub(super) enum Saved {
+    /// Renamed into place: the chat's file on disk is this save.
+    InPlace,
+    /// The engine answered `n_saved` 0: the slot held nothing to write, so
+    /// nothing was renamed. See `restore` below for what that branch does and
+    /// does not promise.
+    Nothing,
+    /// The slot is another chat's now, so the staging file was dropped rather
+    /// than renamed: no state may land under a name whose chat no longer holds
+    /// the slot, and nothing this save learned is counted or cleared — what is
+    /// owed (mark and backoff) belongs to whoever holds the slot now.
+    Superseded,
+}
+
+/// Saves the slot under `real`, and renames it into place only when the engine
+/// wrote something and the slot still holds the chat the name carries.
+///
+/// `still_resident` is the commit check, run only when there is something to
+/// rename. A caller that already holds the slot's lock passes `&|| true` —
+/// the residency cannot move under it — and the idle tick passes a closure
+/// that takes the lock back, because its own engine call ran without it.
+///
+/// An empty slot writes an empty state, and renaming that over a real file is
+/// how a sleeping engine destroys a chat it still has on disk.
+pub(super) fn save(
+    why: &str,
+    dir: &Path,
+    real: &str,
+    engine: &Engine<'_>,
+    still_resident: &dyn Fn() -> bool,
+) -> Result<Saved, ChatError> {
+    let started = Instant::now();
+    let result = save_now(dir, real, engine, still_resident);
+    let bytes = fs::metadata(dir.join(real)).ok().map(|meta| meta.len());
+    let outcome = match &result {
+        Ok(Saved::InPlace) => "ok".to_string(),
+        Ok(Saved::Nothing) => "nothing".to_string(),
+        Ok(Saved::Superseded) => "superseded".to_string(),
+        Err(error) => format!("code {}", error.code()),
+    };
+    log_chat(why, engine.slot, real, &outcome, started, bytes);
+    result
+}
+
+/// The save itself. The wrapper above is the log's: every path out of here
+/// still says what it left behind, the failed ones included.
+fn save_now(
+    dir: &Path,
+    real: &str,
+    engine: &Engine<'_>,
+    still_resident: &dyn Fn() -> bool,
+) -> Result<Saved, ChatError> {
+    let staging = format!("{real}{STAGING}");
+    let staged = dir.join(&staging);
+    let written = engine
+        .call("save", Some(&staging), Some("n_saved"))
+        .map_err(|call| {
+            // The engine may have written the state and lost the answer; the
+            // real file is untouched either way, so the leftover goes.
+            let _ = fs::remove_file(&staged);
+            match call {
+                Call::Unreachable => ChatError::Unreachable,
+                Call::Refused => ChatError::Save,
+            }
+        })?;
+    let resident = written > 0 && still_resident();
+    let outcome = if resident {
+        Saved::InPlace
+    } else if written > 0 {
+        Saved::Superseded
+    } else {
+        Saved::Nothing
+    };
+    let renamed = if resident {
+        fs::rename(&staged, dir.join(real))
+    } else {
+        Ok(())
+    };
+    // Every path out, including a rename that just consumed it: no staging
+    // file is kept, because nothing but this call ever names one. The single
+    // cleanup runs after the rename instead of in its error arm, because the
+    // `?` that used to sit here skipped it on the one path that fails — a
+    // rename the filesystem refuses left the staging file behind.
+    let _ = fs::remove_file(&staged);
+    renamed.map_err(|_| ChatError::Files)?;
+    Ok(outcome)
+}
+
+/// Restores `name`, and records on the slot what a failure means for it. An
+/// engine that never answered may not have processed the action at all, so the
+/// slot holds what it held and the door says so instead of calling it empty. A
+/// refusal did process the action, and the engine's own catch cleared the slot.
+///
+/// `Unknown` never writes out of the slot, and for two branches rather than
+/// one, because the caller's save can end either way — this is the premise the
+/// next reader must be able to check:
+///
+/// - the save reported `n_saved > 0`: the chat that was in the slot was
+///   renamed into place, so its file is fresh;
+/// - the save reported `n_saved == 0`: nothing was renamed, and no
+///   conversational state that is not already on disk is lost — the slot held
+///   nothing the door could have written out. That is narrower than "nothing
+///   to lose", and the countercase is real: the slot holds a chat whose file
+///   on disk is an *earlier* session, the engine reports 0, no rename happens,
+///   and the fact that the chat is now empty is lost — the next restore reads
+///   the old file and revives messages the user deleted. That behaviour
+///   predates this record; what the record must not do is call the branch
+///   safe.
+///
+/// The count is the engine's (`n_saved`), and the door cannot tell an empty
+/// slot from a chat with a zero-length transcript; that distinction, if it is
+/// ever needed, is the engine's to make. Neither branch lets the door write
+/// over a file with state it cannot name, which is what makes the unknown
+/// safer than guessing between empty and the old record.
+pub(super) fn restore(
+    dir: &Path,
+    state: &mut Slot,
+    engine: &Engine<'_>,
+    name: &str,
+) -> Result<(), ChatError> {
+    let started = Instant::now();
+    let bytes = fs::metadata(dir.join(name)).ok().map(|meta| meta.len());
+    let result = restore_now(state, engine, name);
+    let outcome = match &result {
+        Ok(()) => "ok".to_string(),
+        Err(error) => format!("code {}", error.code()),
+    };
+    log_chat("restore", engine.slot, name, &outcome, started, bytes);
+    result
+}
+
+fn restore_now(state: &mut Slot, engine: &Engine<'_>, name: &str) -> Result<(), ChatError> {
+    match engine.call("restore", Some(name), None) {
+        Ok(_) => Ok(()),
+        Err(Call::Unreachable) => {
+            state.resident = Residency::Unknown;
+            state.dirty_at = None;
+            Err(ChatError::Unknown)
+        }
+        Err(Call::Refused) => {
+            state.resident = Residency::Empty;
+            state.dirty_at = None;
+            Err(ChatError::Empty)
+        }
+    }
+}
+
+pub(super) fn erase_slot(engine: &Engine<'_>) -> Result<(), ChatError> {
+    engine
+        .call("erase", None, None)
+        .map(|_| ())
+        .map_err(|call| match call {
+            Call::Unreachable => ChatError::Unreachable,
+            Call::Refused => ChatError::SlotRefused,
+        })
+}
+
+/// One disk-tier action's line, from the file name the tier built: the device
+/// and the chat are read back out ([`names::named`]), and the id reaches the
+/// log only as [`crate::audit::line::id_hash`]. A name this parser does not know — a door
+/// built against something else — is still logged, with the device unknown,
+/// so the outcome is never the thing that goes missing.
+fn log_chat(
+    action: &str,
+    slot: u32,
+    file: &str,
+    outcome: &str,
+    started: Instant,
+    bytes: Option<u64>,
+) {
+    let (device, chat) = match names::named(file) {
+        Some((device, chat)) => (Some(device), chat),
+        None => (None, "?"),
+    };
+    log::info!(
+        "{}",
+        crate::audit::line::chat_line(
+            action,
+            slot,
+            device,
+            chat,
+            outcome,
+            started.elapsed().as_millis() as u64,
+            bytes,
+        )
+    );
+}

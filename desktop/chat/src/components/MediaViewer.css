@@ -1,0 +1,103 @@
+/* The full-view lightbox (mockup 11-chat-states-viewer): a dark field over the
+   page, the item centred with rounded corners, round buttons, the count
+   beneath. */
+
+.media-viewer {
+  position: fixed;
+  /* Over the page, not the rail (112px, Rail.css), as the mockup draws it. */
+  inset: 0 0 0 112px;
+  z-index: 80;
+  display: flex;
+  background: rgba(18, 19, 15, 0.92);
+}
+
+.media-viewer-stage {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.media-viewer-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 88px 112px 12px;
+}
+
+.media-viewer-video {
+  max-width: min(100%, 900px);
+  max-height: 100%;
+  border-radius: 12px;
+}
+
+/* The mockup's 900 × 620 box (11-chat-states-viewer): a small picture grows
+   into it, a large one shrinks, neither is cropped. */
+.media-viewer-image {
+  width: min(100%, 900px);
+  height: min(100%, 620px);
+  object-fit: contain;
+  border-radius: 12px;
+}
+
+.media-viewer-nav,
+.media-viewer-close {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.media-viewer-nav {
+  top: 50%;
+  width: 56px;
+  height: 56px;
+  margin-top: -28px;
+}
+
+.media-viewer-prev {
+  left: 40px;
+}
+
+.media-viewer-next {
+  right: 40px;
+}
+
+.media-viewer-close {
+  top: 24px;
+  right: 28px;
+  width: 52px;
+  height: 52px;
+}
+
+.media-viewer-nav:hover,
+.media-viewer-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.media-viewer-nav:focus-visible,
+.media-viewer-close:focus-visible {
+  border-radius: 50%;
+  outline-color: #fff;
+}
+
+.media-viewer-count {
+  flex: none;
+  margin: 18px 0 32px;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 15px;
+  text-align: center;
+}
+
+.media-viewer-missing {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 15px;
+}

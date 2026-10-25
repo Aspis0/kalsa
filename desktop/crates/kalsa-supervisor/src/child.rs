@@ -1,0 +1,1301 @@
+//! The child process: how it is spawned, how it is stopped, and what stops it
+//! when we are not around to ask.
+//!
+//! Shutdown order is the point of this file:
+//!
+//! 1. close our end of the child's stdin — the stop signal a cooperating child
+//!    waits for, identical on every platform, because it is our pipe. Nothing
+//!    this crate spawns reads stdin (`llama-server` does not), so no grace is
+//!    waited out behind that close;
+//! 2. unix: SIGTERM to the child's process group, SIGKILL a grace later —
+//!    the one wait a stop can spend. Windows has no signal to send and walks
+//!    straight to the kill;
+//! 3. the platform backstop for a force-quit: a kill-on-close Job Object on
+//!    Windows (from Jan, see NOTICE), `PR_SET_PDEATHSIG` on Linux. macOS has
+//!    neither; see the README for what that costs.
+//!
+//! The child is put in its own process group on Unix, so the group shot in step
+//! 2 also takes any helper it spawned.
+
+use std::collections::VecDeque;
+use std::fs::File;
+use std::io::{self, BufRead, BufReader};
+use std::path::{Path, PathBuf};
+use std::process::{Child, ChildStdin, Command, ExitStatus, Stdio};
+use std::sync::atomic::{AtomicU64, AtomicU8, Ordering};
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
+
+/// How many stderr lines we keep to explain an unexpected exit. A crash
+/// report pastes the whole tail into the log, and llama-server's startup
+/// scan alone runs longer than a dozen lines.
+const OUTPUT_TAIL: usize = 40;
+
+/// Takes every `LLAMA_*` variable out of the engine child's environment.
+/// The fork reads its debug and verbosity knobs from these —
+/// `LLAMA_SERVER_SLOTS_DEBUG` makes it print PROMPT TEXT at warning level
+/// (`server-context.cpp:3712-3747`), `LLAMA_ARG_LOG_VERBOSITY` plus
+/// `LLAMA_API_KEY` print key fragments (`server-http.cpp:229-234`) — and
+/// the log's promise is that none of that can reach it, whatever a shell
+/// happened to export. `GGML_*` stay: they are performance knobs, not
+/// logging ones. Case-insensitive, because env names are, on Windows.
+///
+/// The environment arrives as `OsString` pairs — `env::vars()` PANICS on
+/// a name or value no shell promised to be UTF-8, and one odd variable
+/// must not crash every engine start. Names are compared LOSSILY: the
+/// knobs this exists to strip are ASCII, which survives lossy conversion
+/// unchanged (so even `LLAMA_\xff` is caught — its lossy form still leads
+/// with the prefix, and the removal uses the original key), while a name
+/// that is not valid UTF-8 cannot be one of the fork's ASCII knobs and
+/// stays put. Values are never read at all. Public: the runtime's
+/// disposable probe children spawn through the same rule.
+pub fn strip_llama_env(
+    cmd: &mut Command,
+    env: impl Iterator<Item = (std::ffi::OsString, std::ffi::OsString)>,
+) {
+    for (name, _) in env {
+        if name
+            .to_string_lossy()
+            .to_ascii_uppercase()
+            .starts_with("LLAMA_")
+        {
+            cmd.env_remove(&name);
+        }
+    }
+}
+
+/// `CREATE_NO_WINDOW`: in the shipped build the app is a GUI process that
+/// owns no console (`windows_subsystem = "windows"` sits under
+/// `cfg_attr(not(debug_assertions))` in the app's main.rs — a debug build
+/// keeps its console), so a console child of ours would open a console window of its
+/// own: the window an owner sees titled `kalsa-server.exe` when the app
+/// turns on. The flag only suppresses that window; the stdio the caller
+/// set is untouched. `creation_flags` ASSIGNS its argument, it does not
+/// OR into what is there — the last call wins — so this must be the only
+/// `creation_flags` call on a Command. Off Windows there is no console to
+/// hide and nothing is done.
+#[cfg(target_os = "windows")]
+pub fn hide_console(cmd: &mut Command) {
+    use std::os::windows::process::CommandExt;
+    cmd.creation_flags(windows_sys::Win32::System::Threading::CREATE_NO_WINDOW);
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn hide_console(_cmd: &mut Command) {}
+
+/// How often `wait_within` looks at the child.
+const WAIT_POLL: Duration = Duration::from_millis(25);
+/// How long the walk waits for the kernel to hand over the status of a child
+/// it has just killed. `kill` or `TerminateProcess` is a request, not a
+/// verdict: the status is a reap, and a reap that has not landed in this long
+/// is a fact to report rather than a wait to keep — a stop walk once held the
+/// app for six minutes here with the engine already gone.
+const REAP_GRACE: Duration = Duration::from_secs(3);
+
+/// The two stderr lines llama-server b10950 prints around a release:
+/// `--sleep-idle-seconds` fires and it frees the model ("I srv  handle_sleep:
+/// server is entering sleeping state"), then the next request loads the model
+/// back ("I srv  handle_sleep: server is exiting sleeping state"). This is how
+/// the owner learns either fact: the server offers no endpoint for its
+/// residency — `/health` keeps answering 200 while the model is gone, and
+/// `/props` carries `is_sleeping` but only a poll would read it — so the
+/// announcement on the pipe we already drain is the signal. The wording is a
+/// contract with the shipped build, which the runtime pins by digest; a
+/// future build that rewords a line stops being watched, and that fact then
+/// goes unannounced rather than invented.
+const MODEL_RELEASED_LINE: &str = "server is entering sleeping state";
+const MODEL_RELOADED_LINE: &str = "server is exiting sleeping state";
+
+// The three values of the residency cell below.
+const RESIDENCY_UNKNOWN: u8 = 0;
+const RESIDENCY_IN_MEMORY: u8 = 1;
+const RESIDENCY_RELEASED: u8 = 2;
+
+/// Whether the server holds the model in memory right now, as its own stderr
+/// announces it.
+///
+/// Three-valued, and the third value is the point: right after a spawn, before
+/// the drain thread has read its pipe, no announcement has been seen, so the
+/// residency stays unknown rather than being assumed loaded.
+///
+/// Deliberately a different fact from the release *counter*. The counter only
+/// ever goes up, so no poll can miss an event; and for the same reason no
+/// count can answer "is it asleep now", because nothing brings it back down.
+#[derive(Clone)]
+pub(crate) struct Residency(Arc<AtomicU8>);
+
+impl Residency {
+    pub(crate) fn new() -> Self {
+        Self(Arc::new(AtomicU8::new(RESIDENCY_UNKNOWN)))
+    }
+
+    /// `None` while nothing has announced this server's residency — a server
+    /// we hold no pipe to, and the moment before a drain of ours has looked.
+    pub(crate) fn asleep(&self) -> Option<bool> {
+        match self.0.load(Ordering::Relaxed) {
+            RESIDENCY_IN_MEMORY => Some(false),
+            RESIDENCY_RELEASED => Some(true),
+            _ => None,
+        }
+    }
+
+    fn set(&self, value: u8) {
+        self.0.store(value, Ordering::Relaxed);
+    }
+
+    /// Forgets what the previous server announced. Called on the path that
+    /// begins a start, before the new server can be reported running: the cell
+    /// describes the server that owns it, and until the new one's drain has
+    /// looked there is no answer to give. A poll landing in that window reads
+    /// "unknown" — today's words — instead of the released model of the server
+    /// before it.
+    pub(crate) fn forget(&self) {
+        self.set(RESIDENCY_UNKNOWN);
+    }
+}
+
+pub struct ChildHandle {
+    child: Child,
+    stdin: Option<ChildStdin>,
+    tail: Arc<Mutex<VecDeque<String>>>,
+    #[cfg(windows)]
+    _job: Option<job::Job>,
+}
+
+/// How the stop's own line names the walk this platform takes: unix spends
+/// one grace behind SIGTERM, while a Windows stop closes the pipe and kills —
+/// no rung there waits, so none is named. The name lives beside the walk so
+/// the two cannot drift.
+#[cfg(unix)]
+pub(crate) fn walk_line(grace: Duration) -> String {
+    format!("{grace:?} per rung (SIGTERM, SIGKILL)")
+}
+#[cfg(not(unix))]
+pub(crate) fn walk_line(_grace: Duration) -> String {
+    "no grace rung (kill)".to_string()
+}
+
+impl ChildHandle {
+    /// Spawns `exe` in its own process group (Unix) or inside a kill-on-close
+    /// job (Windows), with stdin piped: dropping our end is the child's stop
+    /// signal, so `Stdio::null()` would be an immediate EOF.
+    ///
+    /// `releases` is bumped once per model release the server announces on
+    /// stderr; see [`MODEL_RELEASED_LINE`]. `residency` carries the two-way
+    /// fact the same lines tell — released, then loaded again — and stays
+    /// unknown for a server this drain never watches.
+    ///
+    /// The optional file configuration keeps redacted stderr beyond the
+    /// in-memory tail, so sleep announcements survive until diagnosis.
+    ///
+    /// The working directory is pinned to the binary's own directory because
+    /// ggml's backend scan puts the process' current directory in its module
+    /// search path and loads the first `ggml-*` name it scores — a module
+    /// planted in an inherited directory would run. Absolute paths only: a
+    /// relative program path is resolved against `current_dir`.
+    ///
+    /// `key` reaches the child through the environment, never argv: argv is
+    /// logged whole (`supervisor::argv_line`) and written into the instance
+    /// state file (`config::binding`), so a key there would be a key in the
+    /// log and on disk.
+    pub fn spawn(
+        exe: &Path,
+        args: &[String],
+        inherit: Option<&File>,
+        releases: Arc<AtomicU64>,
+        residency: Residency,
+        stderr_dir: Option<&crate::stderr_log::StderrLogConfig>,
+        key: &crate::engine_key::EngineKey,
+    ) -> io::Result<Self> {
+        let mut cmd = Command::new(exe);
+        cmd.args(args)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped());
+        strip_llama_env(&mut cmd, std::env::vars_os());
+        // After the strip, which removes this name too: the key is ours, set
+        // deliberately, and the strip's job is to take the shell's copy.
+        cmd.env(crate::engine_key::API_KEY_ENV, key.as_str());
+        hide_console(&mut cmd);
+        if exe.is_absolute() {
+            if let Some(dir) = exe.parent() {
+                cmd.current_dir(dir);
+            }
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::io::AsRawFd;
+            use std::os::unix::process::CommandExt;
+            // Own group: one signal reaches the server and anything it spawned.
+            cmd.process_group(0);
+            if let Some(file) = inherit {
+                // The state file's lock has to outlive US, not just the spawn:
+                // clearing close-on-exec lets the child keep the locked open
+                // file description, so "the lock is held" keeps meaning "our
+                // server is alive" even when this process was killed outright.
+                // std opens every file close-on-exec, so this is the only way.
+                let fd = file.as_raw_fd();
+                if unsafe { libc::fcntl(fd, libc::F_SETFD, 0) } == -1 {
+                    return Err(io::Error::last_os_error());
+                }
+            }
+        }
+        #[cfg(target_os = "linux")]
+        unsafe {
+            use std::os::unix::process::CommandExt;
+            // Linux can ask the kernel to signal us when the parent dies. macOS
+            // has no equivalent, which is why the macOS section of the README
+            // says a force-quit can leave an idle server behind.
+            cmd.pre_exec(|| {
+                libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGTERM);
+                Ok(())
+            });
+        }
+        let mut child = cmd.spawn()?;
+        #[cfg(windows)]
+        let job = {
+            // No inherited lock on Windows: the job object already kills the
+            // child with us, so there is no orphan for it to identify.
+            let _ = inherit;
+            use std::os::windows::io::AsRawHandle;
+            job::confine(child.as_raw_handle())
+        };
+        // No job means no kill-on-close: a force-quit of this app would
+        // leave the server running with nothing to reap it. The server
+        // still starts — the guarantee, not its life, is what was lost —
+        // but that is a guarantee the owner is told, through the log.
+        #[cfg(windows)]
+        if job.is_none() {
+            log::warn!(
+                "the server could not be confined to a kill-on-close job: a \
+                 force-quit will not reap it, and an orphan server may outlive the app"
+            );
+        }
+        let stdin = child.stdin.take();
+        let tail = drain_stderr(child.stderr.take(), releases, residency, stderr_dir);
+        Ok(Self {
+            child,
+            stdin,
+            tail,
+            #[cfg(windows)]
+            _job: job,
+        })
+    }
+
+    pub fn pid(&self) -> u32 {
+        self.child.id()
+    }
+
+    /// None while running, otherwise the exit status.
+    pub fn try_wait(&mut self) -> io::Result<Option<ExitStatus>> {
+        self.child.try_wait()
+    }
+
+    /// Last lines the child wrote to stderr, oldest first.
+    pub fn output_tail(&self) -> Vec<String> {
+        self.tail
+            .lock()
+            .map(|lines| lines.iter().cloned().collect())
+            .unwrap_or_default()
+    }
+
+    /// Closes the child's stdin. False when there was no pipe left to close.
+    pub fn close_stdin(&mut self) -> bool {
+        self.stdin.take().is_some()
+    }
+
+    /// Stops the child: close its stdin, then — unix — SIGTERM to its group
+    /// and, a grace later, SIGKILL. A Windows stop closes the pipe and kills:
+    /// there is no signal to send, so no grace is waited out at all. Every
+    /// rung is bounded,
+    /// the reap behind the kill included: a status that has not landed
+    /// within [`REAP_GRACE`] is REPORTED, never waited for — a kill can be
+    /// issued and the process object still not signal, and an exit that
+    /// waited on it held this app for six minutes with the engine gone.
+    /// The walk REPORTS what it found instead of handing back an exit
+    /// status that reads as "gone" either way.
+    pub fn terminate(
+        &mut self,
+        #[cfg_attr(not(unix), allow(unused_variables))] grace: Duration,
+    ) -> Termination {
+        let mut complaints: Vec<String> = Vec::new();
+        if let Ok(Some(_)) = self.child.try_wait() {
+            return Termination::Gone { needed: Step::Already };
+        }
+        // Our end of the pipe goes whichever way the walk continues. Nothing
+        // this crate spawns reads it, so no grace is waited behind the close:
+        // the engine's stop is the signal below, or — Windows — the kill.
+        self.close_stdin();
+        #[cfg(unix)]
+        {
+            if let Err(error) = signal_group(self.pid(), libc::SIGTERM) {
+                complaints.push(format!("SIGTERM to the group: {error}"));
+            }
+            // The one grace a stop can spend: SIGTERM has been sent, and a
+            // child that leaves on its own leaves before it expires.
+            match self.wait_within(grace) {
+                Ok(Some(_)) => return Termination::Gone { needed: Step::Grace },
+                Ok(None) => {}
+                Err(error) => {
+                    return Termination::Unknown {
+                        detail: format!("reaping after SIGTERM failed: {error}"),
+                    }
+                }
+            }
+        }
+        #[cfg(unix)]
+        if let Err(error) = signal_group(self.pid(), libc::SIGKILL) {
+            complaints.push(format!("SIGKILL to the group: {error}"));
+        }
+        #[cfg(not(unix))]
+        if let Err(error) = self.child.kill() {
+            complaints.push(format!("kill: {error}"));
+        }
+        reaped(self.wait_within(REAP_GRACE), complaints)
+    }
+
+    /// Some(status) when the child exited within `grace`, None on timeout.
+    fn wait_within(&mut self, grace: Duration) -> io::Result<Option<ExitStatus>> {
+        let deadline = Instant::now() + grace;
+        loop {
+            if let Some(status) = self.child.try_wait()? {
+                return Ok(Some(status));
+            }
+            if Instant::now() >= deadline {
+                return Ok(None);
+            }
+            std::thread::sleep(WAIT_POLL);
+        }
+    }
+}
+
+/// The verdict of the bounded reap behind the kill rung. A status that never
+/// landed is `Unknown`, not `Gone`: the kill was issued, and nothing observed
+/// says the process ended — the caller's own pid read decides what remains
+/// (`stop` maps this through `pid_alive`).
+fn reaped(outcome: io::Result<Option<ExitStatus>>, mut complaints: Vec<String>) -> Termination {
+    match outcome {
+        Ok(Some(_)) => Termination::Gone { needed: Step::Kill },
+        Ok(None) => {
+            complaints.push(format!("no exit status within {REAP_GRACE:?} of the kill"));
+            Termination::Unknown {
+                detail: complaints.join("; "),
+            }
+        }
+        Err(error) => {
+            complaints.push(format!("reaping the killed child: {error}"));
+            Termination::Unknown {
+                detail: complaints.join("; "),
+            }
+        }
+    }
+}
+
+/// Best effort only: a process killed outright runs no destructors, which is
+/// exactly why the Job Object / `PR_SET_PDEATHSIG` above exist. The reap
+/// after the kill is bounded like the walk's own: a Drop that waits forever
+/// for a status is a process that never leaves.
+impl Drop for ChildHandle {
+    fn drop(&mut self) {
+        if matches!(self.child.try_wait(), Ok(None)) {
+            #[cfg(unix)]
+            let _ = signal_group(self.pid(), libc::SIGKILL);
+            let _ = self.child.kill();
+            if matches!(self.wait_within(REAP_GRACE), Ok(None)) {
+                log::warn!(
+                    "the engine (pid {}) was killed but reported no exit status within {REAP_GRACE:?}",
+                    self.pid()
+                );
+            }
+        }
+    }
+}
+
+/// True when a process with this pid exists. `kill(pid, 0)` asks the OS
+/// without sending anything.
+pub fn pid_alive(pid: u32) -> bool {
+    #[cfg(unix)]
+    {
+        unsafe { libc::kill(pid as i32, 0) == 0 }
+    }
+    #[cfg(windows)]
+    {
+        use windows_sys::Win32::Foundation::CloseHandle;
+        use windows_sys::Win32::System::Threading::{
+            OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION,
+        };
+        let handle = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) };
+        if handle.is_null() {
+            return false;
+        }
+        unsafe { CloseHandle(handle) };
+        true
+    }
+}
+
+/// The executable a pid is running, when the OS will say.
+///
+/// `pid_alive` answers "is there a process"; this answers "WHICH one", which
+/// is the question before a signal to a pid that a file named rather than a
+/// handle we hold: a state file can name a pid that has since been recycled,
+/// and signalling that would stop a stranger.
+///
+/// `None` means the OS would not say — not permission, not a process this
+/// user may inspect, not a platform with the call. Callers treat `None` as
+/// "unproven", never as "ours".
+#[cfg(target_os = "macos")]
+pub fn pid_executable(pid: u32) -> Option<PathBuf> {
+    // `PATH_MAX` is what `proc_pidpath` documents as its ceiling.
+    let mut buffer = [0u8; 4096];
+    let written = unsafe {
+        libc::proc_pidpath(
+            pid as i32,
+            buffer.as_mut_ptr().cast(),
+            buffer.len() as u32,
+        )
+    };
+    if written <= 0 {
+        return None;
+    }
+    let path = buffer.get(..written as usize)?;
+    Some(PathBuf::from(String::from_utf8_lossy(path).into_owned()))
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+pub fn pid_executable(pid: u32) -> Option<PathBuf> {
+    std::fs::read_link(format!("/proc/{pid}/exe")).ok()
+}
+
+/// Windows names it too: `QueryFullProcessImageNameW` is the documented
+/// answer to the same question, behind the same limited query right
+/// `pid_alive` opens with. The job object reaps OUR engine with the writer,
+/// so a pid this crate can signal is one it opened a handle to at the spawn
+/// (see [`crate::engine_id`]) — but a state file may name a pid from a run
+/// that died, and on Windows the child outlived that run's file (handles are
+/// not inherited), so the orphan it leaves behind has to be NAMED and proved
+/// before it is closed, exactly as on unix.
+#[cfg(windows)]
+pub fn pid_executable(pid: u32) -> Option<PathBuf> {
+    use std::os::windows::ffi::OsStringExt;
+    use windows_sys::Win32::Foundation::CloseHandle;
+    use windows_sys::Win32::System::Threading::{
+        OpenProcess, QueryFullProcessImageNameW, PROCESS_QUERY_LIMITED_INFORMATION,
+    };
+    let handle = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) };
+    if handle.is_null() {
+        return None;
+    }
+    // `MAX_PATH` is the documented ceiling, and the call rewrites the length
+    // with what it wrote (excluding the terminator) or leaves it untouched.
+    let mut buffer = [0u16; 32768];
+    let mut written = buffer.len() as u32;
+    let named = unsafe {
+        QueryFullProcessImageNameW(handle, 0, buffer.as_mut_ptr(), &mut written)
+    };
+    // The handle is closed on every road out: this function answers a
+    // question, it does not keep the process.
+    unsafe { CloseHandle(handle) };
+    if named == 0 {
+        return None;
+    }
+    let path = buffer.get(..written as usize)?;
+    Some(PathBuf::from(std::ffi::OsString::from_wide(path)))
+}
+
+/// Stops a process we identified as ours through the state file, by pid: there
+/// is no handle to it, it belongs to a previous run of this app. Callers must
+/// have proven ownership first — this function cannot tell whose process it is.
+/// Pid 0 is refused outright: signalling 0 would signal our own process group
+/// instead of any server.
+pub fn terminate_pid(pid: u32, grace: Duration) -> Termination {
+    if pid == 0 {
+        return Termination::Unknown {
+            detail: "refusing to signal pid 0: it names no process".to_string(),
+        };
+    }
+    if !pid_alive(pid) {
+        return Termination::Gone { needed: Step::Already };
+    }
+    // Every signal's own error is kept, and the SECOND wait decides: the old
+    // `let _ = wait_pid_gone(...)` turned "still alive after SIGKILL" into
+    // `Ok(())` — the swallowed grace expiry §9 asks us to record.
+    let mut complaints: Vec<String> = Vec::new();
+    if let Err(error) = signal(pid, Signal::Term) {
+        complaints.push(format!("SIGTERM: {error}"));
+    }
+    if wait_pid_gone(pid, grace) {
+        return Termination::Gone { needed: Step::Grace };
+    }
+    if let Err(error) = signal(pid, Signal::Kill) {
+        complaints.push(format!("SIGKILL: {error}"));
+    }
+    if wait_pid_gone(pid, grace) {
+        return Termination::Gone { needed: Step::Kill };
+    }
+    if complaints.is_empty() {
+        complaints.push("still alive after SIGTERM and SIGKILL, a grace each".to_string());
+    }
+    Termination::Survived {
+        pid,
+        detail: complaints.join("; "),
+    }
+}
+
+/// What a teardown FOUND when it finished — the report §9 asks for. The walk
+/// itself is normal (a child that needs SIGKILL is a report, not a failure);
+/// what could not be established is data here, never an `Ok` that implies
+/// "gone".
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Termination {
+    /// The process is gone, and how far the walk had to go to learn that:
+    /// which class of rung finished it (each grace expiry recorded in the
+    /// rung that needed it, not swallowed).
+    Gone { needed: Step },
+    /// Still alive after the whole walk — the stop may NOT declare success.
+    /// `detail` carries what the signals themselves said: a `kill` that
+    /// failed (EPERM, ESRCH) used to be swallowed by `let _ =`.
+    Survived { pid: u32, detail: String },
+    /// Nothing could be established (an io error on the walk, or a pid this
+    /// crate refuses to signal at all): the caller probes the port and the
+    /// state reports what remains unknown.
+    Unknown { detail: String },
+}
+
+/// Which class of rung of the walk finished it: `Grace` is gone within the
+/// grace after SIGTERM — unix's one grace rung — and the question `Kill`
+/// answers separately is whether SIGKILL was needed at all. A Windows stop
+/// walks no grace rung: the engine is killed, never asked.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Step {
+    /// No push was needed: it had already exited when the walk began.
+    Already,
+    /// Gone within the SIGTERM grace: no SIGKILL was required.
+    Grace,
+    /// SIGKILL finished it: the grace rung before it was spent, and is
+    /// recorded as the time it cost, not as a failure.
+    Kill,
+}
+
+enum Signal {
+    Term,
+    Kill,
+}
+
+fn signal(pid: u32, which: Signal) -> io::Result<()> {
+    #[cfg(unix)]
+    {
+        let number = match which {
+            Signal::Term => libc::SIGTERM,
+            Signal::Kill => libc::SIGKILL,
+        };
+        // The pid, not the group: this one came out of a file. The result is
+        // returned now — a `kill` that failed is reported, never ignored.
+        if unsafe { libc::kill(pid as i32, number) } == 0 {
+            Ok(())
+        } else {
+            Err(io::Error::last_os_error())
+        }
+    }
+    #[cfg(windows)]
+    {
+        use windows_sys::Win32::Foundation::CloseHandle;
+        use windows_sys::Win32::System::Threading::{
+            OpenProcess, TerminateProcess, PROCESS_TERMINATE,
+        };
+        let _ = which;
+        let handle = unsafe { OpenProcess(PROCESS_TERMINATE, 0, pid) };
+        if handle.is_null() {
+            return Err(io::Error::last_os_error());
+        }
+        let done = unsafe { TerminateProcess(handle, 1) };
+        unsafe {
+            CloseHandle(handle);
+        }
+        if done == 0 {
+            Err(io::Error::last_os_error())
+        } else {
+            Ok(())
+        }
+    }
+}
+
+fn wait_pid_gone(pid: u32, grace: Duration) -> bool {
+    let deadline = Instant::now() + grace;
+    loop {
+        if !pid_alive(pid) {
+            return true;
+        }
+        if Instant::now() >= deadline {
+            return false;
+        }
+        std::thread::sleep(WAIT_POLL);
+    }
+}
+
+#[cfg(unix)]
+fn signal_group(pid: u32, signal: i32) -> io::Result<()> {
+    // The child leads its own group (`process_group(0)`), so the group id is its
+    // pid and a negative pid addresses the group.
+    if unsafe { libc::kill(-(pid as i32), signal) } == 0 {
+        Ok(())
+    } else {
+        Err(io::Error::last_os_error())
+    }
+}
+
+/// A child that fills its stderr pipe blocks forever mid-generation, so the
+/// pipe is drained. Keeping the tail is what lets the UI say why it died, and
+/// watching for the release line here is how a model unload becomes an event:
+/// the drain sees every line the moment the server writes it, so no release
+/// can fall between polls.
+///
+/// The file keeps only the lines the engine allowlist names. Those go through the
+/// app's redactor and are clipped before they are written.
+fn drain_stderr(
+    stderr: Option<std::process::ChildStderr>,
+    releases: Arc<AtomicU64>,
+    residency: Residency,
+    stderr_dir: Option<&crate::stderr_log::StderrLogConfig>,
+) -> Arc<Mutex<VecDeque<String>>> {
+    let tail = Arc::new(Mutex::new(VecDeque::new()));
+    let Some(stderr) = stderr else {
+        return tail;
+    };
+    let sink = Arc::clone(&tail);
+    let file = stderr_dir.map(|config| {
+        (
+            crate::stderr_log::StderrLog::open(config.dir.clone()),
+            Arc::clone(&config.redact),
+        )
+    });
+    std::thread::spawn(move || {
+        // A pipe of ours is what makes the residency knowable: this child is
+        // loading (or has already loaded) its model and no line has announced
+        // a release, so the model is in memory until one does. A server whose
+        // pipe we do not hold never reaches this line, which is exactly how
+        // its residency stays unknown instead of defaulting to "loaded".
+        residency.set(RESIDENCY_IN_MEMORY);
+        for line in BufReader::new(stderr).lines().map_while(Result::ok) {
+            if line.contains(MODEL_RELEASED_LINE) {
+                releases.fetch_add(1, Ordering::Relaxed);
+                residency.set(RESIDENCY_RELEASED);
+            } else if line.contains(MODEL_RELOADED_LINE) {
+                residency.set(RESIDENCY_IN_MEMORY);
+            }
+            if let Some((file, redact)) = file.as_ref() {
+                let safe = if crate::engine_lines::is_safe_engine_line(&line) {
+                    crate::stderr_log::clip_line(&redact(&line))
+                } else {
+                    crate::supervisor::withheld_marker(&line).to_string()
+                };
+                file.write_line(&safe);
+            }
+            if let Ok(mut lines) = sink.lock() {
+                if lines.len() == OUTPUT_TAIL {
+                    lines.pop_front();
+                }
+                lines.push_back(line);
+            }
+        }
+    });
+    tail
+}
+
+/// Ties the child's lifetime to ours on Windows, which has no process group.
+///
+/// Copied from Jan's `tauri-plugin-llamacpp` (`src/engine/worker.rs`, module
+/// `reap`, MIT — see NOTICE): `TerminateProcess` runs no destructors, so a
+/// force-quit would otherwise leave the server holding its model and its
+/// `ggml*.dll` mappings. A job object whose last handle closes with this process
+/// is the reaping the OS does for us.
+#[cfg(windows)]
+mod job {
+    use std::os::windows::io::RawHandle;
+    use windows_sys::Win32::Foundation::{CloseHandle, HANDLE};
+    use windows_sys::Win32::System::JobObjects::{
+        AssignProcessToJobObject, CreateJobObjectW, JobObjectExtendedLimitInformation,
+        SetInformationJobObject, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
+        JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+    };
+
+    /// Closing this kills every process still in the job.
+    pub struct Job(HANDLE);
+
+    // Opaque outside Drop, which owns it exclusively.
+    unsafe impl Send for Job {}
+    unsafe impl Sync for Job {}
+
+    impl Drop for Job {
+        fn drop(&mut self) {
+            unsafe { CloseHandle(self.0) };
+        }
+    }
+
+    /// Best effort: an app already confined to a job that forbids nesting
+    /// should lose the reaping guarantee, not the server. A `None` is
+    /// reported at the spawn site, not stored in silence.
+    pub fn confine(child: RawHandle) -> Option<Job> {
+        let handle = unsafe { CreateJobObjectW(std::ptr::null(), std::ptr::null()) };
+        if handle.is_null() {
+            return None;
+        }
+        let job = Job(handle);
+        let mut limits: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = unsafe { std::mem::zeroed() };
+        limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+        let set = unsafe {
+            SetInformationJobObject(
+                job.0,
+                JobObjectExtendedLimitInformation,
+                &limits as *const _ as *const std::ffi::c_void,
+                std::mem::size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
+            )
+        };
+        if set == 0 {
+            return None;
+        }
+        if unsafe { AssignProcessToJobObject(job.0, child as HANDLE) } == 0 {
+            return None;
+        }
+        Some(job)
+    }
+}
+
+/// The kill-on-close job, for the one other user of it: the runtime's
+/// probe child rides in the same reaping (`kalsa-runtime` holds it for the
+/// child's lifetime) — used there, so exported, not preventive.
+#[cfg(windows)]
+pub use job::{confine, Job};
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn a_key() -> crate::engine_key::EngineKey {
+        crate::engine_key::EngineKey::mint().expect("the OS has randomness")
+    }
+
+    /// `pid_alive` says there is a process; this says WHICH, which is the
+    /// question before a signal to a pid a state file named rather than a
+    /// handle we hold. A pid that is not there has no executable to name.
+    #[cfg(unix)]
+    #[test]
+    fn a_pid_is_named_by_the_executable_it_is_running() {
+        let mut child = std::process::Command::new("/bin/sleep")
+            .arg("30")
+            .spawn()
+            .expect("start a process to name");
+        let pid = child.id();
+        let named = pid_executable(pid);
+
+        let _ = child.kill();
+        let _ = child.wait();
+
+        assert_eq!(
+            named.as_deref(),
+            Some(std::path::Path::new("/bin/sleep")),
+            "the OS named a different executable for a live pid"
+        );
+        // A pid that has just been reaped is not a process to name, and
+        // `None` here must never be read as "therefore ours".
+        assert_eq!(pid_executable(pid), None, "a dead pid was named");
+    }
+
+    /// The whole access control of the port: the key reaches the child in its
+    /// ENVIRONMENT, and nowhere else. argv is logged whole and written into
+    /// the instance state file, so a key there would be a key in the log and
+    /// on disk. The child prints what it was given, which is how this can see
+    /// the env the fork will read.
+    #[cfg(unix)]
+    #[test]
+    fn the_key_travels_in_the_environment_and_never_in_argv() {
+        let key = a_key();
+        let args = vec![
+            "-c".into(),
+            "printf '%s\\n' \"$LLAMA_API_KEY\" >&2; sleep 30".into(),
+        ];
+        let child = ChildHandle::spawn(
+            Path::new("/bin/sh"),
+            &args,
+            None,
+            Arc::new(AtomicU64::new(0)),
+            Residency::new(),
+            None,
+            &key,
+        )
+        .expect("spawn the child");
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while !child.output_tail().iter().any(|line| line == key.as_str()) {
+            assert!(
+                Instant::now() < deadline,
+                "the child never saw the key in its environment: {:?}",
+                child.output_tail()
+            );
+            std::thread::sleep(WAIT_POLL);
+        }
+        assert!(
+            !args.iter().any(|arg| arg.contains(key.as_str())),
+            "the key was passed in argv, which is logged and written to the state file"
+        );
+    }
+
+    /// The flag has no getter on `Command`, but its effect has: a child
+    /// started behind CREATE_NO_WINDOW has no console, so
+    /// `GetConsoleWindow()` inside it is NULL and the child prints 0
+    /// through the stdout this test captures.
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn a_child_behind_the_flag_has_no_console_window() {
+        const GET_CONSOLE_WINDOW: &str = "Add-Type -Name W -Namespace K -MemberDefinition \
+            '[DllImport(\"kernel32.dll\")] public static extern System.IntPtr GetConsoleWindow();'; \
+            [K.W]::GetConsoleWindow()";
+        let mut cmd = std::process::Command::new("powershell");
+        cmd.args(["-NoProfile", "-Command", GET_CONSOLE_WINDOW]);
+        hide_console(&mut cmd);
+        let out = cmd.output().expect("powershell runs");
+        assert!(
+            out.status.success(),
+            "powershell failed: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        assert_eq!(
+            String::from_utf8_lossy(&out.stdout).trim(),
+            "0",
+            "the child had a console window"
+        );
+    }
+
+    #[test]
+    fn pid_zero_is_refused_not_signalled() {
+        // 0 is the marker for "ours, pid unknown", and signalling it would
+        // signal our own process group. Instant by construction: no process
+        // is touched, and the refusal is reported as the unknown it is —
+        // never as "gone".
+        match terminate_pid(0, Duration::from_millis(10)) {
+            Termination::Unknown { detail } => assert!(detail.contains("pid 0"), "{detail}"),
+            other => panic!("pid 0 was not refused: {other:?}"),
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_release_announcement_on_stderr_bumps_the_counter() {
+        // A real child, a real pipe: the drain must turn the server's own
+        // announcement into an event. The child prints the exact line b10950
+        // prints and stays alive, so the pipe stays open the way a serving
+        // server's does.
+        let releases = Arc::new(AtomicU64::new(0));
+        let residency = Residency::new();
+        let mut child = ChildHandle::spawn(
+            Path::new("/bin/sh"),
+            &[
+                "-c".into(),
+                "printf '%s\\n' '0.12.154.170 I srv  handle_sleep: server is entering sleeping state' >&2; sleep 30"
+                    .into(),
+            ],
+            None,
+            Arc::clone(&releases),
+            residency.clone(),
+            None,
+            &a_key(),
+        )
+        .expect("spawn the announcing child");
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while releases.load(Ordering::Relaxed) == 0 {
+            assert!(
+                Instant::now() < deadline,
+                "the drain never turned the server's announcement into an event"
+            );
+            std::thread::sleep(WAIT_POLL);
+        }
+        assert_eq!(
+            residency.asleep(),
+            Some(true),
+            "the release line must make the model asleep, not just count"
+        );
+        assert!(matches!(child.try_wait(), Ok(None)), "the child must still be running");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn stderr_that_announces_nothing_moves_no_counter() {
+        let releases = Arc::new(AtomicU64::new(0));
+        let residency = Residency::new();
+        let mut child = ChildHandle::spawn(
+            Path::new("/bin/sh"),
+            &[
+                "-c".into(),
+                "printf '%s\\n' 'I srv  handle_sleep: server is exiting sleeping state' >&2; sleep 30"
+                    .into(),
+            ],
+            None,
+            Arc::clone(&releases),
+            residency.clone(),
+            None,
+            &a_key(),
+        )
+        .expect("spawn the quiet child");
+        std::thread::sleep(Duration::from_millis(300));
+        assert_eq!(
+            releases.load(Ordering::Relaxed),
+            0,
+            "a non-release line (here: the wake-up) counted as a release"
+        );
+        assert_eq!(
+            residency.asleep(),
+            Some(false),
+            "the reload line says the model is back, which is not a release"
+        );
+        assert!(matches!(child.try_wait(), Ok(None)));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn the_reload_line_brings_the_model_back() {
+        // The two lines move one fact in opposite directions. A drain that
+        // watched only the release would leave the page saying "asleep" for the
+        // rest of the run, while the model was back in memory the whole time.
+        let releases = Arc::new(AtomicU64::new(0));
+        let residency = Residency::new();
+        let mut child = ChildHandle::spawn(
+            Path::new("/bin/sh"),
+            &[
+                "-c".into(),
+                "printf '%s\\n' 'I srv  handle_sleep: server is entering sleeping state' >&2; sleep 1; printf '%s\\n' 'I srv  handle_sleep: server is exiting sleeping state' >&2; sleep 30"
+                    .into(),
+            ],
+            None,
+            Arc::clone(&releases),
+            residency.clone(),
+            None,
+            &a_key(),
+        )
+        .expect("spawn the sleeping-then-waking child");
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while residency.asleep() != Some(true) {
+            assert!(
+                Instant::now() < deadline,
+                "the release line never made the model asleep"
+            );
+            std::thread::sleep(WAIT_POLL);
+        }
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while residency.asleep() != Some(false) {
+            assert!(
+                Instant::now() < deadline,
+                "the reload line never brought the model back"
+            );
+            std::thread::sleep(WAIT_POLL);
+        }
+        assert_eq!(
+            releases.load(Ordering::Relaxed),
+            1,
+            "the reload is not a release, so it must not bump the count"
+        );
+        assert!(matches!(child.try_wait(), Ok(None)));
+    }
+
+    /// The name a stop writes must be the walk this platform takes: unix
+    /// spends one grace behind SIGTERM, while a Windows stop has no grace to
+    /// spend, and naming one would promise a wait that never happens.
+    #[test]
+    fn the_stop_line_names_the_walk_this_platform_takes() {
+        #[cfg(unix)]
+        assert_eq!(
+            walk_line(Duration::from_secs(5)),
+            "5s per rung (SIGTERM, SIGKILL)"
+        );
+        #[cfg(not(unix))]
+        assert_eq!(walk_line(Duration::from_secs(5)), "no grace rung (kill)");
+    }
+
+    /// Unix spends no grace behind the close: a child that ignores stdin and
+    /// honors SIGTERM must be gone inside one grace, because the walk signals
+    /// it before waiting for anything.
+    #[cfg(unix)]
+    #[test]
+    fn a_stop_spends_no_grace_before_sigterm() {
+        let releases = Arc::new(AtomicU64::new(0));
+        let residency = Residency::new();
+        let mut child = ChildHandle::spawn(
+            Path::new("/bin/sh"),
+            &["-c".into(), "sleep 300".into()],
+            None,
+            releases,
+            residency,
+            None,
+            &a_key(),
+        )
+        .expect("spawn the stand-in");
+        let grace = Duration::from_secs(2);
+        let started = Instant::now();
+        let report = child.terminate(grace);
+        let elapsed = started.elapsed();
+        assert!(
+            matches!(report, Termination::Gone { needed: Step::Grace }),
+            "a child that honors SIGTERM dies at that rung: {report:?}"
+        );
+        assert!(
+            elapsed < grace,
+            "stop took {elapsed:?}: a grace was waited out before SIGTERM"
+        );
+    }
+
+    /// A Windows stop spends no grace either: there is no signal to send, so
+    /// the kill is the whole walk. A child that ignores stdin EOF must
+    /// therefore die to the kill inside less time than one grace.
+    #[cfg(not(unix))]
+    #[test]
+    fn stop_of_a_child_that_ignores_stdin_costs_no_grace() {
+        let releases = Arc::new(AtomicU64::new(0));
+        let residency = Residency::new();
+        let mut child = ChildHandle::spawn(
+            Path::new("ping"),
+            &["-n".to_string(), "300".to_string(), "127.0.0.1".to_string()],
+            None,
+            releases,
+            residency,
+            None,
+            &a_key(),
+        )
+        .expect("spawn the stand-in");
+        let grace = Duration::from_secs(1);
+        let started = Instant::now();
+        let report = child.terminate(grace);
+        let elapsed = started.elapsed();
+        assert!(
+            matches!(report, Termination::Gone { needed: Step::Kill }),
+            "a child that ignores stdin dies to the kill rung: {report:?}"
+        );
+        assert!(
+            elapsed < grace,
+            "stop took {elapsed:?}: a Windows walk waits no grace"
+        );
+    }
+
+    #[test]
+    fn a_pipe_we_do_not_hold_gives_no_answer_about_the_model() {
+        // A drain handed no pipe gets no announcements. The answer must stay
+        // unknown — a defaulted bit would claim the model is in memory on no
+        // evidence.
+        let residency = Residency::new();
+        let _tail = drain_stderr(None, Arc::new(AtomicU64::new(0)), residency.clone(), None);
+        assert_eq!(
+            residency.asleep(),
+            None,
+            "a server whose stderr we do not hold must be unknown, not assumed loaded"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn the_stderr_file_receives_only_lines_the_allowlist_names() {
+        let dir = std::env::temp_dir().join(format!(
+            "kalsa-stderr-drain-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .subsec_nanos()
+        ));
+        struct Scratch(std::path::PathBuf);
+        impl Drop for Scratch {
+            fn drop(&mut self) {
+                let _ = std::fs::remove_dir_all(&self.0);
+            }
+        }
+        let _scratch = Scratch(dir.clone());
+        std::fs::create_dir_all(&dir).expect("mkdir");
+        let config = crate::stderr_log::StderrLogConfig {
+            dir: dir.clone(),
+            redact: Arc::new(|line| {
+                line.replace("/Users/HOME-CANARY", "<home>")
+                    .replace("USER-CANARY", "<user>")
+                    .replace("HOST-CANARY", "<host>")
+            }),
+        };
+        let mut child = ChildHandle::spawn(
+            Path::new("/bin/sh"),
+            &["-c".into(),
+              "printf '%s\\n' 'I srv  handle_sleep: server is entering sleeping state' 'got exception: PROMPT-CANARY walked in' 'common_chat_parse: unparsed json output: ANSWER-CANARY' 'anthropic string not as expected: SYSTEM-CANARY' 'restored 1 context checkpoint(s) from /Users/HOME-CANARY/cache USER-CANARY HOST-CANARY' 'main: device 3 loaded' >&2; sleep 30".into()],
+            None,
+            Arc::new(AtomicU64::new(0)),
+            Residency::new(),
+            Some(&config),
+            &a_key(),
+        )
+        .expect("spawn the talking child");
+        let file = dir.join("kalsa-engine.log");
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let mut on_disk = None;
+        while Instant::now() < deadline {
+            if let Ok(text) = std::fs::read_to_string(&file) {
+                if text.contains("main: device 3 loaded") && text.contains("withheld") {
+                    on_disk = Some(text);
+                    break;
+                }
+            }
+            std::thread::sleep(WAIT_POLL);
+        }
+        let _ = child.terminate(Duration::from_millis(200));
+        let text = on_disk.expect("the drain never wrote the engine's stderr file");
+        assert!(
+            text.contains("server is entering sleeping state"),
+            "the sleep announcement never reached the disk: {text}"
+        );
+        for canary in [
+            "PROMPT-CANARY",
+            "ANSWER-CANARY",
+            "SYSTEM-CANARY",
+            "HOME-CANARY",
+            "USER-CANARY",
+            "HOST-CANARY",
+        ] {
+            assert!(!text.contains(canary), "leaked {canary}: {text}");
+        }
+        assert!(text.contains("from <home>/cache <user> <host>"), "{text}");
+        assert!(text.contains(crate::supervisor::WITHHELD), "{text}");
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn dropping_the_job_ends_the_child_it_confined() {
+        // The backstop itself, on the only OS that has it: a force-quit runs
+        // no destructors, so the thing that kills the server then is the OS
+        // closing the job's last handle with this process. The stand-in is
+        // ping itself — the process watched IS the process confined, so an
+        // escaped grandchild cannot fake a pass — pinging for ~29 seconds;
+        // the job must end it within five. Spawned directly, not through
+        // `ChildHandle`, so the only mechanism in play is the job —
+        // `ChildHandle`'s own Drop would confound it.
+        use std::os::windows::io::AsRawHandle;
+        let mut child = std::process::Command::new("ping")
+            .args(["-n", "30", "127.0.0.1"])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("spawn the stand-in");
+        // A confine that fails must kill the stand-in before failing this
+        // test, not leak it behind an unwinding expect.
+        let job = match job::confine(child.as_raw_handle()) {
+            Some(job) => job,
+            None => {
+                let _ = child.kill();
+                let _ = child.wait();
+                panic!("the job would not take the stand-in");
+            }
+        };
+        assert!(
+            matches!(child.try_wait(), Ok(None)),
+            "confining must not kill the child"
+        );
+        drop(job);
+        // Only an exit — `Ok(Some(_))` — is the proof the job did this; a
+        // try_wait error is a failure of the watch, never a death.
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let mut ended = false;
+        let mut watch_error = None;
+        while Instant::now() < deadline {
+            match child.try_wait() {
+                Ok(None) => std::thread::sleep(WAIT_POLL),
+                Ok(Some(_)) => {
+                    ended = true;
+                    break;
+                }
+                Err(error) => {
+                    watch_error = Some(error);
+                    break;
+                }
+            }
+        }
+        if let Some(error) = watch_error {
+            // The verdict is the watch failure; the cleanup behind it is
+            // bounded all the same — this path must fail on `error`, never
+            // hang on the stand-in's natural 29 seconds.
+            let _ = kill_and_reap(&mut child, Duration::from_secs(5));
+            panic!("polling the confined stand-in failed: {error}");
+        }
+        if !ended {
+            match kill_and_reap(&mut child, Duration::from_secs(5)) {
+                Ok(Some(_)) => {}
+                Ok(None) => panic!("the killed stand-in never exited within five seconds"),
+                Err(error) => panic!("cleaning up the confined stand-in failed: {error}"),
+            }
+        }
+        let reaped = child.wait().expect("reaping the confined stand-in failed");
+        assert!(
+            ended,
+            "closing the job's last handle must end the confined child (reaped: {reaped:?})"
+        );
+    }
+
+    /// The reap behind a kill is bounded: a status that has not landed
+    /// within the grace is given up on, not waited for. Measured without
+    /// killing anything — the child stays alive on purpose, so this is the
+    /// wait's own bound and not the kernel's speed.
+    #[cfg(unix)]
+    #[test]
+    fn the_wait_for_a_status_is_bounded() {
+        let mut child = ChildHandle::spawn(
+            Path::new("/bin/sh"),
+            &["-c".into(), "sleep 30".into()],
+            None,
+            Arc::new(AtomicU64::new(0)),
+            Residency::new(),
+            None,
+            &a_key(),
+        )
+        .expect("spawn the stand-in");
+        let begun = Instant::now();
+        let waited = child.wait_within(Duration::from_millis(150));
+        let took = begun.elapsed();
+        assert!(
+            matches!(waited, Ok(None)),
+            "a live child gave a status: {waited:?}"
+        );
+        assert!(
+            took >= Duration::from_millis(100) && took < Duration::from_secs(3),
+            "the wait must end at its bound: {took:?}"
+        );
+        let _ = child.terminate(Duration::from_millis(200));
+    }
+
+    /// A reap that never landed is `Unknown`, never `Gone`: the kill was
+    /// issued, and nothing observed says the process ended.
+    #[test]
+    fn a_reap_that_never_landed_is_unknown_not_gone() {
+        match reaped(Ok(None), vec!["kill: refused".to_string()]) {
+            Termination::Unknown { detail } => {
+                assert!(detail.contains("no exit status"), "{detail}");
+                assert!(
+                    detail.contains("kill: refused"),
+                    "the earlier complaint is kept: {detail}"
+                );
+            }
+            other => panic!("a reap that never landed claimed {other:?}"),
+        }
+        assert!(matches!(
+            reaped(Err(io::Error::other("boom")), Vec::new()),
+            Termination::Unknown { .. }
+        ));
+    }
+
+    /// Kill the stand-in and reap it, bounded: cleanup may neither swallow
+    /// a failed kill nor wait out the stand-in's natural 29 seconds.
+    /// `Ok(None)` means the bound passed with the child still running.
+    #[cfg(windows)]
+    fn kill_and_reap(
+        child: &mut std::process::Child,
+        bound: Duration,
+    ) -> io::Result<Option<ExitStatus>> {
+        child.kill()?;
+        let deadline = Instant::now() + bound;
+        loop {
+            match child.try_wait()? {
+                Some(status) => return Ok(Some(status)),
+                None if Instant::now() >= deadline => return Ok(None),
+                None => std::thread::sleep(WAIT_POLL),
+            }
+        }
+    }
+}

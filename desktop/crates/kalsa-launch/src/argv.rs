@@ -1,0 +1,760 @@
+//! The one small function at the edge: the value rendered as a command line.
+//!
+//! The supervisor carries the rendered argv through untouched — it renders
+//! nothing itself, so the flags cannot drift between the decision and the
+//! process that runs it.
+
+use crate::args::{ServerArgs, ServerSettings, ALL_LAYERS, CTX_CHECKPOINTS, FLASH_ATTN, HOST};
+
+impl ServerArgs {
+    /// The batch pair as rendered — the backstop beside
+    /// [`crate::args::launch_batches`], the same function the plan floors
+    /// with: `mmproj` rides exactly when the plan charged its bytes (both
+    /// keyed on the pin's `proven`), and a hand-built or cloned
+    /// `ServerArgs` (the tune's rule, the retry) cannot render below the
+    /// floor. The engine's own check on the rendered line is
+    /// `causal_attn || n_ubatch >= n_tokens_all` (`llama-context.cpp:1804`,
+    /// quoted verbatim in `dev/lab-screen/results/crash/matrix.txt`).
+    fn rendered_batches(&self) -> (u32, u32) {
+        crate::args::launch_batches(
+            self.batch_size,
+            self.ubatch_size,
+            self.mmproj.is_some(),
+        )
+    }
+
+    /// The argv for `llama-server`, in the supervisor's order.
+    pub fn argv(&self) -> Vec<String> {
+        let mut argv = vec![
+            "--host".to_string(),
+            HOST.to_string(),
+            "--port".to_string(),
+            self.port.to_string(),
+            "--model".to_string(),
+            self.model_path.display().to_string(),
+        ];
+        // Without this, `/v1/models` answers with the path — username over
+        // the wire, changing with every model — and the door relays it to
+        // paired phones. One rule for every file: the stem, and the fixed
+        // `kalsa-model` when there is none — the id must never vanish.
+        let alias = self
+            .model_path
+            .file_stem()
+            .and_then(|stem| stem.to_str())
+            .unwrap_or("kalsa-model");
+        argv.extend(["--alias".to_string(), alias.to_string()]);
+        if let Some(threads) = self.threads {
+            // The same count as `--threads` for prefill: past the plateau
+            // extra threads buy no throughput, so a bigger prefill burst is
+            // heat for nothing.
+            argv.extend([
+                "--threads".to_string(),
+                threads.to_string(),
+                "--threads-batch".to_string(),
+                threads.to_string(),
+            ]);
+        }
+        let (batch_size, ubatch_size) = self.rendered_batches();
+        argv.extend([
+            "--batch-size".to_string(),
+            batch_size.to_string(),
+            "--ubatch-size".to_string(),
+            ubatch_size.to_string(),
+            "--ctx-size".to_string(),
+            self.context_tokens.to_string(),
+        ]);
+        // One device, or none — and never for the CPU build: its parser
+        // throws `invalid device` for every name (the fork's
+        // `parse_device_list`, common/arg.cpp), and no graphics build ever
+        // reaches here with `device` None — the walk routed that case to
+        // the CPU build instead.
+        let device = match (&self.device, self.offload) {
+            (Some(name), offload) if offload != crate::args::Offload::NoGpuBuild => {
+                Some(name.as_str())
+            }
+            _ => None,
+        };
+        match self.offload {
+            crate::args::Offload::All => {
+                argv.extend(["--n-gpu-layers".to_string(), ALL_LAYERS.to_string()]);
+            }
+            // The build would offload every layer by default, so CPU decode
+            // has to be stated, not implied. The drafter follows the target
+            // onto the CPU: the fork's own default for it is auto, which
+            // would offload the drafter alone against a CPU target
+            // (common/arg.cpp:4217).
+            crate::args::Offload::ForcedOff => {
+                argv.extend(["--n-gpu-layers".to_string(), "0".to_string()]);
+                if self.draft.is_some() {
+                    argv.extend(["--n-gpu-layers-draft".to_string(), "0".to_string()]);
+                }
+            }
+            crate::args::Offload::NoGpuBuild => {}
+            // No flag: the engine's default (auto) plus `fit` decides the
+            // layers against free device memory — see the variant.
+            crate::args::Offload::EngineFitted => {}
+        }
+        if let Some(name) = device {
+            argv.extend(["--device".to_string(), name.to_string()]);
+        }
+        // The cache the memory arithmetic counted: the owner's choice (q8_0
+        // by default, one byte per element) under flash attention — a
+        // quantized V cache is refused without it. The flash-attn value must
+        // be rendered: a bare flag takes the next argument as its value, and
+        // the server never starts.
+        argv.extend([
+            "--flash-attn".to_string(),
+            FLASH_ATTN.to_string(),
+            "--cache-type-k".to_string(),
+            self.kv_cache.flag().to_string(),
+            "--cache-type-v".to_string(),
+            self.kv_cache.flag().to_string(),
+        ]);
+        // The drafter must share the target's KV type or the engine refuses
+        // to share cache cells (llama-kv-cache.cpp:108): the draft cache
+        // flags mirror the target's, whatever the owner chose for it.
+        if let Some(draft) = &self.draft {
+            argv.extend([
+                "--model-draft".to_string(),
+                draft.model_path.display().to_string(),
+                "--spec-type".to_string(),
+                "draft-mtp".to_string(),
+                "--spec-draft-n-max".to_string(),
+                draft.n_max.to_string(),
+                "--spec-draft-n-min".to_string(),
+                "0".to_string(),
+                "--spec-draft-type-k".to_string(),
+                self.kv_cache.flag().to_string(),
+                "--spec-draft-type-v".to_string(),
+                self.kv_cache.flag().to_string(),
+            ]);
+            // The drafter names the same card as the target (the engine's
+            // default already follows `--device`; on the command line so
+            // the pairing is a fact, not a default).
+            if let Some(name) = device {
+                argv.extend(["--device-draft".to_string(), name.to_string()]);
+            }
+        }
+        // The row's publisher sampling, as the server's default for THIS
+        // model. Each value renders its own flag and only when the row
+        // carries one: a card that published nothing gets the engine's own
+        // default, never an invented number. A request that sends its own
+        // sampling still overrides these — llama-server's per-request
+        // behaviour — so this is what an ordinary message gets.
+        if let Some(value) = self.sampling.temperature {
+            argv.extend(["--temp".to_string(), value.to_string()]);
+        }
+        if let Some(value) = self.sampling.top_p {
+            argv.extend(["--top-p".to_string(), value.to_string()]);
+        }
+        if let Some(value) = self.sampling.top_k {
+            argv.extend(["--top-k".to_string(), value.to_string()]);
+        }
+        if let Some(value) = self.sampling.repeat_penalty {
+            argv.extend(["--repeat-penalty".to_string(), value.to_string()]);
+        }
+        // The verified vision projector, rendered with the image budget
+        // beside it: the engine only sees images when a projector was both
+        // shipped by the row and accepted by the owner, so `None` renders
+        // nothing and the argv of a vision-less launch never changes.
+        if let Some(path) = &self.mmproj {
+            argv.extend([
+                "--mmproj".to_string(),
+                path.display().to_string(),
+                "--image-max-tokens".to_string(),
+                crate::args::IMAGE_MAX_TOKENS.to_string(),
+            ]);
+        }
+        argv.extend([
+            "--sleep-idle-seconds".to_string(),
+            self.idle_unload_seconds.to_string(),
+            "--no-webui".to_string(),
+        ]);
+        // One classic slot, so yesterday's chat starts warm. With the
+        // default slot count this build runs a unified KV buffer and clears
+        // idle slots on every new task ("--cache-idle-slots"), measured on
+        // the shipped build: an alternating conversation paid the whole
+        // prefill every turn (cache_n 0, ~4.0 s at 4.5k tokens). One slot
+        // keeps the prompt cache in the game and the chat comes back at
+        // ~0.2 s — at the price of one generation at a time, which one
+        // phone does not exceed.
+        //
+        // The slot count is a product decision now (one PC serving a
+        // family's phones): measured on the shipped build, four people at
+        // once cost +23% wall each and 40 tok/s per head instead of 72, an
+        // explicit `-np` keeps every chat's cache warm anyway, and the
+        // context divides by the slot count — the arithmetic above would
+        // carve per person (a separate step, not this one). The value
+        // travels as data: `--parallel` is rendered from `self.parallel`,
+        // and the same number is the door's capacity, so the engine's slot
+        // count and the door's refusal cannot disagree.
+        argv.extend(["--parallel".to_string(), self.parallel.to_string()]);
+        // The roof travels from the policy: it was carved out of the
+        // budget before the context was sized, so it cannot be re-derived
+        // from a context that already excludes it. `--cache-ram 0` — on an
+        // unbudgeted dev run, say — is the honest answer: no reserved RAM,
+        // no sleeping chats.
+        argv.extend([
+            "--cache-ram".to_string(),
+            self.cache_ram_mib.to_string(),
+        ]);
+        // The disk tier. The folder is created by the app before this argv is
+        // built (see `ServerArgs::slot_save_path`); the engine refuses a path
+        // that is not a directory, so rendering it is what makes the save and
+        // restore routes exist at all. The checkpoint count rides the named
+        // constant: the engine's default is 32 (one chat under it grew to
+        // roughly 2.7 GB), and the two records are the closing round's
+        // resumption point — `CTX_CHECKPOINTS` says why and what it costs.
+        // `--swa-full` is deliberately absent — the committed
+        // round-trip (`dev/results/slot-restore-swa/summary.md`) shows it
+        // moves the file's size, not whether a restore comes back warm.
+        argv.extend([
+            "--slot-save-path".to_string(),
+            self.slot_save_path.display().to_string(),
+            "--ctx-checkpoints".to_string(),
+            CTX_CHECKPOINTS.to_string(),
+        ]);
+        argv
+    }
+
+    /// The same values as `argv`, for the settings panel and no other owner.
+    pub fn settings(&self) -> ServerSettings {
+        let gpu_layers = match self.offload {
+            crate::args::Offload::All => Some(ALL_LAYERS),
+            crate::args::Offload::ForcedOff => Some("0"),
+            crate::args::Offload::NoGpuBuild => None,
+            // The engine decides the count; the panel says so as itself.
+            crate::args::Offload::EngineFitted => None,
+        };
+        let (batch_size, ubatch_size) = self.rendered_batches();
+        ServerSettings {
+            batch_size,
+            ubatch_size,
+            kv_cache_type: self.kv_cache.flag(),
+            flash_attention: FLASH_ATTN,
+            idle_unload_seconds: self.idle_unload_seconds,
+            gpu_layers,
+            threads: self.threads,
+            threads_batch: self.threads,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    /// Flags that make `llama-server` print what people asked it.
+    ///
+    /// At raised verbosity the server logs the prompt one token at a time,
+    /// as text — `server-context.cpp:3138`:
+    ///
+    /// ```text
+    /// SLT_DBG(slot, "prompt token %3d: %6d '%s'\n", i, input_tokens[i], …)
+    /// ```
+    ///
+    /// Our stderr pipe keeps the last lines to explain an unexpected exit
+    /// (`kalsa-supervisor`), so raising verbosity would put fragments of
+    /// somebody's question into a buffer meant for crash diagnostics, and
+    /// from there into whatever shows the crash.
+    const LOUD: [&str; 6] = ["-v", "--verbose", "--verbosity", "--log-verbose", "-lv", "--verbose-prompt"];
+
+    fn some_args() -> ServerArgs {
+        ServerArgs {
+            model_path: PathBuf::from("/models/whatever.gguf"),
+            port: 8131,
+            context_tokens: 8192,
+            cache_ram_mib: 4096,
+            threads: Some(4),
+            offload: crate::args::Offload::All,
+            device: None,
+            idle_unload_seconds: crate::args::DEFAULT_IDLE_UNLOAD_SECONDS,
+            batch_size: 2048,
+            ubatch_size: 512,
+            kv_cache: crate::args::KvCache::Q8_0,
+            parallel: crate::args::DEFAULT_PARALLEL,
+            slot_save_path: PathBuf::from("/slots"),
+            sampling: kalsa_catalog::Sampling::default(),
+            draft: None,
+            mmproj: None,
+        }
+    }
+
+    /// The drafter block, exactly and in order: the file, the MTP mode, the
+    /// proposal width, the floor, and the draft KV types mirroring the
+    /// target's — the engine refuses to share cells with a drafter whose KV
+    /// type differs, so the flags follow whatever the owner chose for the
+    /// target.
+    #[test]
+    fn the_draft_block_renders_as_one_sequence_mirroring_the_targets_cache_type() {
+        let mut args = some_args();
+        args.draft = Some(crate::args::Draft {
+            model_path: PathBuf::from("/models/mtp-gemma-4-12B-it-Q8_0.gguf"),
+            n_max: 3,
+        });
+        let argv = args.argv();
+        let sequence = [
+            "--model-draft",
+            "/models/mtp-gemma-4-12B-it-Q8_0.gguf",
+            "--spec-type",
+            "draft-mtp",
+            "--spec-draft-n-max",
+            "3",
+            "--spec-draft-n-min",
+            "0",
+            "--spec-draft-type-k",
+            "q8_0",
+            "--spec-draft-type-v",
+            "q8_0",
+        ]
+        .map(String::from);
+        let found = argv
+            .windows(sequence.len())
+            .any(|window| window == sequence.as_slice());
+        assert!(
+            found,
+            "the draft block is one contiguous sequence: {argv:?}"
+        );
+        // A different target cache type carries the drafter with it.
+        let mut f16 = some_args();
+        f16.kv_cache = crate::args::KvCache::F16;
+        f16.draft = Some(crate::args::Draft {
+            model_path: PathBuf::from("/models/mtp-gemma-4-12B-it-Q8_0.gguf"),
+            n_max: 3,
+        });
+        let f16_argv = f16.argv();
+        assert_eq!(rendered_value(&f16_argv, "--spec-draft-type-k"), "f16");
+        assert_eq!(rendered_value(&f16_argv, "--spec-draft-type-v"), "f16");
+        assert_eq!(rendered_value(&f16_argv, "--cache-type-k"), "f16");
+    }
+
+    /// No drafter, no draft flags: a launch without one must not hint the
+    /// engine into a speculative mode it has no drafter for.
+    #[test]
+    fn a_launch_without_a_drafter_renders_no_draft_flags() {
+        let argv = some_args().argv();
+        for flag in [
+            "--model-draft",
+            "--spec-type",
+            "--spec-draft-n-max",
+            "--spec-draft-n-min",
+            "--spec-draft-type-k",
+            "--spec-draft-type-v",
+        ] {
+            assert!(
+                !argv.contains(&flag.to_string()),
+                "{flag} must not render without a drafter: {argv:?}"
+            );
+        }
+    }
+
+    /// The drafter's placement follows the target's: a CPU-decoded target
+    /// pins its drafter to the CPU too (the fork's default is auto, which
+    /// would offload the drafter alone), and every other placement leaves
+    /// the drafter at the engine's default.
+    #[test]
+    fn a_cpu_decoded_target_pins_its_drafter_to_the_cpu_and_no_other_does() {
+        let draft = || {
+            Some(crate::args::Draft {
+                model_path: PathBuf::from("/models/mtp.gguf"),
+                n_max: 3,
+            })
+        };
+        let mut forced_off = some_args();
+        forced_off.offload = crate::args::Offload::ForcedOff;
+        forced_off.draft = draft();
+        let argv = forced_off.argv();
+        assert_eq!(rendered_value(&argv, "--n-gpu-layers"), "0");
+        assert_eq!(rendered_value(&argv, "--n-gpu-layers-draft"), "0");
+
+        let mut all = some_args();
+        all.draft = draft();
+        let all_argv = all.argv();
+        assert_eq!(rendered_value(&all_argv, "--n-gpu-layers"), "all");
+        assert!(
+            !all_argv.contains(&"--n-gpu-layers-draft".to_string()),
+            "an offloaded target leaves the drafter at the engine default: {all_argv:?}"
+        );
+        // And no drafter, no placement flag for one.
+        let bare = some_args().argv();
+        assert!(!bare.contains(&"--n-gpu-layers-draft".to_string()));
+    }
+
+    /// The one GPU, named — the pin a two-GPU machine needs so the engine
+    /// stops splitting layers across both cards — and with no drafter no
+    /// draft device beside it. EngineFitted (the tune's graphics shape)
+    /// carries the same pin.
+    #[test]
+    fn a_pinned_device_renders_device_and_only_device() {
+        let mut args = some_args();
+        args.device = Some("Vulkan1".to_string());
+        let argv = args.argv();
+        assert_eq!(rendered_value(&argv, "--device"), "Vulkan1", "{argv:?}");
+        assert!(
+            !argv.contains(&"--device-draft".to_string()),
+            "no drafter, no draft device: {argv:?}"
+        );
+        let mut fitted = args;
+        fitted.offload = crate::args::Offload::EngineFitted;
+        assert_eq!(rendered_value(&fitted.argv(), "--device"), "Vulkan1");
+    }
+
+    /// Both models name the same card: the drafter refused to start when it
+    /// landed on the other one, so the pairing is on the command line.
+    #[test]
+    fn a_drafter_rides_the_pinned_device_too() {
+        let mut args = some_args();
+        args.device = Some("Vulkan1".to_string());
+        args.draft = Some(crate::args::Draft {
+            model_path: PathBuf::from("/models/mtp.gguf"),
+            n_max: 3,
+        });
+        let argv = args.argv();
+        assert_eq!(rendered_value(&argv, "--device"), "Vulkan1", "{argv:?}");
+        assert_eq!(rendered_value(&argv, "--device-draft"), "Vulkan1", "{argv:?}");
+    }
+
+    /// No pin, no flags — with or without a drafter: Metal and every CPU
+    /// launch are byte-identical to a renderer that never knew this flag.
+    #[test]
+    fn without_a_device_no_device_flag_renders() {
+        let mut drafted = some_args();
+        drafted.draft = Some(crate::args::Draft {
+            model_path: PathBuf::from("/models/mtp.gguf"),
+            n_max: 3,
+        });
+        for argv in [some_args().argv(), drafted.argv()] {
+            assert!(!argv.contains(&"--device".to_string()), "{argv:?}");
+            assert!(!argv.contains(&"--device-draft".to_string()), "{argv:?}");
+        }
+    }
+
+    /// The walk can land here — the CPU build chosen for the model while a
+    /// card was named for the graphics build — and the pin must die with
+    /// `NoGpuBuild`: that build's parser throws `invalid device` for every
+    /// name (the fork's `parse_device_list`), so rendering it would refuse
+    /// a start that today runs.
+    #[test]
+    fn the_cpu_build_renders_no_device_even_when_one_is_set() {
+        let mut args = some_args();
+        args.device = Some("Vulkan1".to_string());
+        args.offload = crate::args::Offload::NoGpuBuild;
+        args.draft = Some(crate::args::Draft {
+            model_path: PathBuf::from("/models/mtp.gguf"),
+            n_max: 3,
+        });
+        let argv = args.argv();
+        assert!(!argv.contains(&"--device".to_string()), "{argv:?}");
+        assert!(!argv.contains(&"--device-draft".to_string()), "{argv:?}");
+    }
+
+    /// EngineFitted renders NO `--n-gpu-layers`: the engine's default (auto)
+    /// stands, so `fit` picks the layers against the memory that is free at
+    /// this start — the variant's doc carries the engine sources. The
+    /// settings the panel reads say the same in their own word: no pinned
+    /// count. The plan's own `All` still states its flag: two rules.
+    #[test]
+    fn engine_fitted_renders_no_gpu_layers_flag() {
+        let mut fitted = some_args();
+        fitted.offload = crate::args::Offload::EngineFitted;
+        let argv = fitted.argv();
+        assert!(
+            !argv.contains(&"--n-gpu-layers".to_string()),
+            "the tune's graphics launch carries no flag: {argv:?}"
+        );
+        assert_eq!(fitted.settings().gpu_layers, None, "the panel says automatic");
+        let all = some_args();
+        assert!(all.argv().contains(&"--n-gpu-layers".to_string()));
+    }
+
+    /// What a person asks is the one thing that must never leave the
+    /// machine's memory, not even into a log file on their own disk. This
+    /// holds today by absence; the test is here so it keeps holding on the
+    /// day someone adds a debug switch.
+    #[test]
+    fn the_argv_never_asks_the_server_to_log_prompts() {
+        let argv = some_args().argv();
+        for flag in LOUD {
+            assert!(
+                !argv.iter().any(|arg| arg == flag),
+                "{flag} makes llama-server log prompt tokens as text: {argv:?}"
+            );
+        }
+    }
+
+    /// The guard above is worthless if `argv()` returns nothing, so this
+    /// test pins that it really does render the flags we expect to see.
+    #[test]
+    fn the_argv_is_not_empty_when_it_claims_to_be_quiet() {
+        let argv = some_args().argv();
+        assert!(argv.iter().any(|arg| arg == "--model"), "{argv:?}");
+        assert!(argv.iter().any(|arg| arg == "--ctx-size"), "{argv:?}");
+    }
+
+    /// The three launch values the owner may change must reach the command
+    /// line as the decided values, not as the crate's defaults. This goes
+    /// RED the moment someone re-renders `BATCH`/`UBATCH`/`KV_CACHE_TYPE`:
+    /// it asks for a batch, a micro-batch and a cache type none of those
+    /// constants carry.
+    #[test]
+    fn the_owners_batch_microbatch_and_cache_choice_reach_the_command_line() {
+        let args = ServerArgs {
+            batch_size: 1024,
+            ubatch_size: 256,
+            kv_cache: crate::args::KvCache::F16,
+            ..some_args()
+        };
+        let line = args.argv().join(" ");
+        assert!(line.contains("--batch-size 1024"), "{line}");
+        assert!(line.contains("--ubatch-size 256"), "{line}");
+        assert!(line.contains("--cache-type-k f16"), "{line}");
+        assert!(line.contains("--cache-type-v f16"), "{line}");
+        let settings = args.settings();
+        assert_eq!(settings.batch_size, 1024);
+        assert_eq!(settings.ubatch_size, 256);
+        assert_eq!(settings.kv_cache_type, "f16");
+    }
+
+    /// The projector block, exactly and only when a verified projector
+    /// rides the launch: the file, then the image budget — the one named
+    /// constant, asserted as the literal `"560"` because asserting the
+    /// constant would stay green if the constant itself drifted. Without a
+    /// projector neither flag renders: a vision-less launch must be
+    /// byte-identical to one a renderer that never knew this flag would
+    /// build.
+    #[test]
+    fn the_projector_renders_with_its_image_budget_and_nothing_renders_without_one() {
+        let mut vision = some_args();
+        vision.mmproj = Some(PathBuf::from("/models/mmproj-gemma-4-12B-it-Q8_0.gguf"));
+        let argv = vision.argv();
+        assert_eq!(
+            rendered_value(&argv, "--mmproj"),
+            "/models/mmproj-gemma-4-12B-it-Q8_0.gguf",
+            "{argv:?}"
+        );
+        assert_eq!(rendered_value(&argv, "--image-max-tokens"), "560", "{argv:?}");
+        // One projector, one budget: no doubled flags in a single argv.
+        for flag in ["--mmproj", "--image-max-tokens"] {
+            assert_eq!(
+                argv.iter().filter(|arg| *arg == flag).count(),
+                1,
+                "{flag} renders exactly once: {argv:?}"
+            );
+        }
+        for argv in [some_args().argv()] {
+            for flag in ["--mmproj", "--image-max-tokens"] {
+                assert!(
+                    !argv.contains(&flag.to_string()),
+                    "{flag} must not render without a projector: {argv:?}"
+                );
+            }
+        }
+    }
+
+    /// A projector floors the batch pair at the vision floor (1024, the
+    /// measured [`crate::args::VISION_UBATCH`]), and nothing else does:
+    /// the engine's check is `causal_attn || n_ubatch >= n_tokens_all`
+    /// (`llama-context.cpp:1804`), a 529-token frame aborted the Gemma 4
+    /// rows at ubatch 512 and 256 (`dev/lab-screen/results/crash/matrix.txt`),
+    /// and the floor sits at the measured ceiling rather than at the
+    /// `--image-max-tokens` cap because that cap is enforced inside the
+    /// engine fork where nothing here can test it. The batch follows the
+    /// ubatch up because the engine clamps
+    /// `n_ubatch = min(n_batch, params.n_ubatch)` (`src/llama-context.cpp`):
+    /// a batch below the floor would silently shrink the micro-batch back
+    /// and the abort would return. The literals, for the same reason the
+    /// projector block asserts `"560"`.
+    #[test]
+    fn a_projector_floors_the_batch_pair_at_the_vision_floor_and_nothing_else_does() {
+        // The floor cases: below it, at it, and the invalid input the
+        // panel refuses (batch < ubatch) — all three render the pair the
+        // engine needs.
+        for (batch, ubatch) in [(2048, 512), (512, 512), (512, 256), (256, 512)] {
+            let mut vision = some_args();
+            vision.batch_size = batch;
+            vision.ubatch_size = ubatch;
+            vision.mmproj = Some(PathBuf::from("/models/mmproj-gemma-4-12B-it-Q8_0.gguf"));
+            let argv = vision.argv();
+            assert_eq!(rendered_value(&argv, "--ubatch-size"), "1024", "{argv:?}");
+            let rendered_batch: u32 = rendered_value(&argv, "--batch-size")
+                .parse()
+                .expect("the batch renders as a number");
+            assert!(
+                rendered_batch >= 1024,
+                "the batch ({rendered_batch}) must be >= the ubatch (1024): {argv:?}"
+            );
+            let settings = vision.settings();
+            assert_eq!(settings.ubatch_size, 1024, "the panel reads the rendered value");
+            assert!(settings.batch_size >= settings.ubatch_size);
+        }
+        // MIN_UBATCH (64) with a projector: the floor, not the owner's
+        // floor, is what the engine gets.
+        let smallest = ServerArgs {
+            batch_size: crate::args::MIN_UBATCH,
+            ubatch_size: crate::args::MIN_UBATCH,
+            mmproj: Some(PathBuf::from("/models/mmproj.gguf")),
+            ..some_args()
+        };
+        let argv = smallest.argv();
+        assert_eq!(rendered_value(&argv, "--ubatch-size"), "1024", "{argv:?}");
+        assert_eq!(rendered_value(&argv, "--batch-size"), "1024", "{argv:?}");
+        // Already at or above the floor: rendered as itself — the clamp is
+        // a floor, never a ceiling (MAX_UBATCH 1024 stands untouched).
+        let high = ServerArgs {
+            ubatch_size: 1024,
+            mmproj: Some(PathBuf::from("/models/mmproj.gguf")),
+            ..some_args()
+        };
+        let argv = high.argv();
+        assert_eq!(rendered_value(&argv, "--ubatch-size"), "1024", "{argv:?}");
+        assert_eq!(rendered_value(&argv, "--batch-size"), "2048", "{argv:?}");
+
+        // The same pair without a projector renders as decided: the floor
+        // is the projector's, not the renderer's new habit.
+        let bare = ServerArgs {
+            batch_size: 512,
+            ubatch_size: 256,
+            ..some_args()
+        };
+        let argv = bare.argv();
+        assert_eq!(rendered_value(&argv, "--ubatch-size"), "256", "{argv:?}");
+        assert_eq!(rendered_value(&argv, "--batch-size"), "512", "{argv:?}");
+    }
+
+    /// `--swa-full` is not this tier's flag. The committed round-trip
+    /// (`dev/results/slot-restore-swa/summary.md`) shows it moves a save
+    /// file's size and not whether a restore comes back warm, and it would
+    /// take the SWA cache 25.6×. Rendering it here is the mistake this
+    /// refuses.
+    #[test]
+    fn the_argv_never_asks_for_the_full_sliding_window_cache() {
+        let argv = some_args().argv();
+        assert!(
+            !argv.iter().any(|arg| arg == "--swa-full"),
+            "--swa-full is not the disk tier's flag: {argv:?}"
+        );
+    }
+
+    /// What a flag renders is the whole element that follows it, and the
+    /// flag is rendered exactly once. The joined line is not the artifact to
+    /// assert on: `contains("--ctx-checkpoints 2")` is also true of
+    /// `--ctx-checkpoints 20`, and a saved chat ten times the size is
+    /// exactly what the constant exists to prevent. `position` alone is not
+    /// enough either: it reads the first of two renderings and the second
+    /// passes in silence, so two occurrences are a fault in the renderer,
+    /// not a value to pick between.
+    fn rendered_value<'a>(argv: &'a [String], flag: &str) -> &'a str {
+        let mut hits = argv.iter().enumerate().filter(|(_, arg)| *arg == flag);
+        let (at, _) = hits
+            .next()
+            .unwrap_or_else(|| panic!("{flag} is not rendered: {argv:?}"));
+        assert!(
+            hits.next().is_none(),
+            "{flag} is rendered more than once: {argv:?}"
+        );
+        argv.get(at + 1)
+            .map(String::as_str)
+            .unwrap_or_else(|| panic!("{flag} is rendered with no value: {argv:?}"))
+    }
+
+    /// The save folder is data, not a literal: whatever the app resolved is
+    /// what reaches the engine, and the checkpoint count rides the named
+    /// constant under the spelling the engine registers.
+    #[test]
+    fn the_disk_tier_path_renders_from_the_field() {
+        let args = ServerArgs {
+            slot_save_path: PathBuf::from("/somewhere/private/slots"),
+            ..some_args()
+        };
+        let argv = args.argv();
+        assert_eq!(
+            rendered_value(&argv, "--slot-save-path"),
+            "/somewhere/private/slots",
+            "{argv:?}"
+        );
+        // The literal `"2"`, not `CTX_CHECKPOINTS`: asserting the constant
+        // is a tautology that stays green when it becomes `"20"`.
+        assert_eq!(rendered_value(&argv, "--ctx-checkpoints"), "2", "{argv:?}");
+    }
+
+    /// The id the engine lists is the file's stem: no directory (the
+    /// listing is relayed to paired phones), stable for a pinned file, and
+    /// two files of one model never answer the same id.
+    #[test]
+    fn the_alias_is_the_file_stem_and_never_a_path() {
+        let served = ServerArgs {
+            model_path: PathBuf::from("/models/LFM2.5-VL-3B-Q8_0.gguf"),
+            ..some_args()
+        };
+        let served_argv = served.argv();
+        let q8 = rendered_value(&served_argv, "--alias");
+        assert_eq!(q8, "LFM2.5-VL-3B-Q8_0");
+        assert!(!q8.contains('/') && !q8.contains('\\'), "{q8}");
+
+        // An override path, directories and all: the stem only.
+        let over = ServerArgs {
+            model_path: PathBuf::from("/Users/x/models/foo-Q4.gguf"),
+            ..some_args()
+        };
+        let over_argv = over.argv();
+        assert_eq!(rendered_value(&over_argv, "--alias"), "foo-Q4");
+
+        // One model, two files — the LFM Q8 and F16 rows — different ids.
+        let f16 = ServerArgs {
+            model_path: PathBuf::from("/models/LFM2.5-VL-3B-F16.gguf"),
+            ..some_args()
+        };
+        let f16_argv = f16.argv();
+        assert_ne!(rendered_value(&f16_argv, "--alias"), q8);
+
+        // The measurer strips caller aliases before adding its own nonce
+        // (kalsa-tune's `without_aliases`), so the production flag never
+        // doubles up in a tuned lifetime — one value in one argv here.
+        let mut aliases = served_argv.iter().filter(|arg| *arg == "--alias");
+        assert!(aliases.next().is_some() && aliases.next().is_none());
+    }
+
+    #[test]
+    fn a_path_without_a_stem_still_gets_an_alias() {
+        let stemless = ServerArgs {
+            // A trailing slash is not a stemless path — Rust reads
+            // "/models/" as the component "models" — so the degenerate case
+            // is the empty path.
+            model_path: PathBuf::from(""),
+            ..some_args()
+        };
+        let argv = stemless.argv();
+        assert_eq!(rendered_value(&argv, "--alias"), "kalsa-model");
+    }
+
+    /// The slot count is data now: whatever the field holds is what the
+    /// command line renders. A literal `"1"` left behind makes this red the
+    /// moment the door's capacity and the engine's slots are asked to be
+    /// the same number.
+    #[test]
+    fn the_slot_count_renders_from_the_field_not_a_literal() {
+        let args = ServerArgs {
+            parallel: 4,
+            ..some_args()
+        };
+        let argv = args.argv();
+        assert_eq!(rendered_value(&argv, "--parallel"), "4", "{argv:?}");
+    }
+
+    /// A duplicated flag is a fault in the renderer, not a value to pick
+    /// between: reading the first occurrence and asserting on it lets the
+    /// second — `44` where the field said `4` — through in silence, which is
+    /// the same silence the substring assertions were removed for.
+    #[test]
+    #[should_panic(expected = "is rendered more than once")]
+    fn a_duplicated_flag_is_a_fault_not_the_first_occurrence() {
+        let argv = vec![
+            "--parallel".to_string(),
+            "4".to_string(),
+            "--parallel".to_string(),
+            "44".to_string(),
+        ];
+        let _ = rendered_value(&argv, "--parallel");
+    }
+}
