@@ -233,6 +233,13 @@ export async function executeToolCall(
    *  picture** — the switch is off unless somebody asked for it, and a
    *  caller that forgot is the case this closes. */
   pictures?: PictureGate,
+  /** The tools this turn was offered, by name. **A refusal's advice must name
+   *  a tool the turn has**: a turn with the web switch off was offered no
+   *  web_search, and telling the model to go and search is telling it to call
+   *  a tool it was never given. Absent means the turn was offered nothing to
+   *  search with — the advice that never sends a model after a tool it does
+   *  not have. */
+  offered?: ReadonlySet<string>,
 ): Promise<ToolOutcome> {
   // The turn can be stopped while the arguments are being read; starting a
   // request nobody is waiting for would be work and traffic for nothing.
@@ -315,8 +322,9 @@ export async function executeToolCall(
       // append nothing of its own to an address the conversation has seen.
       url = url.split("#")[0];
       // Provenance before the gate: an address the conversation never carried
-      // is not opened at all, so there is nothing to ask about.
-      const refusal = fetchProvenanceRefusal(url, conversation);
+      // is not opened at all, so there is nothing to ask about. **The advice
+      // names the search only where the turn was offered one.**
+      const refusal = fetchProvenanceRefusal(url, conversation, offered?.has("web_search") === true);
       if (refusal !== null) return { text: refusal.text, ok: false, resultCode: refusal.code };
       // The address is checked whole: a URL carries a payload as well as any
       // query does (`...?q=<IBAN>` leaves exactly as much).

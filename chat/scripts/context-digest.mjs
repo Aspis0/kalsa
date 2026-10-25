@@ -182,6 +182,26 @@ try {
     check("and no price, no coffee, no Kobo", !block.includes("149,99") && !block.includes("caffè") && !block.includes("Kobo"), JSON.stringify(block));
   }
 
+  console.log("\n6b. a word that is only filler anchors nothing");
+  {
+    // **«più» is in half the sentences of an Italian conversation and in none
+    // of the facts.** A query whose only shared word is «più» recovers
+    // nothing: the digest carries facts, and a word every sentence has is not
+    // one of them.
+    const block = digestForTurn(true, SHED, askWith("E più?"));
+    check("a query whose only shared word is «più» recovers nothing", block === "", JSON.stringify(block));
+  }
+
+  console.log("\n6c. a name is not a word every sentence has");
+  {
+    // **«Sara» is a person.** A stop word that is also a name would take the
+    // one keyword that finds her, and a question about Sara would recover
+    // nothing at all.
+    const withSara = [...SHED, m("a6", "assistant", "Sara ha comprato il Kindle Paperwhite ieri."), m("u6", "user", "Grazie Sara!")];
+    const block = digestForTurn(true, withSara, askWith("Sara"));
+    check("a query about Sara finds her sentence", block.includes("Sara ha comprato il Kindle Paperwhite ieri."), JSON.stringify(block));
+  }
+
   console.log("\n7. sentences said twice are said once");
   {
     const SAID = [

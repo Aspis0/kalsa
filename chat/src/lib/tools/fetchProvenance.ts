@@ -45,6 +45,15 @@ const UNSEEN: FetchRefusal = {
   text: "Not run: this link has not appeared in the conversation, so it was not opened. Use web_search to find the page, or ask the user for the link.",
 };
 
+// **The same refusal said to a turn that was offered no search.** A turn with
+// the web switch off has no web_search to find the page with, and telling the
+// model to go and search is telling it to call a tool it was never given. So
+// this turn is sent to the person, and nowhere else.
+const UNSEEN_NO_SEARCH: FetchRefusal = {
+  code: UNSEEN.code,
+  text: "Not run: this link has not appeared in the conversation, so it was not opened. Ask the user for the link.",
+};
+
 // **The same refusal said to a turn that already has a page in front of it.**
 // The browser tools are the way through — the link is on the page that is
 // open, with a ref to click — so telling this model to go and search for the
@@ -118,8 +127,10 @@ const CREDENTIAL_PARAMS = new Set([
 ]);
 
 /** The refusal for this address, or null when the rule lets it through to
-    the gate. */
-export function fetchProvenanceRefusal(url: string, conversation: WireMessage[]): FetchRefusal | null {
+    the gate. **`searchOffered` says whether this turn was offered the
+    search**: the advice a refusal gives must name a tool the turn has, and a
+    turn with the web switch off has no web_search to name. */
+export function fetchProvenanceRefusal(url: string, conversation: WireMessage[], searchOffered = false): FetchRefusal | null {
   // Before anything else, and before the address is canonicalised. `canonical`
   // builds from the host alone, so `https://me:pw@bank.example/login` reads as
   // `https://bank.example/login` — the very page the conversation saw — and a
@@ -134,7 +145,10 @@ export function fetchProvenanceRefusal(url: string, conversation: WireMessage[])
   // **A turn that already holds a browser result is answered with the browser's
   // way through**, not with a search: the link it wants is on the page it is
   // looking at, and a search for it is a page the person never asked for.
-  if (key === null || !seen.has(key)) return browserResults(conversation) ? UNSEEN_BROWSER : UNSEEN;
+  if (key === null || !seen.has(key)) {
+    if (browserResults(conversation)) return UNSEEN_BROWSER;
+    return searchOffered ? UNSEEN : UNSEEN_NO_SEARCH;
+  }
   return null;
 }
 

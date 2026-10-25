@@ -15,7 +15,7 @@ import { logUiEvent } from "./uiLog";
 import { denseTokens, definitionsTokens, HOUSE_CHARS_PER_TOKEN } from "./density";
 import { turnRecord } from "./browser/recap";
 import { MAIL_NAMES, MAIL_TOOLS, WEB_TOOLS } from "./tools/definitions";
-import { BROWSER_NAMES, BROWSER_TOOLS } from "./tools/browserTools";
+import { BROWSER_NAMES } from "./tools/browserTools";
 import { demoteOldestToolPicture, PICTURE_BYTES_PER_TURN, pictureLoad } from "./pictures";
 import type { ToolDefinition } from "./tools/definitions";
 import type { ToolRun } from "./types";
@@ -790,8 +790,15 @@ function webResultIn(conversation: WireMessage[]): boolean {
     can speak into — the same reason a page is, and the same reason a browser
     tool's fenced page joins them. After any of them, text-to-tool-call
     recovery is off: a recovery reads the conversation for `<|tool_call_start|>`
-    and a stranger's page is exactly who would put it there. */
-const WEB_NAMES = new Set([...WEB_TOOLS, ...MAIL_TOOLS, ...BROWSER_TOOLS].map((tool) => tool.function.name));
+    and a stranger's page is exactly who would put it there. **The browser's
+    names are the whole family, screenshot included**: a picture of the page is
+    the page's own bytes, and a turn that took one has read the page as much
+    as a turn that read its text. */
+const WEB_NAMES = new Set([
+  ...WEB_TOOLS.map((tool) => tool.function.name),
+  ...MAIL_TOOLS.map((tool) => tool.function.name),
+  ...BROWSER_NAMES,
+]);
 
 /** The surface a round's tool lines are prefixed with. A phone's turn is
     marked as one: the tools a phone calls are this computer's, and without the

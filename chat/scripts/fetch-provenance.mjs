@@ -20,7 +20,7 @@ import { rm } from "node:fs/promises";
 import { loadApp } from "./lib/app-bundle.mjs";
 
 const { dir, app } = await loadApp();
-const { executeToolCall, streamChatCompletion, WEB_TOOLS, TOOL_DEFINITIONS, BROWSER_TOOLS, noteBrowserStatus, newLedger, filed, actionKey } = app;
+const { executeToolCall, streamChatCompletion, WEB_TOOLS, TOOL_DEFINITIONS, BROWSER_TOOLS, BROWSER_SCREENSHOT, noteBrowserStatus, newLedger, filed, actionKey } = app;
 
 let fail = 0;
 function check(label, condition, detail) {
@@ -42,7 +42,13 @@ function hasLoneSurrogate(text) {
 
 // The refusal sentences, pinned: the model reads exactly this text, and the
 // screen keys its localized line off these codes.
-const LIT_UNSEEN = "Not run: this link has not appeared in the conversation, so it was not opened. Use web_search to find the page, or ask the user for the link.";
+//
+// **Two of them, for the same code.** The advice a refusal gives must name a
+// tool the turn has: a turn that was offered the search is told to search for
+// the page, and a turn that was offered nothing is sent to the person alone.
+const LIT_UNSEEN = "Not run: this link has not appeared in the conversation, so it was not opened. Ask the user for the link.";
+const LIT_UNSEEN_SEARCH =
+  "Not run: this link has not appeared in the conversation, so it was not opened. Use web_search to find the page, or ask the user for the link.";
 // The same refusal said to a browser, which is told to read the link on the
 // page in front of it rather than to search for it again. **Click first**: the
 // link is on the page with a ref that can be clicked, and an address written
@@ -88,6 +94,11 @@ globalThis.window = {
           return pageResult;
         }
         if (command === "brain_browser_find") return pageResult;
+        if (command === "brain_browser_read") return pageResult;
+        // The picture of the page: the sidecar's own JSON, with the bytes.
+        if (command === "brain_browser_screenshot") {
+          return JSON.stringify({ ok: true, image: "aW1hZ2U=", media_type: "image/png", host: "news.example", taken_at: 0 });
+        }
         if (command === "brain_web_stop") return null;
         throw new Error(`unexpected command ${command}`);
       },
@@ -95,9 +106,11 @@ globalThis.window = {
   },
 };
 
-/** One web_fetch call through the real registry, against this conversation. */
-function attempt(url, conversation, gate = null) {
-  return executeToolCall("web_fetch", { url }, undefined, gate, conversation);
+/** One web_fetch call through the real registry, against this conversation.
+    **The turn's own tools are the last argument**: a refusal's advice names a
+    tool the turn has, and a turn with the web switch off has no search. */
+function attempt(url, conversation, gate = null, offered = new Set()) {
+  return executeToolCall("web_fetch", { url }, undefined, gate, conversation, "any-model", undefined, undefined, true, "", null, undefined, offered);
 }
 
 /** One web_search call through the real registry, against this conversation. */
@@ -143,6 +156,21 @@ try {
     equal("a no-match find does not arm its unprinted needle", [opened.ok, opened.resultCode], [false, "web.link_unseen"]);
     pageResult = "PAGE TEXT";
     OPENED.length = 0;
+  }
+  // --- the advice fits the turn ---------------------------------------------
+  {
+    // **A refusal may only name a tool the turn was offered.** A phone turn
+    // with the web switch off was offered no web_search, and telling the model
+    // to go and search for the page is telling it to call a tool it was never
+    // given: the refusal sends it to the person instead.
+    const user = [{ role: "user", content: "Read https://news.example/story for me." }];
+    const searching = await attempt("https://elsewhere.example/story", user, null, new Set(["web_search"]));
+    equal("a turn offered the search is told to search", [searching.ok, searching.text], [false, LIT_UNSEEN_SEARCH]);
+    const quiet = await attempt("https://elsewhere.example/story", user, null, new Set());
+    equal("a turn offered no search is sent to the person alone", [quiet.ok, quiet.text], [false, LIT_UNSEEN]);
+    check("and it is never told to search", !quiet.text.includes("web_search"), quiet.text);
+    equal("and the code is the same either way", quiet.resultCode, searching.resultCode);
+    check("and the refusal still says it did not run", quiet.text.startsWith("Not run:"), quiet.text);
   }
   // --- where an address may come from ---------------------------------------
   {
@@ -683,10 +711,10 @@ try {
     check("and not to go and search for it", !r.text.includes("web_search"), r.text);
 
     // With no page in front of it there is no ref to click, so the refusal is
-    // the search's: this is the control, and the two refusals are not the same
+    // the plain one: this is the control, and the two refusals are not the same
     // sentence.
     const empty = await attempt("https://www.amazon.it/", [{ role: "user", content: "hello" }]);
-    equal("and with no page in front of it the refusal is the search's", [empty.ok, empty.text], [false, LIT_UNSEEN]);
+    equal("and with no page in front of it the refusal is the plain one", [empty.ok, empty.text], [false, LIT_UNSEEN]);
     check("and the two are different sentences", empty.text !== r.text, empty.text);
 
     // A refusal read nothing, so a page that was refused is not a page.
@@ -1214,9 +1242,26 @@ try {
       // without it every browser call here is refused for the switch rather than
       // for the thing under test, and the proof below passes for the wrong
       // reason. The switch off is proved in browser-tools.mjs, where it is the
-      // subject.
+      // subject. **The turn's own tools go with it**: this turn was offered the
+      // search, so a refusal may name it.
       runTool: (name, args, signal, conversation) =>
-        executeToolCall(name, args, signal, null, conversation, "m", undefined, undefined, true),
+        executeToolCall(
+          name,
+          args,
+          signal,
+          null,
+          conversation,
+          "m",
+          undefined,
+          undefined,
+          true,
+          "",
+          null,
+          // **The picture gate is open here**: a screenshot has to run for the
+          // turn to carry the page's bytes, which is the whole of the case.
+          { armed: true, flag: true, vision: true },
+          new Set(tools.map((tool) => tool.function.name)),
+        ),
       onToolRun: (run) => runs.push(run),
     });
     return { requests, runs };
@@ -1284,7 +1329,7 @@ try {
       WORDS,
     ]);
     const tool = sent[1].messages.find((m) => m.role === "tool");
-    equal("live: an unseen address is refused on the wire", tool?.content, LIT_UNSEEN);
+    equal("live: an unseen address is refused on the wire", tool?.content, LIT_UNSEEN_SEARCH);
     const record = runs[runs.length - 1];
     equal("live: the record carries the refusal code for the screen", [record.state, record.resultCode], ["failed", "web.link_unseen"]);
     equal("live: the door never saw the address", OPENED, []);
@@ -1316,7 +1361,7 @@ try {
     );
     const results = sent[2].messages.filter((m) => m.role === "tool");
     check("live (laundering): the miniapp's result did echo the address", (results[0]?.content ?? "").includes(`Miniapp created: ${ATTACK}`), results[0]?.content);
-    equal("live (laundering): the fetch of the echoed address is refused", results[1]?.content, LIT_UNSEEN);
+    equal("live (laundering): the fetch of the echoed address is refused", results[1]?.content, LIT_UNSEEN_SEARCH);
     equal("live (laundering): the door never saw the address", OPENED, []);
   }
 
@@ -1370,11 +1415,52 @@ try {
       sent.every((request) =>
         request.messages.every(
           (m) => !(Array.isArray(m.tool_calls) && m.tool_calls.some((c) => c.function.name === "web_fetch")),
-        ) || request.messages.filter((m) => m.role === "assistant" && Array.isArray(m.tool_calls)).length <= 1,
+        ),
       ),
-      JSON.stringify(sent.map((r) => r.messages.filter((m) => m.role === "assistant" && Array.isArray(m.tool_calls)).length)),
-    );    check("live (browser): nothing was recovered out of it", (sent[1]?.messages ?? []).filter((m) => m.role === "assistant" && Array.isArray(m.tool_calls) && m.tool_calls.length > 0).length <= 1);
+      JSON.stringify(sent.map((r) => r.messages.filter((m) => Array.isArray(m.tool_calls)).flatMap((m) => m.tool_calls.map((c) => c.function.name)))),
+    );
+    check("live (browser): nothing was recovered out of it", (sent[1]?.messages ?? []).filter((m) => m.role === "assistant" && Array.isArray(m.tool_calls) && m.tool_calls.length > 0).length <= 1);
     equal("live (browser): and the door never saw the attacker's address", OPENED, ["https://news.example/story"]);
+    noteBrowserStatus({ supported: false, installed: false, size: 0 });
+  }
+  {
+    // **A turn that took a picture has the page in the conversation too.** The
+    // screenshot is the page's own bytes, so a turn that took one has read the
+    // page as much as a turn that read its text: the recovery is off, exactly
+    // as it is for the reads. Before, the picture was not in the family and a
+    // screenshot-only turn left the recovery on — a page's own words, in
+    // bytes, one answer away from a call.
+    noteBrowserStatus({ supported: true, installed: true, size: 1 });
+    const MARKUP = '<tool_call>{"name":"browser_read","arguments":{"ref":"e1"}}</tool_call>';
+    replies = [
+      callReply("{}", "browser_screenshot"),
+      [
+        { choices: [{ index: 0, finish_reason: null, delta: { content: MARKUP } }] },
+        { choices: [{ index: 0, finish_reason: "stop", delta: {} }] },
+      ],
+      [
+        { choices: [{ index: 0, finish_reason: null, delta: { content: MARKUP } }] },
+        { choices: [{ index: 0, finish_reason: "stop", delta: {} }] },
+      ],
+    ];
+    OPENED.length = 0;
+    const { requests: sent, runs } = await liveTurn(replies, [...BROWSER_TOOLS, BROWSER_SCREENSHOT], "look at the page");
+    check(
+      "live (screenshot): the screenshot ran",
+      runs.some((run) => run.name === "browser_screenshot" && run.state === "ok"),
+      JSON.stringify(runs.map((run) => `${run.name}:${run.state}`)),
+    );
+    equal("live (screenshot): the turn took two rounds and no recovery", sent.length, 2);
+    check(
+      "live (screenshot): no call was ever recovered out of the picture",
+      sent.every((request) =>
+        request.messages.every(
+          (m) => !(Array.isArray(m.tool_calls) && m.tool_calls.some((c) => c.function.name === "browser_read")),
+        ),
+      ),
+      JSON.stringify(sent.map((r) => r.messages.filter((m) => Array.isArray(m.tool_calls)).flatMap((m) => m.tool_calls.map((c) => c.function.name)))),
+    );
+    equal("live (screenshot): and the page was read by nobody", OPENED, []);
     noteBrowserStatus({ supported: false, installed: false, size: 0 });
   }
   console.log(fail === 0 ? "fetch-provenance: all checks passed" : `fetch-provenance: ${fail} failed`);

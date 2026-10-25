@@ -1,5 +1,22 @@
 // Traducido del copy inglés aprobado.
 
+/** La línea de una apertura rechazada: el host pedido, qué pasó y qué puede
+    hacer la persona. **El host es la lectura de la app de su propio
+    argumento**: un host, nunca la dirección entera, y nunca una dirección que
+    no sea http(s) público. */
+const refusedOpen = (params: Record<string, unknown>, said: string): string =>
+  `Kalsa no pudo abrir ${typeof params.host === "string" && params.host !== "" ? params.host : "esa página"}: ${said}`;
+
+/** La línea de un rechazo: la de la apertura cuando la llamada era una
+    apertura, y la simple cuando no lo era. **Un clic, una escritura, una
+    lectura y una foto no son una apertura**, y una línea que dice "no pudo
+    abrir" para una de ellas habla de algo que nunca pasó. */
+const refused = (params: Record<string, unknown>, open: string, step: string): string => {
+  const action = params.action;
+  if (action === "browser_open" || action === "web_fetch") return refusedOpen(params, open);
+  return `Kalsa no puede hacer eso aquí: ${step}`;
+};
+
 export const RUST: {
   startup: Record<string, (params: Record<string, unknown>, tag: string) => string>;
   choice: Record<string, (params: Record<string, unknown>, tag: string) => string>;
@@ -99,6 +116,9 @@ export const RUST: {
     search_failed: () => "Kalsa no pudo buscar en la web. Prueba de nuevo.",
     page_failed: () => "Kalsa no pudo abrir esa página. Prueba de nuevo.",
     open_failed: () => "Este equipo no pudo abrir el enlace.",
+    link_unseen: (params) => refusedOpen(params, "esa dirección nunca apareció en este chat. Dale a Kalsa la dirección exacta para abrirla."),
+    armed: (params) => refused(params, "en este chat están tus correos o tus documentos, así que Kalsa no abre sitios web aquí. Ábrela tú.", "en este chat están tus correos o tus documentos, así que Kalsa no hace nada en sitios web. Puedes hacerlo tú."),
+    switch_off: (params) => refused(params, "la web está apagada en Ajustes. Activa «Deja que Kalsa busque en la web» y Kalsa podrá abrir páginas.", "la web está apagada en Ajustes. Activa «Deja que Kalsa busque en la web» y Kalsa podrá trabajar en el navegador."),
   },
   browser: {
     unsupported_platform: () => "Este equipo no tiene un navegador que Kalsa pueda usar.",

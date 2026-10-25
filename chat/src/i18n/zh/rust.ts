@@ -1,5 +1,22 @@
 // 从已批准的英文文案翻译。
 
+/** 一次被拒绝的打开：请求的 host、发生了什么，以及人可以做什么。
+    **host 是应用对自己参数的解读**：只有 host，没有完整地址，也绝不会是
+    非公开 http(s) 的地址。 */
+const refusedOpen = (params: Record<string, unknown>, said: string): string =>
+  typeof params.host === "string" && params.host !== ""
+    ? `Kalsa 无法打开 ${params.host}：${said}`
+    : `Kalsa 无法打开那个页面：${said}`;
+
+/** 一次拒绝说的话：这次调用是打开时用打开那句，不是时用普通那句。
+    **点击、填写、读取和截图都不是打开**，说“无法打开”的那一行说的
+    是从来没有发生过的事。 */
+const refused = (params: Record<string, unknown>, open: string, step: string): string => {
+  const action = params.action;
+  if (action === "browser_open" || action === "web_fetch") return refusedOpen(params, open);
+  return `Kalsa 不能在这里做这件事：${step}`;
+};
+
 export const RUST: {
   startup: Record<string, (params: Record<string, unknown>, tag: string) => string>;
   choice: Record<string, (params: Record<string, unknown>, tag: string) => string>;
@@ -99,6 +116,9 @@ export const RUST: {
     search_failed: () => "Kalsa 无法搜索网络。请再试。",
     page_failed: () => "Kalsa 无法打开那个页面。请再试。",
     open_failed: () => "这台电脑无法打开该链接。",
+    link_unseen: (params) => refusedOpen(params, "这个地址从未出现在这个对话里。把准确的地址给 Kalsa，Kalsa 就能打开它。"),
+    armed: (params) => refused(params, "这个对话里有你的邮件或文档，所以 Kalsa 不在这里打开网站。你可以自己打开。", "这个对话里有你的邮件或文档，所以 Kalsa 不在网站上做任何事。你可以自己做。"),
+    switch_off: (params) => refused(params, "网络搜索已在设置里关闭。开启“让 Kalsa 搜索网络”，Kalsa 就能打开网页。", "网络搜索已在设置里关闭。开启“让 Kalsa 搜索网络”，Kalsa 就能操作网页。"),
   },
   browser: {
     unsupported_platform: () => "这台电脑没有 Kalsa 能用的浏览器。",

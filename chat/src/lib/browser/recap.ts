@@ -336,3 +336,15 @@ function addressOf(argumentsJson: string): Address | null {
     return null;
   }
 }
+
+/**
+ * The host a call asked for, as the app's own reading of its own argument.
+ *
+ * **A host, never the whole address.** No path, no query, nothing that is not
+ * a public http(s) address at all — the same reading the record's own line
+ * takes, so a row that names the host names the same host the record does.
+ */
+export function hostOfAddress(argumentsJson: string): string | null {
+  const address = addressOf(argumentsJson);
+  return address === null ? null : address.host;
+}

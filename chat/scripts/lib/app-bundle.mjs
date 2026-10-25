@@ -84,7 +84,7 @@ export async function loadApp({ compileOut } = {}) {
         export { actionKey, decide, filed, newLedger, BROWSER_CALLS_PER_TURN } from "../src/lib/callLedger.ts";
         export { recapLine, recapOf, turnRecord } from "../src/lib/browser/recap.ts";
         export { closeRecap, sayRuns, takeNote } from "../src/lib/browser/note.ts";
-        export { BROWSER_CODES, browserCode, browserCodeWords, isDeterministic, isPressThatNeverLeft } from "../src/lib/browser/codes.ts";
+        export { BROWSER_CODES, browserCode, isDeterministic, isPressThatNeverLeft } from "../src/lib/browser/codes.ts";
         export { rustSentence } from "../src/lib/rustText.ts";
         export { logProvenanceFailure } from "../src/lib/browser/diagnostics.ts";
         export { streamChatCompletion } from "../src/lib/toolLoop.ts";

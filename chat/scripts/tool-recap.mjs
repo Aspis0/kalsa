@@ -215,7 +215,7 @@ const { app } = await loadApp();
     [{ code: "sent", host: "a.example" }, { code: "sent", host: "b.example" }, { code: "sent", host: "c.example" }],
   );
   check("three sends to three sites name two and count the rest", many.includes("3 sent to a.example, b.example +1"), many);
-  check("and every code has words, not a fallback", everyCode.length > 0);
+  check("and the browser's own codes are not empty", everyCode.length > 0);
 
   // --- five tables, one set of facts ----------------------------------------
 
@@ -504,39 +504,20 @@ const { app } = await loadApp();
     app.browserCode("page.weird_internal_thing") === "browser.refused",
     app.browserCode("page.weird_internal_thing"),
   );
-  check(
-    "every code has words in every table",
-    app.BROWSER_CODES.every(
-      (code) => typeof app.browserCodeWords(code, words) === "string" && app.browserCodeWords(code, words).trim() !== "",
-    ) &&
-      app.BROWSER_CODES.every(
-        (code) => typeof app.browserCodeWords(code, italian) === "string" && app.browserCodeWords(code, italian).trim() !== "",
-      ),
-  );
-  // **And in every language, not only the two this file happens to speak.** A
-  // code with words in English and none in Chinese is a code the person reads
-  // as a blank, so every table is asked.
-  {
-    // **A word that is not there is `undefined`, and `undefined` is not the
-    // empty string.** A table without the word would pass a check that only
-    // asked for "not the empty string", so the check asks for a word that is
-    // really there: a string, with something in it.
-    const languages = ["en", "it", "es", "fr", "zh"];
-    const missing = [];
-    for (const code of app.BROWSER_CODES) {
-      for (const tag of languages) {
-        const words = app.browserCodeWords(code, TABLES[tag].tools.recap);
-        if (typeof words !== "string" || words.trim() === "") missing.push(`${code} in ${tag}`);
-      }
-    }
-    check("every code has words in all five languages", missing.length === 0, missing.join(", "));
-  }
-  check(
-    "and the person's words are never the sentence the tool carried",
-    app.browserCodeWords("browser.invalid", words) !== "The form would not let it go. nothing was sent",
-  );
   check("a refusal by the browser is deterministic", app.isDeterministic("browser.refused"));
   check("but being busy is not", !app.isDeterministic("browser.busy"));
+
+  // **A code has no words of its own any more.** The window says what happened
+  // in the language it is drawn in, and the codes are the sidecar's, not the
+  // person's: the app's own coded sentences live in the `rust` table, and a
+  // second set of words for the same codes was a row nobody ever read.
+  const codeWord = (code) => code.slice("browser.".length).replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+  check("the words for a code are gone with their reader", app.browserCodeWords === undefined, String(typeof app.browserCodeWords));
+  check(
+    "and no word is left in the table for one",
+    app.BROWSER_CODES.every((code) => !(codeWord(code) in TABLES.en.tools.recap)),
+    app.BROWSER_CODES.filter((code) => codeWord(code) in TABLES.en.tools.recap).join(", "),
+  );
 
   // --- the phone's turn: the line goes out, and the model reads it -----------
 

@@ -277,6 +277,12 @@ export async function runPhoneTurn(
   // go — so a turn that never touched the browser has nothing to release, and
   // a sidecar is not asked for nothing.
   let droveTheBrowser = false;
+  // The tools this turn was offered, by name: what a refusal's advice may
+  // name. **A phone turn with the web switch off was offered no search**, and
+  // telling the model to go and search is telling it to call a tool it was
+  // never given.
+  const tools = phoneTools(settings.webTools, turn.language, settings.model, mail, turn.device, armed);
+  const offeredNames = new Set(tools.map((tool) => tool.function.name));
   try {
     await deps.loop({
       endpoint: settings.endpoint,
@@ -289,7 +295,7 @@ export async function runPhoneTurn(
           : { budget: Math.max(0, facts.nctx - ANSWER_RESERVE_TOKENS), size: wireSize },
       sampling: samplingWire(loadSampling()),
       signal,
-      tools: phoneTools(settings.webTools, turn.language, settings.model, mail, turn.device, armed),
+      tools,
       // The phone cannot ask, so its web calls never wait on the gate. What still
       // applies: a search or page whose address the conversation never showed is
       // refused (fetchProvenanceRefusal, searchQueryRefusal). No sensitive-data
@@ -346,6 +352,11 @@ export async function runPhoneTurn(
           // browser the desktop drives, so the same action failing twice is the
           // same loop, and the same code is what ends it.
           calls,
+          undefined,
+          // The tools this turn was offered, by name: with the web switch off
+          // there is no search in them, and the advice a refusal gives must
+          // not send the model after one.
+          offeredNames,
         );
         return answered.then((outcome) => {
           filed(calls, name, args, outcome);

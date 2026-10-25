@@ -311,6 +311,9 @@ export function useChatTurns({ store, announce, contextSizes, saveMailDraft }: T
         vision,
       };
       const tools = offeredTools(currentSettings.webTools, language, currentSettings.model, mode, pictures);
+      // The names of the tools this turn was offered: what a refusal's advice
+      // may name, and what a call to something else is answered with.
+      const offeredNames = new Set(tools.map((tool) => tool.function.name));
       // The token fit is answered once, on the wire where every picture is
       // the placeholder sentence: each stored picture costs IMAGE_TOKENS
       // whether it rides or not, so the fit is the same for both shapes.
@@ -634,6 +637,11 @@ export function useChatTurns({ store, announce, contextSizes, saveMailDraft }: T
               conversationId,
               calls,
               pictures,
+              // **The tools this turn was offered, by name.** A refusal's
+              // advice names a tool the turn has: this one was offered no
+              // search in a browser turn, and saying "use web_search" there
+              // would send the model after a tool it was never given.
+              offeredNames,
             );
             return answered.then((outcome) => {
               filed(calls, name, args, outcome);

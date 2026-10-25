@@ -1,5 +1,23 @@
 // Traduit du copy anglais approuvé.
 
+/** La ligne d'une ouverture refusée : l'hôte demandé, ce qui s'est passé et ce
+    que la personne peut faire. **L'hôte est la lecture que l'app fait de son
+    propre argument** : un hôte, jamais l'adresse entière, et jamais une
+    adresse qui n'est pas du http(s) public. */
+const refusedOpen = (params: Record<string, unknown>, said: string): string =>
+  `Kalsa n'a pas pu ouvrir ${typeof params.host === "string" && params.host !== "" ? params.host : "cette page"} : ${said}`;
+
+/** La ligne d'un refus : celle de l'ouverture quand l'appel était une
+    ouverture, et celle simple quand il ne l'était pas. **Un clic, une saisie,
+    une lecture et une photo ne sont pas une ouverture**, et une ligne qui dit
+    "n'a pas pu ouvrir" pour l'une d'elles parle de quelque chose qui n'a
+    jamais eu lieu. */
+const refused = (params: Record<string, unknown>, open: string, step: string): string => {
+  const action = params.action;
+  if (action === "browser_open" || action === "web_fetch") return refusedOpen(params, open);
+  return `Kalsa ne peut pas faire ça ici : ${step}`;
+};
+
 export const RUST: {
   startup: Record<string, (params: Record<string, unknown>, tag: string) => string>;
   choice: Record<string, (params: Record<string, unknown>, tag: string) => string>;
@@ -99,6 +117,9 @@ export const RUST: {
     search_failed: () => "Kalsa n'a pas pu chercher sur le web. Réessaie.",
     page_failed: () => "Kalsa n'a pas pu ouvrir cette page. Réessaie.",
     open_failed: () => "Cet ordinateur n'a pas pu ouvrir le lien.",
+    link_unseen: (params) => refusedOpen(params, "cette adresse n'a jamais paru dans cette discussion. Donne à Kalsa l'adresse exacte pour l'ouvrir."),
+    armed: (params) => refused(params, "cette discussion contient tes e-mails ou tes documents, donc Kalsa n'ouvre aucun site ici. Ouvre-la toi-même.", "cette discussion contient tes e-mails ou tes documents, donc Kalsa ne fait rien dans un site. Tu peux le faire toi-même."),
+    switch_off: (params) => refused(params, "le web est désactivé dans les Réglages. Active « Laisser Kalsa chercher sur le web » et Kalsa pourra ouvrir des pages.", "le web est désactivé dans les Réglages. Active « Laisser Kalsa chercher sur le web » et Kalsa pourra travailler dans le navigateur."),
   },
   browser: {
     unsupported_platform: () => "Cet ordinateur n'a pas de navigateur que Kalsa puisse utiliser.",

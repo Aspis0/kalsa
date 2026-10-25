@@ -57,7 +57,8 @@ const SIMILAR = 0.6;
 
 /** Words that every conversation carries, and the filler of a thank-you or a
     greeting. A query made of them alone matches nothing, and a sentence is not
-    a match for them: «così» in one question is not a fact about the price. */
+    a match for them: «così» in one question is not a fact about the price, and
+    neither is «più». */
 const STOP = new Set([
   "che", "per", "con", "non", "una", "uno", "del", "della", "dei", "delle", "dello",
   "sono", "anche", "come", "cosa", "questo", "questa", "quello", "quella", "sul",
@@ -68,6 +69,7 @@ const STOP = new Set([
   "allora", "dai", "certo", "perfetto", "vai", "tutto", "tutti", "ancora",
   "adesso", "sempre", "molto", "poco", "bello", "bella", "scusa", "scusi",
   "magari", "davvero", "proprio", "ecco",
+  "piu", "perche", "puo", "gia", "cio", "pero",
 ]);
 
 /** The line one fragment takes in the block. */

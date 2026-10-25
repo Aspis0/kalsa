@@ -1,5 +1,23 @@
 // Tradotto dal copy inglese approvato.
 
+/** La riga di un'apertura rifiutata: l'host chiesto, che cosa è successo e che
+    cosa può fare la persona. **L'host è la lettura dell'app del proprio
+    argomento**: un host, mai l'indirizzo intero, e mai un indirizzo che non sia
+    http(s) pubblico. */
+const refusedOpen = (params: Record<string, unknown>, said: string): string =>
+  `Kalsa non è riuscita ad aprire ${typeof params.host === "string" && params.host !== "" ? params.host : "quella pagina"}: ${said}`;
+
+/** La riga di un rifiuto: quella dell'apertura quando la chiamata era
+    un'apertura, e quella semplice quando non lo era. **Un clic, una
+    digitazione, una lettura e una foto non sono un'apertura**, e una riga
+    che dice "non è riuscita ad aprire" per una di queste parla di qualcosa
+    che non è mai successo. */
+const refused = (params: Record<string, unknown>, open: string, step: string): string => {
+  const action = params.action;
+  if (action === "browser_open" || action === "web_fetch") return refusedOpen(params, open);
+  return `Kalsa non può farlo qui: ${step}`;
+};
+
 export const RUST: {
   startup: Record<string, (params: Record<string, unknown>, tag: string) => string>;
   choice: Record<string, (params: Record<string, unknown>, tag: string) => string>;
@@ -99,6 +117,9 @@ export const RUST: {
     search_failed: () => "Kalsa non è riuscita a cercare sul web. Riprova.",
     page_failed: () => "Kalsa non è riuscita ad aprire quella pagina. Riprova.",
     open_failed: () => "Questo computer non è riuscito ad aprire il link.",
+    link_unseen: (params) => refusedOpen(params, "quell'indirizzo non è mai comparso in questa chat. Dai a Kalsa l'indirizzo esatto per aprirlo."),
+    armed: (params) => refused(params, "in questa chat ci sono le tue email o i tuoi documenti, quindi Kalsa non apre siti web qui. Aprila tu.", "in questa chat ci sono le tue email o i tuoi documenti, quindi Kalsa non fa niente sui siti web. Puoi farlo tu."),
+    switch_off: (params) => refused(params, "il web è spento nelle Impostazioni. Attiva «Lascia che Kalsa cerchi sul web» e Kalsa potrà aprire le pagine.", "il web è spento nelle Impostazioni. Attiva «Lascia che Kalsa cerchi sul web» e Kalsa potrà lavorare nel browser."),
   },
   browser: {
     unsupported_platform: () => "Questo computer non ha un browser che Kalsa possa usare.",

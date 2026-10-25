@@ -4,6 +4,23 @@
 
 export type RustSentence = (params: Record<string, unknown>, tag: string) => string;
 
+/** The line a refused open says: the host it was asked for, what happened, and
+    what the person can do about it. **The host is the app's own reading of its
+    own argument** — a host, never the whole address, and never an address that
+    is not public http(s). */
+const refusedOpen = (params: Record<string, unknown>, said: string): string =>
+  `Kalsa couldn't open ${typeof params.host === "string" && params.host !== "" ? params.host : "that page"}: ${said}`;
+
+/** The line a refusal says: the open's lead when the call was an open, and the
+    plain lead when it was not. **A click, a type, a read and a picture are not
+    an open**, and a row that says "couldn't open" for one of them is a row
+    about something that never happened. */
+const refused = (params: Record<string, unknown>, open: string, step: string): string => {
+  const action = params.action;
+  if (action === "browser_open" || action === "web_fetch") return refusedOpen(params, open);
+  return `Kalsa can't do that here: ${step}`;
+};
+
 export const RUST: { startup: Record<string, RustSentence>; choice: Record<string, RustSentence>; app: Record<string, RustSentence>; invite: Record<string, RustSentence>; pairing: Record<string, RustSentence>; update: Record<string, RustSentence>; road: Record<string, RustSentence>; files: Record<string, RustSentence>; vision: Record<string, RustSentence>; web: Record<string, RustSentence>; browser: Record<string, RustSentence> } = {
   startup: {
     cannot_run_yet: () => "Kalsa can't run on this computer yet. Check for an app update.",
@@ -94,6 +111,9 @@ export const RUST: { startup: Record<string, RustSentence>; choice: Record<strin
     search_failed: () => "Kalsa couldn't search the web. Try again.",
     page_failed: () => "Kalsa couldn't open that page. Try again.",
     open_failed: () => "This computer couldn't open the link.",
+    link_unseen: (params) => refusedOpen(params, "that address never appeared in this chat. Give Kalsa the exact address to open it."),
+    armed: (params) => refused(params, "this chat holds your mail or documents, so Kalsa doesn't open websites here. Open it yourself.", "this chat holds your mail or documents, so Kalsa does nothing in a website here. You can do it yourself."),
+    switch_off: (params) => refused(params, "web access is off in Settings. Turn on “Let Kalsa search the web” and Kalsa can open pages.", "web access is off in Settings. Turn on “Let Kalsa search the web” and Kalsa can work in the browser."),
   },
   browser: {
     unsupported_platform: () => "This computer has no browser Kalsa can use.",

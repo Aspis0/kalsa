@@ -105,38 +105,6 @@ export function isBrowserCode(code: unknown): code is BrowserCode {
 }
 
 /**
- * The words the person reads for a code, from the language table beside it.
- *
- * **Never the sentence the tool carried.** That is prose in whatever language a
- * page or a model wrote it in, and the window is not where a stranger's words go.
- */
-export function browserCodeWords(
-  code: BrowserCode,
-  t: { windowGone: string; refused: string; failed: string; noPage: string; elementGone: string; fieldGone: string; held: string; invalid: string; paused: string; busy: string; noPendingRequest: string; stopped: string; deterministic: string; tooManySteps: string; alreadyRun: string; readAgain: string; robotCheck: string },
-): string {
-  const words: Record<BrowserCode, string> = {
-    "browser.window_gone": t.windowGone,
-    "browser.refused": t.refused,
-    "browser.failed": t.failed,
-    "browser.no_page": t.noPage,
-    "browser.element_gone": t.elementGone,
-    "browser.field_gone": t.fieldGone,
-    "browser.held": t.held,
-    "browser.invalid": t.invalid,
-    "browser.paused": t.paused,
-    "browser.busy": t.busy,
-    "browser.no_pending_request": t.noPendingRequest,
-    "browser.stopped": t.stopped,
-    "browser.deterministic": t.deterministic,
-    "browser.too_many_steps": t.tooManySteps,
-    "browser.already_run": t.alreadyRun,
-    "browser.read_again": t.readAgain,
-    "browser.robot_check": t.robotCheck,
-  };
-  return words[code];
-}
-
-/**
  * Whether a press that came back with this code never went anywhere.
  *
  * **The family of the press that never left.** The browser was busy, so nothing

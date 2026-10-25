@@ -79,6 +79,12 @@ function emittedCodes() {
 }
 const EMITTED = emittedCodes();
 
+// The codes the chat itself puts on a refusal. They reach the page through the
+// same `rust` table — the browser's row and the web's row ask it by code — so
+// they are checked with the rest: a code the app emits without a row is a code
+// the person reads as the app's one-line shrug.
+const APP_CODES = ["web.armed", "web.link_unseen", "web.switch_off"];
+
 let fail = 0;
 function check(label, condition, detail) {
   if (!condition) fail++;
@@ -125,11 +131,48 @@ try {
     check(`a malformed code is not a row: ${JSON.stringify(code)}`, codeSentence(it, code, { gb: 1 }, "it") === null);
   }
 
-  const missing = EMITTED.filter((code) => codeSentence(TABLES.en.rust, code, { gb: 1, limit: "10 MB" }, "en") === null);
+  const missing = [...EMITTED, ...APP_CODES].filter((code) => codeSentence(TABLES.en.rust, code, { gb: 1, limit: "10 MB" }, "en") === null);
   check("every code Rust emits has an English row", missing.length === 0, missing.join(", "));
   for (const lang of ["it", "es", "fr", "zh"]) {
-    const lacking = EMITTED.filter((code) => codeSentence(TABLES[lang].rust, code, { gb: 1, limit: "10 MB" }, lang) === null);
+    const lacking = [...EMITTED, ...APP_CODES].filter((code) => codeSentence(TABLES[lang].rust, code, { gb: 1, limit: "10 MB" }, lang) === null);
     check(`every code Rust emits has a ${lang} row`, lacking.length === 0, lacking.join(", "));
+  }
+
+  // **The unseen link's row names the host the open was asked for, and
+  // nothing else.** A host, so the person knows which page failed; no path, no
+  // query, and no address that is not public http(s) — the app's own reading
+  // of its own argument is what names it, and it is a host.
+  for (const lang of ["en", "it", "es", "fr", "zh"]) {
+    const said = codeSentence(TABLES[lang].rust, "web.link_unseen", { host: "shop.example", path: "products/one" }, lang) ?? "";
+    check(`the unseen link's row names the host and nothing else (${lang})`, said.includes("shop.example") && !said.includes("products"), said);
+    const plain = codeSentence(TABLES[lang].rust, "web.link_unseen", {}, lang) ?? "";
+    check(`the unseen link's row says something without a host (${lang})`, plain.trim() !== "" && !plain.includes("undefined"), plain);
+  }
+
+  // **A refused click, a read or a picture is not a refused open.** The open is
+  // the one action that names a host and says "couldn't open"; every other
+  // action gets the plain lead, because a row that calls a refused click a
+  // failed open is a row about something that never happened.
+  const LEADS = {
+    en: { open: "couldn't open", step: "can't do that here" },
+    it: { open: "non è riuscita ad aprire", step: "non può farlo qui" },
+    es: { open: "no pudo abrir", step: "no puede hacer eso aquí" },
+    fr: { open: "n'a pas pu ouvrir", step: "ne peut pas faire ça ici" },
+    zh: { open: "无法打开", step: "不能在这里做这件事" },
+  };
+  for (const lang of ["en", "it", "es", "fr", "zh"]) {
+    for (const code of ["web.armed", "web.switch_off"]) {
+      for (const action of ["browser_click", "browser_type", "browser_read", "browser_screenshot"]) {
+        const step = codeSentence(TABLES[lang].rust, code, { action, host: "shop.example" }, lang) ?? "";
+        check(
+          `a refused ${action} is not an open (${code}, ${lang})`,
+          step.includes(LEADS[lang].step) && !step.includes(LEADS[lang].open) && !step.includes("shop.example"),
+          step,
+        );
+      }
+      const opened = codeSentence(TABLES[lang].rust, code, { action: "browser_open", host: "shop.example" }, lang) ?? "";
+      check(`a refused open names the host (${code}, ${lang})`, opened.includes(LEADS[lang].open) && opened.includes("shop.example"), opened);
+    }
   }
 } finally {
   if (dir) await rm(dir, { recursive: true, force: true });

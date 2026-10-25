@@ -8,26 +8,34 @@ import { Icon } from "./Icon";
 import { MiniappView } from "./miniapp/MiniappView";
 import { isMailRun } from "../lib/mail/runs";
 import { isBrowserRun } from "../lib/browser/runs";
-import { recapLine } from "../lib/browser/recap";
+import { recapLine, hostOfAddress } from "../lib/browser/recap";
 import type { Recap } from "../lib/browser/recap";
-import { rustSentence } from "../lib/rustText";
+import { codeSentence, rustSentence } from "../lib/rustText";
 import "./ToolActivity.css";
 import { TOOL_STOPPED } from "../lib/types";
 import type { ToolRun } from "../lib/types";
 
 /** The web refusals' sentences, by the code Rust put on them — plus the two
-    the page's own provenance rule puts on a web_fetch (fetchProvenance.ts). */
-function webWords(t: English["tools"], code: string): string {
+    the page's own provenance rule puts on a web_fetch (fetchProvenance.ts).
+    **A code the tools table has no word for is said by the `rust` table**: that
+    is where the app's own coded sentences live, and the unseen link's is
+    there — it names the host the open was asked for. */
+function webWords(
+  t: English["tools"],
+  code: string,
+  rust: English["rust"],
+  params: Record<string, unknown>,
+  tag: string,
+): string {
   const table: Record<string, string> = {
     "web.search_failed": t.webSearchFailed,
     "web.page_too_long": t.webPageTooLong,
     "web.page_failed": t.pageNotOpened,
     "web.open_failed": t.pageNotOpened,
-    "web.link_unseen": t.linkNotInChat,
     "web.link_credential": t.linkHasCredential,
     "web.query_link_unseen": t.searchLinkNotInChat,
   };
-  return table[code] ?? code;
+  return table[code] ?? codeSentence(rust, code, params, tag) ?? code;
 }
 
 const MINIAPP = "create_miniapp";
@@ -126,9 +134,20 @@ function ToolRow({ run, awaitingOk }: { run: ToolRun; awaitingOk: boolean }) {
   const query = typeof args.query === "string" ? args.query : "";
   // A browser run says what it did in the browser, in the app's own words, and
   // never shows an address: the model wrote it and a page wrote the addresses
-  // on it, so neither is text a row can put on the screen.
+  // on it, so neither is text a row can put on the screen. **A refused open is
+  // the one exception**: it names the host it was asked for, so the person
+  // knows which page did not open — a host, never the path.
   if (isBrowserRun(run.name)) {
     const browserFailed = run.state === "failed" || run.state === "refused";
+    // **The host the call asked for, as the app's own reading of its own
+    // argument.** A refused open says which page it was: a host, never the
+    // whole address, and never an address that is not public http(s).
+    const host = hostOfAddress(run.arguments);
+    // **And what the call was.** The open is the one action that names a
+    // host: a click, a type, a read and a picture are not an open, and a row
+    // that says "couldn't open" for one of them is a row about something that
+    // never happened.
+    const action = run.name;
     return (
       <p className={`tool-run${browserFailed ? " tool-run-failed" : ""}`}>
         {run.state === "running" ? <span className="tool-spin" aria-hidden="true" /> : null}
@@ -140,7 +159,7 @@ function ToolRow({ run, awaitingOk }: { run: ToolRun; awaitingOk: boolean }) {
               // app's own one-line failure, never to the model's words.
               run.resultCode === undefined
               ? t.browserDidNotRun
-              : rustSentence(table.rust, { code: run.resultCode }, tag)
+              : rustSentence(table.rust, { code: run.resultCode, params: { host, action } }, tag)
             : run.name === "browser_open"
               ? t.browserOpened
               : run.name === "browser_find"
@@ -172,6 +191,11 @@ function ToolRow({ run, awaitingOk }: { run: ToolRun; awaitingOk: boolean }) {
   // stay text.
   const url = publicHttpUrl(asked);
   const sources = run.name === "web_fetch" ? (url ? [url] : []) : sourcesIn(run.result);
+  // The host the call asked for, read the same way the browser's own row reads
+  // it: a failed open says which page it was. And what the call was: only an
+  // open names a host.
+  const host = hostOfAddress(run.arguments);
+  const action = run.name;
   const failed = run.state === "failed" || run.state === "refused";
   // A search that ran and was stopped while its pages were being read is a
   // stopped turn, not a search that did not run: the results it found are on
@@ -228,7 +252,7 @@ function ToolRow({ run, awaitingOk }: { run: ToolRun; awaitingOk: boolean }) {
             {run.result === TOOL_STOPPED
               ? t.stopped
               : run.resultCode?.startsWith("web.")
-                ? webWords(t, run.resultCode)
+                ? webWords(t, run.resultCode, table.rust, { host, action }, tag)
                 : run.result}
           </p>
         ) : null}
