@@ -26,8 +26,8 @@ export interface PhoneTurn {
    */
   device: string | null;
   /**
-   * **This turn's claim on the page**: the phone's conversation and this turn's
-   * own id, put here by the app.
+   * **This turn's claim on the page**: the phone's number, the pairing it belongs
+   * to and this turn's own id, put here by the app.
    *
    * **The claim belongs to the turn, not to the phone for the life of the
    * pairing.** The browser calls of this turn are stamped with it, and the

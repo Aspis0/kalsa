@@ -281,12 +281,18 @@ on the screen was not opened by this phone's conversation, so nothing was read o
 page the phone's turn opened stays the phone's until that turn ends, and a page the person moved
 by hand is nobody's.
 
-**And the claim names the turn, not only the phone.** The stamp a phone's browser calls carry is
-that phone's conversation **and the turn's own name** — so a turn's end lets go of the claim of
-that turn and of no other's, and a release that arrives late, after the next turn has taken the
+**And the claim names the turn and the pairing, not only the phone.** The stamp a phone's browser calls carry is
+that phone's number, **the pairing it belongs to and the turn's own name** — so a turn's end lets go of the
+claim of that turn and of no other's, and a release that arrives late, after the next turn has taken the
 page, finds that the stamps are not its own and lets nothing go. A card is bound to the same
 name: it is stamped with the claim of the turn that raised it, which is what says which turn a
 late card belongs to.
+
+**And the pairing is in the claim because a device id is reused.** The phone paired again under a forgotten
+phone's number is another phone, and it may neither take over the page the old one left claimed nor read it —
+so a claim of another pairing is nobody's to take, and the claim of a phone that is unpaired goes with it. The
+pairing is a token of its own, minted for that pairing and used for nothing else: it says which pairing a
+claim is of, and it grants nothing to whoever holds it.
 
 **One page, one turn.** The window is one. A turn — a phone's and a desktop's alike — may open
 a page and drive it while no other conversation holds the page on the window: a page nobody

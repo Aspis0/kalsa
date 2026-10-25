@@ -32,10 +32,10 @@ import {
 /** The turn this script runs, as the app hands it over.
  *
  * **A turn that names a phone has the claim the app gave it**: the phone's
- * conversation and the turn's own id. The app builds it — the window that
- * stamps the browser calls and the bridge that reads the card back have to be
- * saying the same thing — so a turn without one has no page of its own to
- * drive, and every browser call of it is refused.
+ * number, the pairing it belongs to and the turn's own id. The app builds it —
+ * the window that stamps the browser calls and the bridge that reads the card
+ * back have to be saying the same thing — so a turn without one has no page of
+ * its own to drive, and every browser call of it is refused.
  */
 let turnNo = 0;
 const turnOf = (app, messages, extra = {}) => {
@@ -545,12 +545,12 @@ async function phoneBrowser(app) {
   check("and a different phone is a different conversation", app.phoneConversation("3") !== conversation);
 
   // **The claim on the page names the turn, not only the phone.** It is the
-  // phone's conversation and this turn's own id, and the app builds it: the
-  // window that stamps the browser calls and the bridge that reads the card
-  // back have to be saying the same thing, or a card would come back stamped
-  // with a name the bridge does not know.
-  const claim = `${conversation}:r1`;
-  const nextClaim = `${conversation}:r2`;
+  // phone's number, the pairing it belongs to and this turn's own id, and the
+  // app builds it: the window that stamps the browser calls and the bridge
+  // that reads the card back have to be saying the same thing, or a card would
+  // come back stamped with a name the bridge does not know.
+  const claim = `${conversation}:pair:r1`;
+  const nextClaim = `${conversation}:pair:r2`;
 
   // The browser call this turn makes is stamped with that claim, so the card it
   // raises comes back to this phone and not to a chat.
@@ -614,7 +614,7 @@ async function phoneBrowser(app) {
   equal("a turn that ran no browser tool asks for no release", releases, 1);
   // **And the release is on the way out of a turn that failed too.** A turn the
   // engine cut short is still the turn that was driving the page.
-  await app.runPhoneTurn(turnOf(app, [USER("read it anyway")], { device: PHONE, stamp: `${conversation}:r3` }), SETTINGS, recorder(app).sink, new AbortController().signal, MAIL_ON, {
+  await app.runPhoneTurn(turnOf(app, [USER("read it anyway")], { device: PHONE, stamp: `${conversation}:pair:r3` }), SETTINGS, recorder(app).sink, new AbortController().signal, MAIL_ON, {
     loop: fakeLoop(async (o) => {
       await o.runTool("browser_find", { text: "price" }, new AbortController().signal, undefined);
       throw new Error("the engine went down mid-turn");
@@ -625,11 +625,11 @@ async function phoneBrowser(app) {
   equal(
     "a failed turn still lets the page go",
     [afterFailure.length, afterFailure[afterFailure.length - 1].args.conversation],
-    [2, `${conversation}:r3`],
+    [2, `${conversation}:pair:r3`],
   );
   // And it is told once: drained, not repeated on every turn afterwards.
   let wire3 = null;
-  await app.runPhoneTurn(turnOf(app, [USER("and now?")], { device: PHONE, stamp: `${conversation}:r4` }), SETTINGS, recorder(app).sink, new AbortController().signal, MAIL_ON, {
+  await app.runPhoneTurn(turnOf(app, [USER("and now?")], { device: PHONE, stamp: `${conversation}:pair:r4` }), SETTINGS, recorder(app).sink, new AbortController().signal, MAIL_ON, {
     loop: fakeLoop(async (o) => {
       wire3 = o.messages;
     }).loop,
@@ -640,7 +640,7 @@ async function phoneBrowser(app) {
   check("and only once", last3.content.startsWith("and now?") && !last3.content.includes("kalsa-page-"), JSON.stringify(last3.content));
 
   // **A later turn's claim survives an earlier turn's release.** The claim is
-  // the phone's conversation and the turn's own id, so the release of one turn
+  // the phone's number, the pairing it belongs to and the turn's own id, so the release of one turn
   // names that turn and no other: a release that arrives late — after the next
   // turn has taken the page — finds that the stamps are not its own and lets
   // nothing go. A claim named by the phone alone could not tell the two apart.
@@ -943,7 +943,8 @@ async function roundCap(app) {
     const ran = (command) => bridge.calls.slice(from).filter((c) => c.command === command);
     // **The phone's own turn drives the page**: each field is typed and the form is
     // clicked, one call each, and every one reaches the browser under this turn's
-    // claim on the page — the phone's conversation and this turn's own name. The
+    // claim on the page — the phone's number, the pairing it belongs to and
+    // this turn's own name. The
     // write that would send the form is held by the computer, not by this proof:
     // the sidecar's own proofs cover that.
     equal("each field is typed and the form is clicked, once each", [ran("brain_browser_type").length, ran("brain_browser_click").length], [4, 1]);
@@ -988,14 +989,14 @@ async function phoneClaims(app) {
   // be answered, and the tenth is a claim that could never be answered.
   const claims = [];
   for (let at = 1; at <= 9; at += 1) {
-    claims.push(`${conversation}:claim${at}`);
+    claims.push(`${conversation}:pair:claim${at}`);
     await quiet([USER(`turn ${at}`)], claims[at - 1]);
   }
   // **And the answer to a card the phone raised nine turns ago still reaches
   // it.** The claim of that turn is still one of the phone's, so what comes back
   // under it is filed under the phone — and the phone is what outlives the turn.
   app.noteAnswered({ id: BROWSER_CARD.card_id, conversation: claims[1], code: "sent", host: "bound.example" });
-  const last = await quiet([USER("and now?")], `${conversation}:claim10`);
+  const last = await quiet([USER("and now?")], `${conversation}:pair:claim10`);
   check(
     "the answer to a card raised nine turns ago still reaches the phone",
     last.role === "user" && last.content.includes("1 sent to bound.example"),
@@ -1007,11 +1008,11 @@ async function phoneClaims(app) {
   // and it must not inherit the old one's answers — those came back under the
   // old phone's claims.
   const stop = app.startPhoneChatRunner();
-  const old = `${conversation}:old`;
+  const old = `${conversation}:pair:old`;
   await quiet([USER("one more")], old);
   app.noteAnswered({ id: BROWSER_CARD.card_id, conversation: old, code: "sent", host: "old.example" });
   emit("phone-chat-unpaired", [conversation]);
-  const after = await quiet([USER("hello again")], `${conversation}:new`);
+  const after = await quiet([USER("hello again")], `${conversation}:pair:new`);
   check(
     "a phone paired again under the same number hears nothing of the old one's answers",
     !(after.role === "user" && after.content.includes("old.example")),

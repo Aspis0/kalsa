@@ -220,11 +220,11 @@ export async function runPhoneTurn(
   // is shown a card, and what the outcome comes back under. A turn with no
   // device has no conversation, and so no card and no writes.
   const conversation = turn.device === null ? "" : phoneConversation(turn.device);
-  // **And this is the claim of this turn on the page**: the phone's
-  // conversation and the turn's own id. It is what the browser calls are
-  // stamped with and what the release at the turn's end is stamped with, so
-  // that a release lets go of the claim of the turn that made it and of no
-  // other's. A turn with no claim is offered no browser at all.
+  // **And this is the claim of this turn on the page**: the phone's number,
+  // the pairing it belongs to and the turn's own id. It is what the browser
+  // calls are stamped with and what the release at the turn's end is stamped
+  // with, so that a release lets go of the claim of the turn that made it and
+  // of no other's. A turn with no claim is offered no browser at all.
   const stamp = turn.stamp;
   // **And this turn's claim is remembered now**, before anything is driven with
   // it: what became of a card comes back under the claim of the turn that
@@ -431,10 +431,11 @@ export async function runPhoneTurn(
  * flight would be refused busy by a page nobody is driving.
  *
  * **The release names the turn, and only that turn.** The claim is the phone's
- * conversation and the turn's own id, so a release that arrives late — after
- * the next turn has taken the page — finds that the stamps are not its own and
- * lets nothing go. A claim named by the phone alone could not tell the two
- * apart, and a late release would take the page from the turn that holds it.
+ * number, the pairing it belongs to and the turn's own id, so a release that
+ * arrives late — after the next turn has taken the page — finds that the stamps
+ * are not its own and lets nothing go. A claim named by the phone alone could
+ * not tell the two apart, and a late release would take the page from the turn
+ * that holds it.
  */
 async function letThePageGo(stamp: string, droveTheBrowser: boolean): Promise<void> {
   if (!droveTheBrowser || stamp === "") return;

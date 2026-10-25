@@ -53,14 +53,17 @@ const ANSWER_WINDOW: Duration = Duration::from_secs(10);
 /// name and never carries it, and that is what tells the two apart.
 const PHONE: &str = "phone:";
 
-/// **The claim a phone's turn makes on the page: the phone's own name and the
-/// turn's own id.**
+/// **The claim a phone's turn makes on the page: the phone's own number, the
+/// pairing it belongs to, and the turn's own id.**
 ///
 /// **The split lives here and nowhere else.** Two crates read this string — the
 /// brain that builds it and this crate that rules on it — and a rule kept in two
 /// places is a rule that will be read two ways.
-pub fn phone_claim(device: &str, turn: &str) -> String {
-    format!("{PHONE}{device}:{turn}")
+///
+/// **Neither half may hold a colon**, so the three parts can be told apart:
+/// the number and the pairing are digits and hex, and the turn is a request id.
+pub fn phone_claim(device: &str, pairing: &str, turn: &str) -> String {
+    format!("{PHONE}{device}:{pairing}:{turn}")
 }
 
 /// **The name of a phone's conversation: the phone alone.**
@@ -76,23 +79,31 @@ pub fn is_phone(name: &str) -> bool {
 
 /// **Whether two claims are the same phone's.**
 ///
-/// **The phone is what may take a claim over; the turn is what the claim is
-/// of.** A desktop's conversation is nobody's phone, so no desktop's claim is
+/// **The phone and the pairing together are what may take a claim over; the turn
+/// is what the claim is of.** A device id is reused once the top one is
+/// forgotten, so the id alone cannot tell the old phone from the next one
+/// paired under it — and a claim that carried only the id would be taken over by
+/// that next phone, which would then read the page the old one left claimed. So
+/// the pairing is part of the name, and a claim of another pairing is nobody's
+/// to take. A desktop's conversation is nobody's phone, so no desktop's claim is
 /// ever taken over by anything.
 pub fn same_phone(one: &str, other: &str) -> bool {
-    match (phone_of(one), phone_of(other)) {
-        (Some(one), Some(other)) => one == other,
+    match (parts_of(one), parts_of(other)) {
+        (Some((device, pairing)), Some((other_device, other_pairing))) => {
+            device == other_device && pairing == other_pairing
+        }
         _ => false,
     }
 }
 
-/// **The phone a claim names, when it names one.**
-fn phone_of(name: &str) -> Option<&str> {
-    let (phone, turn) = name.strip_prefix(PHONE)?.split_once(':')?;
-    if phone.is_empty() || turn.is_empty() {
+/// **The phone and the pairing a claim names, when it names both.**
+fn parts_of(name: &str) -> Option<(&str, &str)> {
+    let (device, rest) = name.strip_prefix(PHONE)?.split_once(':')?;
+    let (pairing, _turn) = rest.split_once(':')?;
+    if device.is_empty() || pairing.is_empty() {
         return None;
     }
-    Some(phone)
+    Some((device, pairing))
 }
 
 /// The future that dispatches or drops a held request. What the browser does
@@ -2681,12 +2692,15 @@ mod tests {
     #[tokio::test]
     async fn a_phones_next_turn_takes_over_the_claim_its_own_last_turn_left_behind() {
         let holds = holds_in("phone:1").await;
-        holds.claim_for_turn("phone:1:turn-1").await.expect("the phone took the page nobody held");
-        assert_eq!(holds.stamp_for_the_page().await, "phone:1:turn-1");
+        holds.claim_for_turn("phone:1:pair-a:turn-1").await.expect("the phone took the page nobody held");
+        assert_eq!(holds.stamp_for_the_page().await, "phone:1:pair-a:turn-1");
 
         // The turn ended, and its release never came.
-        assert!(holds.claim_for_turn("phone:1:turn-2").await.is_some(), "the phone was locked out of its own page");
-        assert_eq!(holds.stamp_for_the_page().await, "phone:1:turn-2", "and the page is the new turn's");
+        assert!(
+            holds.claim_for_turn("phone:1:pair-a:turn-2").await.is_some(),
+            "the phone was locked out of its own page"
+        );
+        assert_eq!(holds.stamp_for_the_page().await, "phone:1:pair-a:turn-2", "and the page is the new turn's");
     }
 
     /// **And a claim of another phone's, or of a desktop's, is still refused.**
@@ -2694,11 +2708,11 @@ mod tests {
     #[tokio::test]
     async fn a_claim_of_another_phone_or_of_a_desktop_is_not_taken_over() {
         let holds = holds_in(CHAT).await;
-        holds.claim_for_turn("phone:1:turn-1").await.expect("the phone took the page nobody held");
+        holds.claim_for_turn("phone:1:pair-a:turn-1").await.expect("the phone took the page nobody held");
 
-        assert!(holds.claim_for_turn("phone:2:turn-1").await.is_none(), "another phone took the page");
+        assert!(holds.claim_for_turn("phone:2:pair-b:turn-1").await.is_none(), "another phone took the page");
         assert!(holds.claim_for_turn(CHAT).await.is_none(), "the desktop took a phone's page");
-        assert_eq!(holds.stamp_for_the_page().await, "phone:1:turn-1", "the page changed hands");
+        assert_eq!(holds.stamp_for_the_page().await, "phone:1:pair-a:turn-1", "the page changed hands");
     }
 
     /// **A phone does not take over a desktop's claim either.** The takeover is
@@ -2708,22 +2722,59 @@ mod tests {
         let holds = holds_in(CHAT).await;
         holds.claim_for_turn(CHAT).await.expect("the desktop took the page nobody held");
 
-        assert!(holds.claim_for_turn("phone:1:turn-1").await.is_none(), "the phone took the desktop's page");
+        assert!(holds.claim_for_turn("phone:1:pair-a:turn-1").await.is_none(), "the phone took the desktop's page");
         assert_eq!(holds.stamp_for_the_page().await, CHAT, "the page changed hands");
     }
 
-    /// **The claim names its phone and its turn, and the phone is what a claim
-    /// is taken over by.** The split is one rule in one place: the phone may
-    /// take over, the turn may not, and a desktop's name is neither.
+    /// **A phone paired again under a number another phone once had does not
+    /// take over that phone's claim.**
+    ///
+    /// A device id is reused once the top one is forgotten, so the next phone
+    /// paired under it is another phone and not the old one — and the page the
+    /// old phone left claimed is the old phone's: it may hold the old phone's
+    /// session, and the new phone has no business reading it. So the claim names
+    /// the pairing as well as the phone, and a claim of another pairing is
+    /// nobody's to take.
+    #[tokio::test]
+    async fn a_phone_paired_again_under_the_same_number_does_not_take_over_the_old_phones_claim() {
+        let holds = holds_in("phone:1").await;
+        holds.claim_for_turn("phone:1:pair-a:turn-1").await.expect("the phone took the page nobody held");
+
+        // The old phone is forgotten and another is paired under its number.
+        assert!(
+            holds.claim_for_turn("phone:1:pair-b:turn-1").await.is_none(),
+            "the new phone took the old phone's page"
+        );
+        assert_eq!(holds.stamp_for_the_page().await, "phone:1:pair-a:turn-1", "and the page changed hands");
+
+        // The old phone's own next turn still may: the claim is its own.
+        assert!(
+            holds.claim_for_turn("phone:1:pair-a:turn-2").await.is_some(),
+            "the phone was locked out of its own page"
+        );
+        assert_eq!(holds.stamp_for_the_page().await, "phone:1:pair-a:turn-2");
+    }
+
+    /// **The claim names its phone, its pairing and its turn, and the phone and
+    /// the pairing together are what a claim is taken over by.** The split is one
+    /// rule in one place: the phone may take over, the turn may not, and a
+    /// desktop's name is neither.
     #[test]
-    fn a_claim_names_its_phone_and_its_turn() {
-        assert_eq!(super::phone_claim("2", "turn-1"), "phone:2:turn-1");
+    fn a_claim_names_its_phone_its_pairing_and_its_turn() {
+        assert_eq!(super::phone_claim("2", "pair-a", "turn-1"), "phone:2:pair-a:turn-1");
         assert_eq!(super::phone_conversation("2"), "phone:2");
-        assert!(super::same_phone("phone:2:turn-1", "phone:2:turn-2"), "one phone's claims are the same phone's");
-        assert!(!super::same_phone("phone:2:turn-1", "phone:3:turn-1"), "and another phone's are not");
-        assert!(!super::same_phone("phone:2:turn-1", CHAT), "and a desktop's are not");
-        assert!(!super::same_phone("phone:2:turn-1", "phone:2"), "a phone's conversation alone is not a claim");
-        assert!(super::is_phone("phone:2:turn-1") && !super::is_phone(CHAT), "a phone's name says so");
+        assert!(
+            super::same_phone("phone:2:pair-a:turn-1", "phone:2:pair-a:turn-2"),
+            "one pairing's claims are the same phone's"
+        );
+        assert!(!super::same_phone("phone:2:pair-a:turn-1", "phone:3:pair-a:turn-1"), "and another phone's are not");
+        assert!(
+            !super::same_phone("phone:2:pair-a:turn-1", "phone:2:pair-b:turn-1"),
+            "and another pairing's are not, though the number is the same"
+        );
+        assert!(!super::same_phone("phone:2:pair-a:turn-1", CHAT), "and a desktop's are not");
+        assert!(!super::same_phone("phone:2:pair-a:turn-1", "phone:2"), "a phone's conversation alone is not a claim");
+        assert!(super::is_phone("phone:2:pair-a:turn-1") && !super::is_phone(CHAT), "a phone's name says so");
     }
 
     /// **A call that panics lets go of the window.**

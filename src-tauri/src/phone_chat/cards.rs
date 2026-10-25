@@ -29,9 +29,10 @@ use super::drafts::Owner;
 pub(super) struct Held {
     pub(super) owner: Owner,
     /// **The claim of the turn that raised the card**, which the sidecar
-    /// stamped: the phone's conversation and that turn's own name. A card is
-    /// drawn, answered and reported in the turn that caused it and no other,
-    /// and this is the name that says which turn that was.
+    /// stamped: the phone's number, the pairing it belongs to and that turn's
+    /// own name. A card is drawn, answered and reported in the turn that
+    /// caused it and no other, and this is the name that says which turn that
+    /// was.
     pub(super) conversation: String,
     /// The turn it was raised on, so a card can only be shown to the phone that
     /// is actually listening for it.
@@ -180,8 +181,8 @@ pub(crate) fn is_phone_conversation(conversation: &str) -> bool {
     is_phone(conversation)
 }
 
-/// **The claim one turn makes on the page**: the phone's conversation and the
-/// turn's own id.
+/// **The claim one turn makes on the page**: the phone's number, the pairing it
+/// belongs to and the turn's own id.
 ///
 /// **The claim belongs to the turn, not to the phone for the life of the
 /// pairing.** The protocol says so, and the reason is a release: the turn's end
@@ -191,12 +192,17 @@ pub(crate) fn is_phone_conversation(conversation: &str) -> bool {
 /// so the name carries the turn, and a release that finds nothing of its own
 /// lets nothing go.
 ///
+/// **And the pairing is in it, because a device id is reused.** The phone paired
+/// again under a forgotten phone's number is another phone, and it may neither
+/// take over the page the old one left claimed nor read it.
+///
 /// **Built in one place, and the window is handed it.** The sidecar treats the
 /// name as a name, so the two halves of the computer — the window that stamps
 /// the browser calls and the bridge that reads the card back — have to be
 /// saying the same thing; the bridge builds it and the window is given it, so
 /// they cannot drift apart. **And the shape of it is the browser's**, which is
-/// where the rule that reads a claim lives.
-pub(super) fn stamp_of(device: DeviceId, request: &str) -> String {
-    phone_claim(&device.value().to_string(), request)
+/// where the rule that reads a claim lives: the phone's number, the pairing it
+/// belongs to, and the turn's own id.
+pub(super) fn stamp_of(device: DeviceId, pairing: &str, request: &str) -> String {
+    phone_claim(&device.value().to_string(), pairing, request)
 }

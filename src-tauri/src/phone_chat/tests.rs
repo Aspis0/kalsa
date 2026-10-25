@@ -24,11 +24,19 @@ fn owner_a() -> Owner {
     (DeviceId::new(1), digest("cred-a"))
 }
 
-/// **The claim one phone's turn makes on the page**: the phone's conversation
-/// and the turn's own id. This is what the sidecar stamps a card with, and
-/// what the bridge matches that card against.
+/// **The claim one phone's turn makes on the page**: the phone's number, the
+/// pairing it belongs to and the turn's own id. This is what the sidecar stamps
+/// a card with, and what the bridge matches that card against.
 fn claim(device: u32, request: &str) -> String {
-    super::cards::stamp_of(DeviceId::new(device), request)
+    claim_under(device, if device == 1 { "cred-a" } else { "cred-b" }, request)
+}
+
+/// **The same claim, for a phone paired under a credential of its own.** The
+/// pairing is part of the claim: the same number under another credential is
+/// another phone, and it has a claim of its own.
+fn claim_under(device: u32, credential: &str, request: &str) -> String {
+    let owner = (DeviceId::new(device), digest(credential));
+    super::cards::stamp_of(DeviceId::new(device), &super::pairing_of(&owner), request)
 }
 
 /// A bridge that has paired device 1 under the credential "cred-a", with one
@@ -410,7 +418,7 @@ fn held(device: u32, cred: &str, request: &str, id: &str) -> Held {
         owner: (DeviceId::new(device), digest(cred)),
         // **The sidecar stamps the card with the claim of the turn that raised
         // it**, so this is the turn's name and not the phone's conversation.
-        conversation: claim(device, request),
+        conversation: claim_under(device, cred, request),
         request: request.to_string(),
         id: id.to_string(),
         method: "POST".to_string(),
@@ -1619,8 +1627,8 @@ fn while_the_phone_cannot_draw_a_card_the_first_reason_is_the_one_given() {
 /// still comes back to the phone that raised it, on whichever turn it reads it.
 #[test]
 fn two_turns_of_one_phone_make_two_claims_and_one_conversation() {
-    let one = super::cards::stamp_of(DeviceId::new(1), "req-a");
-    let two = super::cards::stamp_of(DeviceId::new(1), "req-b");
+    let one = claim(1, "req-a");
+    let two = claim(1, "req-b");
 
     assert_ne!(one, two, "a claim that does not name the turn cannot tell two turns apart");
     assert!(one.starts_with("phone:1:"), "and it is the phone's conversation with the turn's own name after it");
@@ -1629,6 +1637,21 @@ fn two_turns_of_one_phone_make_two_claims_and_one_conversation() {
         "phone:1",
         "while the conversation itself is the phone's and outlives every turn of it"
     );
+}
+
+/// **And the pairing is part of the claim, so another phone under the same
+/// number has a claim of its own.**
+///
+/// A device id is reused once the top one is forgotten, so the next phone
+/// paired under it is another phone and not the old one: it must not take over
+/// the page the old one left claimed, and it must not read it either.
+#[test]
+fn a_phone_paired_again_under_the_same_number_makes_another_claim() {
+    let old = claim_under(1, "cred-a", "req");
+    let new = claim_under(1, "cred-c", "req");
+
+    assert_ne!(old, new, "two pairings under one number made one claim");
+    assert!(old.starts_with("phone:1:") && new.starts_with("phone:1:"), "and both name the phone");
 }
 
 /// **The picture is asked for in the name of the claim of the turn that opened

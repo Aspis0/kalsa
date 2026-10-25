@@ -1,11 +1,15 @@
 // The claims a phone's turns make on the page, and what became of the requests
 // they raised.
 //
-// **A claim is the phone's conversation and the turn's own name.** The browser
-// calls of a turn are stamped with it, the release at the turn's end is stamped
-// with it, and a card raised by that turn is stamped with it — so a turn's end
-// lets go of the claim of that turn and of no other's, and a card of a turn
-// that has ended is known to be a card of a turn that has ended.
+// **A claim names the phone, the pairing it belongs to and the turn.** The
+// browser calls of a turn are stamped with it, the release at the turn's end is
+// stamped with it, and a card raised by that turn is stamped with it — so a
+// turn's end lets go of the claim of that turn and of no other's, and a card of
+// a turn that has ended is known to be a card of a turn that has ended.
+//
+// **The pairing is in it because a device id is reused.** The next phone paired
+// under a forgotten phone's number is another phone, and it may neither take
+// over the page the old one left claimed nor read it.
 //
 // What became of a request comes back under that claim, and the claim names a
 // turn rather than a phone. The phone is what outlives the turn, and the note
@@ -14,6 +18,7 @@
 // an outcome is said once, to the one reader that has it.
 
 import { noteAnswered, pendingOutcomes, takeOutcomes } from "../browser/confirm";
+import { browserRelease } from "../tools/browserCall";
 
 /**
  * The claims of the turns this page ran, and the phone each one belongs to.
@@ -65,7 +70,16 @@ export function fileUnderThePhone(conversation: string): void {
  * **Device ids are reused.** A phone paired again later under the same number is
  * another phone, and it must not inherit the old one's answers: what came back
  * under the old phone's claim is the old phone's to hear.
+ *
+ * **And the page the old phone left claimed goes with it.** The claim is the
+ * turn's and the turn lets it go at its end — but a release that never came
+ * would leave the page claimed by a phone that no longer exists, and the phone
+ * paired again under that number has a claim of its own and may not take that
+ * one over. So the claim is let go here, on the way out.
  */
 export function forgetClaims(conversation: string): void {
+  for (const stamp of claims.get(conversation) ?? []) {
+    void browserRelease(stamp).catch(() => {});
+  }
   claims.delete(conversation);
 }

@@ -149,8 +149,8 @@ struct Live {
     kind: &'static str,
     reply_for: Option<u32>,
     inbox: mpsc::Sender<ChatEvent>,
-    /// **This turn's claim on the page**: the phone's conversation and this
-    /// turn's own id.
+    /// **This turn's claim on the page**: the phone's number, the pairing it
+    /// belongs to and this turn's own id.
     ///
     /// **The claim belongs to the turn, not to the phone for the life of the
     /// pairing.** The turn's end is what lets the page go, so a release names
@@ -1055,10 +1055,10 @@ impl Bridge {
             return Err(crate::browser::preview::Code::Unavailable.as_str().to_string());
         };
         // **The page belongs to the claim of the turn that opened it**, so that
-        // is the name the picture is asked for in: the phone's conversation and
-        // the turn's own id. **A phone with no live turn has no claim**, and so
-        // no page of its own to show: refused as no page, which is the truth —
-        // the turn that opened the page is over.
+        // is the name the picture is asked for in: the phone's number, the
+        // pairing it belongs to and the turn's own id. **A phone with no live
+        // turn has no claim**, and so no page of its own to show: refused as no
+        // page, which is the truth — the turn that opened the page is over.
         let Some(conversation) = self.stamp_of(owner) else {
             return Err(crate::browser::preview::Code::NoPage.as_str().to_string());
         };
@@ -1378,8 +1378,9 @@ impl PhoneChat for Bridge {
 /// can never begin with it, so this can only ever name a phone.
 ///
 /// **The turn's own name may follow the number.** A claim is the phone's
-/// conversation and the turn's id, and the number is what says which phone this
-/// is; the rest is the turn, and the turn is not a device.
+/// number, the pairing it belongs to and the turn's id, and the number is what
+/// says which phone this is; the rest names the pairing and the turn, and
+/// neither is a device.
 pub(crate) fn device_of(conversation: &str) -> Option<DeviceId> {
     let number = conversation.strip_prefix("phone:")?;
     let number = number.split(':').next()?;
@@ -1428,8 +1429,8 @@ pub(crate) struct Asking {
     pub(crate) owner: Owner,
     /// The phone's own conversation: one per device, for the life of the pairing.
     pub(crate) conversation: String,
-    /// **This turn's claim on the page**: the phone's conversation and the
-    /// turn's own id.
+    /// **This turn's claim on the page**: the phone's number, the pairing it
+    /// belongs to and the turn's own id.
     pub(crate) stamp: String,
     /// **What this turn's phone said it could draw.** The capability is the
     /// live turn's, and it is not kept past the turn.
@@ -1448,7 +1449,7 @@ fn asking(owner: Owner, device: DeviceId, body: &Value, request: &str) -> Asking
     Asking {
         owner,
         conversation: conversation_of(device),
-        stamp: cards::stamp_of(device, request),
+        stamp: cards::stamp_of(device, &pairing_of(&owner), request),
         draws_cards: body
             .get("capabilities")
             .and_then(Value::as_array)
@@ -1541,6 +1542,26 @@ fn digest(credential: &str) -> [u8; 32] {
     hasher.update(b"kalsa-phone-identity-v1");
     hasher.update(credential.as_bytes());
     hasher.finalize().into()
+}
+
+/// **The token that names one pairing, and no other.**
+///
+/// **A device id is reused once the top one is forgotten**, so the id alone
+/// cannot tell the old phone from the next one paired under it. A claim that
+/// carried only the id would be taken over by that next phone — which would
+/// then read the page the old phone left claimed, and that page may hold the
+/// old phone's session. So a claim names the pairing as well as the phone.
+///
+/// **This is a digest of the owner's own digest, under a label of its own.** The
+/// credential is never kept, and this value is used for nothing else, so it
+/// carries no piece of the credential with it and may sit in the sidecar's
+/// memory and on its wire: it says which pairing a claim is of, and it grants
+/// nothing to whoever holds it.
+fn pairing_of(owner: &Owner) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(b"kalsa-phone-pairing-v1");
+    hasher.update(owner.1);
+    hasher.finalize()[..8].iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
 /// A panic in one request's handling must not silence every other request.
