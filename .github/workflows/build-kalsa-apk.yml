@@ -15,6 +15,12 @@ concurrency:
   group: build-kalsa-apk-${{ github.ref }}-${{ github.run_id }}-${{ github.event_name == 'workflow_dispatch' && inputs.debuggable && 'debuggable' || 'release' }}
   cancel-in-progress: true
 
+# The phone app lives in phone/ after the monorepo move: run steps execute
+# there, so their relative paths (scripts/, android/, node_modules/) hold.
+defaults:
+  run:
+    working-directory: phone
+
 jobs:
   apk:
     runs-on: ubuntu-latest
@@ -29,6 +35,9 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          # The lockfile moved into phone/ with the app: without this the
+          # action looks for package-lock.json at the workspace root and fails.
+          cache-dependency-path: phone/package-lock.json
 
       - uses: actions/setup-java@v4
         with:
@@ -114,7 +123,7 @@ jobs:
         with:
           name: kalsa-apk-arm64-v8a${{ github.event_name == 'workflow_dispatch' && inputs.debuggable && '-debuggable' || '' }}-${{ github.sha }}
           path: |
-            android/app/build/outputs/apk/release/app-release.apk
-            kalsa-apk.sha256
+            phone/android/app/build/outputs/apk/release/app-release.apk
+            phone/kalsa-apk.sha256
           if-no-files-found: error
           retention-days: 14

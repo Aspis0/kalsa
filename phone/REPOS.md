@@ -1,5 +1,10 @@
 # REPOS — which repository holds what
 
+> **2026-10-25: superseded in part.** `Aspis0/kalsa` is now a monorepo: the phone app is
+> `phone/` and the desktop app (the former `brain` branch, tag `archive/brain`) is `desktop/`,
+> both on `main`. The lab is the `moe-experiments` branch of `Aspis0/kalsa`;
+> `Aspis0/kalsa-moe-experiments` is archived. The tables below are the pre-merge picture.
+
 Five repositories carry Kalsa. **Four** are live as of 17/09 — `Aspis0/kalsa.rn` came back —
 and one is archived read-only on GitHub.
 This file exists because the constellation is not obvious and guessing has cost real time:

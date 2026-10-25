@@ -28,8 +28,11 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
-const BENCH_YML = path.join(projectRoot, ".github/workflows/bench.yml");
-const APK_YML = path.join(projectRoot, ".github/workflows/apk.yml");
+// The phone app lives in phone/; the CI workflows it is pinned against stay
+// at the monorepo root, one level up.
+const repoRoot = path.resolve(projectRoot, "..");
+const BENCH_YML = path.join(repoRoot, ".github/workflows/bench.yml");
+const APK_YML = path.join(repoRoot, ".github/workflows/apk.yml");
 const CI_BENCH_SH = path.join(projectRoot, "scripts/ci-bench.sh");
 
 const AXES = ["compaction", "toolchoice", "toolgate", "block_format", "thinking", "memory"];

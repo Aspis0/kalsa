@@ -10,6 +10,9 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
+// The phone app lives in phone/; the CI workflows it is pinned against stay
+// at the monorepo root, one level up.
+const repoRoot = path.resolve(projectRoot, "..");
 const outDir = path.join(projectRoot, "scripts/.build/prefixPrewarmHarness");
 
 function compile() {
@@ -2386,7 +2389,7 @@ async function main() {
   // bounds the same suite's job at 15 minutes — the step carries that
   // number, and this pin fails if it is quietly removed.
   const e2eYml = readFileSync(
-    path.join(projectRoot, ".github/workflows/e2e-emulator.yml"),
+    path.join(repoRoot, ".github/workflows/e2e-emulator.yml"),
     "utf8",
   );
   // Jest is its OWN step, bounded at ci.yml's number. The first cut put the

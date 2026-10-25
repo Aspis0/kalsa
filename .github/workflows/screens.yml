@@ -14,6 +14,12 @@ concurrency:
   group: screens-${{ github.ref }}
   cancel-in-progress: true
 
+# The phone app lives in phone/ after the monorepo move: run steps execute
+# there, so their relative paths (scripts/, android/, node_modules/) hold.
+defaults:
+  run:
+    working-directory: phone
+
 jobs:
   screens:
     runs-on: ubuntu-latest
@@ -32,6 +38,9 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          # The lockfile moved into phone/ with the app: without this the
+          # action looks for package-lock.json at the workspace root and fails.
+          cache-dependency-path: phone/package-lock.json
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -89,6 +98,10 @@ jobs:
       - name: Capture screens on emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
+          # defaults.run.working-directory does not reach uses: steps, so the
+          # action needs its own working-directory to run in phone/ — where
+          # ci-screens.sh finds the built APK.
+          working-directory: phone
           # API 35, not 34: the app targets the Android 15/16 edge-to-edge era
           # (mandatory since SDK 35) — the field device class. On API<=34 RN's
           # edge-to-edge flag never enables and keyboard-controller keeps a
@@ -114,5 +127,5 @@ jobs:
         with:
           name: screens
           path: |
-            e2e-out/**
+            phone/e2e-out/**
           if-no-files-found: warn

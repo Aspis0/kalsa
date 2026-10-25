@@ -84,6 +84,12 @@ on:
           - "0"
           - "1"
 
+# The phone app lives in phone/ after the monorepo move: run steps execute
+# there, so their relative paths (scripts/, android/, node_modules/) hold.
+defaults:
+  run:
+    working-directory: phone
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -95,6 +101,9 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          # The lockfile moved into phone/ with the app: without this the
+          # action looks for package-lock.json at the workspace root and fails.
+          cache-dependency-path: phone/package-lock.json
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -222,7 +231,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: kalsa-bench-apk
-          path: android/app/build/outputs/apk/release/app-release.apk
+          path: phone/android/app/build/outputs/apk/release/app-release.apk
           retention-days: 3
           if-no-files-found: error
 
@@ -996,7 +1005,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: kalsa-bench-apk
-          path: android/app/build/outputs/apk/release/
+          path: phone/android/app/build/outputs/apk/release/
 
       - name: Download GGUF model
         if: matrix.phase == inputs.phase && (!matrix.seed || matrix.seed <= inputs.seeds)
@@ -1032,6 +1041,10 @@ jobs:
         if: matrix.phase == inputs.phase && (!matrix.seed || matrix.seed <= inputs.seeds)
         uses: reactivecircus/android-emulator-runner@v2
         with:
+          # defaults.run.working-directory does not reach uses: steps, so the
+          # action needs its own working-directory to run in phone/ — where
+          # ci-bench.sh finds the downloaded APK and the model.gguf above.
+          working-directory: phone
           # API 35: the newest image these jobs are proven on. NOT a floor —
           # minSdkVersion is 33 since 2026-08-22 (app.config.js), so an API 33
           # device is supported and is NOT covered here.
@@ -1085,7 +1098,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: bench-result-${{ matrix.phase }}-${{ matrix.arm }}-seed${{ matrix.seed || '0' }}
-          path: bench-out/**
+          path: phone/bench-out/**
           if-no-files-found: warn
 
   aggregate:
@@ -1100,7 +1113,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           pattern: bench-result-*
-          path: all-results
+          path: phone/all-results
           if-no-files-found: warn
 
       - name: Aggregate + permutation test
@@ -1125,5 +1138,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: bench-aggregate-${{ inputs.phase }}
-          path: bench-out/AGGREGATE.md
+          path: phone/bench-out/AGGREGATE.md
           if-no-files-found: warn

@@ -38,6 +38,12 @@ concurrency:
   group: apk-${{ github.ref }}
   cancel-in-progress: true
 
+# The phone app lives in phone/ after the monorepo move: run steps execute
+# there, so their relative paths (scripts/, android/, node_modules/) hold.
+defaults:
+  run:
+    working-directory: phone
+
 jobs:
   apk:
     runs-on: ubuntu-latest
@@ -71,6 +77,9 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          # The lockfile moved into phone/ with the app: without this the
+          # action looks for package-lock.json at the workspace root and fails.
+          cache-dependency-path: phone/package-lock.json
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -242,9 +251,11 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            native/kalsa-iroh-mobile/target
-          key: iroh-mobile-${{ runner.os }}-${{ hashFiles('native/kalsa-iroh-mobile/Cargo.lock') }}
-          restore-keys: iroh-mobile-${{ runner.os }}-
+            phone/native/kalsa-iroh-mobile/target
+          # The `phone` segment keeps pre-move entries (which restore at the root) from hitting.
+          key: iroh-mobile-phone-${{ runner.os }}-${{ hashFiles('phone/native/kalsa-iroh-mobile/Cargo.lock') }}
+          # The `phone` segment keeps pre-move entries (which restore at the root) from hitting.
+          restore-keys: iroh-mobile-phone-${{ runner.os }}-
       - name: Install the NDK for cargo-ndk
         run: |
           # The runner's default Linux shell is `bash -e` WITHOUT pipefail,
@@ -466,6 +477,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: kalsa-apk-${{ inputs.abi }}${{ inputs.debuggable == 'true' && '-debuggable' || '' }}-${{ github.sha }}
-          path: android/app/build/outputs/apk/release/app-release.apk
+          path: phone/android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
           retention-days: 14

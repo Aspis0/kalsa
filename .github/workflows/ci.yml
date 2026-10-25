@@ -2,24 +2,34 @@ name: CI (typecheck + jest)
 
 # Lightweight gate: TypeScript typecheck + the jest suite, run in-band. No
 # emulator — about 80 seconds, not the ~35-min E2E run. Fires on main and
-# feat/** pushes and feat/** pull requests; docs-only changes are ignored.
+# feat/** pushes and feat/** pull requests; docs-only changes are ignored, and
+# so are desktop-only changes: this workflow only checks the phone app, and
+# the desktop app has no CI here yet.
 on:
   push:
     branches: [main, feat/**]
     paths-ignore:
       - "**/*.md"
-      - LICENSE
-      - docs/**
+      - phone/LICENSE
+      - phone/docs/**
+      - desktop/**
   pull_request:
     branches: [feat/**]
     paths-ignore:
       - "**/*.md"
-      - LICENSE
-      - docs/**
+      - phone/LICENSE
+      - phone/docs/**
+      - desktop/**
 
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
+
+# The phone app lives in phone/ after the monorepo move: run steps execute
+# there, so their relative paths (scripts/, node_modules/) hold.
+defaults:
+  run:
+    working-directory: phone
 
 jobs:
   check:
@@ -32,6 +42,9 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          # The lockfile moved into phone/ with the app: without this the
+          # action looks for package-lock.json at the workspace root and fails.
+          cache-dependency-path: phone/package-lock.json
 
       - name: Install JS deps
         run: npm ci

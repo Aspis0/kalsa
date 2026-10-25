@@ -237,7 +237,8 @@ tap_node() {
 # native crash. Called from die() before exit; every adb call can fail since
 # the process may already be gone, so each is guarded with || true.
 # Writes separate files in $OUT/ next to fatal_state.txt (upload glob bench-out/**
-# picks them up — confirmed in .github/workflows/bench.yml line 534).
+# picks them up — the "Upload arm result + evidence" step in
+# .github/workflows/bench.yml).
 capture_death_evidence() {
   [ -n "${OUT:-}" ] || return 0
   mkdir -p "$OUT" 2>/dev/null || true
