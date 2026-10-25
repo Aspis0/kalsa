@@ -277,8 +277,9 @@ the page back its previous owner: the page did not move.
 
 **Two limits on the browser's reach.** A turn that names no phone is offered no browser at all:
 its page would be the desktop's, and the computer keeps no page for it. And in a chat that holds
-the owner's mail or a document, nothing leaves for a website: the open, the click and the type are
-refused, and the reads of a page already on the window stay.
+the owner's mail or a document, the browser does not act: the open, the click and the type are
+refused, and the reads of a page already on the window stay. `web_search` and `web_fetch` stay
+offered there on purpose (owner, 2026-10-25): a search from a mail chat can be what the person needs.
 
 **A phone is asked about at most eight requests at once.** The ninth is **refused** — not
 held, not drawn, never sent to the phone — and the model is told once, in one line, that it
