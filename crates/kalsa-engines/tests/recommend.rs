@@ -273,3 +273,142 @@ baseline_decode_tok_s = 5.0
         assert!(error.contains(expected), "{expected}: {error}");
     }
 }
+
+const ONE_ENGINE: &str = r#"
+[[engine]]
+id = "one"
+name = "One"
+repo = "a/one"
+author = "a"
+license = "MIT"
+kind = "engine"
+hardware = ["cpu"]
+summary = "s"
+[[engine.benchmark]]
+source = "https://example.invalid/a"
+machine = "M1 Max"
+chip_tag = "cpu"
+model = "m"
+quant = "Q4"
+decode_tok_s = 10.0
+baseline = "b"
+baseline_decode_tok_s = 5.0
+"#;
+
+#[test]
+fn an_engine_id_must_be_lowercase_words_joined_by_hyphens() {
+    for bad in ["../evil", "Upper", "two--hyphens", "-lead", "trail-", "has space", "a/b", "dot.dot", "under_score"] {
+        let text = ONE_ENGINE.replace("id = \"one\"", &format!("id = \"{bad}\""));
+        let error = parse(&text).unwrap_err();
+        assert!(error.contains("id must be"), "{bad:?}: {error}");
+    }
+    let empty = ONE_ENGINE.replace("id = \"one\"", "id = \"\"");
+    assert!(parse(&empty).is_err());
+    for good in ["one", "llama-cpp", "shunya-mtplx-m1", "a1-b2"] {
+        let text = ONE_ENGINE.replace("id = \"one\"", &format!("id = \"{good}\""));
+        assert!(parse(&text).is_ok(), "{good}");
+    }
+}
+
+#[test]
+fn a_benchmark_source_must_be_an_https_url_without_credentials() {
+    for bad in [
+        "javascript:alert(1)",
+        "http://example.invalid/a",
+        "data:text/html,x",
+        "https://user:pass@example.invalid/a",
+        "https://user@example.invalid/a",
+        "ftp://example.invalid/a",
+        "not a url",
+        "//example.invalid/a",
+    ] {
+        let text = ONE_ENGINE.replace("https://example.invalid/a", bad);
+        let error = parse(&text).unwrap_err();
+        assert!(error.contains("benchmark source must be an https URL"), "{bad:?}: {error}");
+    }
+}
+
+#[test]
+fn every_benchmark_carries_both_gains_and_the_ranking_is_unchanged() {
+    let catalog = real_catalog();
+    let m1 = kalsa_engines::recommend(&machine("apple-m1", "Apple M1 Max"), &catalog);
+    assert_eq!(m1[0].engine_id, "shunya-mtplx-m1", "decode-based ranking is unchanged");
+    let mistral = m1.iter().find(|pick| pick.engine_id == "mistral-rs").unwrap();
+    let gains = &mistral.benchmark.as_ref().unwrap().gains;
+    assert_eq!(gains.label(), "decode +1%, within noise · prefill +35%");
+    assert!(gains.decode.as_ref().unwrap().noise && !gains.prefill.as_ref().unwrap().noise);
+    for benchmark in catalog.engine.iter().flat_map(|engine| &engine.benchmark) {
+        let decode = benchmark.decode_tok_s.is_some() && benchmark.baseline_decode_tok_s.is_some();
+        let prefill = benchmark.prefill_tok_s.is_some() && benchmark.baseline_prefill_tok_s.is_some();
+        assert_eq!(benchmark.gains.decode.is_some(), decode, "{}: decode gain", benchmark.model);
+        assert_eq!(benchmark.gains.prefill.is_some(), prefill, "{}: prefill gain", benchmark.model);
+    }
+}
+
+#[test]
+fn the_two_installable_engines_suggest_small_models_with_recorded_sizes() {
+    let catalog = real_catalog();
+    for id in ["llama-cpp", "mlx-lm"] {
+        let engine = catalog.engine.iter().find(|engine| engine.id == id).unwrap();
+        assert!((2..=3).contains(&engine.suggested_models.len()), "{id}: two or three suggestions");
+        assert!(engine.suggested_models.iter().all(|model| model.size_bytes.is_some_and(|size| size < 4_000_000_000)));
+    }
+    let others = catalog.engine.iter().filter(|engine| engine.install.is_none());
+    assert!(others.into_iter().all(|engine| engine.suggested_models.is_empty()));
+}
+
+const SUGGESTED: &str = r#"
+[[engine]]
+id = "one"
+name = "One"
+repo = "a/one"
+author = "a"
+license = "MIT"
+kind = "reference"
+hardware = ["cpu"]
+summary = "s"
+[engine.install]
+kind = "pip"
+package = "mlx-lm"
+version = "0.32.2"
+python = "3.12.13"
+lock = "catalog/locks/mlx-lm.txt"
+[[engine.suggested_models]]
+id = "owner/name"
+note = "n"
+"#;
+
+#[test]
+fn suggested_models_are_validated() {
+    assert!(parse(SUGGESTED).is_ok());
+    assert!(parse(&SUGGESTED.replace("owner/name", "owner/name:Q4_K_M")).is_ok());
+    for bad in ["../x", "owner/name:Q4 K", "-evil", "name", "https://huggingface.co/owner/name"] {
+        let error = parse(&SUGGESTED.replace("owner/name", bad)).unwrap_err();
+        assert!(error.contains("is not a repo id"), "{bad}: {error}");
+    }
+    assert!(parse(&SUGGESTED.replace("note = \"n\"", "note = \"\"")).unwrap_err().contains("short note"));
+    assert!(parse(&format!("{SUGGESTED}size_bytes = 0\n")).unwrap_err().contains("size must be positive"));
+    let twice = format!("{SUGGESTED}[[engine.suggested_models]]\nid = \"owner/name\"\nnote = \"n\"\n");
+    assert!(parse(&twice).unwrap_err().contains("appears twice"));
+    let no_recipe = SUGGESTED.replace("[engine.install]\nkind = \"pip\"\npackage = \"mlx-lm\"\nversion = \"0.32.2\"\npython = \"3.12.13\"\nlock = \"catalog/locks/mlx-lm.txt\"\n", "");
+    assert!(parse(&no_recipe).unwrap_err().contains("need an install recipe"));
+}
+
+#[test]
+fn a_repo_cannot_be_a_path_or_an_option() {
+    for bad in ["../x", "x/..", "./x", "-evil/x", "x/-evil"] {
+        let text = ONE_ENGINE.replace("repo = \"a/one\"", &format!("repo = \"{bad}\""));
+        assert!(parse(&text).unwrap_err().contains("repo must be owner/name"), "{bad}");
+    }
+}
+
+#[test]
+fn a_benchmark_needs_an_engine_figure_and_a_claim_can_live_in_a_note() {
+    let baseline_only = ONE_ENGINE.replace("decode_tok_s = 10.0\n", "");
+    assert!(parse(&baseline_only).unwrap_err().contains("at least one engine figure"));
+    let without_rows = ONE_ENGINE.split("[[engine.benchmark]]").next().unwrap().to_string();
+    assert!(parse(&without_rows).unwrap_err().contains("no note that states its claim"));
+    assert!(parse(&format!("{without_rows}note = \"The README reports an aggregate figure\"\n")).is_ok());
+    let locals = real_catalog().engine.into_iter().find(|engine| engine.id == "locals").unwrap();
+    assert!(locals.benchmark.is_empty() && locals.note.as_deref().is_some_and(|note| note.contains("271 tok/s")));
+}

@@ -53,9 +53,8 @@ export function EngineToolbar({
         value={filter.sort}
         onChange={(event) => onFilter({ ...filter, sort: event.target.value as FilterState["sort"] })}
       >
-        <option value="rank">Best for this Mac</option>
-        <option value="gain">Biggest gain</option>
-        <option value="name">Name</option>
+        <option value="rank">For this Mac</option>
+        <option value="name">Name, A to Z</option>
       </select>
       <span className="visually-hidden">{view.engines.length} engines in the catalog</span>
     </header>

@@ -15,7 +15,7 @@ export const MACHINE = {
   phonesNow: "Phones connected now",
   couldNotCheck: "Kalsa could not check what this computer is running. Try again.",
   running: (model: string) => `Kalsa is using ${model}`,
-  fallbackReason: "Kalsa picks what works best each time you turn it on.",
+  fallbackReason: "Kalsa picks what works on this Mac each time you turn it on.",
   startingSentence: "Kalsa is starting with the AI chosen for this computer.",
   offSentence: "Kalsa is off. Turn it on from Home.",
   turnKalsaOn: "Turn Kalsa on",

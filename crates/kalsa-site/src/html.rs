@@ -1,4 +1,6 @@
-/// Escapes text that comes from the catalog before it enters HTML.
+//! The two gates every catalog-derived string passes before it enters HTML.
+
+/// Escapes text, and attribute values, that come from the catalog.
 pub fn escape(value: &str) -> String {
     let mut out = String::with_capacity(value.len());
     for character in value.chars() {
@@ -12,4 +14,96 @@ pub fn escape(value: &str) -> String {
         }
     }
     out
+}
+
+fn plain(value: &str) -> bool {
+    !value.chars().any(|c| c.is_control() || c.is_whitespace() || matches!(c, '"' | '\'' | '<' | '>' | '\\' | '`'))
+}
+
+pub const HELP: &str = "help@kalsa.io";
+pub const SUPPORT: &str = "support@kalsa.io";
+pub const MAIN: &str = "main@kalsa.io";
+
+/// The only mailto targets that may appear: our own three addresses, exactly. Catalog data never reaches this list.
+fn own_mailbox(value: &str) -> bool {
+    value.strip_prefix("mailto:").is_some_and(|address| [HELP, SUPPORT, MAIN].contains(&address))
+}
+
+fn relative_path(value: &str) -> bool {
+    let first = value.split(['/', '?', '#']).next().unwrap_or_default();
+    !value.starts_with("//") && !first.contains(':')
+}
+
+/// The one helper for an href or src built from data: https URLs, our own three mailboxes and our own
+/// relative paths are allowed; anything else (javascript:, data:, http:, //host, any other mailto:) becomes "#".
+pub fn safe_href(value: &str) -> String {
+    let allowed = plain(value)
+        && (value.starts_with("https://") && value.len() > 8 || own_mailbox(value) || relative_path(value));
+    if allowed { escape(value) } else { "#".to_string() }
+}
+
+/// Percent-encodes a text for a URL query value, such as the title of a prefilled GitHub issue.
+pub fn encode_component(text: &str) -> String {
+    text.bytes()
+        .map(|byte| match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => (byte as char).to_string(),
+            _ => format!("%{byte:02X}"),
+        })
+        .collect()
+}
+
+/// "M1 Max on Llama.cpp (build 3)" to "m1-max-on-llama-cpp-build-3", for URLs.
+pub fn slug(text: &str) -> String {
+    let mut out = String::new();
+    for character in text.chars() {
+        if character.is_ascii_alphanumeric() {
+            out.push(character.to_ascii_lowercase());
+        } else if !out.ends_with('-') && !out.is_empty() {
+            out.push('-');
+        }
+    }
+    out.trim_end_matches('-').to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn hostile_hrefs_become_a_dead_anchor() {
+        for bad in ["javascript:alert(1)", "JaVaScRiPt:x", "data:text/html,x", "http://a.invalid", "//evil.invalid", "https://", "https://a b", "vbscript:x", "https://a.invalid/\"onmouseover=x"] {
+            assert_eq!(safe_href(bad), "#", "{bad}");
+        }
+    }
+
+    #[test]
+    fn our_own_links_pass() {
+        assert_eq!(safe_href("https://github.com/a/b"), "https://github.com/a/b");
+        assert_eq!(safe_href("../../engines/x/index.html#about"), "../../engines/x/index.html#about");
+        assert_eq!(safe_href("mailto:help@kalsa.io"), "mailto:help@kalsa.io");
+        assert_eq!(safe_href("mailto:support@kalsa.io"), "mailto:support@kalsa.io");
+        assert_eq!(safe_href("mailto:main@kalsa.io"), "mailto:main@kalsa.io");
+    }
+
+    #[test]
+    fn mailto_is_allowed_only_for_our_three_exact_addresses() {
+        for bad in [
+            "mailto:evil@example.invalid", "mailto:help@kalsa.io?subject=x", "mailto:help@kalsa.io,evil@example.invalid", "mailto:HELP@kalsa.io",
+            "mailto:", "mailto:help@kalsa.io.evil.invalid", "MAILTO:help@kalsa.io", "mailto:xhelp@kalsa.io", "kalsa://engine/llama-cpp",
+        ] {
+            assert_eq!(safe_href(bad), "#", "{bad}");
+        }
+    }
+
+    #[test]
+    fn query_values_are_percent_encoded() {
+        assert_eq!(encode_component("Removal request: a/b c"), "Removal%20request%3A%20a%2Fb%20c");
+        assert_eq!(encode_component("llama.cpp-1_x~"), "llama.cpp-1_x~");
+    }
+
+    #[test]
+    fn slugs_are_url_safe() {
+        assert_eq!(slug("llama.cpp (build unknown)"), "llama-cpp-build-unknown");
+        assert_eq!(slug("M1 Max"), "m1-max");
+    }
 }

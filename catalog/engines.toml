@@ -27,6 +27,24 @@ sha256 = "6ebeeea8575081ff968eb1c26f6fffcafe8e3ff2a0fb5d548c0aea7f5575e038"
 size = 17294048
 binary = "llama-b12521/llama-server"
 
+# Small models Kalsa suggests for this engine. Each exists on Hugging Face (checked 2026-11-18 through
+# the public API: not gated, not private). The quant tag pins the one file llama-server downloads, so
+# the size is that file's size and nothing is guessed.
+[[engine.suggested_models]]
+id = "ggml-org/gemma-3-1b-it-GGUF:Q4_K_M"
+note = "Gemma 3, 1 billion parameters, 4-bit"
+size_bytes = 806058240
+
+[[engine.suggested_models]]
+id = "Qwen/Qwen2.5-1.5B-Instruct-GGUF:Q4_K_M"
+note = "Qwen 2.5, 1.5 billion parameters, 4-bit"
+size_bytes = 1117320736
+
+[[engine.suggested_models]]
+id = "bartowski/Llama-3.2-1B-Instruct-GGUF:Q4_K_M"
+note = "Llama 3.2, 1 billion parameters, 4-bit"
+size_bytes = 807694464
+
 [[engine]]
 id = "mlx-lm"
 name = "mlx-lm"
@@ -46,6 +64,22 @@ package = "mlx-lm"
 version = "0.32.2"
 python = "3.12.13"
 lock = "catalog/locks/mlx-lm.txt"
+
+# The size is the repository's model.safetensors (the weights, without the small tokenizer files).
+[[engine.suggested_models]]
+id = "mlx-community/Llama-3.2-1B-Instruct-4bit"
+note = "Llama 3.2, 1 billion parameters, 4-bit"
+size_bytes = 695283921
+
+[[engine.suggested_models]]
+id = "mlx-community/Qwen2.5-1.5B-Instruct-4bit"
+note = "Qwen 2.5, 1.5 billion parameters, 4-bit"
+size_bytes = 868628559
+
+[[engine.suggested_models]]
+id = "mlx-community/gemma-3-1b-it-4bit"
+note = "Gemma 3, 1 billion parameters, 4-bit"
+size_bytes = 732577304
 
 [[engine]]
 id = "vllm"
@@ -549,16 +583,7 @@ license = "Apache-2.0"
 kind = "engine"
 hardware = ["apple-m2"]
 summary = "Continuous batching across requests and KV reuse across restarts"
-
-[[engine.benchmark]]
-source = "https://github.com/Generated-Computers/Locals"
-machine = "MacBook Pro M2 Pro 16GB"
-chip_tag = "apple-m2"
-model = "Qwen3.5-4B-MLX"
-quant = "4bit"
-baseline = "mlx-lm"
-baseline_decode_tok_s = 87.0
-note = "271 tok/s aggregate decode at 8 concurrent requests (mlx-lm 87); not a single-stream figure"
+note = "The README reports 271 tok/s aggregate decode at 8 concurrent requests against mlx-lm's 87 tok/s on a MacBook Pro M2 Pro 16GB (Qwen3.5-4B-MLX, 4bit). That is an aggregate figure, not a single-stream one, so Kalsa shows no comparison"
 
 [[engine]]
 id = "architectds-strata"

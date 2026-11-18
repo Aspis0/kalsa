@@ -11,6 +11,7 @@ use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+use crate::api_key::ApiKey;
 use crate::launch::Launch;
 
 const LOG_LINES: usize = 200;
@@ -24,7 +25,6 @@ extern "C" {
 pub struct Running {
     child: Child,
     logs: Arc<Mutex<VecDeque<String>>>,
-    pub port: u16,
     pub program: PathBuf,
 }
 
@@ -43,9 +43,9 @@ pub fn free_port() -> Result<u16, String> {
     Ok(listener.local_addr().map_err(|error| error.to_string())?.port())
 }
 
-/// Our argv always carries `--host 127.0.0.1`; there is no runtime binding
-/// verification because the command line is ours, not user input.
-pub fn start(launch: Launch, port: u16, root: &Path) -> Result<Running, String> {
+/// Our argv always carries `--host 127.0.0.1`. The listening socket is checked
+/// after spawn by [`verify_listener`], so a port race cannot go unnoticed.
+pub fn start(launch: Launch, root: &Path) -> Result<Running, String> {
     let mut command = Command::new(&launch.program);
     command.args(&launch.args).env_clear().process_group(0);
     let models = root.join("models/hf");
@@ -63,6 +63,9 @@ pub fn start(launch: Launch, port: u16, root: &Path) -> Result<Running, String> 
     if let Some(library) = launch.library_path {
         command.env("DYLD_LIBRARY_PATH", library);
     }
+    for (name, value) in &launch.env {
+        command.env(name, value);
+    }
     command.stdout(Stdio::piped()).stderr(Stdio::piped());
     let mut child = command.spawn().map_err(|error| format!("could not start {}: {error}", launch.program.display()))?;
     let pid = child.id() as i32;
@@ -76,12 +79,92 @@ pub fn start(launch: Launch, port: u16, root: &Path) -> Result<Running, String> 
     let logs = Arc::new(Mutex::new(VecDeque::with_capacity(LOG_LINES)));
     if let Some(out) = child.stdout.take() { drain(out, Arc::clone(&logs)); }
     if let Some(err) = child.stderr.take() { drain(err, Arc::clone(&logs)); }
-    Ok(Running { child, logs, port, program: launch.program })
+    Ok(Running { child, logs, program: launch.program })
 }
 
-pub fn reachable(port: u16) -> bool {
+pub fn reachable(port: u16, key: &ApiKey) -> bool {
     let agent = ureq::AgentBuilder::new().timeout(Duration::from_secs(2)).build();
-    matches!(agent.get(&format!("http://127.0.0.1:{port}/v1/models")).call(), Ok(_))
+    matches!(
+        agent
+            .get(&format!("http://127.0.0.1:{port}/v1/models"))
+            .set("Authorization", &format!("Bearer {}", key.as_str()))
+            .call(),
+        Ok(_)
+    )
+}
+
+/// Runs the absolute-path lsof with a short deadline. A missing, hung or
+/// failing lsof is a start failure, never proof that the port is ours.
+fn lsof_output(port: u16) -> Result<String, String> {
+    let mut child = Command::new("/usr/sbin/lsof")
+        .args(["-nP", &format!("-iTCP:{port}"), "-sTCP:LISTEN", "-Fpn"])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .map_err(|error| format!("could not run /usr/sbin/lsof: {error}"))?;
+    let deadline = Instant::now() + Duration::from_secs(3);
+    loop {
+        match child.try_wait().map_err(|error| error.to_string())? {
+            Some(status) => {
+                let output = child.wait_with_output().map_err(|error| error.to_string())?;
+                let text = String::from_utf8_lossy(&output.stdout).into_owned();
+                // lsof exits 1 when no socket matches yet; that is a normal
+                // poll miss, not a failed inspection.
+                if status.success() || text.is_empty() {
+                    return Ok(text);
+                }
+                return Err("lsof could not inspect the listening socket".to_string());
+            }
+            None if Instant::now() >= deadline => {
+                let _ = child.kill();
+                return Err("lsof timed out while inspecting the listening socket".to_string());
+            }
+            None => std::thread::sleep(Duration::from_millis(50)),
+        }
+    }
+}
+
+fn lsof_entries(text: &str) -> Vec<(i32, String)> {
+    let mut entries = Vec::new();
+    let mut pid = 0;
+    for line in text.lines() {
+        if let Some(value) = line.strip_prefix('p') {
+            pid = value.parse().unwrap_or(0);
+        } else if let Some(address) = line.strip_prefix('n') {
+            entries.push((pid, address.to_string()));
+        }
+    }
+    entries
+}
+
+fn loopback_address(name: &str) -> bool {
+    let host = name.rsplit_once(':').map(|(host, _)| host).unwrap_or(name);
+    host == "127.0.0.1" || host == "[::1]"
+}
+
+/// A port belongs to our engine only when a LISTEN socket on 127.0.0.1 or ::1
+/// is owned by a process in the child's process group.
+pub fn verify_listener(port: u16, leader: u32) -> Result<bool, String> {
+    let group = leader as i32;
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        let entries = lsof_entries(&lsof_output(port)?);
+        let ours: Vec<&(i32, String)> = entries
+            .iter()
+            .filter(|(pid, _)| unsafe { libc::getpgid(*pid) == group })
+            .collect();
+        if ours.iter().any(|(_, address)| !loopback_address(address)) {
+            return Err(format!("engine bound port {port} to a non-loopback address"));
+        }
+        if !ours.is_empty() {
+            return Ok(true);
+        }
+        if !entries.is_empty() {
+            return Ok(false);
+        }
+        if Instant::now() >= deadline { return Ok(false); }
+        std::thread::sleep(Duration::from_millis(100));
+    }
 }
 
 /// True once no process answers for the group the leader used to own.
@@ -240,7 +323,7 @@ mod tests {
         unsafe { libc::setpgid(pid, pid); }
         assert!(group_owned(pid));
         let logs = Arc::new(Mutex::new(VecDeque::new()));
-        let mut running = Running { child, logs, port: 0, program: PathBuf::from("sh") };
+        let mut running = Running { child, logs, program: PathBuf::from("sh") };
         let started = Instant::now();
         running.stop(Duration::from_secs(2)).expect("stop succeeds");
         assert!(started.elapsed() < Duration::from_secs(2), "stop used the whole grace period");

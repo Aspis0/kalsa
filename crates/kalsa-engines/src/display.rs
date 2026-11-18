@@ -41,6 +41,17 @@ pub fn chip_label(benchmark: &Benchmark) -> String {
     }
 }
 
+/// The metric `gain_of` compares: decode when both decode figures exist, else prefill.
+pub fn gain_metric(benchmark: &Benchmark) -> Option<&'static str> {
+    if benchmark.decode_tok_s.is_some() && benchmark.baseline_decode_tok_s.is_some() {
+        Some("decode")
+    } else if benchmark.prefill_tok_s.is_some() && benchmark.baseline_prefill_tok_s.is_some() {
+        Some("prefill")
+    } else {
+        None
+    }
+}
+
 pub fn gain_of(benchmark: &Benchmark) -> Option<f64> {
     if let (Some(value), Some(base)) = (benchmark.decode_tok_s, benchmark.baseline_decode_tok_s) {
         return Some(value / base);
@@ -55,7 +66,7 @@ pub fn gain_label(ratio: f64) -> String {
     if ratio >= 2.0 {
         format!("{ratio:.1}×")
     } else {
-        format!("+{}%", ((ratio - 1.0) * 100.0).round())
+        format!("{:+}%", ((ratio - 1.0) * 100.0).round())
     }
 }
 

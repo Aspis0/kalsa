@@ -1,5 +1,6 @@
 //! Backend for installing and running the two supported local engines.
 
+mod api_key;
 mod extract;
 mod host;
 mod install;
@@ -8,6 +9,7 @@ mod locks;
 mod paths;
 mod process;
 
+pub use api_key::ApiKey;
 pub use host::{EngineHost, EngineState, EngineStatus};
 pub use install::ProgressFn;
 pub use process::group_gone;
@@ -63,7 +65,29 @@ mod integration {
         }
     }
 
-    fn check_models(host: &EngineHost, id: &str, status: &EngineStatus) {
+    fn raw_status(port: u16, host: &str, authorization: Option<&str>, origin: Option<&str>) -> u16 {
+        use std::io::{Read, Write};
+        let mut stream = std::net::TcpStream::connect(("127.0.0.1", port)).expect("connect to engine");
+        let mut request = format!("GET /v1/models HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n");
+        if let Some(value) = authorization {
+            request.push_str(&format!("Authorization: {value}\r\n"));
+        }
+        if let Some(value) = origin {
+            request.push_str(&format!("Origin: {value}\r\n"));
+        }
+        request.push_str("\r\n");
+        stream.write_all(request.as_bytes()).expect("write request");
+        let mut response = String::new();
+        stream.read_to_string(&mut response).expect("read response");
+        response
+            .lines()
+            .next()
+            .and_then(|line| line.split_whitespace().nth(1))
+            .and_then(|code| code.parse().ok())
+            .unwrap_or(0)
+    }
+
+    fn check_models(host: &EngineHost, id: &str, status: &EngineStatus, key: &str) {
         let port = status.port.expect("running engine has a port");
         let agent = ureq::AgentBuilder::new().timeout(Duration::from_secs(30)).build();
         let deadline = Instant::now() + Duration::from_secs(600);
@@ -74,7 +98,10 @@ mod integration {
                 }
                 _ => {}
             }
-            if let Ok(response) = agent.get(&format!("http://127.0.0.1:{port}/v1/models")).call() {
+            let request = agent
+                .get(&format!("http://127.0.0.1:{port}/v1/models"))
+                .set("Authorization", &format!("Bearer {key}"));
+            if let Ok(response) = request.call() {
                 if response.status() == 200 {
                     if let Ok(body) = response.into_string() {
                         if let Ok(value) = serde_json::from_str::<serde_json::Value>(&body) {
@@ -92,9 +119,10 @@ mod integration {
         }
     }
 
-    fn stop_and_check_group(root: &Root, host: &EngineHost, id: &str) {
+    fn stop_and_check_group(root: &Root, host: &EngineHost, id: &str, key: &str) {
         let pidfile = root.dir.join(".pids").join(format!("{id}.pid"));
         let text = std::fs::read_to_string(pidfile).expect("pidfile written at start");
+        assert!(!text.contains(key), "the key leaked into the pidfile");
         let leader: u32 = text.lines().next().unwrap().parse().expect("pid in pidfile");
         host.stop(id).expect("server stops");
         assert!(group_gone(leader), "process group {leader} is still alive");
@@ -109,8 +137,31 @@ mod integration {
         let started = host.start(id, model, &progress).expect("start succeeds");
         assert_eq!(started.state, EngineState::Starting);
         let running = wait_running(&host, id);
-        check_models(&host, id, &running);
-        stop_and_check_group(&root, &host, id);
+        let (port, key) = host.test_credentials(id).expect("test-only credentials");
+        assert_eq!(Some(port), running.port);
+        check_models(&host, id, &running, &key);
+        assert_eq!(raw_status(port, &format!("127.0.0.1:{port}"), None, None), 401, "{id} without a key");
+        assert_eq!(
+            raw_status(port, &format!("127.0.0.1:{port}"), Some("Bearer wrong"), None),
+            401,
+            "{id} with a wrong key",
+        );
+        assert!(
+            raw_status(port, "attacker.example", Some(&format!("Bearer {key}")), None) >= 400,
+            "{id} with a foreign Host",
+        );
+        if id == "mlx-lm" {
+            assert!(
+                raw_status(
+                    port,
+                    &format!("127.0.0.1:{port}"),
+                    Some(&format!("Bearer {key}")),
+                    Some("https://attacker.example"),
+                ) >= 400,
+                "mlx-lm with an Origin header",
+            );
+        }
+        stop_and_check_group(&root, &host, id, &key);
     }
 
     #[test]

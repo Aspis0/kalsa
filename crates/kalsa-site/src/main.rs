@@ -1,16 +1,12 @@
-use std::fs;
 use std::path::PathBuf;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let site = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../site");
     let catalog = kalsa_site::catalog();
-    let out = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../site/dist");
-    for (relative, body) in kalsa_site::render(&catalog) {
-        let path = out.join(relative);
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        fs::write(&path, body)?;
-    }
-    println!("wrote {} files to {}", kalsa_site::render(&catalog).len(), out.display());
+    let facts = kalsa_site::Facts::load(&site.join("data/github.json"))?;
+    let files = kalsa_site::render(&catalog, &facts);
+    let out = site.join("dist");
+    let written = kalsa_site::write_site(&files, &out)?;
+    println!("wrote {written} files to {}", out.display());
     Ok(())
 }

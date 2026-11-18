@@ -3,7 +3,7 @@ import { useLanguage } from "../i18n/useLanguage";
 import { Icon } from "./Icon";
 
 /** The empty chat: one sentence and the page that installs an engine. */
-export function EmptyState({ onOpenEngines }: { onOpenEngines: () => void }) {
+export function EmptyState({ onOpenEngines, engineId }: { onOpenEngines: () => void; engineId: string | null }) {
   const { table } = useLanguage();
   return (
     <div className="empty">
@@ -11,7 +11,7 @@ export function EmptyState({ onOpenEngines }: { onOpenEngines: () => void }) {
         <Icon name="cpu" size={36} stroke={1.9} />
       </div>
       <h2 className="empty-title">{table.firstPage.title}</h2>
-      <p className="empty-copy">{table.firstPage.noEngine}</p>
+      <p className="empty-copy">{engineId ? table.firstPage.engineChosen.replace("{id}", engineId) : table.firstPage.noEngine}</p>
       <button type="button" className="btn-primary btn-large" onClick={onOpenEngines}>
         {table.firstPage.openEngines}
       </button>

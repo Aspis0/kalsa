@@ -1,10 +1,26 @@
 import { EngineBadge } from "./EngineBadge";
 import { authorName, notForText, runsOnMac, fmt } from "./model";
-import type { EnginesView, Engine, Pick } from "./types";
+import type { Benchmark, EnginesView, Engine, Pick } from "./types";
 
 const TICKS = [1, 1.5, 2, 2.5];
 const SCALE = 2.6;
 const position = (gain: number): number => Math.min(100, (Math.log(gain) / Math.log(SCALE)) * 100);
+
+/** "decode +1%, within noise · prefill +35%": every figure Rust worked out, a small one muted. */
+function GainLabels({ benchmark }: { benchmark: Benchmark }) {
+  const shown = [benchmark.gains.decode, benchmark.gains.prefill].flatMap((gain) => (gain ? [gain] : []));
+  return (
+    <>
+      {shown.map((gain, index) => (
+        <span key={gain.label}>
+          {index > 0 ? " · " : ""}
+          <span className={gain.noise ? "eg-noise" : undefined}>{gain.label}</span>
+        </span>
+      ))}
+      {" vs "}{benchmark.baseline}
+    </>
+  );
+}
 
 function LadderRow({
   pick,
@@ -42,12 +58,12 @@ function LadderRow({
     <span className="eg-xc t"><b>Not recommended</b></span>
   ) : pick.gain ? (
     <span className={`eg-xc ${pick.sameChip ? "s" : "w"}`}>
-      <b className="num">{pick.gainLabel}</b>
+      <b className={`num${(benchmark?.gains.decode ?? benchmark?.gains.prefill)?.noise ? " eg-noise" : ""}`}>{pick.gainLabel}</b>
       <span className={`eg-lab ${pick.sameChip ? "same" : "weak"}`}>
         {pick.sameChip ? "Same chip" : `Measured on ${pick.chipLabel ?? "other hardware"}`}
       </span>
       <span className="eg-claimed sm">Claimed by the author</span>
-      <span className="eg-vs">{pick.metric ?? "result"} vs {benchmark?.baseline}</span>
+      <span className="eg-vs">{benchmark ? <GainLabels benchmark={benchmark} /> : null}</span>
     </span>
   ) : (
     <span className="eg-xc t"><b>{!runs ? notForText(engine, tag) : ""}</b></span>

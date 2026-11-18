@@ -7,12 +7,18 @@ use std::collections::HashSet;
 use serde::{Deserialize, Serialize};
 
 mod display;
+mod gains;
+mod hardware;
 mod install;
 mod review;
+mod suggested;
 
-pub use display::{chip_label, figure_label, gain_label, gain_of};
+pub use display::{chip_label, figure_label, gain_label, gain_metric, gain_of};
+pub use gains::{gains_of, Gains, MetricGain};
+pub use hardware::{chip_generation, family_label, hardware_labels, not_for_reason, FAMILIES};
 pub use install::{Install, Tooling};
-use review::Review;
+pub use review::Review;
+pub use suggested::SuggestedModel;
 
 const KNOWN_TAGS: &[&str] = &[
     "apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5", "nvidia", "amd", "intel", "cpu",
@@ -29,6 +35,17 @@ pub enum Kind {
     Reference,
     Fork,
     Engine,
+}
+
+impl Kind {
+    /// The word shown on a tag: "Reference", "Fork" or "Engine".
+    pub fn label(self) -> &'static str {
+        match self {
+            Kind::Reference => "Reference",
+            Kind::Fork => "Fork",
+            Kind::Engine => "Engine",
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -50,6 +67,9 @@ pub struct Benchmark {
     pub baseline_prefill_tok_s: Option<f64>,
     #[serde(default)]
     pub note: Option<String>,
+    /// Derived on parse, never read from the file: both gains, each labelled, with the noise rule applied.
+    #[serde(default, skip_deserializing)]
+    pub gains: Gains,
 }
 
 fn recommendable() -> bool {
@@ -79,6 +99,8 @@ pub struct Engine {
     pub reviewed: Option<Review>,
     #[serde(default)]
     pub install: Option<Install>,
+    #[serde(default, rename(serialize = "suggestedModels", deserialize = "suggested_models"))]
+    pub suggested_models: Vec<SuggestedModel>,
 }
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Catalog {
@@ -113,8 +135,11 @@ pub struct Pick {
 /// Parse the TOML and check the facts the weekly job also checks by hand:
 /// shape and internal consistency of the catalog file.
 pub fn parse(text: &str) -> Result<Catalog, String> {
-    let catalog: Catalog = toml::from_str(text).map_err(|error| error.to_string())?;
+    let mut catalog: Catalog = toml::from_str(text).map_err(|error| error.to_string())?;
     validate(&catalog)?;
+    for benchmark in catalog.engine.iter_mut().flat_map(|engine| engine.benchmark.iter_mut()) {
+        benchmark.gains = gains_of(benchmark);
+    }
     Ok(catalog)
 }
 
@@ -126,6 +151,9 @@ fn validate(catalog: &Catalog) -> Result<(), String> {
             if field.trim().is_empty() {
                 return Err(format!("{}: an engine field is empty", engine.id));
             }
+        }
+        if !valid_id(&engine.id) {
+            return Err(format!("{}: id must be lowercase words joined by single hyphens", engine.id));
         }
         if !ids.insert(engine.id.as_str()) {
             return Err(format!("duplicate engine id {}", engine.id));
@@ -156,6 +184,7 @@ fn validate(catalog: &Catalog) -> Result<(), String> {
         if let Some(recipe) = &engine.install {
             install::validate(recipe, &engine.id)?;
         }
+        suggested::validate(&engine.suggested_models, &engine.id, engine.install.is_some())?;
         validate_benchmarks(engine)?;
     }
     if let Some(tooling) = &catalog.tooling {
@@ -164,11 +193,32 @@ fn validate(catalog: &Catalog) -> Result<(), String> {
     Ok(())
 }
 
+/// `^[a-z0-9]+(-[a-z0-9]+)*$`: the id becomes a URL path and a folder name, so it is never free text.
+pub fn valid_id(id: &str) -> bool {
+    !id.is_empty()
+        && id.split('-').all(|part| {
+            !part.is_empty() && part.bytes().all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit())
+        })
+}
+
+/// A benchmark source is shown as a link on the site, so it must be a plain https URL.
+fn valid_source(source: &str) -> bool {
+    url::Url::parse(source).is_ok_and(|parsed| {
+        parsed.scheme() == "https"
+            && parsed.host_str().is_some()
+            && parsed.username().is_empty()
+            && parsed.password().is_none()
+    })
+}
+
 pub(crate) fn valid_repo(repo: &str) -> bool {
     let parts: Vec<&str> = repo.split('/').collect();
     parts.len() == 2
         && parts.iter().all(|part| {
             !part.is_empty()
+                && *part != "."
+                && *part != ".."
+                && !part.starts_with('-')
                 && part
                     .chars()
                     .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'))
@@ -192,6 +242,12 @@ fn validate_benchmarks(engine: &Engine) -> Result<(), String> {
             return Err(format!("{}: duplicate benchmark", engine.id));
         }
         let id = &engine.id;
+        if benchmark.decode_tok_s.is_none() && benchmark.prefill_tok_s.is_none() {
+            return Err(format!("{id}: a benchmark needs at least one engine figure (decode or prefill)"));
+        }
+        if !valid_source(&benchmark.source) {
+            return Err(format!("{id}: benchmark source must be an https URL without credentials"));
+        }
         if !KNOWN_TAGS.contains(&benchmark.chip_tag.as_str())
             || !engine.hardware.contains(&benchmark.chip_tag)
         {
@@ -219,8 +275,10 @@ fn validate_benchmarks(engine: &Engine) -> Result<(), String> {
             }
         }
     }
-    if engine.kind != Kind::Reference && !engine.benchmark.iter().any(baseline_number) {
-        return Err(format!("{}: no benchmark with a baseline number", engine.id));
+    // An engine whose only published number is not a like-for-like comparison keeps it in its note instead.
+    let claim_in_note = engine.benchmark.is_empty() && engine.note.as_deref().is_some_and(|note| !note.trim().is_empty());
+    if engine.kind != Kind::Reference && !engine.benchmark.iter().any(baseline_number) && !claim_in_note {
+        return Err(format!("{}: no benchmark with a baseline number, and no note that states its claim", engine.id));
     }
     Ok(())
 }

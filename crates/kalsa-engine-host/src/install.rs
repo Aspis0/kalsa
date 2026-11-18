@@ -13,6 +13,7 @@ use crate::{extract, paths};
 
 pub type ProgressFn = dyn Fn(&str, u64, u64) + Send + Sync;
 const MLX_LOCK: &str = include_str!("../../../catalog/locks/mlx-lm.txt");
+const MLX_ENTRY: &str = include_str!("../assets/kalsa_mlx_serve.py");
 
 fn stage_dir(id: &str) -> Result<PathBuf, String> {
     let nanos = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
@@ -100,8 +101,9 @@ fn build_engine(id: &str, recipe: &Install, uv: Option<&Path>, into: &Path, root
             let lock = into.join("lock.txt");
             fs::write(&lock, MLX_LOCK).map_err(|error| error.to_string())?;
             uv_command(uv, &["pip", "install", "--require-hashes", "--no-deps", "--only-binary", ":all:", "--no-config", "--python", python_bin.to_str().ok_or("python path is not UTF-8")?, "-r", lock.to_str().ok_or("lock path is not UTF-8")?], root)?;
-            let program = venv.join("bin/mlx_lm.server");
-            Ok(program)
+            let script = into.join("kalsa_mlx_serve.py");
+            fs::write(&script, MLX_ENTRY).map_err(|error| error.to_string())?;
+            Ok(script)
         }
     }
 }

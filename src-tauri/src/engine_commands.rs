@@ -1,4 +1,6 @@
 //! Tauri commands for M3a. No generic run-command surface exists.
+//!
+//! Each command is `async`: a plain command runs on the main thread, and an install or a start would freeze the window.
 
 use std::sync::Arc;
 
@@ -42,7 +44,7 @@ fn progress(app: AppHandle, id: String) -> impl Fn(&str, u64, u64) + Send + Sync
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn engine_install(
     app: AppHandle,
     host: State<'_, Arc<EngineHost>>,
@@ -51,12 +53,12 @@ pub fn engine_install(
     host.install(&id, &progress(app.clone(), id.clone()))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn engine_uninstall(host: State<'_, Arc<EngineHost>>, id: String) -> Result<(), String> {
     host.uninstall(&id)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn engine_start(
     app: AppHandle,
     host: State<'_, Arc<EngineHost>>,
@@ -68,7 +70,7 @@ pub fn engine_start(
     Ok(status)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn engine_stop(
     app: AppHandle,
     host: State<'_, Arc<EngineHost>>,
@@ -80,7 +82,7 @@ pub fn engine_stop(
     Ok(())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn engine_status(host: State<'_, Arc<EngineHost>>, id: String) -> EngineStatus {
     host.status(&id)
 }

@@ -13,6 +13,7 @@ import "./App.css";
 
 export function App() {
   const [surface, setSurface] = useState<SurfaceKey>("engines");
+  const [chatEngine, setChatEngine] = useState<string | null>(null);
   const [theme, setTheme] = useState<Theme>(() => loadTheme());
   const chat = useChat();
 
@@ -29,6 +30,12 @@ export function App() {
     return () => media.removeEventListener("change", follow);
   }, []);
 
+  /** M4 wires the stream. For now "Open chat" only carries the engine id to the chat page. */
+  function openChat(engineId: string): void {
+    setChatEngine(engineId);
+    setSurface("chat");
+  }
+
   function chooseTheme(next: Theme): void {
     saveTheme(next);
     setTheme(next);
@@ -41,9 +48,9 @@ export function App() {
         <main className="stage">
           <ErrorBoundary>
             {surface === "engines" ? (
-              <EnginesSurface />
+              <EnginesSurface onOpenChat={openChat} />
             ) : surface === "chat" ? (
-              <ChatSurface chat={chat} onNavigate={setSurface} />
+              <ChatSurface chat={chat} onNavigate={setSurface} engineId={chatEngine} />
             ) : surface === "models" ? (
               <ModelsSurface onNavigate={setSurface} />
             ) : (

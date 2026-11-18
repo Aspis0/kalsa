@@ -1725,6 +1725,7 @@ name = "kalsa-engine-host"
 version = "0.0.6"
 dependencies = [
  "flate2",
+ "getrandom 0.3.4",
  "kalsa-download",
  "kalsa-engines",
  "libc",
@@ -1785,6 +1786,8 @@ name = "kalsa-site"
 version = "0.0.6"
 dependencies = [
  "kalsa-engines",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

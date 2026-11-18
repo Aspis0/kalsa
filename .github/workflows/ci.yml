@@ -26,6 +26,7 @@ jobs:
         run: |
           cargo test -p kalsa-probe -p kalsa-catalog
           cargo test -p kalsa-engines
+          cargo test -p kalsa-site
 
       - name: Frontend build
         working-directory: chat

@@ -1,6 +1,7 @@
 import { Icon } from "../../components/Icon";
 import type { IconName } from "../../components/Icon";
 import { Openable } from "../../components/Openable";
+import { RunPanel } from "./run/RunPanel";
 import { EngineBadge, reviewText } from "./EngineBadge";
 import { authorName, fmt, hardwareText, notForText, runsOnMac } from "./model";
 import type { Benchmark, Engine, EnginesView, Pick } from "./types";
@@ -25,7 +26,7 @@ function BenchCard({
   chipLabel: string | null;
 }) {
   const same = benchmark.chipTag === tag;
-  const metrics: [number, string, number | null][] = [];
+  const metrics: [number, "decode" | "prefill", number | null][] = [];
   if (benchmark.decodeTokS !== null) {
     metrics.push([benchmark.decodeTokS, "decode", benchmark.baselineDecodeTokS]);
   }
@@ -49,7 +50,11 @@ function BenchCard({
             <span className="big num">{fmt(value)}</span>
             <span className="u">tok/s {metric}{figure?.startsWith("prefill") && metric === "prefill" ? " (no decode figure)" : ""}</span>
             <span className="vsx num">
-              {baseline ? <b>{value / baseline >= 2 ? `${(value / baseline).toFixed(1)}×` : `+${Math.round((value / baseline - 1) * 100)}%`}</b> : null}
+              {benchmark.gains[metric] ? (
+                <b className={benchmark.gains[metric]?.noise ? "eg-noise" : undefined}>
+                  {benchmark.gains[metric]?.gainLabel}{benchmark.gains[metric]?.noise ? ", within noise" : ""}
+                </b>
+              ) : null}
               {"vs "}{baseline === null ? "no baseline" : fmt(baseline)} on {benchmark.baseline}
             </span>
           </div>
@@ -72,7 +77,7 @@ function BenchCard({
 }
 
 /** The engine's own product page: credit, published numbers and install facts. */
-export function EngineDetail({ view, engine, picks }: { view: EnginesView; engine: Engine; picks: Pick[] }) {
+export function EngineDetail({ view, engine, picks, onOpenChat }: { view: EnginesView; engine: Engine; picks: Pick[]; onOpenChat: (engineId: string) => void }) {
   const runs = runsOnMac(engine, view.machine.chipTag);
   const pick = picks.find((row) => row.engineId === engine.id);
   const relation = engine.upstream
@@ -81,7 +86,7 @@ export function EngineDetail({ view, engine, picks }: { view: EnginesView; engin
   const mtplx: [IconName, string, string] = [
     "layoutGrid",
     "Install the MTPLX app first",
-    "This build runs on top of the upstream MTPLX app (it provides the mtplx.cli serve command). Kalsa will not install that for you — it will tell you when it is missing.",
+    "This build needs the upstream MTPLX app (it provides the mtplx.cli serve command). Kalsa will not install that for you — it will tell you when it is missing.",
   ];
   const facts = engine.note?.startsWith("Requires the upstream MTPLX app") ? [mtplx, ...BEFORE] : BEFORE;
 
@@ -104,11 +109,11 @@ export function EngineDetail({ view, engine, picks }: { view: EnginesView; engin
         <EngineBadge reviewed={engine.reviewed} /> Made by <b>{authorName(engine)}</b> at github.com/{engine.repo}. {engine.summary}.
       </p>
       <div className="eg-acts">
-        <button type="button" className="eg-pill" disabled title="Install arrives in the next version">Install</button>
         <Openable className="eg-btn2" url={`https://github.com/${engine.repo}`}>
           <Icon name="link" size={15} />GitHub
         </Openable>
       </div>
+      {runs ? <RunPanel engine={engine} ramBytes={view.machine.ramBytes} onOpenChat={onOpenChat} /> : null}
       <div className="eg-stats">
         <div><b>{engine.license}</b><span>Licence</span></div>
         <div><b>{relation}</b><span>{engine.upstream ? "Upstream" : "Kind"}</span></div>

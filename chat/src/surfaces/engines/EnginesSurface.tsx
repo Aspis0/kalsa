@@ -24,7 +24,7 @@ function blankPick(engine: Engine, tag: string): Pick {
   };
 }
 
-export function EnginesSurface() {
+export function EnginesSurface({ onOpenChat }: { onOpenChat: (engineId: string) => void }) {
   const [data, setData] = useState<EnginesView | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const [viewKey, setViewKey] = useState<ViewKey>("rec");
@@ -78,7 +78,7 @@ export function EnginesSurface() {
 
   let body;
   if (detail) {
-    body = <EngineDetail view={data} engine={detail} picks={data.picks} />;
+    body = <EngineDetail view={data} engine={detail} picks={data.picks} onOpenChat={onOpenChat} />;
   } else {
     const home = viewKey === "rec" && !filter.query && filter.sort === "rank" && filter.license === "all";
     const shown = visibleEngines(data, viewKey, filter);

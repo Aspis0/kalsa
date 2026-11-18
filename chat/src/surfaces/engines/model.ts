@@ -39,7 +39,7 @@ export const VIEWS: Record<ViewKey, ViewDef> = {
 export interface FilterState {
   query: string;
   license: string;
-  sort: "rank" | "gain" | "name";
+  sort: "rank" | "name";
 }
 
 export const emptyFilter = (): FilterState => ({ query: "", license: "all", sort: "rank" });
@@ -75,6 +75,10 @@ export function hardwareText(tags: string[]): string[] {
 
 export function authorName(engine: Engine): string {
   return engine.author.replace(/\s*\(org\)/, "");
+}
+
+export function isOrganisation(engine: Engine): boolean {
+  return /\(org\)/.test(engine.author);
 }
 
 export function notForText(engine: Engine, tag: string): string {
@@ -142,18 +146,13 @@ function filteredEngines(view: EnginesView, filter: FilterState, key: ViewKey): 
   });
 }
 
-/** The order comes from Rust's `recommend`; this only filters and sorts for
-    display. Gain sorting uses the gain Rust computed, never a new ranking. */
+/** "For this Mac" is the order Rust's `recommend` gives; "Name, A to Z" is the only other order. */
 export function visibleEngines(
   view: EnginesView,
   key: ViewKey,
   filter: FilterState,
 ): Engine[] {
   const list = viewCountSource(view, key, filter);
-  const gains = new Map(view.picks.map((pick) => [pick.engineId, pick.gain ?? 0]));
-  if (filter.sort === "gain") {
-    return [...list].sort((a, b) => (gains.get(b.id) ?? 0) - (gains.get(a.id) ?? 0));
-  }
   if (filter.sort === "name") return [...list].sort((a, b) => a.name.localeCompare(b.name));
   return list;
 }

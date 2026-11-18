@@ -5,6 +5,19 @@ export interface Review {
   upstream: string;
 }
 
+/** One metric's gain over the author's baseline, worked out once in Rust. A gain under 5% is noise. */
+export interface MetricGain {
+  ratio: number;
+  gainLabel: string;
+  noise: boolean;
+  label: string;
+}
+
+export interface Gains {
+  decode: MetricGain | null;
+  prefill: MetricGain | null;
+}
+
 export interface Benchmark {
   source: string;
   machine: string;
@@ -17,6 +30,18 @@ export interface Benchmark {
   baselineDecodeTokS: number | null;
   baselinePrefillTokS: number | null;
   note: string | null;
+  gains: Gains;
+}
+
+/** A pinned install recipe, as the catalog states it. Field names are the TOML's own. */
+export type InstallRecipe =
+  | { kind: "release-archive"; url: string; tag: string; sha256: string; size: number; binary: string }
+  | { kind: "pip"; package: string; version: string; python: string; lock: string };
+
+export interface SuggestedModel {
+  id: string;
+  note: string;
+  sizeBytes: number | null;
 }
 
 export interface Engine {
@@ -32,6 +57,8 @@ export interface Engine {
   recommendable: boolean;
   note: string | null;
   benchmark: Benchmark[];
+  install: InstallRecipe | null;
+  suggestedModels: SuggestedModel[];
   reviewed: Review | null;
 }
 

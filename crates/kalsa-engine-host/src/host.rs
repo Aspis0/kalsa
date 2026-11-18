@@ -9,6 +9,7 @@ use std::time::Duration;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 
+use crate::api_key::ApiKey;
 use crate::install::{self, ProgressFn};
 use crate::launch;
 use crate::locks::EngineLock;
@@ -38,6 +39,8 @@ pub struct EngineStatus {
 struct Live {
     process: Running,
     pidfile: std::path::PathBuf,
+    key: ApiKey,
+    port: u16,
 }
 
 pub struct EngineHost {
@@ -90,36 +93,64 @@ impl EngineHost {
     pub fn start(&self, id: &str, model: &str, progress: &ProgressFn) -> Result<EngineStatus, String> {
         let _lock = EngineLock::acquire(id)?;
         install::recover(id)?;
+        if self.running.lock().map_err(|error| error.to_string())?.contains_key(id) {
+            return Err(format!("{id} is already running"));
+        }
         let engine = self.catalog.engine.iter().find(|engine| engine.id == id)
             .ok_or_else(|| format!("unknown engine {id}"))?;
         let recipe = engine.install.as_ref().ok_or_else(|| format!("{id} has no install recipe"))?;
         let dir = paths::engine_dir(id)?;
         let root = paths::safe_root()?;
-        let template = launch::build(id, recipe, &dir, model, 0)?;
-        Self::verify_program(&dir, &template.program)?;
+        let key = ApiKey::random()?;
+        let template = launch::build(id, recipe, &dir, model, 0, &key)?;
+        Self::verify_program(&dir, &template.verify)?;
         progress("starting", 0, 1);
         let mut last = String::new();
         for _ in 0..3 {
             let port = process::free_port()?;
-            let launch = launch::build(id, recipe, &dir, model, port)?;
-            match process::start(launch, port, &root) {
-                Ok(process) => {
-                    let pidfile = process::write_pidfile(id, process.child_pid(), &process.program)?;
-                    self.running.lock().map_err(|error| error.to_string())?.insert(
-                        id.to_string(),
-                        Live { process, pidfile },
-                    );
-                    return Ok(EngineStatus {
-                        state: EngineState::Starting,
-                        port: Some(port),
-                        log_tail: Vec::new(),
-                        message: Some("Waiting for /v1/models".to_string()),
-                    });
+            let launch = launch::build(id, recipe, &dir, model, port, &key)?;
+            let process = match process::start(launch, &root) {
+                Ok(process) => process,
+                Err(error) => { last = error; continue; }
+            };
+            let child = process.child_pid();
+            match process::verify_listener(port, child) {
+                Ok(true) => {}
+                Ok(false) => {
+                    let mut process = process;
+                    let _ = process.stop(Duration::from_secs(2));
+                    last = format!("port {port} was taken by another process");
+                    continue;
                 }
-                Err(error) => last = error,
+                Err(error) => {
+                    let mut process = process;
+                    let _ = process.stop(Duration::from_secs(2));
+                    return Err(format!("could not check the listening socket: {error}"));
+                }
             }
+            let pidfile = process::write_pidfile(id, child, &process.program)?;
+            self.running.lock().map_err(|error| error.to_string())?.insert(
+                id.to_string(),
+                Live { process, pidfile, key: key.clone(), port },
+            );
+            return Ok(EngineStatus {
+                state: EngineState::Starting,
+                port: Some(port),
+                log_tail: Vec::new(),
+                message: Some("Waiting for /v1/models".to_string()),
+            });
         }
         Err(last)
+    }
+
+    // TODO(M4): chat must talk to engines through a Rust command that streams
+    // over a Tauri channel; the bearer key stays inside this process.
+
+    #[cfg(test)]
+    pub(crate) fn test_credentials(&self, id: &str) -> Result<(u16, String), String> {
+        let running = self.running.lock().map_err(|error| error.to_string())?;
+        let live = running.get(id).ok_or_else(|| format!("{id} is not running"))?;
+        Ok((live.port, live.key.as_str().to_string()))
     }
 
     /// Called on app exit. A hard crash cannot run this; the next launch's
@@ -151,26 +182,26 @@ impl EngineHost {
                         process::remove_pidfile(&live.pidfile);
                         EngineStatus {
                             state: if code == 0 { EngineState::Exited } else { EngineState::Crashed },
-                            port: Some(live.process.port),
+                            port: Some(live.port),
                             log_tail: tail,
                             message: Some(format!("engine exited with code {code}")),
                         }
                     }
-                    Ok(None) if process::reachable(live.process.port) => EngineStatus {
+                    Ok(None) if process::reachable(live.port, &live.key) => EngineStatus {
                         state: EngineState::Running,
-                        port: Some(live.process.port),
+                        port: Some(live.port),
                         log_tail: tail,
                         message: None,
                     },
                     Ok(None) => EngineStatus {
                         state: EngineState::Starting,
-                        port: Some(live.process.port),
+                        port: Some(live.port),
                         log_tail: tail,
                         message: Some("Waiting for /v1/models".to_string()),
                     },
                     Err(error) => EngineStatus {
                         state: EngineState::Crashed,
-                        port: Some(live.process.port),
+                        port: Some(live.port),
                         log_tail: tail,
                         message: Some(error),
                     },

@@ -2,6 +2,7 @@ use std::process::{Command, Stdio};
 use std::sync::Arc;
 
 mod engine_commands;
+mod model_size;
 
 use kalsa_engines::Machine;
 use serde::Serialize;
@@ -230,7 +231,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             engine_commands::engine_uninstall,
             engine_commands::engine_start,
             engine_commands::engine_stop,
-            engine_commands::engine_status
+            engine_commands::engine_status,
+            model_size::model_size
         ])
         .build(tauri::generate_context!())?;
     app.run(|app, event| {
