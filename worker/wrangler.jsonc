@@ -7,6 +7,8 @@
   // The one origin every redirect_uri, Origin check and early host check is built from.
   // It is configuration, never the request Host header.
   "vars": { "SITE_ORIGIN": "https://kalsa.io" },
+  "routes": [{ "pattern": "kalsa.io", "custom_domain": true }],
+  "workers_dev": false,
   "assets": {
     "directory": "../site/dist",
     "binding": "ASSETS",
@@ -26,35 +28,5 @@
     "enabled": true,
     "logs": { "enabled": true, "head_sampling_rate": 1, "invocation_logs": false },
     "traces": { "enabled": true, "head_sampling_rate": 0.01 }
-  },
-  "env": {
-    "preview": {
-      "name": "kalsa-site-preview",
-      "compatibility_date": "2026-11-18",
-      "compatibility_flags": ["nodejs_compat"],
-      // Served only on its own custom domain; the workers.dev address is off.
-      "vars": { "SITE_ORIGIN": "https://preview.kalsa.io" },
-      "routes": [{ "pattern": "preview.kalsa.io", "custom_domain": true }],
-      "workers_dev": false,
-      "assets": {
-        "directory": "../site/dist",
-        "binding": "ASSETS",
-        "run_worker_first": ["/api/*", "/auth/*"]
-      },
-      // A separate database, so a preview deployment cannot read production sessions.
-      "d1_databases": [
-        {
-          "binding": "DB",
-          "database_name": "kalsa-preview",
-          "database_id": "d7592b55-9585-44c0-a1c3-f5355024ebc9",
-          "migrations_dir": "migrations"
-        }
-      ],
-      "observability": {
-        "enabled": true,
-        "logs": { "enabled": true, "head_sampling_rate": 1, "invocation_logs": false },
-        "traces": { "enabled": true, "head_sampling_rate": 0.01 }
-      }
-    }
   }
 }
