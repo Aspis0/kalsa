@@ -1,0 +1,598 @@
+# Engines that pass every gate in research/inference-engines.md (27 rows).
+# Numbers are as published by the authors; none were re-run by Kalsa.
+
+[[engine]]
+id = "llama-cpp"
+name = "llama.cpp"
+repo = "ggml-org/llama.cpp"
+author = "ggml-org (org)"
+license = "MIT"
+kind = "reference"
+hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5", "nvidia", "amd", "intel", "cpu"]
+summary = "Reference upstream across Metal, CUDA, ROCm/HIP, Vulkan, SYCL and CPU"
+
+[[engine]]
+id = "mlx-lm"
+name = "mlx-lm"
+repo = "ml-explore/mlx-lm"
+author = "ml-explore (Apple)"
+license = "MIT"
+kind = "reference"
+hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5"]
+summary = "Reference upstream for Apple Silicon (MLX)"
+
+[[engine]]
+id = "vllm"
+name = "vLLM"
+repo = "vllm-project/vllm"
+author = "vllm-project (org)"
+license = "Apache-2.0"
+kind = "reference"
+hardware = ["nvidia", "amd", "intel", "cpu"]
+summary = "Reference upstream for NVIDIA, AMD, Intel GPU and CPU"
+
+[[engine]]
+id = "ollama"
+name = "Ollama"
+repo = "ollama/ollama"
+author = "ollama (org)"
+license = "MIT"
+kind = "reference"
+hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5", "nvidia", "amd", "cpu"]
+summary = "Reference upstream: UX wrapper with a model library"
+
+[[engine]]
+id = "rapid-mlx"
+name = "Rapid-MLX"
+repo = "raullenchai/Rapid-MLX"
+author = "raullenchai"
+license = "Apache-2.0"
+kind = "engine"
+upstream = "ml-explore/mlx-lm"
+hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5"]
+summary = "Pure MLX kernels with continuous batching and prefix cache"
+
+[[engine.benchmark]]
+source = "https://github.com/raullenchai/Rapid-MLX"
+machine = "M5 Max 36GB"
+chip_tag = "apple-m5"
+model = "Qwen3.5-9B"
+quant = "4-bit"
+decode_tok_s = 115.5
+baseline = "oMLX"
+baseline_decode_tok_s = 77.9
+
+[[engine]]
+id = "splash"
+name = "Splash"
+repo = "incoai/splash"
+author = "incoai (Inco AI org)"
+license = "Apache-2.0"
+kind = "engine"
+hardware = ["apple-m3", "apple-m4", "apple-m5"]
+summary = "Neural Engine prefill and SSD-tiered KV on Apple M3+"
+
+[[engine.benchmark]]
+source = "https://github.com/incoai/splash"
+machine = "M3 Max"
+chip_tag = "apple-m3"
+model = "Qwen3.8-27B"
+quant = "UD-Q4_K_M"
+decode_tok_s = 92.0
+baseline = "llama.cpp"
+baseline_decode_tok_s = 17.0
+
+[[engine.benchmark]]
+source = "https://github.com/incoai/splash"
+machine = "M3 Max"
+chip_tag = "apple-m3"
+model = "Qwen3.6-35B-A3B"
+quant = "UD-Q4_K_M"
+decode_tok_s = 209.0
+baseline = "llama.cpp"
+baseline_decode_tok_s = 66.0
+
+[[engine]]
+id = "mistral-rs"
+name = "mistral.rs"
+repo = "EricLBuehler/mistral.rs"
+author = "EricLBuehler"
+license = "MIT"
+kind = "engine"
+hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5", "nvidia"]
+summary = "Rust engine with ISQ/UQFF quantization"
+
+[[engine.benchmark]]
+source = "https://github.com/EricLBuehler/mistral.rs"
+machine = "v0.8.2 CUDA, GB10 (DGX Spark desk-side)"
+chip_tag = "nvidia"
+model = "Q8"
+quant = "Q8"
+decode_tok_s = 46.8
+prefill_tok_s = 2947.0
+baseline = "llama.cpp"
+baseline_decode_tok_s = 46.4
+baseline_prefill_tok_s = 2178.5
+note = "The decode pair is within noise; the gain is on prefill"
+
+[[engine]]
+id = "shunya-mtplx-m1"
+name = "MTPLX M1-family build"
+repo = "shunya1810/MTPLX"
+author = "shunya1810"
+license = "Apache-2.0"
+kind = "fork"
+upstream = "youssofal/MTPLX"
+hardware = ["apple-m1"]
+summary = "Neural Engine prefill, M1 flash-attention and 8-bit paged KV"
+note = "Requires the upstream MTPLX app runtime (mtplx.cli serve)"
+
+[[engine.benchmark]]
+source = "https://github.com/shunya1810/MTPLX"
+machine = "M1 Max 64GB, macOS 26, turbo profile"
+chip_tag = "apple-m1"
+model = "Qwen3.6-35B-A3B"
+quant = "unstated"
+decode_tok_s = 128.5
+baseline = "upstream MTPLX 2.12.2"
+baseline_decode_tok_s = 58.0
+note = "The README does not state a quant for this benchmark row"
+
+[[engine.benchmark]]
+source = "https://github.com/shunya1810/MTPLX"
+machine = "M1 Max 64GB, macOS 26, turbo profile"
+chip_tag = "apple-m1"
+model = "Qwen3.6-35B-A3B"
+quant = "unstated"
+decode_tok_s = 63.5
+baseline = "upstream MTPLX 2.12.2"
+baseline_decode_tok_s = 24.9
+note = "128K context; the README does not state a quant for this row"
+
+[[engine.benchmark]]
+source = "https://github.com/shunya1810/MTPLX"
+machine = "M1 Max 64GB, macOS 26, turbo profile"
+chip_tag = "apple-m1"
+model = "Qwen3.8-27B"
+quant = "4-bit dynamic"
+decode_tok_s = 32.5
+baseline = "upstream MTPLX 2.12.2"
+baseline_decode_tok_s = 23.2
+note = "The README describes the 27B Optimized Speed pack as 4-bit dynamic"
+
+[[engine]]
+id = "qvac-fabric"
+name = "QVAC Fabric"
+repo = "tetherto/qvac-fabric-llm.cpp"
+author = "tetherto (org)"
+license = "MIT"
+kind = "fork"
+upstream = "ggml-org/llama.cpp"
+hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5", "amd"]
+summary = "Core ML and XDNA NPU offload"
+
+[[engine.benchmark]]
+source = "https://github.com/tetherto/qvac-fabric-llm.cpp"
+machine = "M3 Ultra"
+chip_tag = "apple-m3"
+model = "Qwen3.8-27B"
+quant = "Q4_0"
+prefill_tok_s = 470.5
+baseline = "Core ML off"
+baseline_prefill_tok_s = 341.7
+
+[[engine.benchmark]]
+source = "https://github.com/tetherto/qvac-fabric-llm.cpp"
+machine = "Ryzen AI MAX+ 395"
+chip_tag = "amd"
+model = "Qwen3.5-2B"
+quant = "Q4_K_M"
+decode_tok_s = 61.9
+baseline = "XDNA NPU off"
+baseline_decode_tok_s = 20.1
+
+[[engine]]
+id = "laurent-llama-cpp-strix-halo"
+name = "llama.cpp adaptive spec decoding + Strix Halo Vulkan"
+repo = "LaurentZuijdwijk/llama.cpp"
+author = "LaurentZuijdwijk"
+license = "MIT"
+kind = "fork"
+upstream = "ggml-org/llama.cpp"
+hardware = ["amd"]
+summary = "Vulkan LDS stride fix and adaptive draft on Strix Halo"
+
+[[engine.benchmark]]
+source = "https://github.com/LaurentZuijdwijk/llama.cpp"
+machine = "Radeon 8060S (Strix Halo)"
+chip_tag = "amd"
+model = "Ornith-1.5-35B-A3B"
+quant = "Q4_K_M"
+prefill_tok_s = 1648.5
+baseline = "mainline llama.cpp"
+baseline_prefill_tok_s = 870.5
+
+[[engine]]
+id = "raymond-kv-streaming"
+name = "llama.cpp adaptive KV streaming"
+repo = "RaymondHuang210129/llama.cpp-adaptive-kv-streaming"
+author = "RaymondHuang210129"
+license = "MIT"
+kind = "fork"
+upstream = "ggml-org/llama.cpp"
+hardware = ["nvidia"]
+summary = "KV cache streamed between host RAM and VRAM"
+
+[[engine.benchmark]]
+source = "https://github.com/RaymondHuang210129/llama.cpp-adaptive-kv-streaming"
+machine = "RTX 5070 Ti (Linux)"
+chip_tag = "nvidia"
+model = "Qwen3.8-27B"
+quant = "IQ4_XS"
+decode_tok_s = 26.1
+baseline = "stock llama.cpp with UVM"
+baseline_decode_tok_s = 2.5
+note = "128K context, target-only; 59.7 tok/s with MTP=3"
+
+[[engine]]
+id = "thecodacus-expert-cache"
+name = "llama.cpp MoE expert cache"
+repo = "thecodacus/llama.cpp"
+author = "thecodacus"
+license = "MIT"
+kind = "fork"
+upstream = "ggml-org/llama.cpp"
+hardware = ["nvidia"]
+summary = "VRAM-resident expert cache for MoE"
+
+[[engine.benchmark]]
+source = "https://github.com/thecodacus/llama.cpp"
+machine = "RTX 3060 12GB"
+chip_tag = "nvidia"
+model = "Qwen3.6-35B-A3B"
+quant = "Q4_K_M"
+decode_tok_s = 51.3
+prefill_tok_s = 1880.0
+baseline = "expert cache off"
+baseline_decode_tok_s = 42.3
+baseline_prefill_tok_s = 1143.0
+
+[[engine]]
+id = "ingenious-ds4-m3"
+name = "IngeniousIdiocy/ds4"
+repo = "IngeniousIdiocy/ds4"
+author = "IngeniousIdiocy"
+license = "MIT"
+kind = "fork"
+upstream = "antirez/ds4"
+hardware = ["apple-m3"]
+summary = "GLM-5.3-Flash path, DFlash2 and CUDA batch fixes"
+
+[[engine.benchmark]]
+source = "https://github.com/IngeniousIdiocy/ds4"
+machine = "M3 Ultra"
+chip_tag = "apple-m3"
+model = "GLM-5.3-Flash"
+quant = "Q4_K"
+decode_tok_s = 38.07
+prefill_tok_s = 550.4
+baseline = "upstream 9ab7053"
+baseline_decode_tok_s = 23.75
+baseline_prefill_tok_s = 365.7
+
+[[engine]]
+id = "neutronstar"
+name = "neutronstar"
+repo = "giannisanni/neutronstar"
+author = "giannisanni"
+license = "MIT"
+kind = "fork"
+upstream = "antirez/ds4"
+hardware = ["nvidia"]
+summary = "Batch prefill for GLM and Hy3"
+recommendable = false
+note = "Not recommendable: ~0.4 tok/s generation (about 2.5 s per token; the README's own interactive figure is ~2.1 tok/s)"
+
+[[engine.benchmark]]
+source = "https://github.com/giannisanni/neutronstar"
+machine = "RTX 4060 Ti 16GB"
+chip_tag = "nvidia"
+model = "GLM"
+quant = "IQ2_XXS"
+prefill_tok_s = 6.5
+baseline = "token-major prefill (feature off)"
+baseline_prefill_tok_s = 0.30
+
+[[engine]]
+id = "achyudh-llama-cpp"
+name = "achyudh/llama.cpp"
+repo = "achyudh/llama.cpp"
+author = "achyudh"
+license = "MIT"
+kind = "fork"
+upstream = "ggml-org/llama.cpp"
+hardware = ["amd"]
+summary = "Adaptive KV streaming, RDNA 4 kernels and MTP+n-gram"
+
+[[engine.benchmark]]
+source = "https://github.com/achyudh/llama.cpp"
+machine = "RX 9070 XT (gfx1201, 16GB)"
+chip_tag = "amd"
+model = "Qwen3.8-27B"
+quant = "IQ4_XS"
+decode_tok_s = 36.83
+baseline = "stock llama.cpp"
+baseline_decode_tok_s = 34.07
+
+[[engine]]
+id = "lidenburg-llama-cpp"
+name = "Lidenburg/llama.cpp"
+repo = "Lidenburg/llama.cpp"
+author = "Lidenburg"
+license = "MIT"
+kind = "fork"
+upstream = "ggml-org/llama.cpp"
+hardware = ["nvidia"]
+summary = "Expert cache with GPU and RAM tiers"
+
+[[engine.benchmark]]
+source = "https://github.com/Lidenburg/llama.cpp"
+machine = "RTX 5080 (16GB) + 32GB RAM"
+chip_tag = "nvidia"
+model = "Qwen3.6-35B-A3B"
+quant = "UD-Q4_K_M"
+decode_tok_s = 80.0
+baseline = "expert cache off"
+baseline_decode_tok_s = 50.0
+note = "Approximate tok/s as published; 256k context"
+
+[[engine]]
+id = "dflash-mlx"
+name = "bstnxbt/dflash-mlx"
+repo = "bstnxbt/dflash-mlx"
+author = "bstnxbt"
+license = "Apache-2.0"
+kind = "engine"
+hardware = ["apple-m5"]
+summary = "DFlash speculative decoding on MLX"
+
+[[engine.benchmark]]
+source = "https://github.com/bstnxbt/dflash-mlx"
+machine = "M5 Max"
+chip_tag = "apple-m5"
+model = "Qwen3.5-27B"
+quant = "4bit"
+decode_tok_s = 79.02
+baseline = "stock mlx-lm"
+baseline_decode_tok_s = 33.55
+
+[[engine]]
+id = "neurall-llama-cpp"
+name = "neurall/llama.cpp"
+repo = "neurall/llama.cpp"
+author = "neurall"
+license = "MIT"
+kind = "fork"
+upstream = "ggml-org/llama.cpp"
+hardware = ["nvidia"]
+summary = "Experts streamed from SSD/RAM into GPU passes; prompt passes"
+
+[[engine.benchmark]]
+source = "https://github.com/neurall/llama.cpp"
+machine = "2x RTX 3090 (48 GiB VRAM), Ryzen 7 3700X, 128 GB DDR4"
+chip_tag = "nvidia"
+model = "Qwen 3.8 Next"
+quant = "IQ4_XS"
+decode_tok_s = 52.7
+prefill_tok_s = 1902.0
+baseline = "official stock binary"
+baseline_decode_tok_s = 32.6
+baseline_prefill_tok_s = 213.0
+
+[[engine]]
+id = "rocmforge"
+name = "ROCmForge"
+repo = "oldnordic/ROCmForge"
+author = "oldnordic"
+license = "GPL-3.0"
+kind = "engine"
+hardware = ["amd"]
+summary = "Pure-HIP engine with decode-graph replay"
+
+[[engine.benchmark]]
+source = "https://github.com/oldnordic/ROCmForge"
+machine = "Radeon RX 7900 XT"
+chip_tag = "amd"
+model = "Qwen2.5-0.5B"
+quant = "Q8_0"
+decode_tok_s = 340.4
+baseline = "native llama.cpp reference"
+baseline_decode_tok_s = 239.2
+
+[[engine]]
+id = "mlxcel"
+name = "mlxcel"
+repo = "lablup/mlxcel"
+author = "lablup"
+license = "Apache-2.0"
+kind = "engine"
+hardware = ["apple-m1", "apple-m5"]
+summary = "MLX engine for text and VLM"
+
+[[engine.benchmark]]
+source = "https://github.com/lablup/mlxcel"
+machine = "M5 Max"
+chip_tag = "apple-m5"
+model = "qwen3-30b-a3b"
+quant = "4-bit"
+decode_tok_s = 166.55
+baseline = "mlx-lm 0.31.3"
+baseline_decode_tok_s = 143.81
+
+[[engine]]
+id = "ax-engine"
+name = "ax-engine"
+repo = "defai-digital/ax-engine"
+author = "defai-digital"
+license = "Apache-2.0"
+kind = "engine"
+hardware = ["apple-m5"]
+summary = "AXQ MXFP4 MTP sidecars on MLX"
+
+[[engine.benchmark]]
+source = "https://github.com/defai-digital/ax-engine"
+machine = "M5 Max 128GB, table 7.5.3"
+chip_tag = "apple-m5"
+model = "Qwen 3.8 27B"
+quant = "AXQ 6-bit MTP"
+decode_tok_s = 76.04
+prefill_tok_s = 768.7
+baseline = "mlx-lm"
+baseline_decode_tok_s = 27.92
+
+[[engine]]
+id = "tandem-cpp"
+name = "tandem.cpp"
+repo = "ewhacc/tandem.cpp"
+author = "ewhacc"
+license = "MIT"
+kind = "engine"
+hardware = ["nvidia"]
+summary = "MoE expert store with RAM tiers"
+
+[[engine.benchmark]]
+source = "https://github.com/ewhacc/tandem.cpp"
+machine = "RTX 5090 + 128 GB RAM (PC)"
+chip_tag = "nvidia"
+model = "Maya-XS GGUF (routed experts)"
+quant = "IQ1_S/IQ2_XXS, 1.63 bpw"
+decode_tok_s = 60.3
+baseline = "Maya"
+baseline_decode_tok_s = 39.0
+note = "Against Maya's DSpark arm at 54.9 tok/s the gain is +9.8%"
+
+[[engine]]
+id = "kapitsa"
+name = "kapitsa"
+repo = "nace-ai/kapitsa"
+author = "nace-ai (org)"
+license = "Apache-2.0"
+kind = "engine"
+hardware = ["apple-m5"]
+summary = "KFlash decoding and Nace quants"
+
+[[engine.benchmark]]
+source = "https://github.com/nace-ai/kapitsa"
+machine = "M5 Max 128GB"
+chip_tag = "apple-m5"
+model = "Qwen3.6-35B-A3B"
+quant = "4-bit"
+decode_tok_s = 351.0
+prefill_tok_s = 6539.0
+baseline = "mlx-serve"
+baseline_decode_tok_s = 235.0
+baseline_prefill_tok_s = 4622.0
+
+[[engine]]
+id = "stew675-rdna-boosts"
+name = "stew675/llama-cpp-rdna-boosts"
+repo = "stew675/llama-cpp-rdna-boosts"
+author = "stew675"
+license = "MIT"
+kind = "fork"
+upstream = "ggml-org/llama.cpp"
+hardware = ["amd"]
+summary = "RDNA patches, tensor split and a speculative-decoding clamp"
+
+[[engine.benchmark]]
+source = "https://github.com/stew675/llama-cpp-rdna-boosts"
+machine = "2x Radeon AI PRO R9700 (gfx1201)"
+chip_tag = "amd"
+model = "Flash-Next"
+quant = "IQ4_NL"
+decode_tok_s = 168.3
+baseline = "spec clamp off"
+baseline_decode_tok_s = 73.9
+
+[[engine]]
+id = "locals"
+name = "Locals"
+repo = "Generated-Computers/Locals"
+author = "Generated-Computers (org)"
+license = "Apache-2.0"
+kind = "engine"
+hardware = ["apple-m2"]
+summary = "Continuous batching across requests and KV reuse across restarts"
+
+[[engine.benchmark]]
+source = "https://github.com/Generated-Computers/Locals"
+machine = "MacBook Pro M2 Pro 16GB"
+chip_tag = "apple-m2"
+model = "Qwen3.5-4B-MLX"
+quant = "4bit"
+baseline = "mlx-lm"
+baseline_decode_tok_s = 87.0
+note = "271 tok/s aggregate decode at 8 concurrent requests (mlx-lm 87); not a single-stream figure"
+
+[[engine]]
+id = "architectds-strata"
+name = "architectds/Strata"
+repo = "architectds/Strata"
+author = "architectds"
+license = "MIT"
+kind = "fork"
+upstream = "Niko1221/Strata"
+hardware = ["nvidia"]
+summary = "Two-GPU split with tuned prompt kernels"
+
+[[engine.benchmark]]
+source = "https://github.com/architectds/Strata"
+machine = "RTX 5070 Ti alone"
+chip_tag = "nvidia"
+model = "huihui Swift 1.5"
+quant = "IQ3_XXS"
+prefill_tok_s = 298.0
+baseline = "stock 0.1.40.2"
+baseline_prefill_tok_s = 154.0
+note = "Derived from the stated 512-token prompt: 3.32 s to 1.72 s"
+
+[[engine]]
+id = "frink"
+name = "frink"
+repo = "antonellof/frink"
+author = "antonellof"
+license = "Apache-2.0"
+kind = "engine"
+hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5"]
+summary = "Pure-Rust GGUF loader with quantized Metal kernels and lossless speculative decoding"
+note = "Apple Metal only: the llama.cpp baseline build is unknown, and frink is much slower than llama.cpp on CPU and CUDA"
+
+[[engine.benchmark]]
+source = "https://github.com/antonellof/frink/blob/main/benchmarks/RESULTS.md"
+machine = "Apple M2 Pro (10c/6p), macOS 26.6.2, Metal"
+chip_tag = "apple-m2"
+model = "Gemma-3-1B-IT"
+quant = "Q8_0"
+decode_tok_s = 122.0
+baseline = "llama.cpp (build unknown)"
+baseline_decode_tok_s = 83.2
+
+[[engine.benchmark]]
+source = "https://github.com/antonellof/frink/blob/main/benchmarks/RESULTS.md"
+machine = "Apple M2 Pro (10c/6p), macOS 26.6.2, Metal"
+chip_tag = "apple-m2"
+model = "Llama-3.2-1B-Instruct"
+quant = "Q4_K_M"
+decode_tok_s = 157.0
+baseline = "llama.cpp (build unknown)"
+baseline_decode_tok_s = 149.0
+
+[[engine.benchmark]]
+source = "https://github.com/antonellof/frink/blob/main/benchmarks/RESULTS.md"
+machine = "Apple M2 Pro (10c/6p), macOS 26.6.2, Metal"
+chip_tag = "apple-m2"
+model = "Qwen3-0.6B"
+quant = "Q8_0"
+decode_tok_s = 190.0
+baseline = "llama.cpp (build unknown)"
+baseline_decode_tok_s = 116.0

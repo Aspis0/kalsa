@@ -1,0 +1,10 @@
+[package]
+name = "kalsa-engines"
+description = "The engine catalog and a pure recommender"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"

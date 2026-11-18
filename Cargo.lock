@@ -1719,6 +1719,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "kalsa-engines"
+version = "0.0.6"
+dependencies = [
+ "serde",
+ "toml 0.8.2",
+]
+
+[[package]]
 name = "kalsa-launch"
 version = "0.0.6"
 dependencies = [

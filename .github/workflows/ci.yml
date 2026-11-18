@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   macos:
-    runs-on: macos-14
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -23,7 +23,9 @@ jobs:
         run: cargo check --workspace
 
       - name: Targeted Rust tests
-        run: cargo test -p kalsa-probe -p kalsa-catalog
+        run: |
+          cargo test -p kalsa-probe -p kalsa-catalog
+          cargo test -p kalsa-engines
 
       - name: Frontend build
         working-directory: chat
