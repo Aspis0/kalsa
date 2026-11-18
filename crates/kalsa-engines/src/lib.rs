@@ -7,8 +7,10 @@ use std::collections::HashSet;
 use serde::{Deserialize, Serialize};
 
 mod display;
+mod install;
 mod review;
 
+pub use install::{Install, Tooling};
 use review::Review;
 
 const KNOWN_TAGS: &[&str] = &[
@@ -74,10 +76,14 @@ pub struct Engine {
     pub benchmark: Vec<Benchmark>,
     #[serde(default, rename(serialize = "reviewed", deserialize = "review"))]
     pub reviewed: Option<Review>,
+    #[serde(default)]
+    pub install: Option<Install>,
 }
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Catalog {
     pub engine: Vec<Engine>,
+    #[serde(default)]
+    pub tooling: Option<install::Tooling>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -146,7 +152,13 @@ fn validate(catalog: &Catalog) -> Result<(), String> {
         if let Some(record) = &engine.reviewed {
             review::validate(record, &engine.id)?;
         }
+        if let Some(recipe) = &engine.install {
+            install::validate(recipe, &engine.id)?;
+        }
         validate_benchmarks(engine)?;
+    }
+    if let Some(tooling) = &catalog.tooling {
+        install::validate(&tooling.uv, "tooling.uv")?;
     }
     Ok(())
 }

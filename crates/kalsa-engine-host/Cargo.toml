@@ -1,0 +1,17 @@
+[package]
+name = "kalsa-engine-host"
+description = "Install, launch and supervise the two supported local engines"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+flate2 = "1"
+kalsa-download = { path = "../kalsa-download" }
+kalsa-engines = { path = "../kalsa-engines" }
+libc = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+tar = "0.4"
+ureq = "2"

@@ -1,8 +1,11 @@
 use std::process::{Command, Stdio};
+use std::sync::Arc;
+
+mod engine_commands;
 
 use kalsa_engines::Machine;
 use serde::Serialize;
-use tauri::{webview::WebviewWindowBuilder, WebviewUrl};
+use tauri::{webview::WebviewWindowBuilder, Manager, RunEvent, WebviewUrl};
 use url::Url;
 
 #[derive(Serialize)]
@@ -205,7 +208,10 @@ mod tests {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    tauri::Builder::default()
+    let host = kalsa_engine_host::EngineHost::new()
+        .map_err(std::io::Error::other)?;
+    let app = tauri::Builder::default()
+        .manage(Arc::new(host))
         .setup(|app| {
             WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
                 .title("Kalsa")
@@ -219,8 +225,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .invoke_handler(tauri::generate_handler![
             brain_machine,
             brain_open_external,
-            engines_view
+            engines_view,
+            engine_commands::engine_install,
+            engine_commands::engine_uninstall,
+            engine_commands::engine_start,
+            engine_commands::engine_stop,
+            engine_commands::engine_status
         ])
-        .run(tauri::generate_context!())?;
+        .build(tauri::generate_context!())?;
+    app.run(|app, event| {
+        if matches!(event, RunEvent::ExitRequested { .. } | RunEvent::Exit) {
+            // A hard crash skips this hook; `EngineHost::new` cleans stale groups on next launch.
+            if let Some(host) = app.try_state::<Arc<kalsa_engine_host::EngineHost>>() {
+                if let Err(error) = host.stop_all() {
+                    eprintln!("could not stop all engines on exit: {error}");
+                }
+            }
+        }
+    });
     Ok(())
 }

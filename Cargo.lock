@@ -1691,6 +1691,7 @@ dependencies = [
 name = "kalsa"
 version = "0.0.6"
 dependencies = [
+ "kalsa-engine-host",
  "kalsa-engines",
  "kalsa-probe",
  "libc",
@@ -1720,11 +1721,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "kalsa-engine-host"
+version = "0.0.6"
+dependencies = [
+ "flate2",
+ "kalsa-download",
+ "kalsa-engines",
+ "libc",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tar",
+ "ureq",
+]
+
+[[package]]
 name = "kalsa-engines"
 version = "0.0.6"
 dependencies = [
  "serde",
  "toml 0.8.2",
+ "url",
 ]
 
 [[package]]

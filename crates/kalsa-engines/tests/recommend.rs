@@ -173,6 +173,40 @@ summary = "s"
 }
 
 #[test]
+fn shipped_recipes_are_valid_and_pinned() {
+    let catalog = real_catalog();
+    let llama = catalog.engine.iter().find(|e| e.id == "llama-cpp").unwrap();
+    assert!(matches!(llama.install, Some(kalsa_engines::Install::ReleaseArchive { .. })));
+    let mlx = catalog.engine.iter().find(|e| e.id == "mlx-lm").unwrap();
+    assert!(matches!(mlx.install, Some(kalsa_engines::Install::Pip { .. })));
+    assert!(catalog.tooling.is_some());
+}
+
+#[test]
+fn the_mlx_lock_matches_the_catalog_version() {
+    let catalog = real_catalog();
+    let mlx = catalog.engine.iter().find(|e| e.id == "mlx-lm").unwrap();
+    let kalsa_engines::Install::Pip { version, lock, .. } = mlx.install.as_ref().unwrap() else {
+        panic!("mlx-lm uses pip");
+    };
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../").join(lock);
+    let text = std::fs::read_to_string(path).expect("lock file exists");
+    assert!(text.contains(&format!("mlx-lm=={version}")), "lock pins the catalog version");
+}
+
+#[test]
+fn a_bad_archive_digest_is_rejected() {
+    let mut text = catalog_text();
+    text = text.replacen(
+        "6ebeeea8575081ff968eb1c26f6fffcafe8e3ff2a0fb5d548c0aea7f5575e038",
+        "deadbeef",
+        1,
+    );
+    let error = parse(&text).unwrap_err();
+    assert!(error.contains("sha256"), "{error}");
+}
+
+#[test]
 fn a_review_record_is_exposed_as_reviewed() {
     let text = r#"
 [[engine]]
