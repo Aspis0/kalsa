@@ -53,7 +53,7 @@ repo = "ml-explore/mlx-lm"
 author = "ml-explore (Apple)"
 license = "MIT"
 kind = "reference"
-hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5"]
+hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5", "apple-m6"]
 summary = "Reference upstream for Apple Silicon (MLX)"
 
 # uv 0.13.9 verifies managed Python downloads against the sha256 carried in
@@ -113,7 +113,7 @@ license = "MIT"
 kind = "engine"
 website = "https://dwarfstar.sh"
 website_label = "Community site"
-hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5", "nvidia", "amd"]
+hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5", "apple-m6", "nvidia", "amd"]
 summary = "Inference engine in C built around a few large models (DeepSeek V4 Flash and PRO, GLM 5.x, Qwen3.8), with Metal, CUDA and ROCm backends"
 
 [[engine.improvement]]
@@ -163,7 +163,7 @@ author = "youssofal"
 license = "Apache-2.0"
 kind = "reference"
 website = "https://mtplx.com"
-hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5"]
+hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5", "apple-m6"]
 summary = "Mac app and command line that runs Qwen models on Apple Silicon using the model's own multi-token prediction heads"
 
 [[engine]]
@@ -173,7 +173,7 @@ repo = "Niko1221/Strata"
 author = "Niko1221"
 license = "MIT"
 kind = "reference"
-hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5", "nvidia", "amd"]
+hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5", "apple-m6", "nvidia", "amd"]
 summary = "Desktop app and engine for running Qwen3.8 models locally on NVIDIA, AMD and Apple Silicon, with an OpenAI-compatible local API"
 
 [[engine]]
@@ -185,7 +185,7 @@ license = "Apache-2.0"
 kind = "engine"
 website = "https://rapidmlx.com"
 upstream = "ml-explore/mlx-lm"
-hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5"]
+hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5", "apple-m6"]
 summary = "Pure MLX kernels with continuous batching and prefix cache"
 
 [[engine.benchmark]]
@@ -306,7 +306,7 @@ author = "tetherto (org)"
 license = "MIT"
 kind = "fork"
 upstream = "ggml-org/llama.cpp"
-hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5", "amd"]
+hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5", "apple-m6", "amd"]
 summary = "Core ML and XDNA NPU offload"
 
 [[engine.benchmark]]
@@ -740,3 +740,247 @@ quant = "Q8_0"
 decode_tok_s = 190.0
 baseline = "llama.cpp (build unknown)"
 baseline_decode_tok_s = 116.0
+
+[[engine]]
+id = "swiftlm"
+name = "SwiftLM"
+repo = "SharpAI/SwiftLM"
+author = "SharpAI (org)"
+license = "MIT"
+kind = "engine"
+hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5", "apple-m6"]
+summary = "Native Swift server for MLX models on Apple Silicon, with SSD streaming of MoE experts and a compressed KV cache"
+
+[[engine.improvement]]
+kind = "less-memory"
+summary = "Streaming the experts from the SSD cuts peak GPU memory for Qwen3.6-35B-A3B 4-bit from 20.2 GB to 5.7 GB at a prompt of about 550 tokens, on a base 32 GB Mac mini with an M6"
+machine = "Mac mini (Mac18,5), Apple M6, 12-core GPU, 32 GB"
+chip_tag = "apple-m6"
+model = "Qwen3.6-35B-A3B-UD-MLX-4bit"
+source = "https://github.com/SharpAI/SwiftLM"
+tradeoff = "Decode falls from 48.4 to 14.1 tok/s and prefill from 687 to 263 tok/s."
+before = 20.2
+after = 5.7
+unit = "GB peak GPU memory"
+
+[[engine]]
+id = "vmlx"
+name = "vMLX"
+repo = "jjang-ai/vmlx"
+author = "jjang-ai"
+license = "Apache-2.0"
+kind = "engine"
+website = "https://vmlx.net"
+hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5"]
+summary = "MLX model server for Apple Silicon with adaptive mixed-precision quantization and partial loading of MoE experts from SSD"
+
+[[engine.improvement]]
+kind = "less-memory"
+summary = "Loading half of the experts in each layer (smelt 50) cuts active RAM for Nemotron-Cascade-2-30B-A3B-JANG_4M from 17,408 MB to 9,529 MB, a 45% saving, on an M3 Ultra with 128 GB"
+machine = "Apple M3 Ultra, 128 GB"
+chip_tag = "apple-m3"
+model = "Nemotron-Cascade-2-30B-A3B-JANG_4M"
+source = "https://github.com/jjang-ai/vmlx"
+tradeoff = "Decode falls from 89.9 to 66.5 tok/s because expert swaps hit the SSD on the hot path, and the author published no quality measurement, only that the output stayed coherent. It needs an MoE model in JANG format and turns vision off."
+before = 17408.0
+after = 9529.0
+unit = "MB active RAM"
+
+[[engine]]
+id = "dmlx"
+name = "dmlx"
+repo = "zouyee/dmlx"
+author = "zouyee"
+license = "MIT"
+kind = "engine"
+hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5", "apple-m6"]
+summary = "Zig runtime for Apple Silicon built around model-specific speculative decoding and SSD-streamed MoE models"
+
+[[engine.benchmark]]
+source = "https://github.com/zouyee/dmlx"
+machine = "Apple M4 Pro 48GB"
+chip_tag = "apple-m4"
+model = "Qwen3.8-27B"
+quant = "4-bit"
+decode_tok_s = 43.2
+baseline = "omlx-mtp"
+baseline_decode_tok_s = 36.1
+note = "Non-thinking decode headline, greedy, with the same MTP drafter for both engines. The author says the raw artifacts record engine versions as unknown, so it is a recorded local result, not a portable guarantee."
+
+[[engine.improvement]]
+kind = "faster-start"
+summary = "Time to first token on a short prompt falls from 0.91 s to 0.28 s against omlx-mtp, with the same Qwen3.8-27B 4-bit target and MTP drafter on an M4 Pro with 48 GB"
+machine = "Apple M4 Pro 48GB"
+chip_tag = "apple-m4"
+model = "Qwen3.8-27B-4bit"
+source = "https://github.com/zouyee/dmlx"
+before = 0.91
+after = 0.28
+unit = "s, short-prompt time to first token"
+
+[[engine]]
+id = "paperniuk-splash"
+name = "paperniuk/splash"
+repo = "paperniuk/splash"
+author = "paperniuk"
+license = "Apache-2.0"
+kind = "fork"
+upstream = "incoai/splash"
+website = "https://paperniuk.github.io/"
+hardware = ["apple-m1", "apple-m2"]
+summary = "Unofficial port of Splash to M1 and M2 Macs, with Metal kernels written for those GPUs"
+
+[[engine.improvement]]
+kind = "new-hardware"
+summary = "Runs Splash 1.6.1 on M1 and M2 Macs, where the upstream needs an M3 or newer; on an M1 Max with 64 GB it decodes Qwen3.8-27B 4-bit at 57 tok/s with one request and 63 tok/s with two at once"
+machine = "M1 Max, 32-core GPU, 64 GB"
+chip_tag = "apple-m1"
+model = "mlx-community/Qwen3.8-27B-4bit"
+source = "https://github.com/paperniuk/splash"
+tradeoff = "On an M3 or newer the author says to use the official Splash; nothing in this fork is faster there."
+
+[[engine]]
+id = "buun-llama-cpp"
+name = "spiritbuun/buun-llama-cpp"
+repo = "spiritbuun/buun-llama-cpp"
+author = "spiritbuun"
+license = "MIT"
+kind = "fork"
+upstream = "ggml-org/llama.cpp"
+hardware = ["nvidia", "amd"]
+summary = "Research fork of llama.cpp with new KV cache codecs, including a trellis-coded 3-bit codec"
+
+[[engine.improvement]]
+kind = "quality"
+summary = "The trellis-coded 3-bit KV cache codec (turbo3_tcq, 3.25 bits per value) cuts median KL divergence from 0.00279 to 0.00163 against scalar turbo3 (3.5 bits) on Qwen3.6-27B Q6_K at 16K; perplexity moves only from 5.730 to 5.668, 1.1%, so KL divergence is the measure used here"
+machine = "RTX 3090"
+chip_tag = "nvidia"
+model = "Qwen3.6-27B Q6_K"
+source = "https://github.com/spiritbuun/buun-llama-cpp"
+tradeoff = "Prefill falls from 1015 to 818 tok/s and decode from 28.1 to 26.6 tok/s on a 16K prompt; on weaker-compute hardware such as the Strix Halo iGPU the author says the trellis types can be up to about 40% slower than the scalar ones."
+before = 0.00279
+after = 0.00163
+unit = "median KL divergence against an f16 KV cache, lower is better"
+
+[[engine]]
+id = "generelschwerz-llama-cpp"
+name = "GenerelSchwerz/llama.cpp"
+repo = "GenerelSchwerz/llama.cpp"
+author = "GenerelSchwerz"
+license = "MIT"
+kind = "fork"
+upstream = "ggml-org/llama.cpp"
+hardware = ["nvidia"]
+summary = "llama.cpp fork that keeps about half of each MoE model's experts as a GPU cache"
+
+[[engine.benchmark]]
+source = "https://github.com/GenerelSchwerz/llama.cpp/wiki/Short-Prompt-MoE-Comparison-2026-09-26"
+machine = "RTX 5070 Ti 16 GB"
+chip_tag = "nvidia"
+model = "Qwen3.6 35B"
+quant = "Q4_K_M"
+decode_tok_s = 146.77
+baseline = "stock llama.cpp"
+baseline_decode_tok_s = 64.08
+note = "A one-run observation, not a repeat median. The author placed stock so its measured peak GPU memory is higher than the fork's (11,751 MiB against 11,443 MiB), and says cache placement changes the numerical path, so the output check shows no obvious degeneration but does not establish equal answer quality."
+
+[[engine]]
+id = "turbo-tan-llama-cpp-tq3"
+name = "turbo-tan/llama.cpp-tq3"
+repo = "turbo-tan/llama.cpp-tq3"
+author = "turbo-tan"
+license = "MIT"
+kind = "fork"
+upstream = "ggml-org/llama.cpp"
+hardware = ["nvidia"]
+summary = "llama.cpp fork with TQ3 weight formats and CUDA kernels, including a Blackwell FP4 prompt path"
+note = "The README says the TQ weight formats are now developed in tqLLM, where new features land first; this fork stays for llama.cpp users."
+
+[[engine.benchmark]]
+source = "https://github.com/turbo-tan/llama.cpp-tq3/blob/main/docs/turboquant/tq3_4s_fp4_blackwell.html"
+machine = "GB10 / DGX Spark (sm_121)"
+chip_tag = "nvidia"
+model = "Qwen3.6 27B MTP"
+quant = "TQ3_4S"
+prefill_tok_s = 919.63
+baseline = "FP4 cache path off"
+baseline_prefill_tok_s = 359.94
+note = "Prompt processing at 2048 tokens with -ngl 99. The FP4 path is a runtime option on Blackwell GPUs; the model file stays TQ3_4S."
+
+[[engine]]
+id = "engramhalo"
+name = "Aristo94/EngramHalo.cpp"
+repo = "Aristo94/EngramHalo.cpp"
+author = "Aristo94"
+license = "MIT"
+kind = "fork"
+upstream = "ggml-org/llama.cpp"
+hardware = ["amd"]
+summary = "llama.cpp tuned for Qwen 3.8 Flash-Next on AMD Strix Halo, with ROCm kernel patches and a working MTP draft head"
+
+[[engine.benchmark]]
+source = "https://github.com/Aristo94/EngramHalo.cpp/blob/strix-halo-qwen4exp/docs/strix-halo/README.md"
+machine = "Ryzen AI MAX+ 395 / Radeon 8060S (Strix Halo), 96 GB"
+chip_tag = "amd"
+model = "Qwen3.8 Flash-Next"
+quant = "UD-IQ3_XXS"
+decode_tok_s = 39.3
+baseline = "MTP off, same patched build"
+baseline_decode_tok_s = 24.4
+note = "A 400-token code prompt with a q8_0 KV cache at temperature 0, with the engram table held in RAM and short contexts only; with the table on SSD the same run reads 35.3 tok/s. ROCm only."
+
+[[engine]]
+id = "omlx"
+name = "oMLX"
+repo = "jundot/omlx"
+author = "jundot"
+license = "Apache-2.0"
+kind = "engine"
+website = "https://omlx.ai"
+hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5"]
+summary = "LLM inference server for Apple Silicon with continuous batching and SSD caching, managed from the macOS menu bar"
+
+[[engine.benchmark]]
+source = "https://github.com/jundot/omlx/blob/8bfb13be42bbc3db78ec1bcf59b2f47902642ade/docs/experimental/prefill-accelerator.md"
+machine = "M3 Ultra (512 GB) with an M5 Max 128 GB over Thunderbolt 5"
+chip_tag = "apple-m3"
+model = "DeepSeek V4.1 Flash"
+quant = "oQ3e"
+prefill_tok_s = 3000.0
+baseline = "This Mac alone"
+baseline_prefill_tok_s = 1060.0
+note = "A 64K-token prompt; the author reports 3,000-3,160 tok/s with the second Mac, and the lower end is used here. The feature is experimental. It needs a second Mac on the network with Remote Login turned on in System Settings, the same oMLX version on both Macs and Distributed Inference enabled in settings. The model is not split: decoding and the cache stay on the first Mac. This run used INT8 Activation Prefill on the helper's layers, which changes numerics; the author reports greedy output matched on the tested prompts."
+
+[[engine]]
+id = "selfref-llama-cpp-rdna"
+name = "SelfRef/llama.cpp-rdna"
+repo = "SelfRef/llama.cpp-rdna"
+author = "SelfRef"
+license = "MIT"
+kind = "fork"
+upstream = "ggml-org/llama.cpp"
+hardware = ["amd"]
+summary = "llama.cpp fork for AMD RDNA3 and RDNA3.5 GPUs on Vulkan, with the ROCmFPx weight formats and measured RDNA3 patches"
+
+[[engine.benchmark]]
+source = "https://github.com/SelfRef/llama.cpp-rdna/blob/5e085d123eead2e89b5c19f824fccb05727da6a2/ROCMFPX-NOTES.md"
+machine = "Radeon 8060S (Strix Halo), RADV, idle GPU"
+chip_tag = "amd"
+model = "Qwen3.8-27B"
+quant = "ROCmFPX-MQ-Q4 (Q4_0_ROCMFP4)"
+decode_tok_s = 12.56
+baseline = "unsloth UD-Q4_K_XL"
+baseline_decode_tok_s = 11.71
+note = "Token generation at 128 tokens, from the author's working notes dated 2026-08-21. A different weight format against the usual one on the same model and machine; the notes do not state which engine ran the baseline, so the baseline engine is not stated. Perplexity on wikitext-2 rises from 5.8965 to 5.9842 (+1.5%, the error bars overlap)."
+
+[[engine.improvement]]
+kind = "less-memory"
+summary = "The ROCmFPX 4-bit format makes Qwen3.8-27B 14.63 GiB instead of 16.69 GiB for unsloth UD-Q4_K_XL, a 12% saving, on a Radeon 8060S"
+machine = "Radeon 8060S (Strix Halo), RADV"
+chip_tag = "amd"
+model = "Qwen3.8-27B"
+source = "https://github.com/SelfRef/llama.cpp-rdna/blob/5e085d123eead2e89b5c19f824fccb05727da6a2/ROCMFPX-NOTES.md"
+tradeoff = "Perplexity on wikitext-2 rises from 5.8965 to 5.9842 (+1.5%, the error bars overlap)."
+before = 16.69
+after = 14.63
+unit = "GiB model size"

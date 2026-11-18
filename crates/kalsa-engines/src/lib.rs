@@ -24,7 +24,7 @@ pub use review::Review;
 pub use suggested::SuggestedModel;
 
 const KNOWN_TAGS: &[&str] = &[
-    "apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5", "nvidia", "amd", "intel", "cpu",
+    "apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5", "apple-m6", "nvidia", "amd", "intel", "cpu",
 ];
 
 const OSI_LICENSES: &[&str] = &[
@@ -311,6 +311,7 @@ pub fn chip_tag_for_brand(brand: &str) -> Option<&'static str> {
         ("apple m3", "apple-m3"),
         ("apple m4", "apple-m4"),
         ("apple m5", "apple-m5"),
+        ("apple m6", "apple-m6"),
     ] {
         if let Some(at) = lower.find(needle) {
             let after = &lower[at + needle.len()..];

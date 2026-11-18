@@ -1,7 +1,7 @@
 //! Labels for hardware tags, shared by the app and the site.
 
 /// Every hardware family a catalog entry may name, in the order the pages list them.
-pub const FAMILIES: &[&str] = &["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5", "nvidia", "amd", "intel", "cpu"];
+pub const FAMILIES: &[&str] = &["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5", "apple-m6", "nvidia", "amd", "intel", "cpu"];
 
 /// "apple-m3" is generation 3; every other tag has none.
 pub fn chip_generation(tag: &str) -> Option<u8> {

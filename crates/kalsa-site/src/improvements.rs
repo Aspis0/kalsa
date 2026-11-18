@@ -19,9 +19,10 @@ fn figures(item: &Improvement) -> String {
     }
 }
 
-fn entry(kind: ImprovementKind, summary: &str, place: &str, figures: &str, source: &str, tradeoff: Option<&str>) -> String {
+/// `cost` is a label and a text: "Trade-off" for a declared improvement, "Note" for the caveat on a benchmark row.
+fn entry(kind: ImprovementKind, summary: &str, place: &str, figures: &str, source: &str, cost: Option<(&str, &str)>) -> String {
     let figures = if figures.is_empty() { String::new() } else { format!("<p class=\"sm num\">{figures}</p>") };
-    let tradeoff = tradeoff.map(|text| format!("<p class=\"trade\"><b>Trade-off.</b> {}</p>", escape(text))).unwrap_or_default();
+    let tradeoff = cost.map(|(label, text)| format!("<p class=\"trade\"><b>{label}.</b> {}</p>", escape(text))).unwrap_or_default();
     format!(
         "<div class=\"impitem\"><div class=\"ih\"><span class=\"tg imp\">{label}</span><span class=\"sm\">{place}</span></div><p class=\"isum\">{summary}</p>{figures}\
          <p class=\"sm\">Claimed by the author. <a class=\"lnk\" href=\"{source}\">Source</a></p>{tradeoff}</div>",
@@ -40,7 +41,7 @@ fn speed_entries(engine: &Engine) -> String {
             let Some(gain) = gain.as_ref().filter(|gain| gain.is_gain()) else { continue };
             let summary = format!("{} against {}", gain.label, benchmark.baseline);
             let place = format!("{} · {}", benchmark.machine, benchmark.model);
-            out += &entry(kind, &summary, &place, "", &benchmark.source, None);
+            out += &entry(kind, &summary, &place, "", &benchmark.source, benchmark.note.as_deref().map(|note| ("Note", note)));
         }
     }
     out
@@ -55,7 +56,7 @@ fn declared_entries(engine: &Engine) -> String {
                 Some(model) => format!("{} · {model}", item.machine),
                 None => item.machine.clone(),
             };
-            entry(item.kind, &item.summary, &place, &figures(item), &item.source, item.tradeoff.as_deref())
+            entry(item.kind, &item.summary, &place, &figures(item), &item.source, item.tradeoff.as_deref().map(|text| ("Trade-off", text)))
         })
         .collect()
 }

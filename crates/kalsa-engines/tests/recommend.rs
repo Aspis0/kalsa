@@ -148,6 +148,7 @@ fn brand_strings_map_to_generation_tags() {
         ("Apple M3 Ultra", "apple-m3"),
         ("Apple M4 Pro", "apple-m4"),
         ("Apple M5 Max", "apple-m5"),
+        ("Apple M6", "apple-m6"),
     ] {
         assert_eq!(chip_tag_for_brand(brand), Some(tag), "{brand}");
     }

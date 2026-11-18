@@ -1,8 +1,8 @@
 mod common;
 
-use std::path::{Path};
+use std::path::Path;
 
-use common::{body, generated, html};
+use common::{body, generated, html, visible};
 
 #[test]
 fn the_filter_assets_hide_cards_and_clear_hardware() {
@@ -80,4 +80,39 @@ fn a_hardware_family_page_shows_larger_models_only_where_data_exists() {
     assert!(m5.contains("DeepSeek Flash Q2") && m5.contains("GLM 5.3 Flash Q4_K") && m5.contains("The expert weights are read from the SSD"));
     assert!(!body(&files, "hardware/apple-m1/index.html").contains("Larger models on this hardware"));
     assert!(!body(&files, "hardware/nvidia/index.html").contains("Larger models on this hardware"), "the nvidia row is not a bigger-models claim");
+}
+
+#[test]
+fn how_we_choose_states_the_three_site_wide_rules_in_plain_words() {
+    let files = generated();
+    let page = visible(body(&files, "how-we-choose/index.html"));
+    for rule in [
+        "A comparison with the project’s own earlier release does not count.",
+        "A different format counts only with its quality cost shown.",
+        "A requirement such as changing a system setting is shown as a trade-off.",
+    ] {
+        assert!(page.contains(rule), "{rule}");
+    }
+}
+
+#[test]
+fn a_speed_row_shows_its_caveat_and_omlx_names_its_requirements() {
+    let files = generated();
+    let omlx = body(&files, "engines/omlx/index.html");
+    let section = omlx.split("id=\"improvements\"").nth(1).expect("oMLX has an Improvements section");
+    assert!(section.contains("<span class=\"tg imp\">Faster prefill</span>") && section.contains("prefill 2.8× against This Mac alone"));
+    assert!(section.contains("<b>Note.</b>") && section.contains("Remote Login turned on in System Settings") && section.contains("The feature is experimental."));
+    assert!(section.contains("This Mac alone"));
+    assert!(!omlx.contains("<span class=\"tg imp\">Multiple machines</span>"), "the model is not split");
+}
+
+#[test]
+fn apple_m6_is_a_chip_family_with_its_own_page_and_filter() {
+    let files = generated();
+    let page = body(&files, "hardware/apple-m6/index.html");
+    assert!(page.contains("Engines for Apple M6") && page.contains("SwiftLM"));
+    assert!(body(&files, "engines/index.html").contains("data-hw=\"apple-m6\">Apple M6</button>"));
+    assert!(body(&files, "engines/swiftlm/index.html").contains("Apple M1–M6"));
+    assert!(!body(&files, "engines/omlx/index.html").contains("Apple M1–M6"), "its README lists M1 to M5 only");
+    assert!(!body(&files, "engines/vmlx/index.html").contains("Apple M1–M6"), "its README lists M1 to M4 in a badge");
 }
