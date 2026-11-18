@@ -10,9 +10,10 @@ pub fn tok(value: f64) -> String {
 }
 
 fn bar(class: &str, label: &str, value: f64, widest: f64) -> String {
+    let percent = if widest > 0.0 { value / widest * 100.0 } else { 0.0 };
     format!(
-        "<div class=\"bar{class}\"><span>{label}</span><i style=\"width:{width:.1}%\"></i><b class=\"num\">{value}</b></div>",
-        width = if widest > 0.0 { value / widest * 100.0 } else { 0.0 },
+        "<div class=\"bar{class}\"><span>{label}</span><i class=\"w{width}\"></i><b class=\"num\">{value}</b></div>",
+        width = percent.round() as u8,
         label = escape(label),
         value = tok(value),
     )

@@ -1,0 +1,6 @@
+# Applied by Workers static assets to the generated pages. The Worker's own
+# /api/* and /auth/* answers set their headers in code: _headers does not reach them.
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https:; font-src 'self'; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'

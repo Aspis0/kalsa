@@ -32,6 +32,9 @@ pub const BASE_CSS: &str = include_str!("../../../site/static/base.css");
 pub const PALETTE_CSS: &str = include_str!("../../../site/static/palette.css");
 const SITE_JS: &str = include_str!("../../../site/static/site.js");
 const FILTERS_JS: &str = include_str!("../../../site/static/filters.js");
+const ACCOUNT_JS: &str = include_str!("../../../site/static/account.js");
+const CHEVRON_SVG: &str = include_str!("../../../site/static/chevron.svg");
+const HEADERS: &str = include_str!("../../../site/_headers");
 
 /// The catalog is the single source of truth for this site and the desktop app.
 pub fn catalog() -> Catalog {
@@ -48,6 +51,8 @@ fn statics() -> Vec<(PathBuf, String)> {
         file("static/palette.css", PALETTE_CSS),
         file("static/site.js", SITE_JS),
         file("static/filters.js", FILTERS_JS),
+        file("static/account.js", ACCOUNT_JS),
+        file("static/chevron.svg", CHEVRON_SVG),
     ]
 }
 
@@ -61,6 +66,7 @@ fn sections(catalog: &Catalog, facts: &Facts) -> Vec<(PathBuf, String)> {
         file(paths::section("how-we-choose"), prose::how_we_choose()),
         file(paths::section("submit"), prose::submit(catalog)),
         file(paths::section("app"), prose::app()),
+        file(paths::section("signin"), prose::signin()),
     ];
     files.extend(catalog.engine.iter().map(|engine| file(paths::engine(&engine.id), engine::engine_page(catalog, engine, facts))));
     files.extend(model::hardware_pages(catalog).iter().map(|hw| file(paths::hardware(&hw.slug), hardware::hardware_page(hw, catalog, facts))));
@@ -76,6 +82,8 @@ pub fn render(catalog: &Catalog, facts: &Facts) -> Vec<(PathBuf, String)> {
     let sitemap = feeds::sitemap(&files);
     files.push(file("sitemap.xml", sitemap));
     files.extend(statics());
+    // At the root of the assets directory, where Workers static assets reads it.
+    files.push(file("_headers", HEADERS));
     files
 }
 

@@ -10,6 +10,7 @@ use crate::paths;
 const HOW: &str = include_str!("../../../site/templates/how-we-choose.html");
 const SUBMIT: &str = include_str!("../../../site/templates/submit.html");
 const APP: &str = include_str!("../../../site/templates/app.html");
+const SIGNIN: &str = include_str!("../../../site/templates/signin.html");
 
 fn prose(dir: &str, active: &str, title: &str, description: &str, template: &str, extra: &[(&str, String)]) -> String {
     let path = paths::section(dir);
@@ -35,6 +36,17 @@ pub fn how_we_choose() -> String {
 
 pub fn app() -> String {
     prose("app", "app", "App | Kalsa", "A small desktop app that lets you try an engine from the Kalsa database with one click. It is not available yet.", APP, &[])
+}
+
+pub fn signin() -> String {
+    prose(
+        "signin",
+        "signin",
+        "Sign in | Kalsa",
+        "Sign in to Kalsa with Hugging Face, GitHub or GitLab: what is kept, and what is not.",
+        SIGNIN,
+        &[],
+    )
 }
 
 fn benchmark_toml(benchmark: &Benchmark) -> String {

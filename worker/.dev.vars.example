@@ -1,0 +1,12 @@
+# Copy this file to .dev.vars for local development. .dev.vars is git-ignored.
+# In production every value below is a secret, set with:
+#   npx wrangler secret put SESSION_HMAC_KEY
+# SESSION_HMAC_KEY signs the short-lived sign-in cookie: use at least 32 random
+# bytes, base64-encoded. Rotating it invalidates sign-in attempts in flight only.
+SESSION_HMAC_KEY=replace-with-base64-of-32-random-bytes
+GITHUB_CLIENT_ID=replace-with-github-oauth-app-client-id
+GITHUB_CLIENT_SECRET=replace-with-github-oauth-app-client-secret
+HF_CLIENT_ID=replace-with-huggingface-oauth-app-client-id
+HF_CLIENT_SECRET=replace-with-huggingface-oauth-app-client-secret
+GITLAB_CLIENT_ID=replace-with-gitlab-oauth-app-client-id
+GITLAB_CLIENT_SECRET=replace-with-gitlab-oauth-app-client-secret

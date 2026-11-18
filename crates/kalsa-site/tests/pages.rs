@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use kalsa_site::{catalog, render, resolve_href, Facts};
 
-use common::{body, generated, html};
+use common::{banned, body, generated, html, visible};
 
 #[test]
 fn every_engine_has_a_page_and_every_section_exists() {
@@ -71,6 +71,11 @@ fn every_internal_href_and_src_resolves() {
                     continue;
                 }
                 let resolved = resolve_href(page, target);
+                // Exactly the three sign-in starts: the Worker answers them, the generator never writes them.
+                const WORKER_STARTS: [&str; 3] = ["auth/github/start", "auth/huggingface/start", "auth/gitlab/start"];
+                if WORKER_STARTS.iter().any(|route| resolved == Path::new(route)) {
+                    continue;
+                }
                 let ok = resolved.as_os_str().is_empty() || known.contains(&resolved);
                 assert!(ok, "{page:?} links to missing {resolved:?} ({target})");
             }
@@ -123,4 +128,34 @@ fn stars_and_updates_show_only_when_github_facts_exist() {
     let page = body(&with, "engines/frink/index.html");
     assert!(page.contains("<dt>Stars</dt><dd>1.2k</dd>") && page.contains("2026-11-10"));
     assert!(!body(&with, "engines/llama-cpp/index.html").contains("<dt>Stars</dt>"), "no invented numbers for other repos");
+}
+
+#[test]
+fn every_page_offers_sign_in_and_the_sign_in_page_lists_the_providers() {
+    let files = generated();
+    for (path, page) in html(&files) {
+        assert!(page.contains("data-account"), "{path:?} has no account item in the nav");
+        assert!(page.contains(">Sign in</a>"), "{path:?} has no Sign in label");
+        assert!(page.contains("static/account.js"), "{path:?} does not load the account script");
+    }
+    let signin = body(&files, "signin/index.html");
+    for provider in ["huggingface", "github", "gitlab"] {
+        assert!(signin.contains(&format!("auth/{provider}/start")), "missing the {provider} button");
+    }
+    for label in ["Continue with Hugging Face", "Continue with GitHub", "Continue with GitLab"] {
+        assert!(signin.contains(label), "missing {label}");
+    }
+    assert!(banned(&visible(signin)).is_empty(), "the sign-in page must stay plain");
+}
+
+#[test]
+fn the_account_script_builds_no_markup_and_sets_only_an_https_avatar() {
+    let files = generated();
+    let script = body(&files, "static/account.js");
+    for forbidden in ["innerHTML", "outerHTML", "insertAdjacentHTML", "document.write"] {
+        assert!(!script.contains(forbidden), "the account script must not build markup with {forbidden}");
+    }
+    assert!(script.contains("indexOf('https://') !== 0"), "an avatar src must be refused unless it is https");
+    assert!(script.contains("setAttribute('src'"), "the avatar src goes through setAttribute");
+    assert!(script.contains("textContent"), "the username goes in as text");
 }

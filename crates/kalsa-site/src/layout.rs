@@ -8,26 +8,29 @@ pub struct Meta<'a> {
     pub description: &'a str,
     /// Where the page is written, e.g. "engines/frink/index.html".
     pub path: &'a str,
-    /// The nav entry to mark, if any: "engines", "hardware", "compare", "how", "submit", "app".
+    /// The nav entry to mark, if any: "engines", "hardware", "compare", "how", "submit", "app", "signin".
     pub active: &'a str,
     /// Script files under static/ to load.
     pub scripts: &'a [&'a str],
 }
 
-const NAV: [(&str, &str, &str); 6] = [
+const NAV: [(&str, &str, &str); 7] = [
     ("engines", "Engines", "engines"),
     ("hardware", "Hardware", "hardware"),
     ("compare", "Compare", "compare"),
     ("how", "How we choose", "how-we-choose"),
     ("submit", "Submit", "submit"),
     ("app", "App", "app"),
+    ("signin", "Sign in", "signin"),
 ];
 
 fn nav(root: &str, active: &str) -> String {
     NAV.iter()
         .map(|(key, label, dir)| {
             let current = if *key == active { " aria-current=\"page\"" } else { "" };
-            format!("<a href=\"{root}{}\"{current}>{label}</a>", paths::section(dir))
+            // The account script finds this one entry and swaps it for the signed-in visitor.
+            let hook = if *key == "signin" { " data-account" } else { "" };
+            format!("<a href=\"{root}{}\"{current}{hook}>{label}</a>", paths::section(dir))
         })
         .collect()
 }
@@ -68,7 +71,8 @@ fn footer(root: &str) -> String {
 
 pub fn page(meta: &Meta, body: &str) -> String {
     let root = paths::root_for(meta.path);
-    let scripts: String = meta.scripts.iter().map(|name| format!("<script src=\"{root}static/{name}\" defer></script>")).collect();
+    let mut scripts = format!("<script src=\"{root}static/account.js\" defer></script>");
+    scripts.extend(meta.scripts.iter().map(|name| format!("<script src=\"{root}static/{name}\" defer></script>")));
     format!(
         "<!doctype html>\n<html lang=\"en\"><head>{head}</head><body>\n\
          <a class=\"skip\" href=\"#main\">Skip to content</a>\n\

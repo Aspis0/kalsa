@@ -33,3 +33,30 @@ jobs:
         run: |
           npm ci
           npm run build
+
+  worker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: worker/package-lock.json
+
+      # The Worker's assets binding points at ../site/dist, which is generated and git-ignored.
+      - name: Generate the site the Worker serves
+        run: cargo run -p kalsa-site
+
+      - name: Install
+        working-directory: worker
+        run: npm ci
+
+      - name: Typecheck
+        working-directory: worker
+        run: npm run typecheck
+
+      - name: Test
+        working-directory: worker
+        run: npm test
