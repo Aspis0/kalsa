@@ -18,8 +18,7 @@
     {
       "binding": "DB",
       "database_name": "kalsa",
-      // Placeholder: replace with the id printed by `npx wrangler d1 create kalsa`.
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "9003d24b-4a2a-48a3-815e-22e3dd95f802",
       "migrations_dir": "migrations"
     }
   ],
@@ -33,10 +32,10 @@
       "name": "kalsa-site-preview",
       "compatibility_date": "2026-11-18",
       "compatibility_flags": ["nodejs_compat"],
-      // Replace with this account's workers.dev subdomain before deploying preview.
-      // Until then preview fails closed: no request origin matches this value, so
-      // every /auth/* and /api/* request is refused rather than served on a wrong host.
-      "vars": { "SITE_ORIGIN": "https://kalsa-site.REPLACE_WITH_ACCOUNT.workers.dev" },
+      // Served only on its own custom domain; the workers.dev address is off.
+      "vars": { "SITE_ORIGIN": "https://preview.kalsa.io" },
+      "routes": [{ "pattern": "preview.kalsa.io", "custom_domain": true }],
+      "workers_dev": false,
       "assets": {
         "directory": "../site/dist",
         "binding": "ASSETS",
@@ -47,7 +46,7 @@
         {
           "binding": "DB",
           "database_name": "kalsa-preview",
-          "database_id": "00000000-0000-0000-0000-000000000000",
+          "database_id": "d7592b55-9585-44c0-a1c3-f5355024ebc9",
           "migrations_dir": "migrations"
         }
       ],
