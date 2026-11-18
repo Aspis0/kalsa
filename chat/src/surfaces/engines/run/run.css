@@ -1,4 +1,4 @@
-/* The install and run panel on an engine's page, in the shared Lagoon tokens. Mirrors design/m3-install-mock.html. */
+/* The install and run panel on an engine's page, in the shared Lagoon tokens. */
 
 .run-card { margin-top: 20px; max-width: 820px; overflow: hidden; border: 1px solid var(--line2); border-radius: 16px; background: var(--card); }
 .run-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 16px 20px; }

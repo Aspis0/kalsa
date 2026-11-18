@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Weekly gate check for catalog/engines.toml (PLAN.md rules 2-5).
+"""Weekly gate check for catalog/engines.toml (catalog rules 2-5).
 
 Reads the checked-in catalog, asks GitHub for each repository's live facts and
 opens one issue when any entry falls below the bar. With --dry-run it prints

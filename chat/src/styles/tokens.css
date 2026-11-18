@@ -1,6 +1,6 @@
 /* Design tokens: the same names in both themes; only the values change.
    One palette for the whole app, "Lagoon": teal on pale aqua-grey with white cards
-   (the same values as design/site-v4/_src/palettes.py). Type is system-only, with
+   (the same values as the website, site/static/palette.css). Type is system-only, with
    no remote font load. */
 
 :root {
