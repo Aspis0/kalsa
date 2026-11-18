@@ -1,0 +1,92 @@
+.shell {
+  position: relative;
+  display: flex;
+  height: 100dvh;
+  background: var(--bg);
+  overflow-x: clip;
+}
+
+/* Everything beside the rail. */
+.shell-main {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+}
+
+/* The notices sit in the page's flow, above it: the page lays out below them
+   and none ever covers content (Home's power button included). Each slot is
+   capped at a short share of the window, so the page keeps room for the
+   composer below; a notice taller than its slot scrolls inside it. */
+.stage-notices {
+  position: relative;
+  flex: none;
+  max-height: 12dvh;
+  overflow-y: auto;
+  /* Above the chat list popover (z-index 21), which opens downward. */
+  z-index: 25;
+}
+
+.stage {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.chat-page {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.chat-layout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.main-col {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.drop-overlay {
+  position: absolute;
+  inset: 0.75rem;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  text-align: center;
+  background: rgba(var(--surface-muted-rgb), 0.92);
+  border: 2px dashed var(--accent);
+  border-radius: 16px;
+  pointer-events: none;
+}
+
+.drop-overlay span {
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+}
+
+.attach-status {
+  display: flex;
+  flex: none;
+  width: 100%;
+  max-width: calc(780px + 2rem);
+  margin: 0 auto;
+  padding: 0 calc(1rem + 6px) 2px;
+  align-items: center;
+  gap: 10px;
+  color: var(--tx2);
+  font-size: 15px;
+}

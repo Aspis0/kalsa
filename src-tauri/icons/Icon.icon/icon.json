@@ -1,0 +1,18 @@
+{
+  "fill": {
+    "solid": "srgb:0.83922,0.87843,0.28235,1.00000"
+  },
+  "groups": [
+    {
+      "layers": [
+        {
+          "image-name": "leaf.svg",
+          "name": "leaf"
+        }
+      ]
+    }
+  ],
+  "supported-platforms": {
+    "squares": "shared"
+  }
+}

@@ -1,0 +1,95 @@
+/* The icon rail (RULES.md "Rail"): the wordmark and the leaf mark, four
+   places on top, Help and Phones at the bottom. The top padding leaves room
+   for the window's own controls, as the mockups draw them. */
+
+.rail {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  width: 112px;
+  height: 100%;
+  padding: 60px 0 24px;
+  overflow-y: auto;
+  background: var(--rail);
+  border-right: 1px solid var(--line);
+  line-height: 25px;
+}
+
+.rail-word {
+  display: block;
+  flex: none;
+  margin-bottom: 12px;
+  color: var(--tx2);
+}
+
+.rail-word svg {
+  display: block;
+  margin: 0 auto;
+}
+
+.rail-mark {
+  display: grid;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 16px;
+  place-items: center;
+  /* The owner's mark: the leaf's own green (#57AC00) on the app icon's lime
+     (#D6E048). Brand colours, not theme tokens — the logo is the same leaf
+     in dark, which sits on the lime square either way. */
+  color: #57ac00;
+  background: #d6e048;
+  border-radius: 14px;
+}
+
+.rail-item {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  width: 96px;
+  margin: 0 0 10px;
+  padding: 0;
+  color: var(--tx2);
+  background: none;
+  border: 0;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: inherit;
+}
+
+.rail-icon {
+  display: grid;
+  width: 60px;
+  height: 42px;
+  place-items: center;
+  border-radius: 21px;
+}
+
+.rail-item:hover .rail-icon {
+  background: rgba(var(--ink-rgb), 0.05);
+}
+
+.rail-item[aria-current="page"] {
+  color: var(--tx);
+  font-weight: 650;
+}
+
+.rail-item[aria-current="page"] .rail-icon {
+  color: var(--ac-tx);
+  background: var(--ac-soft);
+}
+
+.rail-low {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: auto;
+}
+
+.rail-low .rail-item:last-child {
+  margin-bottom: 0;
+}

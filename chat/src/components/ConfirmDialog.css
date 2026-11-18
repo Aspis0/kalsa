@@ -1,0 +1,95 @@
+/* A dialog over the page (RULES.md "Dialog"): 560px, 28 radius, a scrim. */
+
+.dialog-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  background: rgba(35, 38, 30, 0.28);
+}
+
+[data-theme="dark"] .dialog-scrim {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.dialog {
+  width: min(560px, calc(100vw - 48px));
+  padding: 30px 32px 26px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  box-shadow: 0 30px 80px -20px var(--sh);
+}
+
+.dialog-icon {
+  display: grid;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 18px;
+  place-items: center;
+  border-radius: 50%;
+}
+
+.dialog-icon.is-danger {
+  color: var(--warn-ink);
+  background: var(--warn-fill);
+}
+
+.dialog-icon.is-accent {
+  color: var(--ac-tx);
+  background: var(--ac-soft);
+}
+
+.dialog h3 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 650;
+  line-height: 31px;
+  letter-spacing: -0.01em;
+}
+
+.dialog p {
+  margin: 8px 0 0;
+  color: var(--tx2);
+  font-size: 17px;
+  line-height: 26px;
+  overflow-wrap: anywhere;
+}
+
+.dialog-actions {
+  display: flex;
+  margin-top: 26px;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.dialog-btn {
+  display: inline-flex;
+  height: 52px;
+  padding: 0 24px;
+  align-items: center;
+  gap: 8px;
+  color: var(--tx);
+  background: transparent;
+  border: 1.5px solid var(--line);
+  border-radius: 26px;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.dialog-btn:focus-visible {
+  border-radius: 26px;
+}
+
+.dialog-btn-danger {
+  color: #fff;
+  background: var(--danger-fill);
+  border-color: var(--danger-fill);
+}
+
+.dialog-btn-accent {
+  color: var(--ac-ink);
+  background: var(--ac);
+  border-color: var(--ac);
+}

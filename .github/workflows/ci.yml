@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: chat/package-lock.json
+
+      - name: Cargo check
+        run: cargo check --workspace
+
+      - name: Targeted Rust tests
+        run: cargo test -p kalsa-probe -p kalsa-catalog
+
+      - name: Frontend build
+        working-directory: chat
+        run: |
+          npm ci
+          npm run build

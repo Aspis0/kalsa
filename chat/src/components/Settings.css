@@ -1,0 +1,79 @@
+.settings-page {
+  width: min(768px, 100%);
+  margin: 0 auto;
+  padding: 56px 24px 32px;
+  box-sizing: border-box;
+}
+
+.settings-page h2 {
+  margin: 0 0 22px;
+  color: var(--tx);
+  font-family: var(--font-display);
+  font-size: 38px;
+  line-height: 44px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.settings-group {
+  margin: 0 0 18px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  overflow: hidden;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 70px;
+  padding: 14px 24px;
+  box-sizing: border-box;
+}
+
+.settings-row-title {
+  color: var(--tx);
+  font-size: 17px;
+  line-height: 24px;
+  font-weight: 650;
+}
+
+.settings-seg {
+  display: inline-flex;
+  flex: none;
+  gap: 2px;
+  padding: 4px;
+  background: var(--rail);
+  border-radius: 999px;
+}
+
+.settings-seg button {
+  height: 40px;
+  padding: 0 16px;
+  color: var(--tx2);
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.settings-seg button[aria-pressed="true"] {
+  color: var(--tx);
+  background: var(--card);
+  box-shadow: 0 2px 8px -4px var(--sh);
+}
+
+.settings-lede {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 20px 0 0;
+  color: var(--tx3);
+  font-size: 15px;
+}

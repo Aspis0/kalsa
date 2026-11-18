@@ -1,0 +1,18 @@
+[package]
+name = "kalsa"
+description = "Desktop app that recommends and runs local inference engines"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[build-dependencies]
+tauri-build = { version = "2.7", features = [] }
+
+[dependencies]
+kalsa-probe = { path = "../crates/kalsa-probe" }
+serde = { version = "1", features = ["derive"] }
+tauri = { version = "2.12", features = [] }
+url = "2"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"

@@ -1,0 +1,251 @@
+/* The chat list popover (mockups 02-chat-list-open, 11-chat-states-search,
+   18-dialogs-rename): 440px under the Chats button, over a light scrim. */
+
+.chat-list-scrim {
+  position: absolute;
+  inset: 76px 0 0;
+  z-index: 20;
+  background: rgba(35, 38, 30, 0.08);
+}
+
+.chat-list {
+  position: absolute;
+  top: 70px;
+  left: 28px;
+  z-index: 21;
+  display: flex;
+  width: min(440px, calc(100% - 56px));
+  max-height: calc(100% - 96px);
+  padding: 12px;
+  flex-direction: column;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  box-shadow: 0 24px 60px -18px var(--sh), 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.chat-list-new {
+  display: flex;
+  flex: none;
+  height: 50px;
+  margin-bottom: 8px;
+  padding: 0 16px;
+  align-items: center;
+  gap: 10px;
+  color: var(--ac-ink);
+  background: var(--ac);
+  border: 0;
+  border-radius: 16px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.chat-list-new:hover {
+  background: var(--ac-tx);
+}
+
+.chat-list-search {
+  display: flex;
+  flex: none;
+  height: 46px;
+  margin-bottom: 6px;
+  padding: 0 14px;
+  align-items: center;
+  gap: 10px;
+  color: var(--tx3);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.chat-list-search input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  color: var(--tx);
+  background: transparent;
+  border: 0;
+  outline: none;
+  font-size: 16px;
+}
+
+.chat-list-search input::placeholder {
+  color: var(--tx3);
+}
+
+.chat-list-search:focus-within {
+  border-color: var(--ac);
+}
+
+.chat-list-search kbd {
+  font: inherit;
+  font-size: 13px;
+  color: var(--tx3);
+}
+
+.chat-list-rows {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.chat-list-row {
+  position: relative;
+  display: flex;
+  height: 48px;
+  align-items: center;
+  border-radius: 14px;
+}
+
+.chat-list-row:hover,
+.chat-list-row:focus-within {
+  background: var(--rail);
+}
+
+.chat-list-active,
+.chat-list-active:hover {
+  background: var(--ac-soft);
+  font-weight: 600;
+}
+
+.chat-list-open {
+  display: flex;
+  min-width: 0;
+  height: 100%;
+  flex: 1;
+  padding: 0 14px;
+  align-items: center;
+  gap: 12px;
+  color: var(--tx);
+  background: none;
+  border: 0;
+  border-radius: 14px;
+  font-size: 16px;
+  font-weight: inherit;
+  text-align: left;
+}
+
+.chat-list-open .icon,
+.chat-list-editing .icon {
+  color: var(--tx3);
+}
+
+.chat-list-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-list-open em,
+.chat-list-editing em {
+  flex: none;
+  color: var(--tx3);
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 400;
+}
+
+/* Rename and Delete take the place of "when" while the row is pointed at.
+   Hidden by opacity, not removed, so they stay in the tab order and the
+   accessibility tree; on a screen with no hover they are always shown. */
+.chat-list-actions {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.chat-list-row:hover .chat-list-actions,
+.chat-list-row:focus-within .chat-list-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.chat-list-row:hover .chat-list-open em,
+.chat-list-row:focus-within .chat-list-open em {
+  visibility: hidden;
+}
+
+@media (hover: none) {
+  .chat-list-actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .chat-list-open em {
+    visibility: hidden;
+  }
+}
+
+.chat-list-actions button {
+  display: inline-flex;
+  height: 32px;
+  padding: 0 10px;
+  align-items: center;
+  gap: 5px;
+  color: var(--tx2);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.chat-list-actions button:focus-visible {
+  border-radius: 16px;
+}
+
+.chat-list-editing {
+  padding: 0 14px;
+  gap: 12px;
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1.5px var(--ac);
+}
+
+.chat-list-rename {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  color: var(--tx);
+  background: transparent;
+  border: 0;
+  outline: none;
+  font-size: 16px;
+}
+
+.chat-list-live {
+  display: inline-flex;
+  flex: none;
+}
+
+.chat-list-live span {
+  width: 8px;
+  height: 8px;
+  background: var(--ring);
+  border-radius: 50%;
+  animation: chat-list-live 1.6s ease-in-out infinite;
+}
+
+@keyframes chat-list-live {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-list-live span {
+    animation: none;
+  }
+}
+
+.chat-list-none {
+  margin: 0;
+  padding: 18px 14px;
+  color: var(--tx2);
+  font-size: 16px;
+  line-height: 24px;
+}

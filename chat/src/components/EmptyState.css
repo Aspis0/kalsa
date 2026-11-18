@@ -1,0 +1,59 @@
+/* The empty chat (mockups 11-chat-states-empty and -empty-off). */
+
+.empty {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  padding: 2rem 1.5rem 40px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.empty-mark {
+  display: grid;
+  width: 72px;
+  height: 72px;
+  margin-bottom: 22px;
+  place-items: center;
+  color: var(--ac-tx);
+  background: var(--ac-soft);
+  border-radius: 22px;
+}
+
+.empty-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 38px;
+  font-weight: 600;
+  line-height: 44px;
+  letter-spacing: -0.025em;
+}
+
+.empty-copy {
+  max-width: 520px;
+  margin: 8px 0 0;
+  color: var(--tx2);
+  font-size: 19px;
+  line-height: 28px;
+}
+
+.empty .btn-large {
+  display: inline-flex;
+  height: 60px;
+  margin-top: 28px;
+  padding: 0 34px;
+  align-items: center;
+  gap: 12px;
+  color: var(--ac-ink);
+  background: var(--ac);
+  border: 0;
+  border-radius: 30px;
+  font-size: 19px;
+  font-weight: 600;
+}
+
+.empty .btn-large:focus-visible {
+  border-radius: 30px;
+}

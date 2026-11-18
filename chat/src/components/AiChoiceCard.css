@@ -1,0 +1,145 @@
+/* An AI choice card (RULES.md "AI cards"; mockup 07-ai-page). The chosen
+   card wears a 2.5px accent border; its padding gives back the extra width
+   so the content does not move. */
+
+.ai-card {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  padding: 22px 24px;
+  flex-direction: column;
+  align-items: flex-start;
+  color: var(--tx);
+  background: var(--card);
+  border: 1.5px solid var(--line);
+  border-radius: 26px;
+  font: inherit;
+  line-height: 25px;
+  text-align: left;
+}
+
+.ai-card.is-chosen {
+  padding: 21px 23px;
+  border: 2.5px solid var(--ac);
+  box-shadow: 0 16px 36px -20px var(--sh);
+}
+
+.ai-card-icon {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  margin-bottom: 12px;
+  place-items: center;
+  color: var(--tx2);
+  background: var(--rail);
+  border-radius: 50%;
+}
+
+.ai-card.is-chosen .ai-card-icon {
+  color: var(--ac-tx);
+  background: var(--ac-soft);
+}
+
+.ai-card-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-size: 26px;
+  font-weight: 650;
+  line-height: 32px;
+  letter-spacing: -0.01em;
+}
+
+.ai-card-title em {
+  padding: 0 10px;
+  color: var(--ac-tx);
+  background: var(--ac-soft);
+  border-radius: 13px;
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 26px;
+  letter-spacing: 0;
+}
+
+.ai-card-line {
+  margin-top: 6px;
+  color: var(--tx2);
+  font-size: 17px;
+}
+
+.ai-card-need {
+  display: flex;
+  align-self: stretch;
+  margin-top: 14px;
+  padding-top: 12px;
+  align-items: center;
+  gap: 8px;
+  border-top: 1px solid var(--line);
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.ai-card-need .icon {
+  color: var(--ac-tx);
+}
+
+.ai-card-model {
+  display: block;
+  margin-top: 6px;
+  color: var(--tx3);
+  font-size: 14px;
+}
+
+/* The first run's pick (mockups 04-first-run-pick, 13-first-run-pick-on-disk):
+   a larger card, the whole of it one radio. */
+.ai-card.is-pick {
+  flex: none;
+  width: 380px;
+  padding: 28px;
+  cursor: pointer;
+}
+
+.ai-card.is-pick.is-chosen {
+  padding: 27px;
+}
+
+button.ai-card:focus-visible {
+  border-radius: 26px;
+}
+
+.ai-card.is-pick .ai-card-icon {
+  width: 54px;
+  height: 54px;
+  margin-bottom: 18px;
+}
+
+.ai-card.is-pick .ai-card-need {
+  margin-top: 20px;
+  padding-top: 18px;
+}
+
+.ai-card-need.is-on-disk,
+.ai-card-need.is-on-disk .icon {
+  color: var(--ac-tx);
+}
+
+.ai-card-mark {
+  position: absolute;
+  top: 28px;
+  right: 24px;
+  width: 30px;
+  height: 30px;
+  border: 2px solid color-mix(in srgb, var(--tx3) 50%, transparent);
+  border-radius: 50%;
+}
+
+.ai-card.is-chosen .ai-card-mark {
+  display: grid;
+  place-items: center;
+  color: var(--ac-ink);
+  background: var(--ac);
+  border: 0;
+}

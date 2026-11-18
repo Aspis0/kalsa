@@ -1,0 +1,229 @@
+/* The first run and the walk (mockups 04-first-run-*, 06-growing-*,
+   13-first-run-*): one centred column over the whole window. A screen the
+   owner may need to leave — a failure, a computer too weak — keeps the rail,
+   so Help and its Report a problem stay one click away; the others set
+   `data-bare` on the root (WalkScreens.tsx FullWindow). */
+
+html[data-bare] .shell > .rail {
+  display: none;
+}
+
+.first-run {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  padding: 72px 24px 40px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow-y: auto;
+  text-align: center;
+}
+
+/* The owner's own lettering, above the welcome: the one hero brand moment. */
+.first-run-brand {
+  margin: 0 0 30px;
+  color: var(--ac-tx);
+}
+
+.first-run-brand svg {
+  display: block;
+}
+
+.first-run h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 44px;
+  font-weight: 600;
+  line-height: 50px;
+  letter-spacing: -0.025em;
+}
+
+.first-run-sub {
+  max-width: 620px;
+  margin: 6px 0 0;
+  color: var(--tx2);
+  font-size: 21px;
+  line-height: 30px;
+}
+
+.first-run-step {
+  position: absolute;
+  top: 58px;
+  margin: 0;
+  color: var(--tx3);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.first-run-start.power {
+  width: 206px;
+  height: 206px;
+  margin-top: 46px;
+}
+
+.first-run-start .power-face {
+  width: 172px;
+  height: 172px;
+  color: var(--ac);
+  font-size: 25px;
+  font-weight: 650;
+}
+
+.first-run-hint {
+  margin: 22px 0 0;
+  color: var(--tx3);
+  font-size: 15px;
+}
+
+.first-run-error {
+  display: flex;
+  max-width: 560px;
+  margin-top: 22px;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.first-run-error p {
+  margin: 0;
+  color: var(--err-ink);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 25px;
+}
+
+.first-run-cards {
+  display: flex;
+  margin-top: 38px;
+  gap: 22px;
+}
+
+.first-run-icon {
+  display: grid;
+  width: 96px;
+  height: 96px;
+  margin-bottom: 26px;
+  place-items: center;
+  color: var(--tx2);
+  background: var(--rail);
+  border-radius: 50%;
+}
+
+.first-run-icon.is-warn {
+  color: var(--warn-ink);
+  background: var(--warn-fill);
+}
+
+.first-run-actions {
+  display: flex;
+  margin-top: 34px;
+  align-items: center;
+  gap: 14px;
+}
+
+.first-run-actions .brain-go,
+.first-run .walk-actions .brain-go {
+  margin-top: 0;
+}
+
+.first-run-quiet {
+  display: inline-flex;
+  height: 60px;
+  padding: 0 30px;
+  align-items: center;
+  gap: 8px;
+  color: var(--tx);
+  background: transparent;
+  border: 1.5px solid var(--line);
+  border-radius: 30px;
+  font-size: 19px;
+  font-weight: 600;
+}
+
+.first-run-quiet.is-small {
+  height: 44px;
+  padding: 0 18px;
+  border-radius: 22px;
+  font-size: 16px;
+}
+
+.first-run-quiet:hover {
+  border-color: var(--ac);
+}
+
+.first-run-quiet:focus-visible {
+  border-radius: 30px;
+}
+
+/* The walk at full size, under the tree. */
+.first-run .surface-verdict {
+  margin: 4px 0 0;
+  color: var(--tx);
+  font-family: var(--font-display);
+  font-size: 34px;
+  font-weight: 600;
+  line-height: 40px;
+  letter-spacing: -0.025em;
+}
+
+.first-run .walk-line {
+  margin-top: 16px;
+  font-size: 20px;
+  line-height: 30px;
+}
+
+.first-run .walk-small {
+  font-size: 15px;
+}
+
+.first-run .walk-once {
+  margin-top: 10px;
+  font-size: 16px;
+}
+
+.first-run .walk-actions {
+  display: flex;
+  margin-top: 26px;
+  justify-content: center;
+  gap: 14px;
+}
+
+.first-run-continue.brain-go {
+  margin-top: 36px;
+  padding: 0 56px;
+}
+
+/* The failure's own detail, behind its link (13-first-run-failed-*). */
+.walk-details {
+  max-width: 560px;
+  margin-top: 18px;
+  color: var(--tx3);
+  font-size: 14px;
+  line-height: 21px;
+}
+
+.walk-details summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ac-tx);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+
+.walk-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.walk-details p {
+  margin: 8px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.walk-details code {
+  font: 13px/20px ui-monospace, Menlo, monospace;
+}

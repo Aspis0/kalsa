@@ -1,0 +1,93 @@
+/* Design tokens: the same names in both themes; only the values change.
+   Type is system-only, with no remote font load. */
+
+:root {
+  --bg: #f4f1e9;
+  --rail: #ece8dd;
+  --card: #fbfaf5;
+  --line: #ddd7c8;
+  --tx: #23261e;
+  --tx2: #53584a;
+  --tx3: #646a5b;
+  --ac: #3f6b3a;
+  --ac-ink: #ffffff;
+  --ac-soft: #e2e8d4;
+  --ac-tx: #3a6334;
+  --ring: #74b266;
+  --ring-glow: rgba(116, 178, 102, 0.45);
+  --track: #e2dccc;
+  --face1: #ffffff;
+  --face2: #efebe0;
+  --bezel: #e6e1d3;
+  --sh: rgba(80, 70, 40, 0.28);
+  --warn-fill: #f3e3c8;
+  --warn-ink: #7a5418;
+  /* The warning ring and its icon keep these values in both themes. */
+  --warn-ring: #d9a443;
+  --warn-face: #9a6a1c;
+  --err-ink: #9b3b2e;
+  /* An error card's wash, edge and icon disc. */
+  --err-wash: #fbf1ee;
+  --err-line: #ebcfc8;
+  --err-soft: #f6ddd7;
+  /* The Delete button, the same in both themes. */
+  --danger-fill: #9b3b2e;
+
+  /* Names shared by the older components. */
+  --page: var(--bg);
+  --surface: var(--card);
+  --surface-muted: var(--rail);
+  --border: var(--line);
+  --border-strong: var(--line);
+  --ink: var(--tx);
+  --ink-soft: var(--tx2);
+  --silence: var(--tx3);
+  --accent: var(--ac);
+  --accent-hover: var(--ac-tx);
+  --accent-pressed: var(--ac-tx);
+  --accent-ink: var(--ac-ink);
+  --selection: var(--ac-soft);
+  --danger: var(--err-ink);
+  --ink-rgb: 35, 38, 30;
+  --surface-muted-rgb: 236, 232, 221;
+
+
+  --font-ui: -apple-system, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", system-ui;
+  --font-display: -apple-system, "SF Pro Display", "Segoe UI Variable Display", "Segoe UI", system-ui;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+
+  --measure: 72ch;
+  --radius: 14px;
+  --focus-ring: 2px solid var(--ac);
+}
+
+[data-theme="dark"] {
+  --bg: #191a16;
+  --rail: #131410;
+  --card: #22241e;
+  --line: #33362d;
+  --tx: #eeece3;
+  --tx2: #bebfb0;
+  --tx3: #a2a494;
+  --ac: #a9cf8e;
+  --ac-ink: #16220f;
+  --ac-soft: #2a3423;
+  --ac-tx: #b8da9f;
+  --ring: #8fd07a;
+  --ring-glow: rgba(143, 208, 122, 0.35);
+  --track: #2c2f27;
+  --face1: #34372f;
+  --face2: #25281f;
+  --bezel: #121310;
+  --sh: rgba(0, 0, 0, 0.6);
+  --warn-fill: #3a3022;
+  --warn-ink: #e8c489;
+  --err-ink: #f0a08f;
+  --err-wash: #2b2220;
+  --err-line: #4a322c;
+  --err-soft: #3d2a25;
+
+  --ink-rgb: 238, 236, 227;
+  --surface-muted-rgb: 19, 20, 16;
+
+}
