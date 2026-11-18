@@ -1781,6 +1781,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "kalsa-site"
+version = "0.0.6"
+dependencies = [
+ "kalsa-engines",
+]
+
+[[package]]
 name = "kalsa-supervisor"
 version = "0.0.6"
 dependencies = [

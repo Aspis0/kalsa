@@ -8,6 +8,7 @@ members = [
     "crates/kalsa-launch",
     "crates/kalsa-probe",
     "crates/kalsa-runtime",
+    "crates/kalsa-site",
     "crates/kalsa-supervisor",
     "src-tauri",
 ]

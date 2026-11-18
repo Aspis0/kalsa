@@ -10,6 +10,7 @@ mod display;
 mod install;
 mod review;
 
+pub use display::{chip_label, figure_label, gain_label, gain_of};
 pub use install::{Install, Tooling};
 use review::Review;
 

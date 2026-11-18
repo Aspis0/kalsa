@@ -24,3 +24,4 @@ chat/.stream-app-dist/
 # The mail sidecar copied in by scripts/build-mail-sidecar.sh for a packaged build.
 # It is built from this workspace each time, so the copy is never a source file.
 src-tauri/binaries/
+site/dist/

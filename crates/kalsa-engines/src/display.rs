@@ -27,7 +27,7 @@ fn apple_chip(machine: &str) -> Option<String> {
 }
 
 /// The chip a benchmark was measured on, never a version string or RAM size.
-pub(crate) fn chip_label(benchmark: &Benchmark) -> String {
+pub fn chip_label(benchmark: &Benchmark) -> String {
     if let Some(chip) = apple_chip(&benchmark.machine) {
         return chip;
     }
@@ -41,7 +41,7 @@ pub(crate) fn chip_label(benchmark: &Benchmark) -> String {
     }
 }
 
-pub(crate) fn gain_of(benchmark: &Benchmark) -> Option<f64> {
+pub fn gain_of(benchmark: &Benchmark) -> Option<f64> {
     if let (Some(value), Some(base)) = (benchmark.decode_tok_s, benchmark.baseline_decode_tok_s) {
         return Some(value / base);
     }
@@ -51,7 +51,7 @@ pub(crate) fn gain_of(benchmark: &Benchmark) -> Option<f64> {
     }
 }
 
-pub(crate) fn gain_label(ratio: f64) -> String {
+pub fn gain_label(ratio: f64) -> String {
     if ratio >= 2.0 {
         format!("{ratio:.1}×")
     } else {
@@ -59,7 +59,7 @@ pub(crate) fn gain_label(ratio: f64) -> String {
     }
 }
 
-pub(crate) fn figure_label(benchmark: &Benchmark) -> Option<String> {
+pub fn figure_label(benchmark: &Benchmark) -> Option<String> {
     if let Some(decode) = benchmark.decode_tok_s {
         Some(format!("decode {decode} tok/s"))
     } else {

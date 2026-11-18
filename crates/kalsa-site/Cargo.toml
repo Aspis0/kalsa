@@ -1,0 +1,9 @@
+[package]
+name = "kalsa-site"
+description = "Static site generator for the Kalsa engine catalog"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+kalsa-engines = { path = "../kalsa-engines" }
