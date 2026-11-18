@@ -9,13 +9,16 @@ use serde::{Deserialize, Serialize};
 mod display;
 mod gains;
 mod hardware;
+mod improvement;
 mod install;
+mod links;
 mod review;
 mod suggested;
 
 pub use display::{chip_label, figure_label, gain_label, gain_metric, gain_of};
 pub use gains::{gains_of, Gains, MetricGain};
 pub use hardware::{chip_generation, family_label, hardware_labels, not_for_reason, FAMILIES};
+pub use improvement::{improvement_kinds, Improvement, ImprovementKind};
 pub use install::{Install, Tooling};
 pub use review::Review;
 pub use suggested::SuggestedModel;
@@ -87,6 +90,12 @@ pub struct Engine {
     pub kind: Kind,
     #[serde(default)]
     pub upstream: Option<String>,
+    /// The project's own site or an announcement post: an https URL, shown next to the repo link.
+    #[serde(default)]
+    pub website: Option<String>,
+    /// What the site link is: "Website" when absent, "Community site" or "Announcement" otherwise.
+    #[serde(default, rename(serialize = "websiteLabel", deserialize = "website_label"))]
+    pub website_label: Option<String>,
     pub hardware: Vec<String>,
     pub summary: String,
     #[serde(default = "recommendable")]
@@ -101,6 +110,9 @@ pub struct Engine {
     pub install: Option<Install>,
     #[serde(default, rename(serialize = "suggestedModels", deserialize = "suggested_models"))]
     pub suggested_models: Vec<SuggestedModel>,
+    /// What it improves besides the speed its benchmark rows show.
+    #[serde(default)]
+    pub improvement: Vec<Improvement>,
 }
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Catalog {
@@ -185,8 +197,11 @@ fn validate(catalog: &Catalog) -> Result<(), String> {
             install::validate(recipe, &engine.id)?;
         }
         suggested::validate(&engine.suggested_models, &engine.id, engine.install.is_some())?;
+        links::validate_website(engine)?;
+        improvement::validate(engine)?;
         validate_benchmarks(engine)?;
     }
+    links::validate_upstreams(catalog)?;
     if let Some(tooling) = &catalog.tooling {
         install::validate(&tooling.uv, "tooling.uv")?;
     }
@@ -275,16 +290,15 @@ fn validate_benchmarks(engine: &Engine) -> Result<(), String> {
             }
         }
     }
-    // An engine whose only published number is not a like-for-like comparison keeps it in its note instead.
-    let claim_in_note = engine.benchmark.is_empty() && engine.note.as_deref().is_some_and(|note| !note.trim().is_empty());
-    if engine.kind != Kind::Reference && !engine.benchmark.iter().any(baseline_number) && !claim_in_note {
-        return Err(format!("{}: no benchmark with a baseline number, and no note that states its claim", engine.id));
+    if engine.kind != Kind::Reference && !earns_a_listing(engine) {
+        return Err(format!("{}: a listed entry needs a benchmark gain of at least 5% or an improvement", engine.id));
     }
     Ok(())
 }
 
-fn baseline_number(benchmark: &Benchmark) -> bool {
-    benchmark.baseline_decode_tok_s.is_some() || benchmark.baseline_prefill_tok_s.is_some()
+/// A benchmark gain that clears the 5% noise band, or any declared improvement.
+fn earns_a_listing(engine: &Engine) -> bool {
+    !engine.improvement.is_empty() || engine.benchmark.iter().any(|benchmark| gains_of(benchmark).ordered().iter().any(|gain| gain.is_gain()))
 }
 
 /// The probe's brand string to a catalog tag, with a token boundary so that

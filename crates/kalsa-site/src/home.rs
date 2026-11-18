@@ -1,4 +1,4 @@
-//! The home page: who builds local inference, a hardware picker, published comparisons, recent additions.
+//! The home page: the engine list by hardware, published comparisons, recent additions, the people behind them.
 
 use kalsa_engines::{family_label, Benchmark, Catalog, Engine, FAMILIES};
 
@@ -78,15 +78,14 @@ fn recent(root: &str, catalog: &Catalog, facts: &Facts) -> String {
 pub fn home(catalog: &Catalog, facts: &Facts) -> String {
     let root = "";
     let body = format!(
-        "<div class=\"wrap\"><section class=\"top\"><h1>Meet the people building local inference</h1>\
-         <p class=\"lede\">Kalsa is a home for the engines and forks that run language models on your own machine, with the numbers their authors published. The Kalsa app can install and run llama.cpp and mlx-lm today, and links every other engine to its own instructions.</p>\
-         <div class=\"cta\"><a class=\"btn\" href=\"{download}\">Download Kalsa for macOS</a><a class=\"btn two\" href=\"{engines}\">Browse {count} engines</a></div>\
-         {wall}<p class=\"sm wallnote\">{people} developers and organisations so far.</p></section>\
+        "<div class=\"wrap\"><section class=\"top\"><h1>A database of local inference engines and forks</h1>\
+         <p class=\"lede\">What each one is, who made it, its licence, the benchmarks its author published, and how we read them.</p>\
+         <div class=\"cta\"><a class=\"btn\" href=\"{engines}\">Browse {count} engines</a><a class=\"btn two\" href=\"{how}\">How we choose</a></div></section>\
          {picker}{comparisons}{recent}\
-         <section class=\"dl\"><div><h2>Ready to try one?</h2><p>The Kalsa app reads your Mac and lists these engines. It installs llama.cpp and mlx-lm into their own folders and runs them on 127.0.0.1, with a simple chat window; for the others it links the project's own instructions. Open source, Apache-2.0.</p></div>\
-         <a class=\"btn\" href=\"{download}\">Download for macOS</a><a class=\"btn two\" href=\"{download}#unsigned\">About the unsigned build</a></section></div>",
-        download = paths::section("download"),
+         <section class=\"blk\" id=\"people\"><div class=\"sh\"><h2>The people behind them</h2><p>{people} developers and organisations so far.</p></div>{wall}</section>\
+         <section class=\"blk\"><div class=\"sh\"><h2>How we choose</h2><p>What gets listed, what a review looks at, and how a published number is read. <a href=\"{how}\">Read how we choose</a>.</p></div></section></div>",
         engines = paths::section("engines"),
+        how = paths::section("how-we-choose"),
         count = catalog.engine.len(),
         wall = wall(root, catalog),
         people = developers(catalog).len(),
@@ -96,8 +95,8 @@ pub fn home(catalog: &Catalog, facts: &Facts) -> String {
     );
     page(
         &Meta {
-            title: "Kalsa: local inference engines and the people building them",
-            description: "A catalog of local inference engines and community forks, with the numbers their authors published.",
+            title: "Kalsa: a database of local inference engines and forks",
+            description: "A database of local inference engines and forks: what each is, who made it, its licence and the benchmarks its author published.",
             path: paths::HOME,
             active: "",
             scripts: &["site.js"],

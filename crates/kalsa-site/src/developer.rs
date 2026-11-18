@@ -66,7 +66,7 @@ pub fn developer_page(developer: &Developer, facts: &Facts) -> String {
          <div class=\"acts\"><a class=\"btn two\" href=\"{github}\">github.com/{login}</a></div></div></div><div class=\"gap\">{url}</div>{stats}\
          <section class=\"blk\"><div class=\"sh left\"><h2>Engines</h2></div><div class=\"grid\">{cards}</div></section>\
          <section class=\"blk\"><div class=\"sh left\"><h2>Published comparisons</h2><p>All claimed by the author, linked to their source on each engine page.</p></div>{table}</section>\
-         <section class=\"blk\"><div class=\"panel dash\"><h3>Measured by Kalsa users <span class=\"soon\">Coming soon</span></h3><p>Numbers from real machines will appear here once opt-in measurement exists.</p></div></section>{claim}</div>",
+         {claim}</div>",
         login = escape(developer.login),
         avatar = avatar(developer.login, "lg", developer.org),
         name = escape(developer.name),

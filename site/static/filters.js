@@ -3,7 +3,7 @@
   var list = document.getElementById('list');
   var cards = [].slice.call(list.children);
   /* A new object every time: "Clear filters" must not share the hardware chips with the state it replaces. */
-  function fresh() { return { hw: {}, kind: 'all', lic: 'all', q: '', sort: 'name', listing: 'listed', badge: 'any' }; }
+  function fresh() { return { hw: {}, kind: 'all', lic: 'all', imp: 'all', q: '', sort: 'name', listing: 'listed', badge: 'any' }; }
   var state = fresh();
   var rows = {};
   var params = new URLSearchParams(location.search);
@@ -16,6 +16,7 @@
     if (chosen.length && !chosen.some(function (tag) { return row.hardware.indexOf(tag) > -1; })) return false;
     if (state.kind !== 'all' && row.kind !== state.kind) return false;
     if (state.lic !== 'all' && row.license !== state.lic) return false;
+    if (state.imp !== 'all' && row.improvements.indexOf(state.imp) < 0) return false;
     return !state.q || row.text.indexOf(state.q) > -1;
   }
 
@@ -47,6 +48,7 @@
         var b = e.target.closest('button'); if (!b || b.disabled) return; state[id] = b.dataset.v; run();
       });
     });
+    document.getElementById('imp').addEventListener('change', function (e) { state.imp = e.target.value; run(); });
     document.getElementById('lic').addEventListener('change', function (e) { state.lic = e.target.value; run(); });
     document.getElementById('sort').addEventListener('change', function (e) { state.sort = e.target.value; run(); });
     document.getElementById('q').addEventListener('input', function (e) { state.q = e.target.value.trim().toLowerCase(); run(); });
@@ -54,7 +56,7 @@
       var sort = state.sort;
       state = fresh();
       state.sort = sort;
-      document.getElementById('q').value = ''; document.getElementById('lic').value = 'all'; run();
+      document.getElementById('q').value = ''; document.getElementById('lic').value = 'all'; document.getElementById('imp').value = 'all'; run();
     });
   }
 

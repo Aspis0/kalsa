@@ -1,22 +1,21 @@
-//! The pages that are mostly words: how we choose, submit, download. Their copy lives in `site/templates`.
+//! The pages that are mostly words: how we choose, submit, app. Their copy lives in `site/templates`.
 
 use kalsa_engines::{Benchmark, Catalog, Engine, Kind};
 
 use crate::bench::tok;
-use crate::html::{escape, HELP, SUPPORT};
+use crate::html::{escape, HELP};
 use crate::layout::{page, Meta};
 use crate::paths;
 
 const HOW: &str = include_str!("../../../site/templates/how-we-choose.html");
 const SUBMIT: &str = include_str!("../../../site/templates/submit.html");
-const DOWNLOAD: &str = include_str!("../../../site/templates/download.html");
+const APP: &str = include_str!("../../../site/templates/app.html");
 
 fn prose(dir: &str, active: &str, title: &str, description: &str, template: &str, extra: &[(&str, String)]) -> String {
     let path = paths::section(dir);
     let mut body = template
         .replace("{{root}}", &paths::root_for(&path))
-        .replace("{{help}}", HELP)
-        .replace("{{support}}", SUPPORT);
+        .replace("{{help}}", HELP);
     for (key, value) in extra {
         body = body.replace(key, value);
     }
@@ -28,14 +27,14 @@ pub fn how_we_choose() -> String {
         "how-we-choose",
         "how",
         "How we choose | Kalsa",
-        "The rules an engine must pass to be listed on Kalsa, what the badge means, the safety note, and listing and removal.",
+        "How Kalsa decides what to list: the rules an engine must pass, what a review looks at, what counts as an improvement, and listing and removal.",
         HOW,
         &[],
     )
 }
 
-pub fn download() -> String {
-    prose("download", "", "Download Kalsa for macOS", "Kalsa for macOS: the app that installs and runs local inference engines. The 0.1 build is unsigned.", DOWNLOAD, &[])
+pub fn app() -> String {
+    prose("app", "app", "App | Kalsa", "A small desktop app that lets you try an engine from the Kalsa database with one click. It is not available yet.", APP, &[])
 }
 
 fn benchmark_toml(benchmark: &Benchmark) -> String {
@@ -88,7 +87,7 @@ pub fn submit(catalog: &Catalog) -> String {
         "submit",
         "submit",
         "List your engine | Kalsa",
-        "Two ways to list an engine on Kalsa: in the catalog by pull request, or as a community listing by signing in with GitHub or GitLab.",
+        "Two ways to add an engine to the Kalsa database: in the catalog by pull request, or as a community listing by signing in with GitHub or GitLab.",
         SUBMIT,
         &[("{{entry}}", escape(&entry))],
     )

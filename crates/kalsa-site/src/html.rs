@@ -21,12 +21,11 @@ fn plain(value: &str) -> bool {
 }
 
 pub const HELP: &str = "help@kalsa.io";
-pub const SUPPORT: &str = "support@kalsa.io";
 pub const MAIN: &str = "main@kalsa.io";
 
-/// The only mailto targets that may appear: our own three addresses, exactly. Catalog data never reaches this list.
+/// The only mailto targets that may appear: our own two addresses, exactly. Catalog data never reaches this list.
 fn own_mailbox(value: &str) -> bool {
-    value.strip_prefix("mailto:").is_some_and(|address| [HELP, SUPPORT, MAIN].contains(&address))
+    value.strip_prefix("mailto:").is_some_and(|address| [HELP, MAIN].contains(&address))
 }
 
 fn relative_path(value: &str) -> bool {
@@ -81,15 +80,14 @@ mod tests {
         assert_eq!(safe_href("https://github.com/a/b"), "https://github.com/a/b");
         assert_eq!(safe_href("../../engines/x/index.html#about"), "../../engines/x/index.html#about");
         assert_eq!(safe_href("mailto:help@kalsa.io"), "mailto:help@kalsa.io");
-        assert_eq!(safe_href("mailto:support@kalsa.io"), "mailto:support@kalsa.io");
         assert_eq!(safe_href("mailto:main@kalsa.io"), "mailto:main@kalsa.io");
     }
 
     #[test]
-    fn mailto_is_allowed_only_for_our_three_exact_addresses() {
+    fn mailto_is_allowed_only_for_our_two_exact_addresses() {
         for bad in [
             "mailto:evil@example.invalid", "mailto:help@kalsa.io?subject=x", "mailto:help@kalsa.io,evil@example.invalid", "mailto:HELP@kalsa.io",
-            "mailto:", "mailto:help@kalsa.io.evil.invalid", "MAILTO:help@kalsa.io", "mailto:xhelp@kalsa.io", "kalsa://engine/llama-cpp",
+            "mailto:", "mailto:help@kalsa.io.evil.invalid", "MAILTO:help@kalsa.io", "mailto:xhelp@kalsa.io", "mailto:support@kalsa.io", "kalsa://engine/llama-cpp",
         ] {
             assert_eq!(safe_href(bad), "#", "{bad}");
         }

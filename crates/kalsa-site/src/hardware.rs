@@ -1,6 +1,6 @@
 //! Hardware pages: one per chip family, one per concrete chip a benchmark names, and the index.
 
-use kalsa_engines::{chip_label, family_label, gain_of, not_for_reason, Benchmark, Catalog, Engine, Kind, FAMILIES};
+use kalsa_engines::{chip_label, family_label, gain_of, not_for_reason, Benchmark, Catalog, Engine, ImprovementKind, Kind, FAMILIES};
 
 use crate::bench::bench_block;
 use crate::cards::{avatar, card, metric_labels, tags};
@@ -118,6 +118,40 @@ fn without_number(hw: &HardwarePage, catalog: &Catalog) -> String {
     if panels.is_empty() { String::new() } else { format!("<section class=\"blk\">{}<div class=\"grid2\">{panels}</div></section>", heading("Runs here, no number for it", "")) }
 }
 
+/// Bigger models measured on this chip family. Only declared rows: with none, the block is not there.
+fn larger_models_section(hw: &HardwarePage, catalog: &Catalog) -> String {
+    if hw.chip.is_some() {
+        return String::new();
+    }
+    let rows: String = alphabetical(catalog)
+        .into_iter()
+        .flat_map(|engine| engine.improvement.iter().map(move |item| (engine, item)))
+        .filter(|(_, item)| item.kind == ImprovementKind::BiggerModels && item.chip_tag.as_deref() == Some(hw.tag.as_str()))
+        .map(|(engine, item)| {
+            format!(
+                "<tr><td><a class=\"lnk\" href=\"../../{page}\">{name}</a></td><td>{model}</td><td class=\"num\">{size} GiB on {memory} GB, {speed} tok/s</td><td>{machine}</td>\
+                 <td><a class=\"lnk\" href=\"{source}\">Source</a>{tradeoff}</td></tr>",
+                page = safe_href(&paths::engine(&engine.id)),
+                name = escape(&engine.name),
+                model = escape(item.model.as_deref().unwrap_or_default()),
+                size = item.model_gib.unwrap_or_default(),
+                memory = item.memory_gb.unwrap_or_default(),
+                speed = item.tok_s.unwrap_or_default(),
+                machine = escape(&item.machine),
+                source = safe_href(&item.source),
+                tradeoff = item.tradeoff.as_deref().map(|text| format!(" · {}", escape(text))).unwrap_or_default(),
+            )
+        })
+        .collect();
+    if rows.is_empty() {
+        return String::new();
+    }
+    format!(
+        "<section class=\"blk\">{}<div class=\"scrollx\"><table class=\"tbl\"><thead><tr><th>Engine</th><th>Model</th><th>Size, memory, speed</th><th>Machine</th><th>Source and trade-off</th></tr></thead><tbody>{rows}</tbody></table></div></section>",
+        heading("Larger models on this hardware", "Claimed by the authors, with the machine each was measured on.")
+    )
+}
+
 fn not_here(hw: &HardwarePage, catalog: &Catalog) -> String {
     let rows: String = alphabetical(catalog)
         .into_iter()
@@ -144,14 +178,14 @@ pub fn hardware_page(hw: &HardwarePage, catalog: &Catalog, facts: &Facts) -> Str
          <p class=\"lede\">Numbers measured on {title} come first. Numbers from other chips come after, marked as weaker evidence, because a faster or slower chip says little about how an engine behaves on yours. Lists are A to Z.</p>\
          <p class=\"onlyv\">Listed engines only. Community listings are not shown here and are never recommended.</p>\
          <div class=\"chips\"><span class=\"sm\">Other hardware:</span>{links}</div><div class=\"gap\">{url}</div></section>\
-         {same}{other}{refs}{none}{notrec}\
-         <section class=\"blk\"><div class=\"grid2\"><div class=\"panel\"><h3>Your Mac</h3><p>Not measured yet. Measuring on your own Mac arrives with the chat in the Kalsa app, and the real tok/s will then sit next to the author's claim.</p></div>\
-         <div class=\"panel dash\"><h3>Measured by Kalsa users <span class=\"soon\">Coming soon</span></h3><p>A per-chip table from opt-in measurements on real machines. Not available yet, and nothing here is invented.</p></div></div></section>{off}</div>",
+         {same}{other}{larger}{refs}{none}{notrec}\
+         {off}</div>",
         title = escape(&hw.title),
         links = family_links(),
         url = url_bar(&path),
         same = same_section(hw, catalog, facts),
         other = other_section(hw, catalog, facts),
+        larger = larger_models_section(hw, catalog),
         refs = reference_section(hw, catalog, facts),
         none = without_number(hw, catalog),
         notrec = not_recommended_section(hw, catalog, facts),

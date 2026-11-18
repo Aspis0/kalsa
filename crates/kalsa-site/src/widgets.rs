@@ -1,5 +1,5 @@
 //! Small interactive pieces that need a backend later: share bars and the claim line.
-//! Accounts are S3, so every sign-in button here is disabled and says "coming soon".
+//! Accounts are not built yet, so every sign-in button here is disabled and says "coming soon".
 
 use crate::html::{encode_component, escape, safe_href, HELP};
 use crate::paths;

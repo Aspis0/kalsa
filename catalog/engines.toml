@@ -16,6 +16,7 @@ repo = "ggml-org/llama.cpp"
 author = "ggml-org (org)"
 license = "MIT"
 kind = "reference"
+website = "https://llama.app"
 hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5", "nvidia", "amd", "intel", "cpu"]
 summary = "Reference upstream across Metal, CUDA, ROCm/HIP, Vulkan, SYCL and CPU"
 
@@ -88,6 +89,7 @@ repo = "vllm-project/vllm"
 author = "vllm-project (org)"
 license = "Apache-2.0"
 kind = "reference"
+website = "https://vllm.ai"
 hardware = ["nvidia", "amd", "intel", "cpu"]
 summary = "Reference upstream for NVIDIA, AMD, Intel GPU and CPU"
 
@@ -98,8 +100,81 @@ repo = "ollama/ollama"
 author = "ollama (org)"
 license = "MIT"
 kind = "reference"
+website = "https://ollama.com"
 hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5", "nvidia", "amd", "cpu"]
 summary = "Reference upstream: UX wrapper with a model library"
+
+[[engine]]
+id = "ds4"
+name = "DwarfStar 4"
+repo = "antirez/ds4"
+author = "antirez"
+license = "MIT"
+kind = "engine"
+website = "https://dwarfstar.sh"
+website_label = "Community site"
+hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5", "nvidia", "amd"]
+summary = "Inference engine in C built around a few large models (DeepSeek V4 Flash and PRO, GLM 5.x, Qwen3.8), with Metal, CUDA and ROCm backends"
+
+[[engine.improvement]]
+kind = "bigger-models"
+summary = "DeepSeek Flash at 2-bit, about 81 GiB, decodes at 34.36 tok/s with a 32,768-token context on a 128 GB Mac"
+machine = "M5 Max, 128 GB"
+chip_tag = "apple-m5"
+model = "DeepSeek Flash Q2"
+source = "https://github.com/antirez/ds4/blob/main/docs/PERFORMANCE.md"
+model_gib = 81.0
+memory_gb = 128.0
+tok_s = 34.36
+
+[[engine.improvement]]
+kind = "bigger-models"
+summary = "GLM 5.3 Flash at Q4_K, 177.77 GiB and larger than the 128 GB of memory, runs from the SSD at 11.9–14.9 tok/s (three-run median, 2K prompt plus 1K append, 128 generated tokens)"
+machine = "M5 Max, 128 GB"
+chip_tag = "apple-m5"
+model = "GLM 5.3 Flash Q4_K"
+source = "https://github.com/antirez/ds4/blob/main/docs/SSD_STREAMING.md"
+tradeoff = "The expert weights are read from the SSD, so it needs a fast local SSD, and the speed depends on the prompt."
+model_gib = 177.77
+memory_gb = 128.0
+tok_s = 11.9
+
+[[engine.improvement]]
+kind = "multi-machine"
+summary = "Two 128 GB Macs linked over RDMA run DeepSeek V4 Flash Q4 or MXFP4, or GLM 5.3 Flash Q4, with tensor parallelism that splits the experts between them"
+machine = "Two 128 GB Macs over RDMA"
+source = "https://github.com/antirez/ds4/blob/main/docs/DISTRIBUTED.md"
+tradeoff = "The link between the machines has no authentication or encryption, so it needs a trusted network."
+
+[[engine.improvement]]
+kind = "new-hardware"
+summary = "DeepSeek V4 Flash runs on eight NVIDIA L40S cards (Ada Lovelace) at about 126 tok/s aggregate with 16 sessions; the author says other implementations of these models need newer GPUs"
+machine = "8x NVIDIA L40S"
+chip_tag = "nvidia"
+model = "DeepSeek V4 Flash"
+source = "https://github.com/antirez/ds4/blob/main/docs/CUDA_MULTI_GPU.md"
+tradeoff = "The 126 tok/s is total throughput across sessions, not the speed of one user."
+
+[[engine]]
+id = "mtplx"
+name = "MTPLX"
+repo = "youssofal/MTPLX"
+author = "youssofal"
+license = "Apache-2.0"
+kind = "reference"
+website = "https://mtplx.com"
+hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5"]
+summary = "Mac app and command line that runs Qwen models on Apple Silicon using the model's own multi-token prediction heads"
+
+[[engine]]
+id = "strata"
+name = "Strata"
+repo = "Niko1221/Strata"
+author = "Niko1221"
+license = "MIT"
+kind = "reference"
+hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5", "nvidia", "amd"]
+summary = "Desktop app and engine for running Qwen3.8 models locally on NVIDIA, AMD and Apple Silicon, with an OpenAI-compatible local API"
 
 [[engine]]
 id = "rapid-mlx"
@@ -108,6 +183,7 @@ repo = "raullenchai/Rapid-MLX"
 author = "raullenchai"
 license = "Apache-2.0"
 kind = "engine"
+website = "https://rapidmlx.com"
 upstream = "ml-explore/mlx-lm"
 hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5"]
 summary = "Pure MLX kernels with continuous batching and prefix cache"
@@ -129,6 +205,8 @@ repo = "incoai/splash"
 author = "incoai (Inco AI org)"
 license = "Apache-2.0"
 kind = "engine"
+website = "https://inco.ai/blog/splash/"
+website_label = "Announcement"
 hardware = ["apple-m3", "apple-m4", "apple-m5"]
 summary = "Neural Engine prefill and SSD-tiered KV on Apple M3+"
 
@@ -496,6 +574,7 @@ repo = "defai-digital/ax-engine"
 author = "defai-digital"
 license = "Apache-2.0"
 kind = "engine"
+website = "https://ax-engine.app"
 hardware = ["apple-m5"]
 summary = "AXQ MXFP4 MTP sidecars on MLX"
 
@@ -538,6 +617,7 @@ repo = "nace-ai/kapitsa"
 author = "nace-ai (org)"
 license = "Apache-2.0"
 kind = "engine"
+website = "https://kapitsa.vercel.app"
 hardware = ["apple-m5"]
 summary = "KFlash decoding and Nace quants"
 
@@ -581,9 +661,20 @@ repo = "Generated-Computers/Locals"
 author = "Generated-Computers (org)"
 license = "Apache-2.0"
 kind = "engine"
+website = "https://generatedcomputers.com"
 hardware = ["apple-m2"]
 summary = "Continuous batching across requests and KV reuse across restarts"
-note = "The README reports 271 tok/s aggregate decode at 8 concurrent requests against mlx-lm's 87 tok/s on a MacBook Pro M2 Pro 16GB (Qwen3.5-4B-MLX, 4bit). That is an aggregate figure, not a single-stream one, so Kalsa shows no comparison"
+
+[[engine.improvement]]
+kind = "parallel-throughput"
+summary = "271 tok/s aggregate decode across 8 concurrent requests, against 87 tok/s for mlx-lm; total throughput, not the speed of one stream"
+machine = "MacBook Pro M2 Pro 16GB"
+chip_tag = "apple-m2"
+model = "Qwen3.5-4B-MLX 4bit"
+source = "https://github.com/Generated-Computers/Locals"
+before = 87.0
+after = 271.0
+unit = "tok/s aggregate, 8 concurrent requests"
 
 [[engine]]
 id = "architectds-strata"
@@ -614,6 +705,8 @@ repo = "antonellof/frink"
 author = "antonellof"
 license = "Apache-2.0"
 kind = "engine"
+website = "https://www.fratepietro.com/2026/frink-rust-alternative-to-llama-cpp/"
+website_label = "Announcement"
 hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5"]
 summary = "Pure-Rust GGUF loader with quantized Metal kernels and lossless speculative decoding"
 note = "Apple Metal only: the llama.cpp baseline build is unknown, and frink is much slower than llama.cpp on CPU and CUDA"

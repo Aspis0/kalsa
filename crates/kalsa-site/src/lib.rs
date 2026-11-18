@@ -12,6 +12,7 @@ mod feeds;
 mod hardware;
 mod home;
 mod html;
+mod improvements;
 mod layout;
 mod model;
 mod paths;
@@ -59,7 +60,7 @@ fn sections(catalog: &Catalog, facts: &Facts) -> Vec<(PathBuf, String)> {
         file(paths::section("compare"), compare::compare_index(catalog)),
         file(paths::section("how-we-choose"), prose::how_we_choose()),
         file(paths::section("submit"), prose::submit(catalog)),
-        file(paths::section("download"), prose::download()),
+        file(paths::section("app"), prose::app()),
     ];
     files.extend(catalog.engine.iter().map(|engine| file(paths::engine(&engine.id), engine::engine_page(catalog, engine, facts))));
     files.extend(model::hardware_pages(catalog).iter().map(|hw| file(paths::hardware(&hw.slug), hardware::hardware_page(hw, catalog, facts))));

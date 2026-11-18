@@ -30,8 +30,7 @@ pub fn compare_page(pair: &Pair) -> String {
          <p class=\"sm\">A comparison exists only when an author published both numbers on the same machine.</p><div class=\"gap\">{url}</div></section>\
          <section class=\"blk\"><div class=\"sh left\"><h2>Published numbers</h2></div><div class=\"bgrid\">{blocks}</div></section>{banner}\
          <section class=\"blk\"><div class=\"grid2\"><div class=\"panel\"><h3>On a different chip?</h3><p>These numbers come from {chip}. See what has been published for your own chip.</p>\
-         <p><a class=\"lnk\" href=\"../../{hardware}\">Engines for {chip}</a> or <a class=\"lnk\" href=\"../../{engine_page}\">the {engine} page</a></p></div>\
-         <div class=\"panel dash\"><h3>Measured by Kalsa users <span class=\"soon\">Coming soon</span></h3><p>The same pair, measured by people on their own Macs, will sit beside the author's numbers.</p></div></div></section></div>",
+         <p><a class=\"lnk\" href=\"../../{hardware}\">Engines for {chip}</a> or <a class=\"lnk\" href=\"../../{engine_page}\">the {engine} page</a></p></div></div></section></div>",
         title = escape(&title),
         engine = escape(&pair.engine.name),
         baseline = escape(pair.baseline),

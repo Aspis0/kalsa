@@ -210,6 +210,15 @@ fn a_bad_archive_digest_is_rejected() {
 fn a_review_record_is_exposed_as_reviewed() {
     let text = r#"
 [[engine]]
+id = "upstream"
+name = "Upstream"
+repo = "a/upstream"
+author = "a"
+license = "MIT"
+kind = "reference"
+hardware = ["cpu"]
+summary = "s"
+[[engine]]
 id = "reviewed"
 name = "Reviewed"
 repo = "a/reviewed"
@@ -234,7 +243,7 @@ date = "2026-11-18"
 upstream = "a/upstream"
 "#;
     let catalog = parse(text).expect("a review record is valid");
-    let review = catalog.engine[0].reviewed.as_ref().expect("review parsed");
+    let review = catalog.engine[1].reviewed.as_ref().expect("review parsed");
     assert_eq!(review.commit, "a1b2c3d");
     assert_eq!(review.upstream, "a/upstream");
 }
@@ -403,12 +412,20 @@ fn a_repo_cannot_be_a_path_or_an_option() {
 }
 
 #[test]
-fn a_benchmark_needs_an_engine_figure_and_a_claim_can_live_in_a_note() {
+fn a_benchmark_needs_an_engine_figure_and_a_note_is_no_longer_a_claim() {
     let baseline_only = ONE_ENGINE.replace("decode_tok_s = 10.0\n", "");
     assert!(parse(&baseline_only).unwrap_err().contains("at least one engine figure"));
     let without_rows = ONE_ENGINE.split("[[engine.benchmark]]").next().unwrap().to_string();
-    assert!(parse(&without_rows).unwrap_err().contains("no note that states its claim"));
-    assert!(parse(&format!("{without_rows}note = \"The README reports an aggregate figure\"\n")).is_ok());
+    assert!(parse(&without_rows).unwrap_err().contains("needs a benchmark gain of at least 5% or an improvement"));
+    assert!(parse(&format!("{without_rows}note = \"The README reports an aggregate figure\"\n")).is_err());
+}
+
+#[test]
+fn locals_carries_its_aggregate_figure_as_a_parallel_throughput_improvement() {
     let locals = real_catalog().engine.into_iter().find(|engine| engine.id == "locals").unwrap();
-    assert!(locals.benchmark.is_empty() && locals.note.as_deref().is_some_and(|note| note.contains("271 tok/s")));
+    assert!(locals.benchmark.is_empty() && locals.note.is_none());
+    let item = &locals.improvement[0];
+    assert_eq!(item.kind, kalsa_engines::ImprovementKind::ParallelThroughput);
+    assert_eq!((item.before, item.after), (Some(87.0), Some(271.0)));
+    assert!(item.source.starts_with("https://github.com/Generated-Computers/Locals"));
 }

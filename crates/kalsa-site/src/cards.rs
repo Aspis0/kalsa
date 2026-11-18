@@ -1,6 +1,6 @@
 //! Small pieces shared by the home, engines, hardware and developer pages: avatars, tags, cards.
 
-use kalsa_engines::{hardware_labels, Benchmark, Engine, Gains, Kind};
+use kalsa_engines::{hardware_labels, improvement_kinds, Benchmark, Engine, Gains, Kind};
 
 use crate::facts::Facts;
 use crate::html::{escape, safe_href};
@@ -56,6 +56,12 @@ pub fn tags(engine: &Engine, facts: &Facts) -> String {
         label = engine.kind.label(),
         licence = escape(&engine.license),
     )
+}
+
+/// What the engine improves, in plain words: at most three tags, so a card stays quiet.
+fn improvement_tags(engine: &Engine) -> String {
+    let tags: String = improvement_kinds(engine).iter().take(3).map(|kind| format!("<span class=\"tg imp\">{}</span>", kind.label())).collect();
+    if tags.is_empty() { tags } else { format!("<div class=\"tags imps\">{tags}</div>") }
 }
 
 /// "prefill +35% · decode +1%, within noise": the metric that clears the 5% bar leads, a small one is muted.
@@ -123,7 +129,7 @@ pub fn card(root: &str, engine: &Engine, benchmark: Option<&Benchmark>, weak: bo
     format!(
         "<a class=\"card\" href=\"{href}\" data-id=\"{id}\"><div class=\"ch\">{avatar}<div class=\"nm\"><b>{name}</b><span>by {author}</span></div>\
          <span class=\"like\" title=\"Likes are coming soon\">&#9825;<i>soon</i></span></div><p class=\"sum\">{summary}.</p>{relation}\
-         <div class=\"tags\">{tags}</div><div class=\"cmpw\">{area}</div></a>",
+         <div class=\"tags\">{tags}</div>{improvements}<div class=\"cmpw\">{area}</div></a>",
         href = safe_href(&format!("{root}{}", paths::engine(&engine.id))),
         id = escape(&engine.id),
         avatar = avatar(login(engine), "md", is_org(engine)),
@@ -132,6 +138,7 @@ pub fn card(root: &str, engine: &Engine, benchmark: Option<&Benchmark>, weak: bo
         summary = escape(&engine.summary),
         relation = relation(engine),
         tags = tags(engine, facts),
+        improvements = improvement_tags(engine),
         area = comparison_area(engine, benchmark, weak),
     )
 }

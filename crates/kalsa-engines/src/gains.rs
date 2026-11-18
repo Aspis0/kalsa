@@ -4,8 +4,13 @@ use serde::Serialize;
 
 use crate::{display::gain_label, Benchmark};
 
-/// PLAN R1b: a difference under 5% is noise, not a gain.
+/// A difference under 5% is noise, not a gain.
 const NOISE_BAND: f64 = 0.05;
+
+/// True when a ratio is far enough from 1 (5% either way) to be more than run-to-run noise.
+pub(crate) fn clears_noise(ratio: f64) -> bool {
+    !(ratio > 1.0 - NOISE_BAND && ratio < 1.0 + NOISE_BAND)
+}
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -24,6 +29,13 @@ pub struct MetricGain {
 pub struct Gains {
     pub decode: Option<MetricGain>,
     pub prefill: Option<MetricGain>,
+}
+
+impl MetricGain {
+    /// A faster figure that clears the noise band. A slower one is shown, but it is not a gain.
+    pub fn is_gain(&self) -> bool {
+        !self.noise && self.ratio > 1.0
+    }
 }
 
 impl Gains {
@@ -53,7 +65,7 @@ impl Gains {
 fn metric_gain(name: &str, value: Option<f64>, base: Option<f64>) -> Option<MetricGain> {
     let ratio = value? / base?;
     let text = gain_label(ratio);
-    let noise = ratio > 1.0 - NOISE_BAND && ratio < 1.0 + NOISE_BAND;
+    let noise = !clears_noise(ratio);
     let label = if noise { format!("{name} {text}, within noise") } else { format!("{name} {text}") };
     Some(MetricGain { ratio, gain_label: text, noise, label })
 }
