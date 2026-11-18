@@ -13,8 +13,8 @@ interface RailItem {
 export function Rail({ current, onOpen }: { current: SurfaceKey; onOpen: (surface: SurfaceKey) => void }) {
   const { table } = useLanguage();
   const items: RailItem[] = [
+    { key: "engines", label: table.chrome.pages.engines, icon: "cpu" },
     { key: "chat", label: table.chrome.chat, icon: "chat" },
-    { key: "models", label: table.chrome.pages.models, icon: "cpu" },
     { key: "settings", label: table.chrome.settings, icon: "settings" },
   ];
 

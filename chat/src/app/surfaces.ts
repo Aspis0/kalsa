@@ -1,1 +1,1 @@
-export type SurfaceKey = "chat" | "models" | "settings";
+export type SurfaceKey = "engines" | "chat" | "models" | "settings";

@@ -1,5 +1,6 @@
 use std::process::{Command, Stdio};
 
+use kalsa_engines::Machine;
 use serde::Serialize;
 use tauri::{webview::WebviewWindowBuilder, WebviewUrl};
 use url::Url;
@@ -23,6 +24,64 @@ fn brain_machine() -> MachineInfo {
         logical_cores: kalsa_probe::logical_cores(),
         ram_bytes: ram_bytes(),
     }
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct EngineMachine {
+    chip_name: String,
+    chip_tag: String,
+    cores: Option<usize>,
+    ram_bytes: u64,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct EnginesView {
+    machine: EngineMachine,
+    engines: Vec<kalsa_engines::Engine>,
+    picks: Vec<kalsa_engines::Pick>,
+}
+
+/// The catalog ships with the app; a remote source arrives in M3.
+#[tauri::command]
+fn engines_view() -> Result<EnginesView, String> {
+    let chip_name = kalsa_probe::brand_string().unwrap_or_default();
+    // Windows and Linux are after 0.1; unknown brands fall back to the CPU tag.
+    let chip_tag = kalsa_engines::chip_tag_for_brand(&chip_name)
+        .unwrap_or("cpu")
+        .to_string();
+    view_for(
+        &chip_name,
+        &chip_tag,
+        kalsa_probe::physical_cores().or_else(kalsa_probe::logical_cores),
+        ram_bytes(),
+    )
+}
+
+fn view_for(
+    chip_name: &str,
+    chip_tag: &str,
+    cores: Option<usize>,
+    memory: u64,
+) -> Result<EnginesView, String> {
+    let catalog = kalsa_engines::parse(include_str!("../../catalog/engines.toml"))
+        .map_err(|error| format!("The bundled engine catalog is invalid: {error}"))?;
+    let machine = Machine {
+        chip_tag: chip_tag.to_string(),
+        chip_name: chip_name.to_string(),
+    };
+    let picks = kalsa_engines::recommend(&machine, &catalog);
+    Ok(EnginesView {
+        machine: EngineMachine {
+            chip_name: chip_name.to_string(),
+            chip_tag: chip_tag.to_string(),
+            cores,
+            ram_bytes: memory,
+        },
+        engines: catalog.engine,
+        picks,
+    })
 }
 
 /// Open a public address in the system browser, never in the app's webview.
@@ -127,6 +186,24 @@ fn ram_bytes() -> u64 {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn engines_view_ranks_shunya_first_and_marks_frink_as_another_chip() {
+        let view = view_for("Apple M1 Max", "apple-m1", Some(10), 64 * 1024 * 1024 * 1024)
+            .expect("the bundled catalog is valid");
+        assert_eq!(view.picks[0].engine_id, "shunya-mtplx-m1");
+        let frink = view
+            .picks
+            .iter()
+            .find(|pick| pick.engine_id == "frink")
+            .expect("frink runs on Apple Silicon");
+        assert!(!frink.same_chip);
+    }
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     tauri::Builder::default()
         .setup(|app| {
@@ -139,7 +216,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .build()?;
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![brain_machine, brain_open_external])
+        .invoke_handler(tauri::generate_handler![
+            brain_machine,
+            brain_open_external,
+            engines_view
+        ])
         .run(tauri::generate_context!())?;
     Ok(())
 }

@@ -35,6 +35,32 @@ fn an_m1_max_gets_the_shunya_build_first() {
 }
 
 #[test]
+fn the_view_marks_frink_as_another_chip() {
+    let picks = kalsa_engines::recommend(&machine("apple-m1", "Apple M1 Max"), &real_catalog());
+    assert_eq!(picks[0].engine_id, "shunya-mtplx-m1");
+    let frink = picks
+        .iter()
+        .find(|pick| pick.engine_id == "frink")
+        .expect("frink runs on Apple Silicon");
+    assert!(!frink.same_chip);
+    assert!(frink.gain_label.is_some());
+    assert!(frink.metric == Some("decode"));
+}
+
+#[test]
+fn picks_carry_the_display_labels_and_recommendable_flag() {
+    let m1 = kalsa_engines::recommend(&machine("apple-m1", "Apple M1 Max"), &real_catalog());
+    let frink = m1.iter().find(|pick| pick.engine_id == "frink").unwrap();
+    assert_eq!(frink.chip_label.as_deref(), Some("M2 Pro"));
+    assert!(frink.recommendable);
+
+    let nvidia = kalsa_engines::recommend(&machine("nvidia", "RTX 4060 Ti"), &real_catalog());
+    let slow = nvidia.iter().find(|pick| pick.engine_id == "neutronstar").unwrap();
+    assert!(!slow.recommendable);
+    assert_eq!(slow.chip_label.as_deref(), Some("NVIDIA GPU"));
+}
+
+#[test]
 fn a_base_m1_does_not_take_an_m1_max_benchmark_as_exact() {
     let picks = kalsa_engines::recommend(&machine("apple-m1", "Apple M1"), &real_catalog());
     let shunya = picks
@@ -144,6 +170,39 @@ summary = "s"
 "#;
     let text = format!("{engine}{engine}");
     assert!(parse(&text).unwrap_err().contains("duplicate engine id"));
+}
+
+#[test]
+fn a_review_record_is_exposed_as_reviewed() {
+    let text = r#"
+[[engine]]
+id = "reviewed"
+name = "Reviewed"
+repo = "a/reviewed"
+author = "a"
+license = "MIT"
+kind = "fork"
+upstream = "a/upstream"
+hardware = ["cpu"]
+summary = "s"
+[[engine.benchmark]]
+source = "https://example.invalid/a"
+machine = "Laptop"
+chip_tag = "cpu"
+model = "m"
+quant = "Q4"
+decode_tok_s = 10.0
+baseline = "b"
+baseline_decode_tok_s = 5.0
+[engine.review]
+commit = "a1b2c3d"
+date = "2026-11-18"
+upstream = "a/upstream"
+"#;
+    let catalog = parse(text).expect("a review record is valid");
+    let review = catalog.engine[0].reviewed.as_ref().expect("review parsed");
+    assert_eq!(review.commit, "a1b2c3d");
+    assert_eq!(review.upstream, "a/upstream");
 }
 
 #[test]

@@ -6,7 +6,7 @@
   z-index: 40;
   display: grid;
   place-items: center;
-  background: rgba(35, 38, 30, 0.28);
+  background: rgba(var(--ink-rgb), 0.28);
 }
 
 [data-theme="dark"] .dialog-scrim {

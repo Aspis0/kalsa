@@ -1,37 +1,32 @@
 /* Design tokens: the same names in both themes; only the values change.
-   Type is system-only, with no remote font load. */
+   One palette for the whole app, "Lagoon": teal on pale aqua-grey with white cards
+   (the same values as design/site-v4/_src/palettes.py). Type is system-only, with
+   no remote font load. */
 
 :root {
-  --bg: #f4f1e9;
-  --rail: #ece8dd;
-  --card: #fbfaf5;
-  --line: #ddd7c8;
-  --tx: #23261e;
-  --tx2: #53584a;
-  --tx3: #646a5b;
-  --ac: #3f6b3a;
+  --bg: #eef5f6;
+  /* The rail and the engines sidebar. */
+  --rail: #e1ecee;
+  --card: #ffffff;
+  --line: #d3e2e5;
+  --line2: #b9d0d4;
+  --tx: #102a30;
+  --tx2: #47636a;
+  --tx3: #567075;
+  --ac: #0a8a80;
   --ac-ink: #ffffff;
-  --ac-soft: #e2e8d4;
-  --ac-tx: #3a6334;
-  --ring: #74b266;
-  --ring-glow: rgba(116, 178, 102, 0.45);
-  --track: #e2dccc;
-  --face1: #ffffff;
-  --face2: #efebe0;
-  --bezel: #e6e1d3;
-  --sh: rgba(80, 70, 40, 0.28);
-  --warn-fill: #f3e3c8;
-  --warn-ink: #7a5418;
-  /* The warning ring and its icon keep these values in both themes. */
-  --warn-ring: #d9a443;
-  --warn-face: #9a6a1c;
-  --err-ink: #9b3b2e;
-  /* An error card's wash, edge and icon disc. */
-  --err-wash: #fbf1ee;
-  --err-line: #ebcfc8;
-  --err-soft: #f6ddd7;
+  --ac-soft: #d8f1ee;
+  --ac-tx: #07756d;
+  --ac-line: #8dd0c8;
+  --ring: #0a8a80;
+  --ring-glow: rgba(10, 138, 128, 0.35);
+  --track: #cfe0e3;
+  --sh: rgba(16, 42, 48, 0.22);
+  --warn-fill: #f8e6c4;
+  --warn-ink: #7a5000;
+  --err-ink: #a63a2e;
   /* The Delete button, the same in both themes. */
-  --danger-fill: #9b3b2e;
+  --danger-fill: #a63a2e;
 
   /* Names shared by the older components. */
   --page: var(--bg);
@@ -48,9 +43,11 @@
   --accent-ink: var(--ac-ink);
   --selection: var(--ac-soft);
   --danger: var(--err-ink);
-  --ink-rgb: 35, 38, 30;
-  --surface-muted-rgb: 236, 232, 221;
-
+  --ink-rgb: 16, 42, 48;
+  --surface-muted-rgb: 225, 236, 238;
+  /* Hairline fills built from the ink colour. */
+  --chip: rgba(var(--ink-rgb), 0.06);
+  --sel: rgba(var(--ink-rgb), 0.08);
 
   --font-ui: -apple-system, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", system-ui;
   --font-display: -apple-system, "SF Pro Display", "Segoe UI Variable Display", "Segoe UI", system-ui;
@@ -62,32 +59,27 @@
 }
 
 [data-theme="dark"] {
-  --bg: #191a16;
-  --rail: #131410;
-  --card: #22241e;
-  --line: #33362d;
-  --tx: #eeece3;
-  --tx2: #bebfb0;
-  --tx3: #a2a494;
-  --ac: #a9cf8e;
-  --ac-ink: #16220f;
-  --ac-soft: #2a3423;
-  --ac-tx: #b8da9f;
-  --ring: #8fd07a;
-  --ring-glow: rgba(143, 208, 122, 0.35);
-  --track: #2c2f27;
-  --face1: #34372f;
-  --face2: #25281f;
-  --bezel: #121310;
+  --bg: #0b1a1d;
+  --rail: #0e2125;
+  --card: #12282c;
+  --line: #21434a;
+  --line2: #2e565d;
+  --tx: #e8f4f4;
+  --tx2: #9dbcc0;
+  --tx3: #7ea0a5;
+  --ac: #38d2c2;
+  --ac-ink: #04231f;
+  --ac-soft: #15403f;
+  --ac-tx: #5fe0d2;
+  --ac-line: #2a7d76;
+  --ring: #38d2c2;
+  --ring-glow: rgba(56, 210, 194, 0.35);
+  --track: #1d3b41;
   --sh: rgba(0, 0, 0, 0.6);
   --warn-fill: #3a3022;
   --warn-ink: #e8c489;
   --err-ink: #f0a08f;
-  --err-wash: #2b2220;
-  --err-line: #4a322c;
-  --err-soft: #3d2a25;
 
-  --ink-rgb: 238, 236, 227;
-  --surface-muted-rgb: 19, 20, 16;
-
+  --ink-rgb: 232, 244, 244;
+  --surface-muted-rgb: 14, 33, 37;
 }

@@ -5,7 +5,7 @@
   position: absolute;
   inset: 76px 0 0;
   z-index: 20;
-  background: rgba(35, 38, 30, 0.08);
+  background: rgba(var(--ink-rgb), 0.08);
 }
 
 .chat-list {

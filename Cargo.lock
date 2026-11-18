@@ -1691,6 +1691,7 @@ dependencies = [
 name = "kalsa"
 version = "0.0.6"
 dependencies = [
+ "kalsa-engines",
  "kalsa-probe",
  "libc",
  "serde",

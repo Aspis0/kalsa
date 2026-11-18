@@ -6,7 +6,7 @@ import { Icon } from "./Icon";
 import "./Settings.css";
 
 type Look = Theme | "auto";
-const LOOKS: Look[] = ["light", "dark", "auto"];
+const LOOKS: Look[] = ["auto", "light", "dark"];
 
 interface SettingsFormProps {
   theme: Theme;

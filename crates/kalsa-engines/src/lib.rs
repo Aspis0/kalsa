@@ -4,7 +4,12 @@
 use std::cmp::Ordering;
 use std::collections::HashSet;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+
+mod display;
+mod review;
+
+use review::Review;
 
 const KNOWN_TAGS: &[&str] = &[
     "apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5", "nvidia", "amd", "intel", "cpu",
@@ -15,7 +20,7 @@ const OSI_LICENSES: &[&str] = &[
     "LGPL-3.0", "AGPL-3.0", "MPL-2.0", "ISC", "Unlicense",
 ];
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum Kind {
     Reference,
@@ -23,21 +28,22 @@ pub enum Kind {
     Engine,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Benchmark {
     pub source: String,
     pub machine: String,
+    #[serde(rename(serialize = "chipTag", deserialize = "chip_tag"))]
     pub chip_tag: String,
     pub model: String,
     pub quant: String,
-    #[serde(default)]
+    #[serde(default, rename(serialize = "decodeTokS", deserialize = "decode_tok_s"))]
     pub decode_tok_s: Option<f64>,
-    #[serde(default)]
+    #[serde(default, rename(serialize = "prefillTokS", deserialize = "prefill_tok_s"))]
     pub prefill_tok_s: Option<f64>,
     pub baseline: String,
-    #[serde(default)]
+    #[serde(default, rename(serialize = "baselineDecodeTokS", deserialize = "baseline_decode_tok_s"))]
     pub baseline_decode_tok_s: Option<f64>,
-    #[serde(default)]
+    #[serde(default, rename(serialize = "baselinePrefillTokS", deserialize = "baseline_prefill_tok_s"))]
     pub baseline_prefill_tok_s: Option<f64>,
     #[serde(default)]
     pub note: Option<String>,
@@ -47,7 +53,8 @@ fn recommendable() -> bool {
     true
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Engine {
     pub id: String,
     pub name: String,
@@ -65,24 +72,35 @@ pub struct Engine {
     pub note: Option<String>,
     #[serde(default)]
     pub benchmark: Vec<Benchmark>,
+    #[serde(default, rename(serialize = "reviewed", deserialize = "review"))]
+    pub reviewed: Option<Review>,
 }
-
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Catalog {
     pub engine: Vec<Engine>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Machine {
     pub chip_tag: String,
     pub chip_name: String,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Pick {
     pub engine_id: String,
     pub benchmark: Option<Benchmark>,
     pub reason: String,
+    pub same_chip: bool,
+    pub exact_machine: bool,
+    pub metric: Option<&'static str>,
+    pub figure_label: Option<String>,
+    pub gain: Option<f64>,
+    pub gain_label: Option<String>,
+    pub chip_label: Option<String>,
+    pub recommendable: bool,
 }
 
 /// Parse the TOML and check the facts the weekly job also checks by hand:
@@ -125,12 +143,15 @@ fn validate(catalog: &Catalog) -> Result<(), String> {
         if !OSI_LICENSES.contains(&engine.license.as_str()) {
             return Err(format!("{}: licence {} is not on the OSI list", engine.id, engine.license));
         }
+        if let Some(record) = &engine.reviewed {
+            review::validate(record, &engine.id)?;
+        }
         validate_benchmarks(engine)?;
     }
     Ok(())
 }
 
-fn valid_repo(repo: &str) -> bool {
+pub(crate) fn valid_repo(repo: &str) -> bool {
     let parts: Vec<&str> = repo.split('/').collect();
     parts.len() == 2
         && parts.iter().all(|part| {
@@ -318,17 +339,23 @@ pub fn recommend(machine: &Machine, catalog: &Catalog) -> Vec<Pick> {
                 exact: score.is_some_and(|s| s.1),
                 decode: score.map(|s| s.2).unwrap_or(0.0),
             };
+            let same = score.is_some_and(|s| s.0);
+            let exact = score.is_some_and(|s| s.1);
+            let gain = best.and_then(display::gain_of);
             (
                 rank,
                 Pick {
                     engine_id: engine.id.clone(),
                     benchmark: best.cloned(),
-                    reason: explain(
-                        engine,
-                        best,
-                        score.is_some_and(|s| s.0),
-                        score.is_some_and(|s| s.1),
-                    ),
+                    reason: explain(engine, best, same, exact),
+                    same_chip: same,
+                    exact_machine: exact,
+                    metric: best.map(|b| if b.decode_tok_s.is_some() { "decode" } else { "prefill" }),
+                    figure_label: best.and_then(display::figure_label),
+                    gain,
+                    gain_label: gain.map(display::gain_label),
+                    chip_label: best.map(display::chip_label),
+                    recommendable: engine.recommendable,
                 },
             )
         })

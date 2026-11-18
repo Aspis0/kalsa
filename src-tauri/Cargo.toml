@@ -9,6 +9,7 @@ license.workspace = true
 tauri-build = { version = "2.7", features = [] }
 
 [dependencies]
+kalsa-engines = { path = "../crates/kalsa-engines" }
 kalsa-probe = { path = "../crates/kalsa-probe" }
 serde = { version = "1", features = ["derive"] }
 tauri = { version = "2.12", features = [] }

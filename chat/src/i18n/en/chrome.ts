@@ -3,6 +3,7 @@ export const CHROME = {
   settings: "Settings",
   navigation: "Pages",
   pages: {
+    engines: "Engines",
     models: "Your AI",
   } as Record<string, string>,
   showConversations: "Show chats",
@@ -13,6 +14,6 @@ export const SETTINGS = {
   look: "Look",
   lookLight: "Light",
   lookDark: "Dark",
-  lookAuto: "Automatic",
+  lookAuto: "System",
   lede: "Your messages and answers stay on this computer.",
 };

@@ -5,13 +5,14 @@ import { Rail } from "./components/Rail";
 import { loadTheme, saveTheme, themeChoiceMade, forgetThemeChoice } from "./lib/settings";
 import type { Theme } from "./lib/settings";
 import { ChatSurface } from "./surfaces/ChatSurface";
+import { EnginesSurface } from "./surfaces/engines/EnginesSurface";
 import { ModelsSurface } from "./surfaces/ModelsSurface";
 import { SettingsForm } from "./components/SettingsForm";
 import { useChat } from "./surfaces/useChat";
 import "./App.css";
 
 export function App() {
-  const [surface, setSurface] = useState<SurfaceKey>("chat");
+  const [surface, setSurface] = useState<SurfaceKey>("engines");
   const [theme, setTheme] = useState<Theme>(() => loadTheme());
   const chat = useChat();
 
@@ -39,7 +40,9 @@ export function App() {
       <div className="shell-main">
         <main className="stage">
           <ErrorBoundary>
-            {surface === "chat" ? (
+            {surface === "engines" ? (
+              <EnginesSurface />
+            ) : surface === "chat" ? (
               <ChatSurface chat={chat} onNavigate={setSurface} />
             ) : surface === "models" ? (
               <ModelsSurface onNavigate={setSurface} />

@@ -42,7 +42,7 @@ export function ChatSurface({ chat, onNavigate }: { chat: Chat; onNavigate: (sur
           {chat.active && chat.active.messages.length > 0 ? (
             <Thread messages={chat.active.messages} />
           ) : (
-            <EmptyState onOpenEngines={() => onNavigate("models")} />
+            <EmptyState onOpenEngines={() => onNavigate("engines")} />
           )}
           <Composer draft={chat.draft} onDraftChange={chat.setDraft} onSend={chat.send} />
         </div>
