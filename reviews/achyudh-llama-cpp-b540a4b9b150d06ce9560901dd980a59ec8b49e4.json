@@ -1,0 +1,242 @@
+{
+  "engine": "achyudh-llama-cpp",
+  "inputs": {
+    "fork": "achyudh/llama.cpp",
+    "fork_branch": "feature/adaptive-kv-stream-rocm",
+    "commit": "b540a4b9b150d06ce9560901dd980a59ec8b49e4",
+    "upstream": "ggml-org/llama.cpp",
+    "upstream_branch": "master",
+    "upstream_sha": "78e05298f0d68abff41d08d79fa7469264b2aff0",
+    "base_sha": "a37cc46104eb50900d5ab4a9ba02a0abdac039db",
+    "compare_url": "https://github.com/ggml-org/llama.cpp/compare/master...achyudh:b540a4b9b150d06ce9560901dd980a59ec8b49e4",
+    "tool_versions": {
+      "semgrep": "1.186.0",
+      "osv-scanner": "v2.7.1"
+    },
+    "tool_notes": [
+      "guarddog not used: local scan requires network access",
+      "no model pass: review is deterministic static analysis"
+    ]
+  },
+  "created_at": "2026-11-18T22:43:35.248369+00:00",
+  "signals": [
+    {
+      "tool": "semgrep",
+      "file": "ggml/src/ggml-cpu/ggml-cpu.c",
+      "line": 684,
+      "rule": "kalsa.cpp-exec-family",
+      "snippet": "getcpu_ret = syscall(SYS_getcpu, &current_cpu, &g_state.numa.current_node);",
+      "suppressed_because": "not-added-or-not-reaches-users"
+    },
+    {
+      "tool": "semgrep",
+      "file": "ggml/src/ggml-cpu/ops.cpp",
+      "line": 10744,
+      "rule": "kalsa.telemetry-endpoint",
+      "snippet": "// ref: https://github.com/facebookresearch/segment-anything/blob/main/segment_anything/modeling/image_encoder.py#L292-L322",
+      "suppressed_because": "not-added-or-not-reaches-users"
+    },
+    {
+      "tool": "semgrep",
+      "file": "ggml/src/ggml-cpu/ops.cpp",
+      "line": 10799,
+      "rule": "kalsa.telemetry-endpoint",
+      "snippet": "// ref: https://github.com/facebookresearch/segment-anything/blob/main/segment_anything/modeling/image_encoder.py#L357-L359",
+      "suppressed_because": "not-added-or-not-reaches-users"
+    },
+    {
+      "tool": "semgrep",
+      "file": "ggml/src/ggml.c",
+      "line": 213,
+      "rule": "kalsa.cpp-exec-family",
+      "snippet": "execlp(\"gdb\", \"gdb\", \"--batch\",",
+      "suppressed_because": "not-added-or-not-reaches-users"
+    },
+    {
+      "tool": "semgrep",
+      "file": "ggml/src/ggml.c",
+      "line": 221,
+      "rule": "kalsa.cpp-exec-family",
+      "snippet": "execlp(\"lldb\", \"lldb\", \"--batch\",",
+      "suppressed_because": "not-added-or-not-reaches-users"
+    },
+    {
+      "tool": "semgrep",
+      "file": "ggml/src/ggml.c",
+      "line": 1630,
+      "rule": "kalsa.cpp-process-exec",
+      "snippet": "// initialize time system (required on Windows)",
+      "suppressed_because": "not-added-or-not-reaches-users"
+    },
+    {
+      "tool": "semgrep",
+      "file": "ggml/src/ggml.c",
+      "line": 1630,
+      "rule": "kalsa.cpp-exec-family",
+      "snippet": "// initialize time system (required on Windows)",
+      "suppressed_because": "not-added-or-not-reaches-users"
+    },
+    {
+      "tool": "plain",
+      "file": ".devops/nix/rocm-rx9070xt.nix",
+      "line": 245,
+      "rule": "unresolved-host",
+      "snippet": "echo \" Endpoint:    http://$host:$port/v1\"",
+      "suppressed_because": "not-fetch-line"
+    },
+    {
+      "tool": "plain",
+      "file": "README.md",
+      "line": 37,
+      "rule": "new-url",
+      "snippet": "This work builds on concepts from [RaymondHuang210129/llama.cpp-adaptive-kv-streaming](https://github.com/RaymondHuang210129/llama.cpp-adaptive-kv-streaming) and [stew675/llama-cpp-rdna-boosts](https:",
+      "suppressed_because": "documentation-url"
+    },
+    {
+      "tool": "plain",
+      "file": "README.md",
+      "line": 37,
+      "rule": "new-url",
+      "snippet": "This work builds on concepts from [RaymondHuang210129/llama.cpp-adaptive-kv-streaming](https://github.com/RaymondHuang210129/llama.cpp-adaptive-kv-streaming) and [stew675/llama-cpp-rdna-boosts](https:",
+      "suppressed_because": "documentation-url"
+    },
+    {
+      "tool": "plain",
+      "file": "README.md",
+      "line": 43,
+      "rule": "new-url",
+      "snippet": "The configurations and benchmarks in this repository use **Qwen3.8-27B** (ASCII-condensed `IQ4_XS`, 12.63 GiB): [bsaleh03/Qwen3.8-27B-ASCII-Condensed](https://huggingface.co/bsaleh03/Qwen3.8-27B-ASCII",
+      "suppressed_because": "documentation-url"
+    },
+    {
+      "tool": "plain",
+      "file": "README.md",
+      "line": 43,
+      "rule": "new-url",
+      "snippet": "The configurations and benchmarks in this repository use **Qwen3.8-27B** (ASCII-condensed `IQ4_XS`, 12.63 GiB): [bsaleh03/Qwen3.8-27B-ASCII-Condensed](https://huggingface.co/bsaleh03/Qwen3.8-27B-ASCII",
+      "suppressed_because": "documentation-url"
+    }
+  ],
+  "findings": [],
+  "findings_by_file": {},
+  "signal_summary": {
+    "kalsa.cpp-exec-family": {
+      "count": 4,
+      "examples": [
+        {
+          "tool": "semgrep",
+          "file": "ggml/src/ggml-cpu/ggml-cpu.c",
+          "line": 684,
+          "rule": "kalsa.cpp-exec-family",
+          "snippet": "getcpu_ret = syscall(SYS_getcpu, &current_cpu, &g_state.numa.current_node);",
+          "suppressed_because": "not-added-or-not-reaches-users"
+        },
+        {
+          "tool": "semgrep",
+          "file": "ggml/src/ggml.c",
+          "line": 213,
+          "rule": "kalsa.cpp-exec-family",
+          "snippet": "execlp(\"gdb\", \"gdb\", \"--batch\",",
+          "suppressed_because": "not-added-or-not-reaches-users"
+        },
+        {
+          "tool": "semgrep",
+          "file": "ggml/src/ggml.c",
+          "line": 221,
+          "rule": "kalsa.cpp-exec-family",
+          "snippet": "execlp(\"lldb\", \"lldb\", \"--batch\",",
+          "suppressed_because": "not-added-or-not-reaches-users"
+        }
+      ]
+    },
+    "kalsa.telemetry-endpoint": {
+      "count": 2,
+      "examples": [
+        {
+          "tool": "semgrep",
+          "file": "ggml/src/ggml-cpu/ops.cpp",
+          "line": 10744,
+          "rule": "kalsa.telemetry-endpoint",
+          "snippet": "// ref: https://github.com/facebookresearch/segment-anything/blob/main/segment_anything/modeling/image_encoder.py#L292-L322",
+          "suppressed_because": "not-added-or-not-reaches-users"
+        },
+        {
+          "tool": "semgrep",
+          "file": "ggml/src/ggml-cpu/ops.cpp",
+          "line": 10799,
+          "rule": "kalsa.telemetry-endpoint",
+          "snippet": "// ref: https://github.com/facebookresearch/segment-anything/blob/main/segment_anything/modeling/image_encoder.py#L357-L359",
+          "suppressed_because": "not-added-or-not-reaches-users"
+        }
+      ]
+    },
+    "kalsa.cpp-process-exec": {
+      "count": 1,
+      "examples": [
+        {
+          "tool": "semgrep",
+          "file": "ggml/src/ggml.c",
+          "line": 1630,
+          "rule": "kalsa.cpp-process-exec",
+          "snippet": "// initialize time system (required on Windows)",
+          "suppressed_because": "not-added-or-not-reaches-users"
+        }
+      ]
+    },
+    "unresolved-host": {
+      "count": 1,
+      "examples": [
+        {
+          "tool": "plain",
+          "file": ".devops/nix/rocm-rx9070xt.nix",
+          "line": 245,
+          "rule": "unresolved-host",
+          "snippet": "echo \" Endpoint:    http://$host:$port/v1\"",
+          "suppressed_because": "not-fetch-line"
+        }
+      ]
+    },
+    "new-url": {
+      "count": 4,
+      "examples": [
+        {
+          "tool": "plain",
+          "file": "README.md",
+          "line": 37,
+          "rule": "new-url",
+          "snippet": "This work builds on concepts from [RaymondHuang210129/llama.cpp-adaptive-kv-streaming](https://github.com/RaymondHuang210129/llama.cpp-adaptive-kv-streaming) and [stew675/llama-cpp-rdna-boosts](https:",
+          "suppressed_because": "documentation-url"
+        },
+        {
+          "tool": "plain",
+          "file": "README.md",
+          "line": 37,
+          "rule": "new-url",
+          "snippet": "This work builds on concepts from [RaymondHuang210129/llama.cpp-adaptive-kv-streaming](https://github.com/RaymondHuang210129/llama.cpp-adaptive-kv-streaming) and [stew675/llama-cpp-rdna-boosts](https:",
+          "suppressed_because": "documentation-url"
+        },
+        {
+          "tool": "plain",
+          "file": "README.md",
+          "line": 43,
+          "rule": "new-url",
+          "snippet": "The configurations and benchmarks in this repository use **Qwen3.8-27B** (ASCII-condensed `IQ4_XS`, 12.63 GiB): [bsaleh03/Qwen3.8-27B-ASCII-Condensed](https://huggingface.co/bsaleh03/Qwen3.8-27B-ASCII",
+          "suppressed_because": "documentation-url"
+        }
+      ]
+    }
+  },
+  "stats": {
+    "files": 83,
+    "lines": 9241,
+    "findings_by_tool": {},
+    "signals_by_tool": {
+      "semgrep": 7,
+      "plain": 5
+    },
+    "files_without_patch": [],
+    "history_cap_hit": false,
+    "history_lookups": 0
+  },
+  "verdict": "no findings"
+}

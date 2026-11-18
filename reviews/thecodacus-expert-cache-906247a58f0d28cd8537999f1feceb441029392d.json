@@ -1,0 +1,30 @@
+{
+  "engine": "thecodacus-expert-cache",
+  "inputs": {
+    "fork": "thecodacus/llama.cpp",
+    "fork_branch": "perf",
+    "commit": "906247a58f0d28cd8537999f1feceb441029392d",
+    "upstream": "ggml-org/llama.cpp",
+    "upstream_branch": "master",
+    "upstream_sha": "78e05298f0d68abff41d08d79fa7469264b2aff0",
+    "base_sha": "8f5ab832ca7d8a7b4f23687693fb8b0ecbc227e7",
+    "compare_url": "https://github.com/ggml-org/llama.cpp/compare/master...thecodacus:906247a58f0d28cd8537999f1feceb441029392d",
+    "tool_versions": {
+      "semgrep": "1.186.0",
+      "osv-scanner": "v2.7.1"
+    },
+    "tool_notes": [
+      "guarddog not used: local scan requires network access",
+      "no model pass: review is deterministic static analysis"
+    ]
+  },
+  "created_at": "2026-11-18T22:45:20.831250+00:00",
+  "stats": {
+    "files": 1748,
+    "lines": 234020,
+    "reason": "diff-size-cap"
+  },
+  "signals": [],
+  "findings": [],
+  "verdict": "too large to review"
+}

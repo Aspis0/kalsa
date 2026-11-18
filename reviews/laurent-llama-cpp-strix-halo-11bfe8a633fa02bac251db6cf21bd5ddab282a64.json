@@ -1,0 +1,809 @@
+{
+  "engine": "laurent-llama-cpp-strix-halo",
+  "inputs": {
+    "fork": "LaurentZuijdwijk/llama.cpp",
+    "fork_branch": "master",
+    "commit": "11bfe8a633fa02bac251db6cf21bd5ddab282a64",
+    "upstream": "ggml-org/llama.cpp",
+    "upstream_branch": "master",
+    "upstream_sha": "78e05298f0d68abff41d08d79fa7469264b2aff0",
+    "base_sha": "0190529ec450659b541ff608449401e68c27d098",
+    "compare_url": "https://github.com/ggml-org/llama.cpp/compare/master...LaurentZuijdwijk:11bfe8a633fa02bac251db6cf21bd5ddab282a64",
+    "tool_versions": {
+      "semgrep": "1.186.0",
+      "osv-scanner": "v2.7.1"
+    },
+    "tool_notes": [
+      "guarddog not used: local scan requires network access",
+      "no model pass: review is deterministic static analysis"
+    ]
+  },
+  "created_at": "2026-11-18T22:44:27.385496+00:00",
+  "signals": [
+    {
+      "tool": "semgrep",
+      "file": "bench/spec_bench.py",
+      "line": 94,
+      "rule": "kalsa.python-process",
+      "snippet": "names = subprocess.run([\"docker\", \"ps\", \"--format\", \"{{.Names}}\"],",
+      "suppressed_because": "not-added-or-not-reaches-users"
+    },
+    {
+      "tool": "semgrep",
+      "file": "bench/spec_bench.py",
+      "line": 94,
+      "rule": "kalsa.python-subprocess",
+      "snippet": "names = subprocess.run([\"docker\", \"ps\", \"--format\", \"{{.Names}}\"],",
+      "suppressed_because": "not-added-or-not-reaches-users"
+    },
+    {
+      "tool": "semgrep",
+      "file": "bench/spec_bench.py",
+      "line": 101,
+      "rule": "kalsa.python-process",
+      "snippet": "devs = subprocess.run(",
+      "suppressed_because": "not-added-or-not-reaches-users"
+    },
+    {
+      "tool": "semgrep",
+      "file": "bench/spec_bench.py",
+      "line": 101,
+      "rule": "kalsa.python-subprocess",
+      "snippet": "devs = subprocess.run(",
+      "suppressed_because": "not-added-or-not-reaches-users"
+    },
+    {
+      "tool": "semgrep",
+      "file": "bench/spec_bench.py",
+      "line": 111,
+      "rule": "kalsa.python-process",
+      "snippet": "subprocess.run([\"docker\", \"stop\", n], capture_output=True, timeout=120)",
+      "suppressed_because": "not-added-or-not-reaches-users"
+    },
+    {
+      "tool": "semgrep",
+      "file": "bench/spec_bench.py",
+      "line": 111,
+      "rule": "kalsa.python-subprocess",
+      "snippet": "subprocess.run([\"docker\", \"stop\", n], capture_output=True, timeout=120)",
+      "suppressed_because": "not-added-or-not-reaches-users"
+    },
+    {
+      "tool": "semgrep",
+      "file": "bench/spec_bench.py",
+      "line": 138,
+      "rule": "kalsa.python-process",
+      "snippet": "proc = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL)",
+      "suppressed_because": "not-added-or-not-reaches-users"
+    },
+    {
+      "tool": "semgrep",
+      "file": "bench/spec_bench.py",
+      "line": 138,
+      "rule": "kalsa.python-subprocess",
+      "snippet": "proc = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL)",
+      "suppressed_because": "not-added-or-not-reaches-users"
+    },
+    {
+      "tool": "semgrep",
+      "file": "bench/spec_bench.py",
+      "line": 224,
+      "rule": "kalsa.python-process",
+      "snippet": "build_commit = subprocess.run(",
+      "suppressed_because": "not-added-or-not-reaches-users"
+    },
+    {
+      "tool": "semgrep",
+      "file": "bench/spec_bench.py",
+      "line": 224,
+      "rule": "kalsa.python-subprocess",
+      "snippet": "build_commit = subprocess.run(",
+      "suppressed_because": "not-added-or-not-reaches-users"
+    },
+    {
+      "tool": "semgrep",
+      "file": "bench/spec_bench.py",
+      "line": 285,
+      "rule": "kalsa.python-process",
+      "snippet": "subprocess.run([\"docker\", \"start\", n], capture_output=True, timeout=120)",
+      "suppressed_because": "not-added-or-not-reaches-users"
+    },
+    {
+      "tool": "semgrep",
+      "file": "bench/spec_bench.py",
+      "line": 285,
+      "rule": "kalsa.python-subprocess",
+      "snippet": "subprocess.run([\"docker\", \"start\", n], capture_output=True, timeout=120)",
+      "suppressed_because": "not-added-or-not-reaches-users"
+    },
+    {
+      "tool": "semgrep",
+      "file": "ggml/src/CMakeLists.txt",
+      "line": 2,
+      "rule": "kalsa.cmake-local-include",
+      "snippet": "include(\"../cmake/common.cmake\")",
+      "suppressed_because": "not-added-or-not-reaches-users"
+    },
+    {
+      "tool": "semgrep",
+      "file": "ggml/src/CMakeLists.txt",
+      "line": 92,
+      "rule": "kalsa.cmake-remote",
+      "snippet": "execute_process(",
+      "suppressed_because": "not-added-or-not-reaches-users"
+    },
+    {
+      "tool": "semgrep",
+      "file": "ggml/src/CMakeLists.txt",
+      "line": 275,
+      "rule": "kalsa.cmake-remote",
+      "snippet": "file(DOWNLOAD \"${GGML_OPENMP_INSTALLER_URL}\" \"${GGML_OPENMP_INSTALLER}\"",
+      "suppressed_because": "not-added-or-not-reaches-users"
+    },
+    {
+      "tool": "semgrep",
+      "file": "ggml/src/CMakeLists.txt",
+      "line": 285,
+      "rule": "kalsa.cmake-remote",
+      "snippet": "execute_process(",
+      "suppressed_because": "not-added-or-not-reaches-users"
+    },
+    {
+      "tool": "semgrep",
+      "file": "ggml/src/CMakeLists.txt",
+      "line": 308,
+      "rule": "kalsa.cmake-remote",
+      "snippet": "file(DOWNLOAD \"https://raw.githubusercontent.com/llvm/llvm-project/llvmorg-${GGML_OPENMP_LLVM_VERSION}/openmp/LICENSE.TXT\" \"${GGML_OPENMP_LICENSE}\"",
+      "suppressed_because": "not-added-or-not-reaches-users"
+    },
+    {
+      "tool": "semgrep",
+      "file": "ggml/src/ggml-cpu/ggml-cpu.c",
+      "line": 883,
+      "rule": "kalsa.cpp-exec-family",
+      "snippet": "getcpu_ret = syscall(SYS_getcpu, &current_cpu, &g_state.numa.current_node);",
+      "suppressed_because": "not-added-or-not-reaches-users"
+    },
+    {
+      "tool": "semgrep",
+      "file": "ggml/src/ggml-cpu/ops.cpp",
+      "line": 10334,
+      "rule": "kalsa.telemetry-endpoint",
+      "snippet": "// ref: https://github.com/facebookresearch/segment-anything/blob/main/segment_anything/modeling/image_encoder.py#L292-L322",
+      "suppressed_because": "not-added-or-not-reaches-users"
+    },
+    {
+      "tool": "semgrep",
+      "file": "ggml/src/ggml-cpu/ops.cpp",
+      "line": 10389,
+      "rule": "kalsa.telemetry-endpoint",
+      "snippet": "// ref: https://github.com/facebookresearch/segment-anything/blob/main/segment_anything/modeling/image_encoder.py#L357-L359",
+      "suppressed_because": "not-added-or-not-reaches-users"
+    },
+    {
+      "tool": "semgrep",
+      "file": "ggml/src/ggml-vulkan/vulkan-shaders/vulkan-shaders-gen.cpp",
+      "line": 173,
+      "rule": "kalsa.cpp-exec-family",
+      "snippet": "execvp(argv[0], argv.data());",
+      "suppressed_because": "not-added-or-not-reaches-users"
+    },
+    {
+      "tool": "semgrep",
+      "file": "ggml/src/ggml.c",
+      "line": 216,
+      "rule": "kalsa.cpp-exec-family",
+      "snippet": "execlp(\"gdb\", \"gdb\", \"--batch\",",
+      "suppressed_because": "not-added-or-not-reaches-users"
+    },
+    {
+      "tool": "semgrep",
+      "file": "ggml/src/ggml.c",
+      "line": 224,
+      "rule": "kalsa.cpp-exec-family",
+      "snippet": "execlp(\"lldb\", \"lldb\", \"--batch\",",
+      "suppressed_because": "not-added-or-not-reaches-users"
+    },
+    {
+      "tool": "semgrep",
+      "file": "ggml/src/ggml.c",
+      "line": 1681,
+      "rule": "kalsa.cpp-process-exec",
+      "snippet": "// initialize time system (required on Windows)",
+      "suppressed_because": "not-added-or-not-reaches-users"
+    },
+    {
+      "tool": "semgrep",
+      "file": "ggml/src/ggml.c",
+      "line": 1681,
+      "rule": "kalsa.cpp-exec-family",
+      "snippet": "// initialize time system (required on Windows)",
+      "suppressed_because": "not-added-or-not-reaches-users"
+    },
+    {
+      "tool": "plain",
+      "file": ".github/release-notes.md",
+      "line": 5,
+      "rule": "new-url",
+      "snippet": "Mesa, no ROCm toolchain. See the [README](https://github.com/LaurentZuijdwijk/llama.cpp#readme)",
+      "suppressed_because": "known-owner-url"
+    },
+    {
+      "tool": "plain",
+      "file": ".github/release-notes.md",
+      "line": 27,
+      "rule": "new-url",
+      "snippet": "[**agention-llama**](https://github.com/LaurentZuijdwijk/agention-llama) packages all of",
+      "suppressed_because": "known-owner-url"
+    },
+    {
+      "tool": "plain",
+      "file": "README.md",
+      "line": 118,
+      "rule": "new-url",
+      "snippet": "| **Vulkan prefill gates** \u2014 tiled concat-transpose, f16 B operand for quantized matmul and matmul\\_id | Ported from [Nathanw1014/llama.cpp](https://github.com/Nathanw1014/llama.cpp/tree/strix-halo-vu",
+      "suppressed_because": "documentation-url"
+    },
+    {
+      "tool": "plain",
+      "file": "README.md",
+      "line": 297,
+      "rule": "new-url",
+      "snippet": "[releases page](https://github.com/LaurentZuijdwijk/llama.cpp/releases) of this fork. No",
+      "suppressed_because": "known-owner-url"
+    },
+    {
+      "tool": "plain",
+      "file": "README.md",
+      "line": 344,
+      "rule": "new-url",
+      "snippet": "[**agention-llama**](https://github.com/LaurentZuijdwijk/agention-llama) wraps all of this",
+      "suppressed_because": "known-owner-url"
+    },
+    {
+      "tool": "plain",
+      "file": "README.md",
+      "line": 349,
+      "rule": "new-url",
+      "snippet": "curl -fsSL https://raw.githubusercontent.com/LaurentZuijdwijk/agention-llama/master/install.sh | sh",
+      "suppressed_because": "known-owner-url"
+    },
+    {
+      "tool": "plain",
+      "file": "README.md",
+      "line": 613,
+      "rule": "new-url",
+      "snippet": "- [charlie12345/ROCmFPX](https://github.com/charlie12345/ROCmFPX) - the origin of the ROCmFPx",
+      "suppressed_because": "documentation-url"
+    },
+    {
+      "tool": "plain",
+      "file": "README.md",
+      "line": 615,
+      "rule": "new-url",
+      "snippet": "- [ciru-ai/ROCmFPX](https://github.com/ciru-ai/ROCmFPX) - a fork of the above, and the tree the",
+      "suppressed_because": "documentation-url"
+    },
+    {
+      "tool": "plain",
+      "file": "README.md",
+      "line": 618,
+      "rule": "new-url",
+      "snippet": "- [Jian Chen](https://github.com/ggml-org/llama.cpp/pull/27342) - DFlash2 speculative decoding,",
+      "suppressed_because": "known-owner-url"
+    },
+    {
+      "tool": "plain",
+      "file": "README.md",
+      "line": 620,
+      "rule": "new-url",
+      "snippet": "- [Nathanw1014/llama.cpp](https://github.com/Nathanw1014/llama.cpp/tree/strix-halo-vulkan) - the",
+      "suppressed_because": "documentation-url"
+    },
+    {
+      "tool": "plain",
+      "file": "ROCMFPX-NOTES.md",
+      "line": 23,
+      "rule": "new-url",
+      "snippet": "Ported from https://github.com/ciru-ai/ROCmFPX, itself a fork of",
+      "suppressed_because": "documentation-url"
+    },
+    {
+      "tool": "plain",
+      "file": "ROCMFPX-NOTES.md",
+      "line": 24,
+      "rule": "new-url",
+      "snippet": "https://github.com/charlie12345/ROCmFPX, where the ROCmFP4 format originates.",
+      "suppressed_because": "documentation-url"
+    },
+    {
+      "tool": "plain",
+      "file": "ROCMFPX-NOTES.md",
+      "line": 310,
+      "rule": "new-url",
+      "snippet": "Carries [ggml-org/llama.cpp#27742](https://github.com/ggml-org/llama.cpp/pull/27742)",
+      "suppressed_because": "known-owner-url"
+    },
+    {
+      "tool": "plain",
+      "file": "bench/run-spec-suite.sh",
+      "line": 120,
+      "rule": "new-url",
+      "snippet": "for _ in $(seq 1 240); do curl -sf -m 3 \"http://127.0.0.1:$PORT/health\" >/dev/null 2>&1 && return 0; sleep 2; done",
+      "suppressed_because": "ignored-loopback"
+    },
+    {
+      "tool": "plain",
+      "file": "bench/run-spec-suite.sh",
+      "line": 166,
+      "rule": "new-url",
+      "snippet": "f\"http://127.0.0.1:{port}/completion\", json.dumps(req).encode(),",
+      "suppressed_because": "ignored-loopback"
+    },
+    {
+      "tool": "plain",
+      "file": "bench/spec_bench.py",
+      "line": 144,
+      "rule": "new-url",
+      "snippet": "urllib.request.urlopen(f\"http://127.0.0.1:{port}/health\", timeout=3).read()",
+      "suppressed_because": "ignored-loopback"
+    },
+    {
+      "tool": "plain",
+      "file": "bench/spec_bench.py",
+      "line": 179,
+      "rule": "new-url",
+      "snippet": "f\"http://127.0.0.1:{port}/completion\",",
+      "suppressed_because": "ignored-loopback"
+    },
+    {
+      "tool": "plain",
+      "file": "ggml/rocmfp4/rocmfp4.c",
+      "line": 3,
+      "rule": "new-url",
+      "snippet": "// Origin:      https://github.com/charlie12345/ROCmFPX - creator of the ROCmFP4 format.",
+      "suppressed_because": "comment-url"
+    },
+    {
+      "tool": "plain",
+      "file": "ggml/rocmfp4/rocmfp4.c",
+      "line": 4,
+      "rule": "new-url",
+      "snippet": "// Ported from: https://github.com/ciru-ai/ROCmFPX - a fork of the above.",
+      "suppressed_because": "comment-url"
+    },
+    {
+      "tool": "plain",
+      "file": "ggml/rocmfp4/rocmfp4.h",
+      "line": 3,
+      "rule": "new-url",
+      "snippet": "// Origin:      https://github.com/charlie12345/ROCmFPX - creator of the ROCmFP4 format.",
+      "suppressed_because": "comment-url"
+    },
+    {
+      "tool": "plain",
+      "file": "ggml/rocmfp4/rocmfp4.h",
+      "line": 4,
+      "rule": "new-url",
+      "snippet": "// Ported from: https://github.com/ciru-ai/ROCmFPX - a fork of the above.",
+      "suppressed_because": "comment-url"
+    },
+    {
+      "tool": "plain",
+      "file": "ggml/rocmfp4/rocmfp4_hip.cu",
+      "line": 3,
+      "rule": "new-url",
+      "snippet": "// Origin:      https://github.com/charlie12345/ROCmFPX - creator of the ROCmFP4 format.",
+      "suppressed_because": "comment-url"
+    },
+    {
+      "tool": "plain",
+      "file": "ggml/rocmfp4/rocmfp4_hip.cu",
+      "line": 4,
+      "rule": "new-url",
+      "snippet": "// Ported from: https://github.com/ciru-ai/ROCmFPX - a fork of the above.",
+      "suppressed_because": "comment-url"
+    },
+    {
+      "tool": "plain",
+      "file": "ggml/rocmfp4/rocmfp4_hip_codebook.cuh",
+      "line": 3,
+      "rule": "new-url",
+      "snippet": "// Origin:      https://github.com/charlie12345/ROCmFPX - creator of the ROCmFP4 format.",
+      "suppressed_because": "comment-url"
+    },
+    {
+      "tool": "plain",
+      "file": "ggml/rocmfp4/rocmfp4_hip_codebook.cuh",
+      "line": 4,
+      "rule": "new-url",
+      "snippet": "// Ported from: https://github.com/ciru-ai/ROCmFPX - a fork of the above.",
+      "suppressed_because": "comment-url"
+    },
+    {
+      "tool": "plain",
+      "file": "ggml/rocmfp4/rocmfp4_hip_scale.cuh",
+      "line": 3,
+      "rule": "new-url",
+      "snippet": "// Origin:      https://github.com/charlie12345/ROCmFPX - creator of the ROCmFP4 format.",
+      "suppressed_because": "comment-url"
+    },
+    {
+      "tool": "plain",
+      "file": "ggml/rocmfp4/rocmfp4_hip_scale.cuh",
+      "line": 4,
+      "rule": "new-url",
+      "snippet": "// Ported from: https://github.com/ciru-ai/ROCmFPX - a fork of the above.",
+      "suppressed_because": "comment-url"
+    },
+    {
+      "tool": "plain",
+      "file": "ggml/rocmfpx/rocmfp2_reference.c",
+      "line": 3,
+      "rule": "new-url",
+      "snippet": "// Origin:      https://github.com/charlie12345/ROCmFPX - creator of the ROCmFP4 format.",
+      "suppressed_because": "comment-url"
+    },
+    {
+      "tool": "plain",
+      "file": "ggml/rocmfpx/rocmfp2_reference.c",
+      "line": 4,
+      "rule": "new-url",
+      "snippet": "// Ported from: https://github.com/ciru-ai/ROCmFPX - a fork of the above.",
+      "suppressed_because": "comment-url"
+    },
+    {
+      "tool": "plain",
+      "file": "ggml/rocmfpx/rocmfp2_reference.h",
+      "line": 3,
+      "rule": "new-url",
+      "snippet": "// Origin:      https://github.com/charlie12345/ROCmFPX - creator of the ROCmFP4 format.",
+      "suppressed_because": "comment-url"
+    },
+    {
+      "tool": "plain",
+      "file": "ggml/rocmfpx/rocmfp2_reference.h",
+      "line": 4,
+      "rule": "new-url",
+      "snippet": "// Ported from: https://github.com/ciru-ai/ROCmFPX - a fork of the above.",
+      "suppressed_because": "comment-url"
+    },
+    {
+      "tool": "plain",
+      "file": "ggml/rocmfpx/rocmfpx.c",
+      "line": 3,
+      "rule": "new-url",
+      "snippet": "// Origin:      https://github.com/charlie12345/ROCmFPX - creator of the ROCmFP4 format.",
+      "suppressed_because": "comment-url"
+    },
+    {
+      "tool": "plain",
+      "file": "ggml/rocmfpx/rocmfpx.c",
+      "line": 4,
+      "rule": "new-url",
+      "snippet": "// Ported from: https://github.com/ciru-ai/ROCmFPX - a fork of the above.",
+      "suppressed_because": "comment-url"
+    },
+    {
+      "tool": "plain",
+      "file": "ggml/rocmfpx/rocmfpx.h",
+      "line": 3,
+      "rule": "new-url",
+      "snippet": "// Origin:      https://github.com/charlie12345/ROCmFPX - creator of the ROCmFP4 format.",
+      "suppressed_because": "comment-url"
+    },
+    {
+      "tool": "plain",
+      "file": "ggml/rocmfpx/rocmfpx.h",
+      "line": 4,
+      "rule": "new-url",
+      "snippet": "// Ported from: https://github.com/ciru-ai/ROCmFPX - a fork of the above.",
+      "suppressed_because": "comment-url"
+    },
+    {
+      "tool": "plain",
+      "file": "ggml/rocmfpx/rocmfpx_hip_codebook.cuh",
+      "line": 3,
+      "rule": "new-url",
+      "snippet": "// Origin:      https://github.com/charlie12345/ROCmFPX - creator of the ROCmFP4 format.",
+      "suppressed_because": "comment-url"
+    },
+    {
+      "tool": "plain",
+      "file": "ggml/rocmfpx/rocmfpx_hip_codebook.cuh",
+      "line": 4,
+      "rule": "new-url",
+      "snippet": "// Ported from: https://github.com/ciru-ai/ROCmFPX - a fork of the above.",
+      "suppressed_because": "comment-url"
+    },
+    {
+      "tool": "plain",
+      "file": "ggml/rocmfpx/test_rocmfp2_reference.c",
+      "line": 3,
+      "rule": "new-url",
+      "snippet": "// Origin:      https://github.com/charlie12345/ROCmFPX - creator of the ROCmFP4 format.",
+      "suppressed_because": "comment-url"
+    },
+    {
+      "tool": "plain",
+      "file": "ggml/rocmfpx/test_rocmfp2_reference.c",
+      "line": 4,
+      "rule": "new-url",
+      "snippet": "// Ported from: https://github.com/ciru-ai/ROCmFPX - a fork of the above.",
+      "suppressed_because": "comment-url"
+    },
+    {
+      "tool": "plain",
+      "file": "ggml/rocmfpx/test_rocmfpx.c",
+      "line": 3,
+      "rule": "new-url",
+      "snippet": "// Origin:      https://github.com/charlie12345/ROCmFPX - creator of the ROCmFP4 format.",
+      "suppressed_because": "comment-url"
+    },
+    {
+      "tool": "plain",
+      "file": "ggml/rocmfpx/test_rocmfpx.c",
+      "line": 4,
+      "rule": "new-url",
+      "snippet": "// Ported from: https://github.com/ciru-ai/ROCmFPX - a fork of the above.",
+      "suppressed_because": "comment-url"
+    }
+  ],
+  "findings": [
+    {
+      "tool": "plain",
+      "file": ".github/workflows/release-vulkan.yml",
+      "line": 56,
+      "rule": "new-url",
+      "snippet": "wget -qO - https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo apt-key add -"
+    },
+    {
+      "tool": "plain",
+      "file": ".github/workflows/release-vulkan.yml",
+      "line": 57,
+      "rule": "new-url",
+      "snippet": "sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-jammy.list https://packages.lunarg.com/vulkan/lunarg-vulkan-jammy.list"
+    },
+    {
+      "tool": "plain",
+      "file": ".github/workflows/release-vulkan.yml",
+      "line": 116,
+      "rule": "download-and-execute",
+      "snippet": "curl.exe -o $env:RUNNER_TEMP/VulkanSDK-Installer.exe -L \"https://sdk.lunarg.com/sdk/download/${env:VULKAN_VERSION}/windows/vulkansdk-windows-X64-${env:VULKAN_VERSION}.exe\""
+    }
+  ],
+  "findings_by_file": {
+    ".github/workflows/release-vulkan.yml": [
+      {
+        "tool": "plain",
+        "file": ".github/workflows/release-vulkan.yml",
+        "line": 56,
+        "rule": "new-url",
+        "snippet": "wget -qO - https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo apt-key add -"
+      },
+      {
+        "tool": "plain",
+        "file": ".github/workflows/release-vulkan.yml",
+        "line": 57,
+        "rule": "new-url",
+        "snippet": "sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-jammy.list https://packages.lunarg.com/vulkan/lunarg-vulkan-jammy.list"
+      },
+      {
+        "tool": "plain",
+        "file": ".github/workflows/release-vulkan.yml",
+        "line": 116,
+        "rule": "download-and-execute",
+        "snippet": "curl.exe -o $env:RUNNER_TEMP/VulkanSDK-Installer.exe -L \"https://sdk.lunarg.com/sdk/download/${env:VULKAN_VERSION}/windows/vulkansdk-windows-X64-${env:VULKAN_VERSION}.exe\""
+      }
+    ]
+  },
+  "signal_summary": {
+    "kalsa.python-process": {
+      "count": 6,
+      "examples": [
+        {
+          "tool": "semgrep",
+          "file": "bench/spec_bench.py",
+          "line": 94,
+          "rule": "kalsa.python-process",
+          "snippet": "names = subprocess.run([\"docker\", \"ps\", \"--format\", \"{{.Names}}\"],",
+          "suppressed_because": "not-added-or-not-reaches-users"
+        },
+        {
+          "tool": "semgrep",
+          "file": "bench/spec_bench.py",
+          "line": 101,
+          "rule": "kalsa.python-process",
+          "snippet": "devs = subprocess.run(",
+          "suppressed_because": "not-added-or-not-reaches-users"
+        },
+        {
+          "tool": "semgrep",
+          "file": "bench/spec_bench.py",
+          "line": 111,
+          "rule": "kalsa.python-process",
+          "snippet": "subprocess.run([\"docker\", \"stop\", n], capture_output=True, timeout=120)",
+          "suppressed_because": "not-added-or-not-reaches-users"
+        }
+      ]
+    },
+    "kalsa.python-subprocess": {
+      "count": 6,
+      "examples": [
+        {
+          "tool": "semgrep",
+          "file": "bench/spec_bench.py",
+          "line": 94,
+          "rule": "kalsa.python-subprocess",
+          "snippet": "names = subprocess.run([\"docker\", \"ps\", \"--format\", \"{{.Names}}\"],",
+          "suppressed_because": "not-added-or-not-reaches-users"
+        },
+        {
+          "tool": "semgrep",
+          "file": "bench/spec_bench.py",
+          "line": 101,
+          "rule": "kalsa.python-subprocess",
+          "snippet": "devs = subprocess.run(",
+          "suppressed_because": "not-added-or-not-reaches-users"
+        },
+        {
+          "tool": "semgrep",
+          "file": "bench/spec_bench.py",
+          "line": 111,
+          "rule": "kalsa.python-subprocess",
+          "snippet": "subprocess.run([\"docker\", \"stop\", n], capture_output=True, timeout=120)",
+          "suppressed_because": "not-added-or-not-reaches-users"
+        }
+      ]
+    },
+    "kalsa.cmake-local-include": {
+      "count": 1,
+      "examples": [
+        {
+          "tool": "semgrep",
+          "file": "ggml/src/CMakeLists.txt",
+          "line": 2,
+          "rule": "kalsa.cmake-local-include",
+          "snippet": "include(\"../cmake/common.cmake\")",
+          "suppressed_because": "not-added-or-not-reaches-users"
+        }
+      ]
+    },
+    "kalsa.cmake-remote": {
+      "count": 4,
+      "examples": [
+        {
+          "tool": "semgrep",
+          "file": "ggml/src/CMakeLists.txt",
+          "line": 92,
+          "rule": "kalsa.cmake-remote",
+          "snippet": "execute_process(",
+          "suppressed_because": "not-added-or-not-reaches-users"
+        },
+        {
+          "tool": "semgrep",
+          "file": "ggml/src/CMakeLists.txt",
+          "line": 275,
+          "rule": "kalsa.cmake-remote",
+          "snippet": "file(DOWNLOAD \"${GGML_OPENMP_INSTALLER_URL}\" \"${GGML_OPENMP_INSTALLER}\"",
+          "suppressed_because": "not-added-or-not-reaches-users"
+        },
+        {
+          "tool": "semgrep",
+          "file": "ggml/src/CMakeLists.txt",
+          "line": 285,
+          "rule": "kalsa.cmake-remote",
+          "snippet": "execute_process(",
+          "suppressed_because": "not-added-or-not-reaches-users"
+        }
+      ]
+    },
+    "kalsa.cpp-exec-family": {
+      "count": 5,
+      "examples": [
+        {
+          "tool": "semgrep",
+          "file": "ggml/src/ggml-cpu/ggml-cpu.c",
+          "line": 883,
+          "rule": "kalsa.cpp-exec-family",
+          "snippet": "getcpu_ret = syscall(SYS_getcpu, &current_cpu, &g_state.numa.current_node);",
+          "suppressed_because": "not-added-or-not-reaches-users"
+        },
+        {
+          "tool": "semgrep",
+          "file": "ggml/src/ggml-vulkan/vulkan-shaders/vulkan-shaders-gen.cpp",
+          "line": 173,
+          "rule": "kalsa.cpp-exec-family",
+          "snippet": "execvp(argv[0], argv.data());",
+          "suppressed_because": "not-added-or-not-reaches-users"
+        },
+        {
+          "tool": "semgrep",
+          "file": "ggml/src/ggml.c",
+          "line": 216,
+          "rule": "kalsa.cpp-exec-family",
+          "snippet": "execlp(\"gdb\", \"gdb\", \"--batch\",",
+          "suppressed_because": "not-added-or-not-reaches-users"
+        }
+      ]
+    },
+    "kalsa.telemetry-endpoint": {
+      "count": 2,
+      "examples": [
+        {
+          "tool": "semgrep",
+          "file": "ggml/src/ggml-cpu/ops.cpp",
+          "line": 10334,
+          "rule": "kalsa.telemetry-endpoint",
+          "snippet": "// ref: https://github.com/facebookresearch/segment-anything/blob/main/segment_anything/modeling/image_encoder.py#L292-L322",
+          "suppressed_because": "not-added-or-not-reaches-users"
+        },
+        {
+          "tool": "semgrep",
+          "file": "ggml/src/ggml-cpu/ops.cpp",
+          "line": 10389,
+          "rule": "kalsa.telemetry-endpoint",
+          "snippet": "// ref: https://github.com/facebookresearch/segment-anything/blob/main/segment_anything/modeling/image_encoder.py#L357-L359",
+          "suppressed_because": "not-added-or-not-reaches-users"
+        }
+      ]
+    },
+    "kalsa.cpp-process-exec": {
+      "count": 1,
+      "examples": [
+        {
+          "tool": "semgrep",
+          "file": "ggml/src/ggml.c",
+          "line": 1681,
+          "rule": "kalsa.cpp-process-exec",
+          "snippet": "// initialize time system (required on Windows)",
+          "suppressed_because": "not-added-or-not-reaches-users"
+        }
+      ]
+    },
+    "new-url": {
+      "count": 41,
+      "examples": [
+        {
+          "tool": "plain",
+          "file": ".github/release-notes.md",
+          "line": 5,
+          "rule": "new-url",
+          "snippet": "Mesa, no ROCm toolchain. See the [README](https://github.com/LaurentZuijdwijk/llama.cpp#readme)",
+          "suppressed_because": "known-owner-url"
+        },
+        {
+          "tool": "plain",
+          "file": ".github/release-notes.md",
+          "line": 27,
+          "rule": "new-url",
+          "snippet": "[**agention-llama**](https://github.com/LaurentZuijdwijk/agention-llama) packages all of",
+          "suppressed_because": "known-owner-url"
+        },
+        {
+          "tool": "plain",
+          "file": "README.md",
+          "line": 118,
+          "rule": "new-url",
+          "snippet": "| **Vulkan prefill gates** \u2014 tiled concat-transpose, f16 B operand for quantized matmul and matmul\\_id | Ported from [Nathanw1014/llama.cpp](https://github.com/Nathanw1014/llama.cpp/tree/strix-halo-vu",
+          "suppressed_because": "documentation-url"
+        }
+      ]
+    }
+  },
+  "stats": {
+    "files": 116,
+    "lines": 14510,
+    "findings_by_tool": {
+      "plain": 3
+    },
+    "signals_by_tool": {
+      "semgrep": 25,
+      "plain": 41
+    },
+    "files_without_patch": [],
+    "history_cap_hit": false,
+    "history_lookups": 1
+  },
+  "verdict": "findings: human review needed"
+}

@@ -26,6 +26,7 @@ pub struct Running {
     child: Child,
     logs: Arc<Mutex<VecDeque<String>>>,
     pub program: PathBuf,
+    group: i32,
 }
 
 fn drain<R: std::io::Read + Send + 'static>(stream: R, logs: Arc<Mutex<VecDeque<String>>>) {
@@ -79,7 +80,7 @@ pub fn start(launch: Launch, root: &Path) -> Result<Running, String> {
     let logs = Arc::new(Mutex::new(VecDeque::with_capacity(LOG_LINES)));
     if let Some(out) = child.stdout.take() { drain(out, Arc::clone(&logs)); }
     if let Some(err) = child.stderr.take() { drain(err, Arc::clone(&logs)); }
-    Ok(Running { child, logs, program: launch.program })
+    Ok(Running { child, logs, program: launch.program, group: pid })
 }
 
 pub fn reachable(port: u16, key: &ApiKey) -> bool {
@@ -117,6 +118,7 @@ fn lsof_output(port: u16) -> Result<String, String> {
             }
             None if Instant::now() >= deadline => {
                 let _ = child.kill();
+                let _ = child.wait();
                 return Err("lsof timed out while inspecting the listening socket".to_string());
             }
             None => std::thread::sleep(Duration::from_millis(50)),
@@ -130,37 +132,43 @@ fn lsof_entries(text: &str) -> Vec<(i32, String)> {
     for line in text.lines() {
         if let Some(value) = line.strip_prefix('p') {
             pid = value.parse().unwrap_or(0);
-        } else if let Some(address) = line.strip_prefix('n') {
-            entries.push((pid, address.to_string()));
+        } else if pid > 0 {
+            if let Some(address) = line.strip_prefix('n') {
+                entries.push((pid, address.to_string()));
+            }
         }
     }
     entries
 }
 
-fn loopback_address(name: &str) -> bool {
-    let host = name.rsplit_once(':').map(|(host, _)| host).unwrap_or(name);
-    host == "127.0.0.1" || host == "[::1]"
+fn listener_verdict(entries: &[(bool, &str)], port: u16) -> Result<bool, String> {
+    if let Some((_, address)) = entries.iter().find(|(ours, _)| !*ours) {
+        return Err(format!("port {port} is also held by another process on {address}"));
+    }
+    let loopback = format!("127.0.0.1:{port}");
+    if entries.iter().any(|(_, address)| *address == loopback) {
+        return Ok(true);
+    }
+    if let Some((_, address)) = entries.first() {
+        return Err(format!("engine bound to {address}, expected 127.0.0.1"));
+    }
+    Ok(false)
 }
 
-/// A port belongs to our engine only when a LISTEN socket on 127.0.0.1 or ::1
-/// is owned by a process in the child's process group.
+/// Verify that only our child's process group listens on the reachable address.
 pub fn verify_listener(port: u16, leader: u32) -> Result<bool, String> {
     let group = leader as i32;
     let deadline = Instant::now() + Duration::from_secs(10);
     loop {
         let entries = lsof_entries(&lsof_output(port)?);
-        let ours: Vec<&(i32, String)> = entries
+        let parsed: Vec<(bool, &str)> = entries
             .iter()
-            .filter(|(pid, _)| unsafe { libc::getpgid(*pid) == group })
+            .map(|(pid, address)| (unsafe { libc::getpgid(*pid) == group }, address.as_str()))
             .collect();
-        if ours.iter().any(|(_, address)| !loopback_address(address)) {
-            return Err(format!("engine bound port {port} to a non-loopback address"));
-        }
-        if !ours.is_empty() {
-            return Ok(true);
-        }
-        if !entries.is_empty() {
-            return Ok(false);
+        match listener_verdict(&parsed, port) {
+            Ok(true) => return Ok(true),
+            Ok(false) => {}
+            Err(error) => return Err(error),
         }
         if Instant::now() >= deadline { return Ok(false); }
         std::thread::sleep(Duration::from_millis(100));
@@ -209,25 +217,22 @@ impl Running {
     }
 
     pub fn stop(&mut self, grace: Duration) -> Result<(), String> {
-        if self.child.try_wait().map_err(|error| error.to_string())?.is_some() { return Ok(()); }
-        let leader = self.child.id() as i32;
-        if !group_owned(leader) { return Ok(()); }
-        signal_group(leader, libc::SIGTERM)?;
-        if self.wait_and_reap(leader, Instant::now() + grace) { return Ok(()); }
-        if !group_owned(leader) { return Ok(()); }
-        signal_group(leader, libc::SIGKILL)?;
-        if !self.wait_and_reap(leader, Instant::now() + grace) {
-            return Err("process group did not stop before the deadline".to_string());
+        let group = self.group;
+        signal_group(group, libc::SIGTERM)?;
+        if self.wait_for_empty_group(group, Instant::now() + grace) { return Ok(()); }
+        signal_group(group, libc::SIGKILL)?;
+        if !self.wait_for_empty_group(group, Instant::now() + grace) {
+            return Err(format!("process group {group} did not stop before the deadline"));
         }
         Ok(())
     }
 
     /// Reaping the leader on every poll is essential: a zombie still counts
     /// as a member of its process group until `try_wait` removes it.
-    fn wait_and_reap(&mut self, leader: i32, deadline: Instant) -> bool {
+    fn wait_for_empty_group(&mut self, group: i32, deadline: Instant) -> bool {
         loop {
-            if matches!(self.child.try_wait(), Ok(Some(_))) { return true; }
-            if unsafe { libc::kill(-leader, 0) } != 0 { return true; }
+            let _ = self.child.try_wait();
+            if unsafe { libc::kill(-group, 0) } != 0 { return true; }
             if Instant::now() >= deadline { return false; }
             std::thread::sleep(POLL);
         }
@@ -314,6 +319,45 @@ mod tests {
     use super::*;
 
     #[test]
+    fn listener_verdict_is_strict() {
+        let port = 8123;
+        assert_eq!(listener_verdict(&[(true, "127.0.0.1:8123")], port), Ok(true));
+        assert_eq!(
+            listener_verdict(&[(true, "[::1]:8123")], port),
+            Err("engine bound to [::1]:8123, expected 127.0.0.1".to_string()),
+        );
+        assert!(listener_verdict(&[(true, "127.0.0.1:8123"), (false, "*:8123")], port).is_err());
+        assert!(listener_verdict(&[(false, "*:8123")], port).is_err());
+    }
+
+    #[test]
+    fn lsof_entries_skips_garbage_and_preserves_order() {
+        let text = "n*:8123\np12\nf4\nn127.0.0.1:8123\nn[::1]:8123\npbad\np13\nn*:8123\n";
+        let entries = lsof_entries(text);
+        assert_eq!(entries, vec![
+            (12, "127.0.0.1:8123".to_string()),
+            (12, "[::1]:8123".to_string()),
+            (13, "*:8123".to_string()),
+        ]);
+    }
+
+    #[test]
+    fn stop_signals_the_group_after_the_leader_exits() {
+        use std::os::unix::process::CommandExt;
+        let mut command = Command::new("sh");
+        command.args(["-c", "sleep 30 &"]).process_group(0).stdout(Stdio::null()).stderr(Stdio::null());
+        let child = command.spawn().expect("spawn");
+        let pid = child.id() as i32;
+        unsafe { libc::setpgid(pid, pid); }
+        std::thread::sleep(std::time::Duration::from_millis(300));
+        let logs = Arc::new(Mutex::new(VecDeque::new()));
+        let mut running = Running { child, logs, program: PathBuf::from("sh"), group: pid };
+        assert!(running.try_wait().expect("leader exits").is_some());
+        running.stop(Duration::from_secs(2)).expect("group stops");
+        assert!(group_gone(pid as u32), "the surviving group member was not stopped");
+    }
+
+    #[test]
     fn stop_reaps_a_group_before_the_grace_deadline() {
         use std::os::unix::process::CommandExt;
         let mut command = Command::new("sh");
@@ -323,7 +367,7 @@ mod tests {
         unsafe { libc::setpgid(pid, pid); }
         assert!(group_owned(pid));
         let logs = Arc::new(Mutex::new(VecDeque::new()));
-        let mut running = Running { child, logs, program: PathBuf::from("sh") };
+        let mut running = Running { child, logs, program: PathBuf::from("sh"), group: pid };
         let started = Instant::now();
         running.stop(Duration::from_secs(2)).expect("stop succeeds");
         assert!(started.elapsed() < Duration::from_secs(2), "stop used the whole grace period");

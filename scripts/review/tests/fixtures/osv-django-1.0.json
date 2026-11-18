@@ -1,0 +1,15 @@
+{
+  "results": [
+    {
+      "source": {"name": "requirements.txt", "url": ""},
+      "packages": [
+        {
+          "package": {"name": "django", "version": "1.0", "ecosystem": "PyPI"},
+          "vulnerabilities": [
+            {"id": "GHSA-3f7w-6pp4-r9m4", "summary": "Django 1.0 has known vulnerabilities"}
+          ]
+        }
+      ]
+    }
+  ]
+}

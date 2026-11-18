@@ -1,0 +1,141 @@
+{
+  "engine": "architectds-strata",
+  "inputs": {
+    "fork": "architectds/Strata",
+    "fork_branch": "best",
+    "commit": "901ebe5267a943d5e99da7220669954c27936511",
+    "upstream": "Niko1221/Strata",
+    "upstream_branch": "main",
+    "upstream_sha": "58ee3227720629ff2e41d640165ebe89c880dfef",
+    "base_sha": "e8ca9afd03d839d4f8dbbe82dffce7f8a3bafd7a",
+    "compare_url": "https://github.com/Niko1221/Strata/compare/main...architectds:901ebe5267a943d5e99da7220669954c27936511",
+    "tool_versions": {
+      "semgrep": "1.186.0",
+      "osv-scanner": "v2.7.1"
+    },
+    "tool_notes": [
+      "guarddog not used: local scan requires network access",
+      "no model pass: review is deterministic static analysis"
+    ]
+  },
+  "created_at": "2026-11-18T22:43:13.610498+00:00",
+  "signals": [
+    {
+      "tool": "plain",
+      "file": "README.md",
+      "line": 20,
+      "rule": "new-url",
+      "snippet": "This fork of [Niko1221/Strata](https://github.com/Niko1221/Strata) is tuned for speed. Its default branch, `best`, is",
+      "suppressed_because": "known-owner-url"
+    },
+    {
+      "tool": "plain",
+      "file": "README.md",
+      "line": 22,
+      "rule": "new-url",
+      "snippet": "tensor cores ([#452](https://github.com/Niko1221/Strata/pull/452)), the draft layer's K/V in a ring with KV streaming",
+      "suppressed_because": "known-owner-url"
+    },
+    {
+      "tool": "plain",
+      "file": "README.md",
+      "line": 23,
+      "rule": "new-url",
+      "snippet": "([#453](https://github.com/Niko1221/Strata/pull/453)) and batched expert gathers",
+      "suppressed_because": "known-owner-url"
+    },
+    {
+      "tool": "plain",
+      "file": "README.md",
+      "line": 24,
+      "rule": "new-url",
+      "snippet": "([#439](https://github.com/Niko1221/Strata/pull/439), taken up as #372) since v0.1.38, prompt chunks of equal size",
+      "suppressed_because": "known-owner-url"
+    },
+    {
+      "tool": "plain",
+      "file": "README.md",
+      "line": 25,
+      "rule": "new-url",
+      "snippet": "([#693](https://github.com/Niko1221/Strata/pull/693), opt-in: `STRATA_PREFILL_EQUAL=1`) since v0.1.40, and the CPU",
+      "suppressed_because": "known-owner-url"
+    },
+    {
+      "tool": "plain",
+      "file": "README.md",
+      "line": 27,
+      "rule": "new-url",
+      "snippet": "([#1414](https://github.com/Niko1221/Strata/pull/1414), opt-in: `STRATA_PREFILL_CPU_SHARE=auto`) - since v0.1.41,",
+      "suppressed_because": "known-owner-url"
+    },
+    {
+      "tool": "plain",
+      "file": "README.md",
+      "line": 30,
+      "rule": "new-url",
+      "snippet": "[Hardin22/Strata-DualGPU](https://github.com/Hardin22/Strata-DualGPU), is in Strata too: pipelined verify windows,",
+      "suppressed_because": "documentation-url"
+    },
+    {
+      "tool": "plain",
+      "file": "README.md",
+      "line": 40,
+      "rule": "new-url",
+      "snippet": "moving the activations, quantized on the GPU, is [#1416](https://github.com/Niko1221/Strata/pull/1416). The fork's",
+      "suppressed_because": "known-owner-url"
+    },
+    {
+      "tool": "plain",
+      "file": "docs/fork/prefill-speed-036.png",
+      "line": 5,
+      "rule": "new-url",
+      "snippet": "\u0000\u0000\u0005(\b\u0006\u0000\u0000\u0000e\u0000\u0000\u0000:tEXtSoftware\u0000Matplotlib version3.10.8, https://matplotlib.org/[u\u0000\u0000\u0000\tpHYs\u0000\u0000",
+      "suppressed_because": "documentation-url"
+    }
+  ],
+  "findings": [],
+  "findings_by_file": {},
+  "signal_summary": {
+    "new-url": {
+      "count": 9,
+      "examples": [
+        {
+          "tool": "plain",
+          "file": "README.md",
+          "line": 20,
+          "rule": "new-url",
+          "snippet": "This fork of [Niko1221/Strata](https://github.com/Niko1221/Strata) is tuned for speed. Its default branch, `best`, is",
+          "suppressed_because": "known-owner-url"
+        },
+        {
+          "tool": "plain",
+          "file": "README.md",
+          "line": 22,
+          "rule": "new-url",
+          "snippet": "tensor cores ([#452](https://github.com/Niko1221/Strata/pull/452)), the draft layer's K/V in a ring with KV streaming",
+          "suppressed_because": "known-owner-url"
+        },
+        {
+          "tool": "plain",
+          "file": "README.md",
+          "line": 23,
+          "rule": "new-url",
+          "snippet": "([#453](https://github.com/Niko1221/Strata/pull/453)) and batched expert gathers",
+          "suppressed_because": "known-owner-url"
+        }
+      ]
+    }
+  },
+  "stats": {
+    "files": 9,
+    "lines": 766,
+    "findings_by_tool": {},
+    "signals_by_tool": {
+      "plain": 9
+    },
+    "files_without_patch": [],
+    "history_cap_hit": false,
+    "history_lookups": 0
+  },
+  "verdict": "no findings"
+}

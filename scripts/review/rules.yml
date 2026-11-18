@@ -1,0 +1,136 @@
+rules:
+  - id: kalsa.download-in-build
+    languages: [generic]
+    message: Build code pipes a downloaded file into a shell
+    severity: WARNING
+    paths:
+      include:
+        - "**/CMakeLists.txt"
+        - "**/build.rs"
+        - "**/setup.py"
+        - "**/pyproject.toml"
+        - "**/package.json"
+        - "**/*.sh"
+        - "**/*.ps1"
+        - "**/*.bat"
+    pattern-regex: '(curl|wget|gg_wget|Invoke-WebRequest)[^\n]*(\|\s*(ba)?sh|sh\s+-c|bash\s+-c)'
+
+  - id: kalsa.eval-python
+    languages: [python]
+    message: Python executes fetched data
+    severity: WARNING
+    pattern-regex: '(?<![->.\w])(eval|exec)\s*\([^\n]*(requests|urllib|urlopen|\.read\(|\.text)'
+
+  - id: kalsa.eval-js
+    languages: [javascript, typescript]
+    message: JavaScript evaluates dynamic code
+    severity: WARNING
+    pattern-regex: '(?<![.\w])(eval\s*\(|new\s+Function\s*\()'
+
+  - id: kalsa.eval-bash
+    languages: [bash]
+    message: Shell executes fetched data
+    severity: WARNING
+    pattern-regex: '(curl|wget)[^\n]*\|\s*(ba)?sh'
+
+  - id: kalsa.base64-blob
+    languages: [generic]
+    message: Long base64-like blob
+    severity: WARNING
+    pattern-regex: '[A-Za-z0-9+/=]{1000,}'
+
+  - id: kalsa.telemetry-endpoint
+    languages: [generic]
+    message: Analytics or telemetry SDK or endpoint
+    severity: WARNING
+    pattern-regex: '(posthog\.init|sentry_sdk\.init|Sentry\.init|mixpanel\.init|segment\.io)|(https?://[^\s]*(sentry|posthog|segment|mixpanel)[^\s]*)'
+
+  - id: kalsa.cpp-process-exec
+    languages: [c, cpp]
+    message: C or C++ code starts a process or loads a library
+    severity: WARNING
+    pattern-regex: '\b(system|popen|exec[lv]e?|dlopen)\s*\('
+
+  - id: kalsa.cpp-network-literal
+    languages: [c, cpp]
+    message: C or C++ code connects to a literal non-loopback address
+    severity: WARNING
+    pattern-regex: '(socket|connect)\s*\([^\n]*(https?://|\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b)'
+
+  - id: kalsa.cmake-remote
+    languages: [generic]
+    message: CMake fetches or executes external content
+    severity: WARNING
+    paths:
+      include: ["**/CMakeLists.txt", "**/*.cmake"]
+    pattern-regex: '(FetchContent|ExternalProject|file\s*\(\s*DOWNLOAD|execute_process\s*\()'
+
+  - id: kalsa.cmake-local-include
+    languages: [generic]
+    message: CMake includes a path from the fork
+    severity: WARNING
+    paths:
+      include: ["**/CMakeLists.txt", "**/*.cmake"]
+    pattern-regex: '\b(include|add_subdirectory)\s*\([^)]*(\.\.|/|\\)[^)]*\)'
+
+  - id: kalsa.python-subprocess
+    languages: [python]
+    message: Python starts a process
+    severity: WARNING
+    pattern-regex: '(subprocess\.(run|Popen|call|check_output)|os\.system)\s*\('
+
+  - id: kalsa.docker-network
+    languages: [generic]
+    message: Dockerfile install step fetches from the network
+    severity: WARNING
+    paths:
+      include: ["**/Dockerfile", "**/*.dockerfile"]
+    pattern-regex: '^\s*RUN[^\n]*(curl|wget|pip install|npm install|git clone)'
+
+  - id: kalsa.new-dependency
+    languages: [generic]
+    message: New dependency declaration
+    severity: WARNING
+    paths:
+      include: ["**/requirements.txt", "**/pyproject.toml", "**/Cargo.toml", "**/package.json", "**/vcpkg.json", "**/conanfile.txt"]
+    pattern-regex: '^\s*[@A-Za-z0-9_./-]+\s*(==|>=|\^|~>|git\+|https?://|[0-9])'
+
+  - id: kalsa.cpp-exec-family
+    languages: [c, cpp]
+    message: C/C++ launches a process or loads a library
+    severity: WARNING
+    pattern-regex: '(?s)\b(execv|execve|execvp|execvpe|execl|execle|execlp|posix_spawn|syscall|popen|system)\s*\([^;]{0,400}'
+
+  - id: kalsa.python-process
+    languages: [python]
+    message: Python launches a process or evaluates data
+    severity: WARNING
+    pattern-regex: '(?s)(from\s+subprocess\s+import|subprocess\.(run|Popen|call|check_output)|os\.(system|popen|exec[lvpe]*)|(eval|exec)\s*\([^)]{0,200}(requests|urlopen|\.text|\.read\())'
+
+  - id: kalsa.javascript-process
+    languages: [javascript, typescript]
+    message: JavaScript launches a process or opens network primitives
+    severity: WARNING
+    pattern-regex: '(?s)(require\(\s*["'']child_process|from\s+["'']child_process|execSync\s*\(|spawn\s*\(|require\(\s*["''](http|https|net)|from\s+["''](http|https|net))'
+
+  - id: kalsa.rust-process
+    languages: [rust]
+    message: Rust starts a process or opens a network client
+    severity: WARNING
+    pattern-regex: '(?s)(std::process::Command|Command::new|TcpStream::connect|reqwest::|ureq::)'
+
+  - id: kalsa.makefile-network
+    languages: [generic]
+    message: Makefile shell call fetches or executes content
+    severity: WARNING
+    paths:
+      include: ["**/Makefile", "**/*.mk"]
+    pattern-regex: '(\$\(shell[^\)]*(curl|wget|sh|bash)|^\s*[^\n#]*\t[^\n]*(curl|wget|https?://)[^\n]*(\|\s*sh|iex|-o\s))'
+
+  - id: kalsa.packaging-entrypoint
+    languages: [generic]
+    message: Python packaging entry point changed
+    severity: INFO
+    paths:
+      include: ["**/setup.py", "**/pyproject.toml"]
+    pattern-regex: '(console_scripts|project\.scripts|\[project\.scripts\]|entry_points)'

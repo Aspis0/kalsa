@@ -1,0 +1,82 @@
+{
+  "engine": "lidenburg-llama-cpp",
+  "inputs": {
+    "fork": "Lidenburg/llama.cpp",
+    "fork_branch": "moe-expert-caching",
+    "commit": "e85e4d90cd44a8c8332093b0c97a53fa13137f5e",
+    "upstream": "ggml-org/llama.cpp",
+    "upstream_branch": "master",
+    "upstream_sha": "78e05298f0d68abff41d08d79fa7469264b2aff0",
+    "base_sha": "f05cf4676af46c2f017c0e6ba25b6e20204f700e",
+    "compare_url": "https://github.com/ggml-org/llama.cpp/compare/master...Lidenburg:e85e4d90cd44a8c8332093b0c97a53fa13137f5e",
+    "tool_versions": {
+      "semgrep": "1.186.0",
+      "osv-scanner": "v2.7.1"
+    },
+    "tool_notes": [
+      "guarddog not used: local scan requires network access",
+      "no model pass: review is deterministic static analysis"
+    ]
+  },
+  "created_at": "2026-11-18T22:42:22.016409+00:00",
+  "signals": [
+    {
+      "tool": "semgrep",
+      "file": "ggml/src/CMakeLists.txt",
+      "line": 2,
+      "rule": "kalsa.cmake-local-include",
+      "snippet": "include(\"../cmake/common.cmake\")",
+      "suppressed_because": "not-added-or-not-reaches-users"
+    },
+    {
+      "tool": "semgrep",
+      "file": "ggml/src/CMakeLists.txt",
+      "line": 92,
+      "rule": "kalsa.cmake-remote",
+      "snippet": "execute_process(",
+      "suppressed_because": "not-added-or-not-reaches-users"
+    }
+  ],
+  "findings": [],
+  "findings_by_file": {},
+  "signal_summary": {
+    "kalsa.cmake-local-include": {
+      "count": 1,
+      "examples": [
+        {
+          "tool": "semgrep",
+          "file": "ggml/src/CMakeLists.txt",
+          "line": 2,
+          "rule": "kalsa.cmake-local-include",
+          "snippet": "include(\"../cmake/common.cmake\")",
+          "suppressed_because": "not-added-or-not-reaches-users"
+        }
+      ]
+    },
+    "kalsa.cmake-remote": {
+      "count": 1,
+      "examples": [
+        {
+          "tool": "semgrep",
+          "file": "ggml/src/CMakeLists.txt",
+          "line": 92,
+          "rule": "kalsa.cmake-remote",
+          "snippet": "execute_process(",
+          "suppressed_because": "not-added-or-not-reaches-users"
+        }
+      ]
+    }
+  },
+  "stats": {
+    "files": 4,
+    "lines": 1913,
+    "findings_by_tool": {},
+    "signals_by_tool": {
+      "semgrep": 2
+    },
+    "files_without_patch": [],
+    "history_cap_hit": false,
+    "history_lookups": 0
+  },
+  "verdict": "no findings"
+}

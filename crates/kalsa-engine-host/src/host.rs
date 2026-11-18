@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use std::sync::Mutex;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use serde::Serialize;
 use sha2::{Digest, Sha256};
@@ -16,7 +16,7 @@ use crate::locks::EngineLock;
 use crate::paths;
 use crate::process::{self, Running};
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum EngineState {
     Starting,
@@ -41,6 +41,7 @@ struct Live {
     pidfile: std::path::PathBuf,
     key: ApiKey,
     port: u16,
+    checked_at: Instant,
 }
 
 pub struct EngineHost {
@@ -131,7 +132,7 @@ impl EngineHost {
             let pidfile = process::write_pidfile(id, child, &process.program)?;
             self.running.lock().map_err(|error| error.to_string())?.insert(
                 id.to_string(),
-                Live { process, pidfile, key: key.clone(), port },
+                Live { process, pidfile, key: key.clone(), port, checked_at: Instant::now() },
             );
             return Ok(EngineStatus {
                 state: EngineState::Starting,
@@ -177,34 +178,42 @@ impl EngineHost {
         if let Ok(mut running) = self.running.lock() {
             if let Some(live) = running.get_mut(id) {
                 let tail = live.process.tail();
-                return match live.process.try_wait() {
-                    Ok(Some(code)) => {
-                        process::remove_pidfile(&live.pidfile);
-                        EngineStatus {
-                            state: if code == 0 { EngineState::Exited } else { EngineState::Crashed },
+                if let Ok(Some(code)) = live.process.try_wait() {
+                    process::remove_pidfile(&live.pidfile);
+                    return EngineStatus {
+                        state: if code == 0 { EngineState::Exited } else { EngineState::Crashed },
+                        port: Some(live.port),
+                        log_tail: tail,
+                        message: Some(format!("engine exited with code {code}")),
+                    };
+                }
+                if live.checked_at.elapsed() > Duration::from_secs(5) {
+                    match process::verify_listener(live.port, live.process.child_pid()) {
+                        Ok(true) => live.checked_at = Instant::now(),
+                        Ok(false) => return EngineStatus {
+                            state: EngineState::Starting,
                             port: Some(live.port),
                             log_tail: tail,
-                            message: Some(format!("engine exited with code {code}")),
-                        }
+                            message: Some("waiting for the engine's listening socket".to_string()),
+                        },
+                        Err(error) => return EngineStatus {
+                            state: EngineState::Crashed,
+                            port: Some(live.port),
+                            log_tail: tail,
+                            message: Some(error),
+                        },
                     }
-                    Ok(None) if process::reachable(live.port, &live.key) => EngineStatus {
-                        state: EngineState::Running,
-                        port: Some(live.port),
-                        log_tail: tail,
-                        message: None,
-                    },
-                    Ok(None) => EngineStatus {
-                        state: EngineState::Starting,
-                        port: Some(live.port),
-                        log_tail: tail,
-                        message: Some("Waiting for /v1/models".to_string()),
-                    },
-                    Err(error) => EngineStatus {
-                        state: EngineState::Crashed,
-                        port: Some(live.port),
-                        log_tail: tail,
-                        message: Some(error),
-                    },
+                }
+                let state = if process::reachable(live.port, &live.key) {
+                    EngineState::Running
+                } else {
+                    EngineState::Starting
+                };
+                return EngineStatus {
+                    state,
+                    port: Some(live.port),
+                    log_tail: tail,
+                    message: if state == EngineState::Starting { Some("Waiting for /v1/models".to_string()) } else { None },
                 };
             }
         }
