@@ -9,6 +9,9 @@ fn width(text: &str) -> usize {
 }
 
 pub fn badge_svg(engine: &Engine) -> Option<String> {
+    if engine.review_declined.is_some() {
+        return None;
+    }
     let review = engine.reviewed.as_ref()?;
     let (left, right) = ("Kalsa".to_string(), format!("reviewed {}", &review.commit[..7]));
     let (a, b) = (width(&left), width(&right));

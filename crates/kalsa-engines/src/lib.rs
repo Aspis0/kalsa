@@ -6,6 +6,7 @@ use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
 
+mod baselines;
 mod display;
 mod gains;
 mod hardware;
@@ -20,7 +21,7 @@ pub use gains::{gains_of, Gains, MetricGain};
 pub use hardware::{chip_generation, family_label, hardware_labels, not_for_reason, FAMILIES};
 pub use improvement::{improvement_kinds, Improvement, ImprovementKind};
 pub use install::{Install, Tooling};
-pub use review::Review;
+pub use review::{Review, ReviewDeclined};
 pub use suggested::SuggestedModel;
 
 const KNOWN_TAGS: &[&str] = &[
@@ -73,6 +74,12 @@ pub struct Benchmark {
     /// Derived on parse, never read from the file: both gains, each labelled, with the noise rule applied.
     #[serde(default, skip_deserializing)]
     pub gains: Gains,
+    /// True when the baseline is the same engine and build with one feature switched off, as the author describes it.
+    #[serde(default, rename(serialize = "featureOff", deserialize = "feature_off"))]
+    pub feature_off: bool,
+    /// Derived on parse: the display name of the catalog engine the baseline is, when it is one.
+    #[serde(default, skip_deserializing, rename = "baselineEngine")]
+    pub baseline_engine: Option<String>,
 }
 
 fn recommendable() -> bool {
@@ -106,6 +113,8 @@ pub struct Engine {
     pub benchmark: Vec<Benchmark>,
     #[serde(default, rename(serialize = "reviewed", deserialize = "review"))]
     pub reviewed: Option<Review>,
+    #[serde(default, rename(serialize = "reviewDeclined", deserialize = "review_declined"))]
+    pub review_declined: Option<ReviewDeclined>,
     #[serde(default)]
     pub install: Option<Install>,
     #[serde(default, rename(serialize = "suggestedModels", deserialize = "suggested_models"))]
@@ -149,8 +158,18 @@ pub struct Pick {
 pub fn parse(text: &str) -> Result<Catalog, String> {
     let mut catalog: Catalog = toml::from_str(text).map_err(|error| error.to_string())?;
     validate(&catalog)?;
-    for benchmark in catalog.engine.iter_mut().flat_map(|engine| engine.benchmark.iter_mut()) {
+    let named = catalog
+        .engine
+        .iter()
+        .flat_map(|engine| &engine.benchmark)
+        .map(|benchmark| baselines::engine_named(&benchmark.baseline, &catalog.engine))
+        .collect::<Result<Vec<Option<String>>, String>>()?;
+    for (benchmark, name) in catalog.engine.iter_mut().flat_map(|engine| engine.benchmark.iter_mut()).zip(named) {
+        if benchmark.feature_off && name.is_some() {
+            return Err(format!("baseline {:?} is an engine, so the benchmark cannot also be a feature switched off", benchmark.baseline));
+        }
         benchmark.gains = gains_of(benchmark);
+        benchmark.baseline_engine = name;
     }
     Ok(catalog)
 }
@@ -192,6 +211,12 @@ fn validate(catalog: &Catalog) -> Result<(), String> {
         }
         if let Some(record) = &engine.reviewed {
             review::validate(record, &engine.id)?;
+        }
+        if let Some(record) = &engine.review_declined {
+            review::validate_declined(record, &engine.id)?;
+        }
+        if engine.reviewed.is_some() && engine.review_declined.is_some() {
+            return Err(format!("{}: a review cannot be both granted and declined", engine.id));
         }
         if let Some(recipe) = &engine.install {
             install::validate(recipe, &engine.id)?;

@@ -18,7 +18,7 @@ license = "MIT"
 kind = "reference"
 website = "https://llama.app"
 hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5", "nvidia", "amd", "intel", "cpu"]
-summary = "Reference upstream across Metal, CUDA, ROCm/HIP, Vulkan, SYCL and CPU"
+summary = "Serves as the reference upstream and runs on Apple Silicon, NVIDIA, AMD, Intel and CPU."
 
 [engine.install]
 kind = "release-archive"
@@ -54,7 +54,7 @@ author = "ml-explore (Apple)"
 license = "MIT"
 kind = "reference"
 hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5", "apple-m6"]
-summary = "Reference upstream for Apple Silicon (MLX)"
+summary = "Serves as the reference upstream for Apple Silicon, built on MLX."
 
 # uv 0.13.9 verifies managed Python downloads against the sha256 carried in
 # its pinned download metadata: uv-python/src/downloads.rs checks the hash
@@ -91,7 +91,7 @@ license = "Apache-2.0"
 kind = "reference"
 website = "https://vllm.ai"
 hardware = ["nvidia", "amd", "intel", "cpu"]
-summary = "Reference upstream for NVIDIA, AMD, Intel GPU and CPU"
+summary = "Serves as the reference upstream for NVIDIA, AMD and Intel GPUs and CPU."
 
 [[engine]]
 id = "ollama"
@@ -102,7 +102,7 @@ license = "MIT"
 kind = "reference"
 website = "https://ollama.com"
 hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5", "nvidia", "amd", "cpu"]
-summary = "Reference upstream: UX wrapper with a model library"
+summary = "Serves as the reference upstream: a UX wrapper with a model library."
 
 [[engine]]
 id = "ds4"
@@ -114,7 +114,7 @@ kind = "engine"
 website = "https://dwarfstar.sh"
 website_label = "Community site"
 hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5", "apple-m6", "nvidia", "amd"]
-summary = "Inference engine in C built around a few large models (DeepSeek V4 Flash and PRO, GLM 5.x, Qwen3.8), with Metal, CUDA and ROCm backends"
+summary = "Runs large models such as DeepSeek V4 Flash and GLM 5.3 Flash on Apple Silicon, NVIDIA and AMD."
 
 [[engine.improvement]]
 kind = "bigger-models"
@@ -164,7 +164,7 @@ license = "Apache-2.0"
 kind = "reference"
 website = "https://mtplx.com"
 hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5", "apple-m6"]
-summary = "Mac app and command line that runs Qwen models on Apple Silicon using the model's own multi-token prediction heads"
+summary = "Runs on Apple Silicon and is the upstream of the MTPLX M1-family build."
 
 [[engine]]
 id = "strata"
@@ -174,7 +174,7 @@ author = "Niko1221"
 license = "MIT"
 kind = "reference"
 hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5", "apple-m6", "nvidia", "amd"]
-summary = "Desktop app and engine for running Qwen3.8 models locally on NVIDIA, AMD and Apple Silicon, with an OpenAI-compatible local API"
+summary = "Serves as the reference upstream for Strata forks on NVIDIA, AMD and Apple Silicon."
 
 [[engine]]
 id = "rapid-mlx"
@@ -186,7 +186,7 @@ kind = "engine"
 website = "https://rapidmlx.com"
 upstream = "ml-explore/mlx-lm"
 hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5", "apple-m6"]
-summary = "Pure MLX kernels with continuous batching and prefix cache"
+summary = "Builds on mlx-lm to decode Qwen3.5-9B faster than oMLX on Apple Silicon."
 
 [[engine.benchmark]]
 source = "https://github.com/raullenchai/Rapid-MLX"
@@ -208,7 +208,7 @@ kind = "engine"
 website = "https://inco.ai/blog/splash/"
 website_label = "Announcement"
 hardware = ["apple-m3", "apple-m4", "apple-m5"]
-summary = "Neural Engine prefill and SSD-tiered KV on Apple M3+"
+summary = "Decodes Qwen3.8-27B and Qwen3.6-35B-A3B faster than llama.cpp on Apple M3 and newer."
 
 [[engine.benchmark]]
 source = "https://github.com/incoai/splash"
@@ -238,7 +238,7 @@ author = "EricLBuehler"
 license = "MIT"
 kind = "engine"
 hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5", "nvidia"]
-summary = "Rust engine with ISQ/UQFF quantization"
+summary = "Runs models in Rust with ISQ and UQFF quantization on Apple Silicon and NVIDIA GPUs."
 
 [[engine.benchmark]]
 source = "https://github.com/EricLBuehler/mistral.rs"
@@ -251,7 +251,7 @@ prefill_tok_s = 2947.0
 baseline = "llama.cpp"
 baseline_decode_tok_s = 46.4
 baseline_prefill_tok_s = 2178.5
-note = "The decode pair is within noise; the gain is on prefill"
+note = "The decode pair is about the same speed; the gain is on prefill"
 
 [[engine]]
 id = "shunya-mtplx-m1"
@@ -262,7 +262,7 @@ license = "Apache-2.0"
 kind = "fork"
 upstream = "youssofal/MTPLX"
 hardware = ["apple-m1"]
-summary = "Neural Engine prefill, M1 flash-attention and 8-bit paged KV"
+summary = "Speeds up MTPLX decoding on M1-family Macs."
 note = "Requires the upstream MTPLX app runtime (mtplx.cli serve)"
 
 [[engine.benchmark]]
@@ -307,7 +307,7 @@ license = "MIT"
 kind = "fork"
 upstream = "ggml-org/llama.cpp"
 hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5", "apple-m6", "amd"]
-summary = "Core ML and XDNA NPU offload"
+summary = "Offloads work to Core ML on Apple Silicon and to the XDNA NPU on AMD, in a llama.cpp fork."
 
 [[engine.benchmark]]
 source = "https://github.com/tetherto/qvac-fabric-llm.cpp"
@@ -317,6 +317,7 @@ model = "Qwen3.8-27B"
 quant = "Q4_0"
 prefill_tok_s = 470.5
 baseline = "Core ML off"
+feature_off = true
 baseline_prefill_tok_s = 341.7
 
 [[engine.benchmark]]
@@ -327,6 +328,7 @@ model = "Qwen3.5-2B"
 quant = "Q4_K_M"
 decode_tok_s = 61.9
 baseline = "XDNA NPU off"
+feature_off = true
 baseline_decode_tok_s = 20.1
 
 [[engine]]
@@ -338,7 +340,7 @@ license = "MIT"
 kind = "fork"
 upstream = "ggml-org/llama.cpp"
 hardware = ["amd"]
-summary = "Vulkan LDS stride fix and adaptive draft on Strix Halo"
+summary = "Speeds up prompt reading in llama.cpp on AMD Strix Halo, using adaptive speculative decoding."
 
 [[engine.benchmark]]
 source = "https://github.com/LaurentZuijdwijk/llama.cpp"
@@ -359,7 +361,7 @@ license = "MIT"
 kind = "fork"
 upstream = "ggml-org/llama.cpp"
 hardware = ["nvidia"]
-summary = "KV cache streamed between host RAM and VRAM"
+summary = "Streams the KV cache between host RAM and VRAM in a llama.cpp fork for NVIDIA GPUs."
 
 [[engine.benchmark]]
 source = "https://github.com/RaymondHuang210129/llama.cpp-adaptive-kv-streaming"
@@ -381,7 +383,7 @@ license = "MIT"
 kind = "fork"
 upstream = "ggml-org/llama.cpp"
 hardware = ["nvidia"]
-summary = "VRAM-resident expert cache for MoE"
+summary = "Keeps MoE experts in a VRAM-resident cache in a llama.cpp fork for NVIDIA GPUs."
 
 [[engine.benchmark]]
 source = "https://github.com/thecodacus/llama.cpp"
@@ -392,6 +394,7 @@ quant = "Q4_K_M"
 decode_tok_s = 51.3
 prefill_tok_s = 1880.0
 baseline = "expert cache off"
+feature_off = true
 baseline_decode_tok_s = 42.3
 baseline_prefill_tok_s = 1143.0
 
@@ -404,7 +407,7 @@ license = "MIT"
 kind = "fork"
 upstream = "antirez/ds4"
 hardware = ["apple-m3"]
-summary = "GLM-5.3-Flash path, DFlash2 and CUDA batch fixes"
+summary = "Speeds up GLM-5.3-Flash on Apple M3 in a ds4 fork."
 
 [[engine.benchmark]]
 source = "https://github.com/IngeniousIdiocy/ds4"
@@ -427,7 +430,7 @@ license = "MIT"
 kind = "fork"
 upstream = "antirez/ds4"
 hardware = ["nvidia"]
-summary = "Batch prefill for GLM and Hy3"
+summary = "Adds batch prefill for GLM models to ds4 on NVIDIA GPUs."
 recommendable = false
 note = "Not recommendable: ~0.4 tok/s generation (about 2.5 s per token; the README's own interactive figure is ~2.1 tok/s)"
 
@@ -439,6 +442,7 @@ model = "GLM"
 quant = "IQ2_XXS"
 prefill_tok_s = 6.5
 baseline = "token-major prefill (feature off)"
+feature_off = true
 baseline_prefill_tok_s = 0.30
 
 [[engine]]
@@ -450,7 +454,7 @@ license = "MIT"
 kind = "fork"
 upstream = "ggml-org/llama.cpp"
 hardware = ["amd"]
-summary = "Adaptive KV streaming, RDNA 4 kernels and MTP+n-gram"
+summary = "Speeds up decoding in llama.cpp on AMD GPUs."
 
 [[engine.benchmark]]
 source = "https://github.com/achyudh/llama.cpp"
@@ -471,7 +475,7 @@ license = "MIT"
 kind = "fork"
 upstream = "ggml-org/llama.cpp"
 hardware = ["nvidia"]
-summary = "Expert cache with GPU and RAM tiers"
+summary = "Adds an expert cache with GPU and RAM tiers to llama.cpp on NVIDIA GPUs."
 
 [[engine.benchmark]]
 source = "https://github.com/Lidenburg/llama.cpp"
@@ -481,6 +485,7 @@ model = "Qwen3.6-35B-A3B"
 quant = "UD-Q4_K_M"
 decode_tok_s = 80.0
 baseline = "expert cache off"
+feature_off = true
 baseline_decode_tok_s = 50.0
 note = "Approximate tok/s as published; 256k context"
 
@@ -492,7 +497,7 @@ author = "bstnxbt"
 license = "Apache-2.0"
 kind = "engine"
 hardware = ["apple-m5"]
-summary = "DFlash speculative decoding on MLX"
+summary = "Runs DFlash speculative decoding on MLX for Apple M5."
 
 [[engine.benchmark]]
 source = "https://github.com/bstnxbt/dflash-mlx"
@@ -513,7 +518,7 @@ license = "MIT"
 kind = "fork"
 upstream = "ggml-org/llama.cpp"
 hardware = ["nvidia"]
-summary = "Experts streamed from SSD/RAM into GPU passes; prompt passes"
+summary = "Streams experts from SSD or RAM into GPU passes, which speeds up prompt processing in llama.cpp on NVIDIA GPUs."
 
 [[engine.benchmark]]
 source = "https://github.com/neurall/llama.cpp"
@@ -535,7 +540,7 @@ author = "oldnordic"
 license = "GPL-3.0"
 kind = "engine"
 hardware = ["amd"]
-summary = "Pure-HIP engine with decode-graph replay"
+summary = "Decodes Qwen2.5-0.5B faster than llama.cpp on AMD GPUs."
 
 [[engine.benchmark]]
 source = "https://github.com/oldnordic/ROCmForge"
@@ -555,7 +560,7 @@ author = "lablup"
 license = "Apache-2.0"
 kind = "engine"
 hardware = ["apple-m1", "apple-m5"]
-summary = "MLX engine for text and VLM"
+summary = "Decodes Qwen3-30B-A3B faster than mlx-lm on an M5 Max."
 
 [[engine.benchmark]]
 source = "https://github.com/lablup/mlxcel"
@@ -576,7 +581,7 @@ license = "Apache-2.0"
 kind = "engine"
 website = "https://ax-engine.app"
 hardware = ["apple-m5"]
-summary = "AXQ MXFP4 MTP sidecars on MLX"
+summary = "Runs Qwen 3.8 27B with AXQ quantization and MTP on MLX for Apple M5."
 
 [[engine.benchmark]]
 source = "https://github.com/defai-digital/ax-engine"
@@ -597,7 +602,7 @@ author = "ewhacc"
 license = "MIT"
 kind = "engine"
 hardware = ["nvidia"]
-summary = "MoE expert store with RAM tiers"
+summary = "Stores MoE experts in RAM tiers for models running on NVIDIA GPUs."
 
 [[engine.benchmark]]
 source = "https://github.com/ewhacc/tandem.cpp"
@@ -619,7 +624,7 @@ license = "Apache-2.0"
 kind = "engine"
 website = "https://kapitsa.vercel.app"
 hardware = ["apple-m5"]
-summary = "KFlash decoding and Nace quants"
+summary = "Runs Qwen3.6-35B-A3B 4-bit on Apple M5 with faster decoding and prompt reading."
 
 [[engine.benchmark]]
 source = "https://github.com/nace-ai/kapitsa"
@@ -642,7 +647,7 @@ license = "MIT"
 kind = "fork"
 upstream = "ggml-org/llama.cpp"
 hardware = ["amd"]
-summary = "RDNA patches, tensor split and a speculative-decoding clamp"
+summary = "Speeds up decoding in llama.cpp on AMD GPUs with RDNA patches and a speculative-decoding clamp."
 
 [[engine.benchmark]]
 source = "https://github.com/stew675/llama-cpp-rdna-boosts"
@@ -652,6 +657,7 @@ model = "Flash-Next"
 quant = "IQ4_NL"
 decode_tok_s = 168.3
 baseline = "spec clamp off"
+feature_off = true
 baseline_decode_tok_s = 73.9
 
 [[engine]]
@@ -663,7 +669,7 @@ license = "Apache-2.0"
 kind = "engine"
 website = "https://generatedcomputers.com"
 hardware = ["apple-m2"]
-summary = "Continuous batching across requests and KV reuse across restarts"
+summary = "Serves many requests at the same time on Apple M2 with higher total throughput."
 
 [[engine.improvement]]
 kind = "parallel-throughput"
@@ -685,7 +691,7 @@ license = "MIT"
 kind = "fork"
 upstream = "Niko1221/Strata"
 hardware = ["nvidia"]
-summary = "Two-GPU split with tuned prompt kernels"
+summary = "Speeds up prompt processing in Strata on NVIDIA GPUs."
 
 [[engine.benchmark]]
 source = "https://github.com/architectds/Strata"
@@ -708,7 +714,7 @@ kind = "engine"
 website = "https://www.fratepietro.com/2026/frink-rust-alternative-to-llama-cpp/"
 website_label = "Announcement"
 hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5"]
-summary = "Pure-Rust GGUF loader with quantized Metal kernels and lossless speculative decoding"
+summary = "Loads GGUF models in pure Rust, with quantized Metal kernels and lossless speculative decoding."
 note = "Apple Metal only: the llama.cpp baseline build is unknown, and frink is much slower than llama.cpp on CPU and CUDA"
 
 [[engine.benchmark]]
@@ -749,7 +755,7 @@ author = "SharpAI (org)"
 license = "MIT"
 kind = "engine"
 hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5", "apple-m6"]
-summary = "Native Swift server for MLX models on Apple Silicon, with SSD streaming of MoE experts and a compressed KV cache"
+summary = "Streams experts from the SSD to cut GPU memory use on Apple Silicon Macs."
 
 [[engine.improvement]]
 kind = "less-memory"
@@ -772,7 +778,7 @@ license = "Apache-2.0"
 kind = "engine"
 website = "https://vmlx.net"
 hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5"]
-summary = "MLX model server for Apple Silicon with adaptive mixed-precision quantization and partial loading of MoE experts from SSD"
+summary = "Cuts memory use on Apple Silicon by loading only some of each MoE model's experts."
 
 [[engine.improvement]]
 kind = "less-memory"
@@ -794,7 +800,7 @@ author = "zouyee"
 license = "MIT"
 kind = "engine"
 hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5", "apple-m6"]
-summary = "Zig runtime for Apple Silicon built around model-specific speculative decoding and SSD-streamed MoE models"
+summary = "Decodes faster and starts answering sooner on Apple Silicon, using an MTP drafter."
 
 [[engine.benchmark]]
 source = "https://github.com/zouyee/dmlx"
@@ -828,7 +834,7 @@ kind = "fork"
 upstream = "incoai/splash"
 website = "https://paperniuk.github.io/"
 hardware = ["apple-m1", "apple-m2"]
-summary = "Unofficial port of Splash to M1 and M2 Macs, with Metal kernels written for those GPUs"
+summary = "Runs Splash on M1 and M2 Macs, where the upstream needs an M3 or newer."
 
 [[engine.improvement]]
 kind = "new-hardware"
@@ -848,7 +854,7 @@ license = "MIT"
 kind = "fork"
 upstream = "ggml-org/llama.cpp"
 hardware = ["nvidia", "amd"]
-summary = "Research fork of llama.cpp with new KV cache codecs, including a trellis-coded 3-bit codec"
+summary = "Adds a trellis-coded 3-bit KV cache codec to llama.cpp for NVIDIA and AMD GPUs."
 
 [[engine.improvement]]
 kind = "quality"
@@ -871,7 +877,7 @@ license = "MIT"
 kind = "fork"
 upstream = "ggml-org/llama.cpp"
 hardware = ["nvidia"]
-summary = "llama.cpp fork that keeps about half of each MoE model's experts as a GPU cache"
+summary = "Changes how llama.cpp places its cache on NVIDIA GPUs, and decodes Qwen3.6 35B faster than stock."
 
 [[engine.benchmark]]
 source = "https://github.com/GenerelSchwerz/llama.cpp/wiki/Short-Prompt-MoE-Comparison-2026-09-26"
@@ -893,7 +899,7 @@ license = "MIT"
 kind = "fork"
 upstream = "ggml-org/llama.cpp"
 hardware = ["nvidia"]
-summary = "llama.cpp fork with TQ3 weight formats and CUDA kernels, including a Blackwell FP4 prompt path"
+summary = "Adds TQ3 weight formats to llama.cpp and an FP4 prompt path on Blackwell GPUs."
 note = "The README says the TQ weight formats are now developed in tqLLM, where new features land first; this fork stays for llama.cpp users."
 
 [[engine.benchmark]]
@@ -904,6 +910,7 @@ model = "Qwen3.6 27B MTP"
 quant = "TQ3_4S"
 prefill_tok_s = 919.63
 baseline = "FP4 cache path off"
+feature_off = true
 baseline_prefill_tok_s = 359.94
 note = "Prompt processing at 2048 tokens with -ngl 99. The FP4 path is a runtime option on Blackwell GPUs; the model file stays TQ3_4S."
 
@@ -916,7 +923,7 @@ license = "MIT"
 kind = "fork"
 upstream = "ggml-org/llama.cpp"
 hardware = ["amd"]
-summary = "llama.cpp tuned for Qwen 3.8 Flash-Next on AMD Strix Halo, with ROCm kernel patches and a working MTP draft head"
+summary = "Speeds up Qwen 3.8 Flash-Next decoding on AMD Strix Halo with MTP, in a llama.cpp fork."
 
 [[engine.benchmark]]
 source = "https://github.com/Aristo94/EngramHalo.cpp/blob/strix-halo-qwen4exp/docs/strix-halo/README.md"
@@ -926,6 +933,7 @@ model = "Qwen3.8 Flash-Next"
 quant = "UD-IQ3_XXS"
 decode_tok_s = 39.3
 baseline = "MTP off, same patched build"
+feature_off = true
 baseline_decode_tok_s = 24.4
 note = "A 400-token code prompt with a q8_0 KV cache at temperature 0, with the engram table held in RAM and short contexts only; with the table on SSD the same run reads 35.3 tok/s. ROCm only."
 
@@ -938,7 +946,7 @@ license = "Apache-2.0"
 kind = "engine"
 website = "https://omlx.ai"
 hardware = ["apple-m1", "apple-m2", "apple-m3", "apple-m4", "apple-m5"]
-summary = "LLM inference server for Apple Silicon with continuous batching and SSD caching, managed from the macOS menu bar"
+summary = "Speeds up prompt reading on Apple Silicon by pairing a second Mac."
 
 [[engine.benchmark]]
 source = "https://github.com/jundot/omlx/blob/8bfb13be42bbc3db78ec1bcf59b2f47902642ade/docs/experimental/prefill-accelerator.md"
@@ -960,7 +968,7 @@ license = "MIT"
 kind = "fork"
 upstream = "ggml-org/llama.cpp"
 hardware = ["amd"]
-summary = "llama.cpp fork for AMD RDNA3 and RDNA3.5 GPUs on Vulkan, with the ROCmFPx weight formats and measured RDNA3 patches"
+summary = "Shrinks Qwen3.8-27B with the ROCmFPX format and decodes it faster, in a llama.cpp fork for AMD GPUs."
 
 [[engine.benchmark]]
 source = "https://github.com/SelfRef/llama.cpp-rdna/blob/5e085d123eead2e89b5c19f824fccb05727da6a2/ROCMFPX-NOTES.md"

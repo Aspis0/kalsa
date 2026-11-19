@@ -14,8 +14,7 @@ fn segment(id: &str, label: &str, items: &[(&str, &str)], active: &str) -> Strin
     let buttons: String = items
         .iter()
         .map(|(value, text)| {
-            let disabled = if text.contains("soon") { " disabled" } else { "" };
-            format!("<button aria-pressed=\"{}\" data-v=\"{value}\"{disabled}>{text}</button>", *value == active)
+            format!("<button aria-pressed=\"{}\" data-v=\"{value}\">{text}</button>", *value == active)
         })
         .collect();
     format!("<span class=\"sm\">{label}</span><div class=\"seg\" id=\"{id}\" role=\"group\" aria-label=\"{label}\">{buttons}</div>")
@@ -42,11 +41,10 @@ fn filters(catalog: &Catalog) -> String {
          <select class=\"sel\" id=\"imp\" aria-label=\"Improvement\"><option value=\"all\">Any improvement</option>{improvements}</select>\
          <select class=\"sel\" id=\"lic\" aria-label=\"Licence\"><option value=\"all\">Any licence</option>{options}</select>\
          <select class=\"sel\" id=\"sort\" aria-label=\"Sort\"><option value=\"name\">Name, A to Z</option><option value=\"recent\">Recently added</option></select></div>\
-         <div class=\"frow\">{listing}{badge}</div><div class=\"frow\" id=\"hw\" role=\"group\" aria-label=\"Hardware\">{hardware}</div>\
+         <div class=\"frow\">{badge}</div><div class=\"frow\" id=\"hw\" role=\"group\" aria-label=\"Hardware\">{hardware}</div>\
          <div class=\"frow\">{kind}<span class=\"sm num\" id=\"count\"></span></div></div>",
         improvements = improvement_options(catalog),
-        listing = segment("listing", "Listing", &[("listed", "Listed"), ("community", "Community, coming soon")], "listed"),
-        badge = segment("badge", "Badge", &[("any", "Any"), ("reviewed", "Reviewed"), ("none", "Not reviewed")], "any"),
+        badge = segment("badge", "Review", &[("any", "Any"), ("reviewed", "Reviewed"), ("none", "Not reviewed")], "any"),
         kind = segment("kind", "Kind", &[("all", "Any kind"), ("reference", "Reference"), ("fork", "Fork"), ("engine", "Engine")], "all"),
     )
 }
@@ -54,20 +52,18 @@ fn filters(catalog: &Catalog) -> String {
 pub fn engines_page(catalog: &Catalog, facts: &Facts) -> String {
     let cards: String = alphabetical(catalog).iter().map(|engine| card("../", engine, headline(engine), false, facts)).collect();
     let body = format!(
-        "<div class=\"wrap\"><section class=\"pagehead\"><h1>Engines</h1><p class=\"lede\">{count} listed engines and forks that passed the catalog rules, A to Z by default. \
-         Each number is claimed by its author and names the chip it was measured on.</p>{filters}</section>\
+        "<div class=\"wrap\"><section class=\"pagehead\"><h1>Engines</h1><p class=\"lede\">Browse all {count} engines, A to Z. Filter them by chip, licence or what they do better. \
+         <a class=\"lnk\" href=\"../{rules}\">Listed and community engines</a> explains what the Listed mark needs.</p>{filters}</section>\
          <div class=\"grid listgrid\" id=\"list\">{cards}</div>\
-         <div class=\"empty\" id=\"empty\" hidden><b>No engine matches</b>Try fewer filters.<br><button id=\"clear\">Clear filters</button></div>\
-         <div class=\"panel dash\"><h3>Community listings <span class=\"soon\">Coming soon</span></h3>\
-         <p>Engines that authors list themselves will appear here in their own section. Kalsa never recommends them. <a class=\"lnk\" href=\"../{submit}\">How listing works</a></p></div></div>",
+         <div class=\"empty\" id=\"empty\" hidden><b>No engine matches</b>Try fewer filters.<br><button id=\"clear\">Clear filters</button></div></div>",
         count = catalog.engine.len(),
         filters = filters(catalog),
-        submit = paths::section("submit"),
+        rules = paths::section("listed-and-community"),
     );
     page(
         &Meta {
             title: "Engines | Kalsa",
-            description: "All listed local inference engines and forks in the Kalsa catalog, with the benchmark each author published.",
+            description: "Every engine and fork in the Kalsa catalog, filtered by chip, licence or what it does better.",
             path: &paths::section("engines"),
             active: "engines",
             scripts: &["filters.js"],
@@ -93,8 +89,7 @@ pub fn engines_json(catalog: &Catalog) -> String {
             json!({
                 "id": engine.id,
                 "name": engine.name.to_lowercase(),
-                "listing": "listed",
-                "badge": if engine.reviewed.is_some() { "reviewed" } else { "none" },
+                "badge": if engine.reviewed.is_some() && engine.review_declined.is_none() { "reviewed" } else { "none" },
                 "hardware": engine.hardware,
                 "labels": hardware_labels(&engine.hardware),
                 "kind": engine.kind.label().to_lowercase(),

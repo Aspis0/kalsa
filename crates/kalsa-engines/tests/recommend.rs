@@ -430,3 +430,36 @@ fn locals_carries_its_aggregate_figure_as_a_parallel_throughput_improvement() {
     assert_eq!((item.before, item.after), (Some(87.0), Some(271.0)));
     assert!(item.source.starts_with("https://github.com/Generated-Computers/Locals"));
 }
+
+#[test]
+fn a_declined_review_is_valid_but_cannot_coexist_with_a_badge() {
+    let mut text = r#"
+[[engine]]
+id = "fork-x"
+name = "fork x"
+repo = "owner/fork-x"
+author = "owner"
+license = "MIT"
+kind = "engine"
+hardware = ["apple-m1"]
+summary = "A fork"
+
+[[engine.improvement]]
+kind = "new-hardware"
+summary = "Longer context in the README"
+machine = "Apple M1 Max"
+source = "https://example.com/readme"
+
+[engine.review_declined]
+commit = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+date = "2026-11-18"
+reason = "the README asks users to run an install script from another repository"
+"#
+    .to_string();
+    let catalog = kalsa_engines::parse(&text).expect("declined review parses");
+    assert!(catalog.engine[0].review_declined.is_some());
+    text.push_str(
+        "\n[engine.review]\ncommit = \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"\ndate = \"2026-11-18\"\nupstream = \"up/repo\"\n",
+    );
+    assert!(kalsa_engines::parse(&text).is_err());
+}

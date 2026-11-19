@@ -14,8 +14,8 @@ fn every_engine_has_a_page_and_every_section_exists() {
         assert!(files.iter().any(|(name, _)| name == &Path::new("engines").join(&engine.id).join("index.html")), "missing page for {}", engine.id);
     }
     for path in [
-        "index.html", "engines/index.html", "engines/engines.json", "hardware/index.html", "compare/index.html",
-        "how-we-choose/index.html", "submit/index.html", "app/index.html", "sitemap.xml", "static/filters.js", "static/site.js",
+        "index.html", "engines/index.html", "engines/engines.json", "hardware/index.html",
+        "listed-and-community/index.html", "submit/index.html", "app/index.html", "privacy/index.html", "sitemap.xml", "static/filters.js", "static/site.js",
     ] {
         body(&files, path);
     }
@@ -26,9 +26,9 @@ fn hardware_pages_cover_families_and_every_chip_a_benchmark_names() {
     let files = generated();
     for slug in ["apple-m1", "apple-m5", "nvidia", "amd", "intel", "cpu", "apple-m1-max", "apple-m2-pro", "apple-m3-ultra", "apple-m5-max"] {
         let page = body(&files, &format!("hardware/{slug}/index.html"));
-        assert!(page.contains("Listed engines only"), "{slug} must say it shows listed engines only");
+        assert!(page.contains("Engines are listed A to Z."), "{slug} says how its engines are ordered");
     }
-    assert!(body(&files, "hardware/apple-m1-max/index.html").contains("Measured on M1 Max, same chip"));
+    assert!(body(&files, "hardware/apple-m1-max/index.html").contains("Measured on this chip: M1 Max"));
 }
 
 #[test]
@@ -41,18 +41,17 @@ fn every_developer_has_a_page() {
 }
 
 #[test]
-fn compare_pages_exist_only_for_published_pairs() {
+fn there_is_no_compare_section_and_nothing_links_to_one() {
     let files = generated();
-    let catalog = catalog();
-    let pages: Vec<&PathBuf> = files.iter().map(|(path, _)| path).filter(|path| path.starts_with("compare") && path != &Path::new("compare/index.html")).collect();
-    assert!(!pages.is_empty());
-    for path in pages {
-        let folder = path.parent().unwrap().file_name().unwrap().to_str().unwrap();
-        let engine = catalog.engine.iter().find(|engine| folder.starts_with(&format!("{}-vs-", engine.id))).unwrap_or_else(|| panic!("{folder} is not an engine pair"));
-        assert!(engine.benchmark.iter().any(|b| b.baseline_decode_tok_s.is_some() || b.baseline_prefill_tok_s.is_some()), "{} has no published baseline", engine.id);
-        assert!(body(&files, path.to_str().unwrap()).contains("Claimed by the author"));
+    assert!(!files.iter().any(|(path, _)| path.starts_with("compare")), "no compare page is generated");
+    assert!(!body(&files, "sitemap.xml").contains("/compare"));
+    for (page, text) in html(&files) {
+        assert!(!text.contains("compare/"), "{page:?} links the compare section");
+        assert!(!text.contains(">Compare</a>"), "{page:?} has a Compare link");
     }
-    assert!(!files.iter().any(|(path, _)| path.starts_with("compare/llama-cpp-vs")), "a reference engine has no pair of its own");
+    let frink = body(&files, "engines/frink/index.html");
+    assert!(frink.contains("id=\"benchmarks\"") && frink.contains(">Source</a>"), "the published benchmarks stay on the engine page");
+    assert!(!frink.contains("Published pairs"));
 }
 
 #[test]
@@ -85,7 +84,7 @@ fn every_internal_href_and_src_resolves() {
 
 #[test]
 fn hrefs_resolve_without_their_fragment_or_query() {
-    assert_eq!(resolve_href(Path::new("engines/x/index.html"), "../../how-we-choose/index.html#removal"), PathBuf::from("how-we-choose/index.html"));
+    assert_eq!(resolve_href(Path::new("engines/x/index.html"), "../../listed-and-community/index.html#corrections"), PathBuf::from("listed-and-community/index.html"));
     assert_eq!(resolve_href(Path::new("index.html"), "engines/index.html?hw=apple-m1"), PathBuf::from("engines/index.html"));
 }
 

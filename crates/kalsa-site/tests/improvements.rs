@@ -20,31 +20,26 @@ const DS4_LINES: [&str; 4] = [
 ];
 
 #[test]
-fn an_engine_page_lists_its_improvements_with_tag_machine_source_and_trade_off() {
+fn an_engine_page_lists_what_it_does_better_with_its_trade_off_and_source() {
     let files = generated();
     let ds4 = body(&files, "engines/ds4/index.html");
-    let section = ds4.split("id=\"improvements\"").nth(1).expect("ds4 has an Improvements section");
+    let section = ds4.split("id=\"better\"").nth(1).expect("ds4 has a What it does better section");
+    assert!(section.starts_with(">What it does better</h3>"));
     for line in DS4_LINES {
         assert!(section.contains(line), "{line}");
     }
-    for tag in ["Bigger models", "Multiple machines", "New hardware"] {
-        assert!(section.contains(&format!("<span class=\"tg imp\">{tag}</span>")), "{tag}");
-    }
-    assert!(section.contains("81 GiB model on 128 GB of memory, 34.36 tok/s") && section.contains("M5 Max, 128 GB"));
     assert!(section.contains("href=\"https://github.com/antirez/ds4/blob/main/docs/CUDA_MULTI_GPU.md\">Source</a>"));
-    assert!(section.contains("<b>Trade-off.</b> The 126 tok/s is total throughput across sessions, not the speed of one user."));
-    assert!(ds4.contains("<a href=\"#improvements\">Improvements</a>"));
-    assert!(!body(&files, "engines/llama-cpp/index.html").contains("id=\"improvements\""), "a reference with nothing declared has no section");
+    assert!(section.contains("<p class=\"trade\">Trade-off: the 126 tok/s is total throughput across sessions, not the speed of one user.</p>"));
+    assert!(!section.contains("Claimed by the author") && !section.contains("<span class=\"tg imp\">"), "plain sentences, no tags");
+    assert!(!body(&files, "engines/llama-cpp/index.html").contains("id=\"better\""), "an engine that declares nothing has no section");
 }
 
 #[test]
-fn speed_gains_are_listed_beside_the_declared_improvements() {
+fn speed_gains_live_in_the_benchmarks_and_not_in_what_it_does_better() {
     let files = generated();
     let frink = body(&files, "engines/frink/index.html");
-    let section = frink.split("id=\"improvements\"").nth(1).expect("frink shows its speed gain");
-    assert!(section.contains("<span class=\"tg imp\">Faster decode</span>") || section.contains("<span class=\"tg imp\">Faster prefill</span>"));
-    assert!(section.contains("Claimed by the author."));
-    assert!(!section.contains("within noise"), "a difference under 5% is not listed");
+    assert!(!frink.contains("id=\"better\"") && frink.contains("id=\"benchmarks\""));
+    assert!(!visible(frink).contains("within noise"), "the old noise label is gone");
 }
 
 #[test]
@@ -83,26 +78,12 @@ fn a_hardware_family_page_shows_larger_models_only_where_data_exists() {
 }
 
 #[test]
-fn how_we_choose_states_the_three_site_wide_rules_in_plain_words() {
-    let files = generated();
-    let page = visible(body(&files, "how-we-choose/index.html"));
-    for rule in [
-        "A comparison with the project’s own earlier release does not count.",
-        "A different format counts only with its quality cost shown.",
-        "A requirement such as changing a system setting is shown as a trade-off.",
-    ] {
-        assert!(page.contains(rule), "{rule}");
-    }
-}
-
-#[test]
 fn a_speed_row_shows_its_caveat_and_omlx_names_its_requirements() {
     let files = generated();
     let omlx = body(&files, "engines/omlx/index.html");
-    let section = omlx.split("id=\"improvements\"").nth(1).expect("oMLX has an Improvements section");
-    assert!(section.contains("<span class=\"tg imp\">Faster prefill</span>") && section.contains("prefill 2.8× against This Mac alone"));
-    assert!(section.contains("<b>Note.</b>") && section.contains("Remote Login turned on in System Settings") && section.contains("The feature is experimental."));
-    assert!(section.contains("This Mac alone"));
+    let section = omlx.split("id=\"benchmarks\"").nth(1).expect("oMLX has benchmarks");
+    assert!(section.contains("it reads prompts at 3000 tok/s, against 1060 tok/s for This Mac alone (2.8×)"));
+    assert!(section.contains("Note: ") && section.contains("Remote Login turned on in System Settings") && section.contains("The feature is experimental."));
     assert!(!omlx.contains("<span class=\"tg imp\">Multiple machines</span>"), "the model is not split");
 }
 

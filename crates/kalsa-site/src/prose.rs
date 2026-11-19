@@ -1,35 +1,37 @@
-//! The pages that are mostly words: how we choose, submit, app. Their copy lives in `site/templates`.
+//! The pages that are mostly words: the rules, submit, app, sign-in and privacy. Their copy lives in `site/templates`.
 
 use kalsa_engines::{Benchmark, Catalog, Engine, Kind};
 
 use crate::bench::tok;
-use crate::html::{escape, HELP};
+use crate::html::{escape, HELP, MAIN};
 use crate::layout::{page, Meta};
 use crate::paths;
 
-const HOW: &str = include_str!("../../../site/templates/how-we-choose.html");
+const RULES: &str = include_str!("../../../site/templates/listed-and-community.html");
 const SUBMIT: &str = include_str!("../../../site/templates/submit.html");
 const APP: &str = include_str!("../../../site/templates/app.html");
 const SIGNIN: &str = include_str!("../../../site/templates/signin.html");
+const PRIVACY: &str = include_str!("../../../site/templates/privacy.html");
 
 fn prose(dir: &str, active: &str, title: &str, description: &str, template: &str, extra: &[(&str, String)]) -> String {
     let path = paths::section(dir);
     let mut body = template
         .replace("{{root}}", &paths::root_for(&path))
-        .replace("{{help}}", HELP);
+        .replace("{{help}}", HELP)
+        .replace("{{main}}", MAIN);
     for (key, value) in extra {
         body = body.replace(key, value);
     }
     page(&Meta { title, description, path: &path, active, scripts: &[] }, &body)
 }
 
-pub fn how_we_choose() -> String {
+pub fn listed_and_community() -> String {
     prose(
-        "how-we-choose",
-        "how",
-        "How we choose | Kalsa",
-        "How Kalsa decides what to list: the rules an engine must pass, what a review looks at, what counts as an improvement, and listing and removal.",
-        HOW,
+        "listed-and-community",
+        "rules",
+        "Listed and community engines | Kalsa",
+        "What the Listed mark needs, what counts as better, how we judge the proof, and what a review means.",
+        RULES,
         &[],
     )
 }
@@ -45,6 +47,17 @@ pub fn signin() -> String {
         "Sign in | Kalsa",
         "Sign in to Kalsa with Hugging Face, GitHub or GitLab: what is kept, and what is not.",
         SIGNIN,
+        &[],
+    )
+}
+
+pub fn privacy() -> String {
+    prose(
+        "privacy",
+        "",
+        "Privacy notice | Kalsa",
+        "What Kalsa keeps when you sign in, why, for how long, and how to have it removed.",
+        PRIVACY,
         &[],
     )
 }

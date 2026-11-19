@@ -2,15 +2,10 @@
 
 use std::collections::BTreeMap;
 
-use kalsa_engines::{chip_generation, chip_label, gain_of, Benchmark, Catalog, Engine, Kind};
+use kalsa_engines::{chip_generation, chip_label, gain_of, Benchmark, Catalog, Engine};
 
 use crate::facts::Facts;
 use crate::html::slug;
-
-/// Baselines that are a reference upstream, so a comparison against them is shown on the home page.
-const REFERENCE_BASELINES: &[&str] = &[
-    "llama.cpp", "mlx-lm", "stock mlx-lm", "mlx-lm 0.31.3", "mainline llama.cpp", "stock llama.cpp",
-];
 
 pub fn login(engine: &Engine) -> &str {
     engine.repo.split('/').next().unwrap_or_default()
@@ -62,14 +57,6 @@ pub fn closest_benchmark<'a>(engine: &'a Engine, tag: &str) -> Option<(u8, &'a B
         .min_by_key(|(distance, _)| *distance)
 }
 
-/// The first published comparison against a reference upstream, for the home page.
-pub fn reference_comparison(engine: &Engine) -> Option<&Benchmark> {
-    if engine.kind == Kind::Reference || !engine.recommendable {
-        return None;
-    }
-    engine.benchmark.iter().find(|b| has_gain(b) && REFERENCE_BASELINES.contains(&b.baseline.as_str()))
-}
-
 pub struct Developer<'a> {
     pub login: &'a str,
     pub name: &'a str,
@@ -89,36 +76,6 @@ pub fn developers(catalog: &Catalog) -> Vec<Developer<'_>> {
         entry.engines.push(engine);
     }
     by_login.into_values().collect()
-}
-
-/// One engine measured against one baseline on one chip: a published pair.
-pub struct Pair<'a> {
-    pub engine: &'a Engine,
-    pub baseline: &'a str,
-    pub chip: String,
-    pub benchmarks: Vec<&'a Benchmark>,
-}
-
-impl Pair<'_> {
-    pub fn slug(&self) -> String {
-        format!("{}-vs-{}-on-{}", self.engine.id, slug(self.baseline), slug(&self.chip))
-    }
-}
-
-pub fn pairs(catalog: &Catalog) -> Vec<Pair<'_>> {
-    let mut out = Vec::new();
-    for engine in alphabetical(catalog) {
-        let mut groups: Vec<Pair> = Vec::new();
-        for benchmark in engine.benchmark.iter().filter(|b| has_gain(b)) {
-            let chip = chip_label(benchmark);
-            match groups.iter_mut().find(|g| g.baseline == benchmark.baseline && g.chip == chip) {
-                Some(group) => group.benchmarks.push(benchmark),
-                None => groups.push(Pair { engine, baseline: &benchmark.baseline, chip, benchmarks: vec![benchmark] }),
-            }
-        }
-        out.extend(groups);
-    }
-    out
 }
 
 /// A hardware page: a whole chip family, or one concrete chip that a benchmark names.

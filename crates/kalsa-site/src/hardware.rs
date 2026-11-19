@@ -3,12 +3,13 @@
 use kalsa_engines::{chip_label, family_label, gain_of, not_for_reason, Benchmark, Catalog, Engine, ImprovementKind, Kind, FAMILIES};
 
 use crate::bench::bench_block;
-use crate::cards::{avatar, card, metric_labels, tags};
+use crate::cards::{avatar, card, tags};
 use crate::facts::Facts;
 use crate::html::{escape, safe_href};
 use crate::layout::{page, Meta};
 use crate::model::{alphabetical, author_name, closest_benchmark, hardware_pages, is_org, login, runs_on, HardwarePage};
 use crate::paths;
+use crate::phrase::{baseline_of, metric_summary, Baseline};
 use crate::widgets::url_bar;
 
 /// A benchmark is "same chip" for a family page when the tag matches, for a concrete page when the chip label does.
@@ -33,12 +34,12 @@ fn hero(engine: &Engine, benchmark: &Benchmark, title: &str, facts: &Facts) -> S
     }
     let (big, noise) = match benchmark.gains.cleared() {
         Some(gain) => (gain.gain_label.clone(), ""),
-        None => ("No gain above noise published".to_string(), " noise"),
+        None => ("About the same speed".to_string(), " noise"),
     };
     format!(
         "<div class=\"hero\"><div><div class=\"ch\">{avatar}<div class=\"nm\"><b>{name}</b><span>by {author}</span></div></div>\
-         <div class=\"meta\"><span class=\"wh same\">Measured on {chip}, same chip</span><span class=\"cl\">Claimed by the author</span></div>\
-         <p><span class=\"big num{noise}\">{gain}</span> <span class=\"sm\">{labels} vs {baseline}</span></p><p>{summary}.</p><div class=\"tags\">{tags}</div>\
+         <div class=\"meta\"><span class=\"wh same\">Measured on this chip: {chip}</span></div>\
+         <p><span class=\"big num{noise}\">{gain}</span> <span class=\"sm\">{labels}{against}</span></p><p>{summary}</p><div class=\"tags\">{tags}</div>\
          <p><a class=\"btn\" href=\"../../{href}\">See the numbers</a></p></div>{block}</div>",
         avatar = avatar(login(engine), "md", is_org(engine)),
         name = escape(&engine.name),
@@ -46,8 +47,12 @@ fn hero(engine: &Engine, benchmark: &Benchmark, title: &str, facts: &Facts) -> S
         chip = escape(&chip_label(benchmark)),
         noise = noise,
         gain = escape(&big),
-        labels = metric_labels(&benchmark.gains),
-        baseline = escape(&benchmark.baseline),
+        labels = escape(&metric_summary(&benchmark.gains)),
+        against = match baseline_of(benchmark) {
+            Baseline::Engine(name) => format!(", against {}", escape(name)),
+            Baseline::FeatureOff => ", against the same build with the feature off".to_string(),
+            Baseline::Other => String::new(),
+        },
         summary = escape(&engine.summary),
         tags = tags(engine, facts),
         href = safe_href(&paths::engine(&engine.id)),
@@ -62,11 +67,11 @@ fn same_section(hw: &HardwarePage, catalog: &Catalog, facts: &Facts) -> String {
         .filter_map(|engine| same_benchmark(hw, engine).map(|benchmark| (engine, benchmark)))
         .collect();
     let body = match same.as_slice() {
-        [] => format!("<p class=\"sm\">Nothing has been published from {} yet.</p>", escape(&hw.title)),
+        [] => format!("<p class=\"sm\">No engine has published a benchmark from {} yet.</p>", escape(&hw.title)),
         [(engine, benchmark)] if hw.chip.is_some() => hero(engine, benchmark, &hw.title, facts),
         many => format!("<div class=\"grid\">{}</div>", many.iter().map(|(engine, benchmark)| card("../../", engine, Some(benchmark), false, facts)).collect::<String>()),
     };
-    format!("<section class=\"blk\">{}{body}</section>", heading(&format!("Measured on {}", escape(&hw.title)), "Same chip, claimed by the authors."))
+    format!("<section class=\"blk\">{}{body}</section>", heading(&format!("Measured on {}", escape(&hw.title)), "Their authors measured these on this chip."))
 }
 
 fn other_section(hw: &HardwarePage, catalog: &Catalog, facts: &Facts) -> String {
@@ -79,7 +84,7 @@ fn other_section(hw: &HardwarePage, catalog: &Catalog, facts: &Facts) -> String 
     if cards.is_empty() {
         return String::new();
     }
-    format!("<section class=\"blk\">{}<div class=\"grid\">{cards}</div></section>", heading("Measured on other chips", "They run here, but the number comes from a different chip. Weaker evidence, shown dashed."))
+    format!("<section class=\"blk\">{}<div class=\"grid\">{cards}</div></section>", heading("Measured on other chips", "These run here, but their authors measured a different chip, so the numbers say less about yours. Grey marks them."))
 }
 
 fn reference_section(hw: &HardwarePage, catalog: &Catalog, facts: &Facts) -> String {
@@ -87,7 +92,7 @@ fn reference_section(hw: &HardwarePage, catalog: &Catalog, facts: &Facts) -> Str
     if cards.is_empty() {
         return String::new();
     }
-    format!("<section class=\"blk\">{}<div class=\"grid\">{cards}</div></section>", heading("Reference engines", "Nothing to compare against. Everything else is measured against these."))
+    format!("<section class=\"blk\">{}<div class=\"grid\">{cards}</div></section>", heading("Reference engines", "These are the reference upstreams. They have no benchmarks of their own."))
 }
 
 /// Engines that run here but that the catalog does not recommend. They are listed, with the reason on the card.
@@ -100,7 +105,7 @@ fn not_recommended_section(hw: &HardwarePage, catalog: &Catalog, facts: &Facts) 
     if cards.is_empty() {
         return String::new();
     }
-    format!("<section class=\"blk\">{}<div class=\"grid\">{cards}</div></section>", heading("Not recommended", "They run here, but the catalog does not recommend them. The reason is on each card."))
+    format!("<section class=\"blk\">{}<div class=\"grid\">{cards}</div></section>", heading("Not recommended", "These run here, but we don't recommend them. Each card says why."))
 }
 
 fn without_number(hw: &HardwarePage, catalog: &Catalog) -> String {
@@ -109,13 +114,13 @@ fn without_number(hw: &HardwarePage, catalog: &Catalog) -> String {
         .filter(|e| e.recommendable && e.kind != Kind::Reference && runs_on(e, &hw.tag) && closest_benchmark(e, &hw.tag).is_none())
         .map(|engine| {
             let text = match engine.benchmark.iter().find(|b| gain_of(b).is_some()) {
-                Some(b) => format!("It runs here, but the author published only a number from {} ({} vs {}).", escape(&chip_label(b)), escape(&b.gains.label()), escape(&b.baseline)),
-                None => "It runs here, and no comparison has been published.".to_string(),
+                Some(b) => format!("It runs here, but the author only published a benchmark on {}.", escape(&chip_label(b))),
+                None => "It runs here, and the author hasn't published benchmarks yet.".to_string(),
             };
             format!("<div class=\"panel\"><h3>{}</h3><p>{text}</p></div>", escape(&engine.name))
         })
         .collect();
-    if panels.is_empty() { String::new() } else { format!("<section class=\"blk\">{}<div class=\"grid2\">{panels}</div></section>", heading("Runs here, no number for it", "")) }
+    if panels.is_empty() { String::new() } else { format!("<section class=\"blk\">{}<div class=\"grid2\">{panels}</div></section>", heading("Runs here, no benchmark for this chip yet", "")) }
 }
 
 /// Bigger models measured on this chip family. Only declared rows: with none, the block is not there.
@@ -148,7 +153,7 @@ fn larger_models_section(hw: &HardwarePage, catalog: &Catalog) -> String {
     }
     format!(
         "<section class=\"blk\">{}<div class=\"scrollx\"><table class=\"tbl\"><thead><tr><th>Engine</th><th>Model</th><th>Size, memory, speed</th><th>Machine</th><th>Source and trade-off</th></tr></thead><tbody>{rows}</tbody></table></div></section>",
-        heading("Larger models on this hardware", "Claimed by the authors, with the machine each was measured on.")
+        heading("Larger models on this hardware", "Their authors report these, each with the machine it ran on.")
     )
 }
 
@@ -175,8 +180,7 @@ pub fn hardware_page(hw: &HardwarePage, catalog: &Catalog, facts: &Facts) -> Str
     let path = paths::hardware(&hw.slug);
     let body = format!(
         "<div class=\"wrap\"><section class=\"pagehead\"><div class=\"crumb\">Hardware / {title}</div><h1>Engines for {title}</h1>\
-         <p class=\"lede\">Numbers measured on {title} come first. Numbers from other chips come after, marked as weaker evidence, because a faster or slower chip says little about how an engine behaves on yours. Lists are A to Z.</p>\
-         <p class=\"onlyv\">Listed engines only. Community listings are not shown here and are never recommended.</p>\
+         <p class=\"lede\">Numbers measured on {title} come first. Numbers from other chips come after, in grey, because a faster or slower chip says little about yours. Engines are listed A to Z.</p>\
          <div class=\"chips\"><span class=\"sm\">Other hardware:</span>{links}</div><div class=\"gap\">{url}</div></section>\
          {same}{other}{larger}{refs}{none}{notrec}\
          {off}</div>",
@@ -191,7 +195,7 @@ pub fn hardware_page(hw: &HardwarePage, catalog: &Catalog, facts: &Facts) -> Str
         notrec = not_recommended_section(hw, catalog, facts),
         off = not_here(hw, catalog),
     );
-    page_with(&path, &format!("Engines for {} | Kalsa", hw.title), &format!("Local inference engines for {}, with numbers measured on the same chip first and other chips marked as weaker evidence.", hw.title), &body)
+    page_with(&path, &format!("Engines for {} | Kalsa", hw.title), &format!("The engines that run on {}, and the benchmarks their authors measured on it.", hw.title), &body)
 }
 
 fn page_with(path: &str, title: &str, description: &str, body: &str) -> String {

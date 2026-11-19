@@ -66,3 +66,51 @@ fn the_rdna_fork_is_a_format_comparison_with_its_quality_cost_and_no_readme_perc
         assert!(!everything.contains(figure), "{figure} comes from the README prose, not from a measured pair");
     }
 }
+
+#[test]
+fn a_baseline_that_is_a_catalog_engine_gets_its_display_name_and_any_other_stays_unnamed() {
+    let catalog = shipped();
+    let named = |id: &str| entry(&catalog, id).benchmark[0].baseline_engine.clone();
+    assert_eq!(named("frink").as_deref(), Some("llama.cpp"), "the build note is dropped");
+    assert_eq!(named("mlxcel").as_deref(), Some("mlx-lm"));
+    assert_eq!(named("shunya-mtplx-m1").as_deref(), Some("MTPLX"));
+    assert_eq!(named("rapid-mlx").as_deref(), Some("oMLX"));
+    for unnamed in ["omlx", "dmlx", "ingenious-ds4-m3", "thecodacus-expert-cache", "architectds-strata"] {
+        assert_eq!(named(unnamed), None, "{unnamed}");
+    }
+}
+
+fn engine_with(id: &str, name: &str, repo: &str, extra: &str) -> String {
+    format!("[[engine]]\nid = \"{id}\"\nname = \"{name}\"\nrepo = \"{repo}\"\nauthor = \"a\"\nlicense = \"MIT\"\nkind = \"reference\"\nhardware = [\"cpu\"]\nsummary = \"Runs it.\"\n{extra}")
+}
+
+const ROW: &str = "[[engine.benchmark]]\nsource = \"https://example.invalid/a\"\nmachine = \"m\"\nchip_tag = \"cpu\"\nmodel = \"m\"\nquant = \"Q4\"\ndecode_tok_s = 20.0\nbaseline = \"llama.cpp\"\nbaseline_decode_tok_s = 10.0\n";
+
+fn user_of(baseline_line: &str) -> String {
+    format!("[[engine]]\nid = \"user\"\nname = \"User\"\nrepo = \"u/user\"\nauthor = \"u\"\nlicense = \"MIT\"\nkind = \"engine\"\nhardware = [\"cpu\"]\nsummary = \"Runs it.\"\n{}", ROW.replace("baseline = \"llama.cpp\"", baseline_line))
+}
+
+#[test]
+fn an_exact_catalog_id_wins_and_a_name_matching_two_entries_is_an_error() {
+    let two_named = format!("{}\n{}\n{}", engine_with("first", "llama.cpp", "a/first", ""), engine_with("second", "Other", "b/llama.cpp", ""), user_of("baseline = \"llama.cpp\""));
+    let error = parse(&two_named).unwrap_err();
+    assert!(error.contains("could be any of first, second"), "{error}");
+    let with_the_id = format!("{two_named}\n{}", "").replace("id = \"first\"", "id = \"llama-cpp\"");
+    let catalog = parse(&with_the_id).expect("the entry whose id is llama-cpp is the exact match");
+    let user = catalog.engine.iter().find(|engine| engine.id == "user").unwrap();
+    assert_eq!(user.benchmark[0].baseline_engine.as_deref(), Some("llama.cpp"));
+    let one_named = format!("{}\n{}", engine_with("first", "Solo", "a/solo", ""), user_of("baseline = \"stock solo 1.2\""));
+    assert_eq!(parse(&one_named).unwrap().engine[1].benchmark[0].baseline_engine.as_deref(), Some("Solo"));
+    let nobody = format!("{}\n{}", engine_with("first", "Solo", "a/solo", ""), user_of("baseline = \"something else\""));
+    assert_eq!(parse(&nobody).unwrap().engine[1].benchmark[0].baseline_engine, None);
+}
+
+#[test]
+fn the_shipped_catalog_has_no_ambiguous_baseline_and_no_engine_marked_as_its_own_ablation() {
+    let catalog = shipped();
+    for benchmark in catalog.engine.iter().flat_map(|engine| &engine.benchmark) {
+        assert!(!(benchmark.feature_off && benchmark.baseline_engine.is_some()), "{}", benchmark.baseline);
+    }
+    let marked = format!("{}\n{}", engine_with("llama-cpp", "llama.cpp", "a/llama.cpp", ""), user_of("baseline = \"llama.cpp\"\nfeature_off = true"));
+    assert!(parse(&marked).unwrap_err().contains("cannot also be a feature switched off"));
+}

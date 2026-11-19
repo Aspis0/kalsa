@@ -63,16 +63,16 @@ fn mailto_links_are_only_ever_our_two_addresses_and_never_catalog_data() {
 }
 
 #[test]
-fn the_contact_addresses_sit_where_the_owner_put_them() {
+fn the_contact_addresses_sit_where_they_belong() {
     let files = generated();
     for (page, text) in html(&files) {
-        assert!(text.contains("href=\"mailto:main@kalsa.io\">Contact: main@kalsa.io"), "{page:?} footer contact");
+        assert!(text.contains("href=\"mailto:main@kalsa.io\">Contact</a>"), "{page:?} footer contact");
     }
     for path in ["engines/frink/index.html", "dev/antonellof/index.html"] {
         let page = body(&files, path);
         assert!(page.contains("href=\"mailto:help@kalsa.io\">help@kalsa.io") && page.contains("issues/new?title=Removal%20request%3A%20"), "{path}");
     }
-    assert!(body(&files, "how-we-choose/index.html").contains("mailto:help@kalsa.io"));
+    assert!(body(&files, "listed-and-community/index.html").contains("mailto:help@kalsa.io"));
     assert!(body(&files, "submit/index.html").contains("mailto:help@kalsa.io"));
     assert!(html(&files).all(|(_, text)| !text.contains("support@kalsa.io")), "support@ is gone from the site");
 }
@@ -92,6 +92,7 @@ fn the_assets_headers_file_hardens_every_static_page() {
     let files = generated();
     let headers = body(&files, "_headers");
     assert!(headers.contains("/*"), "_headers must apply to every path");
+    assert!(headers.contains("X-Robots-Tag: noindex, nofollow"), "the site stays out of search engines until it is announced");
     for expected in [
         "X-Content-Type-Options: nosniff",
         "Referrer-Policy: strict-origin-when-cross-origin",

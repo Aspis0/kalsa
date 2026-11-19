@@ -72,3 +72,18 @@ commit = "a1b2c3d"
 date = "2026-11-18"
 upstream = "evil/up"
 "#;
+
+/// The words a reader or a screen reader can get from a page besides its body text: the title, and the title, content, aria-label and alt attributes.
+pub fn attribute_text(page: &str) -> String {
+    let mut out = String::new();
+    for attribute in [" title=\"", " content=\"", " aria-label=\"", " alt=\""] {
+        for rest in page.split(attribute).skip(1) {
+            out.push_str(rest.split('"').next().unwrap_or_default());
+            out.push('\n');
+        }
+    }
+    if let Some(title) = page.split("<title>").nth(1).and_then(|rest| rest.split("</title>").next()) {
+        out.push_str(title);
+    }
+    out
+}

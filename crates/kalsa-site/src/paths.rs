@@ -14,10 +14,6 @@ pub fn hardware(slug: &str) -> String {
     format!("hardware/{slug}/index.html")
 }
 
-pub fn compare(slug: &str) -> String {
-    format!("compare/{slug}/index.html")
-}
-
 pub fn section(name: &str) -> String {
     format!("{name}/index.html")
 }

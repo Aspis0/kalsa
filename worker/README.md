@@ -52,10 +52,8 @@ comparison and the final redirect. Every `/api/*` and `/auth/*` request whose ow
 differs from it is refused with 400 `unknown_origin` before any routing, so a request sent to
 `https://attacker.example/auth/github/start` can never produce a `redirect_uri` on that host.
 
-- top level: `https://kalsa.io`
-- `env.preview`: `https://kalsa-site.REPLACE_WITH_ACCOUNT.workers.dev` — **replace this** with
-  the account's real subdomain. Until then preview fails closed: nothing matches, so every
-  dynamic request is refused.
+The origin is `https://kalsa.io` and nothing else. Production is that one custom domain, with
+`workers_dev` off, so the Worker answers on no other host.
 
 ## Sign-in state is single-use
 
@@ -137,23 +135,19 @@ which the plugin does load.
 
 ## What the owner must create
 
-1. **D1 databases**: `kalsa` for production and `kalsa-preview` for the preview environment,
-   so a preview deployment cannot read production sessions.
+1. **The D1 database** `kalsa`:
 
    ```sh
    npx wrangler d1 create kalsa
-   npx wrangler d1 create kalsa-preview
    ```
 
-   Put each printed id into the matching `database_id` in `wrangler.jsonc` (both hold
-   placeholders now), then apply both migrations to each:
+   Put the printed id into `database_id` in `wrangler.jsonc`, then apply the migrations:
 
    ```sh
    npx wrangler d1 migrations apply kalsa --remote
-   npx wrangler d1 migrations apply kalsa-preview --remote
    ```
 
-2. **OAuth apps**, one per provider per origin. The Worker sends
+2. **OAuth apps**, one per provider. The Worker sends
    `SITE_ORIGIN/auth/<provider>/callback`; GitHub allows only one callback URL per app.
 
    | Provider | Where | Callback URL | Scopes |
@@ -161,8 +155,6 @@ which the plugin does load.
    | GitHub | Settings → Developer settings → OAuth apps | `https://kalsa.io/auth/github/callback` | none |
    | Hugging Face | `https://huggingface.co/settings/applications/new` | `https://kalsa.io/auth/huggingface/callback` | `openid profile` |
    | GitLab | User settings → Applications | `https://kalsa.io/auth/gitlab/callback` | `read_user` |
-
-   For preview, replace `https://kalsa.io` with the origin you put in `env.preview`.
 
 3. **Secrets**, via env only — never in `wrangler.jsonc` or source:
 
@@ -183,8 +175,7 @@ which the plugin does load.
 
    ```sh
    cargo run -p kalsa-site
-   npx wrangler deploy              # production
-   npx wrangler deploy --env preview
+   npx wrangler deploy
    ```
 
 Until the OAuth apps exist, `/auth/<provider>/start` answers 503 and the tests run against

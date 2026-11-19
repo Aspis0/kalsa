@@ -1,8 +1,9 @@
-//! One published benchmark as a card: both metrics, the baseline, the chip, and an empty "Your Mac" slot.
+//! One published benchmark as a card: both metrics, the baseline and the chip.
 
 use kalsa_engines::{chip_label, Benchmark, Engine, MetricGain};
 
 use crate::html::{escape, safe_href};
+use crate::phrase::gain_text;
 
 /// Whole numbers keep one decimal; everything else shows as published.
 pub fn tok(value: f64) -> String {
@@ -19,15 +20,13 @@ fn bar(class: &str, label: &str, value: f64, widest: f64) -> String {
     )
 }
 
-const YOUR_MAC: &str = "<div class=\"bar you\"><span>Your Mac</span><i></i><b>not measured yet</b></div>";
-
 fn metric_rows(name: &str, engine: &str, baseline: &str, value: f64, base: Option<f64>, gain: Option<&MetricGain>) -> String {
     let widest = value.max(base.unwrap_or(0.0));
     let noise = gain.is_some_and(|gain| gain.noise);
-    let gain = gain.map(|gain| if gain.noise { format!("{}, within noise", gain.gain_label) } else { gain.gain_label.clone() }).unwrap_or_default();
+    let gain = gain.map(gain_text).unwrap_or_default();
     let base_row = base.map(|base| bar(" base", baseline, base, widest)).unwrap_or_default();
     format!(
-        "<div class=\"pair\"><div class=\"ph2\"><b>{name}</b><span class=\"g num{muted}\">{gain}</span></div>{engine}{base_row}{YOUR_MAC}</div>",
+        "<div class=\"pair\"><div class=\"ph2\"><b>{name}</b><span class=\"g num{muted}\">{gain}</span></div>{engine}{base_row}</div>",
         muted = if noise { " noise" } else { "" },
         gain = escape(&gain),
         engine = bar("", engine, value, widest),
@@ -44,7 +43,7 @@ fn metrics(benchmark: &Benchmark, engine: &Engine) -> String {
     }
     if out.is_empty() {
         let base = benchmark.baseline_decode_tok_s.or(benchmark.baseline_prefill_tok_s).unwrap_or(0.0);
-        out = format!("<div class=\"pair\">{}{YOUR_MAC}</div>", bar(" base", &benchmark.baseline, base, base));
+        out = format!("<div class=\"pair\">{}</div>", bar(" base", &benchmark.baseline, base, base));
     }
     out
 }
@@ -53,14 +52,14 @@ fn metrics(benchmark: &Benchmark, engine: &Engine) -> String {
 pub fn bench_block(benchmark: &Benchmark, engine: &Engine, same_as: Option<&str>) -> String {
     let chip = chip_label(benchmark);
     let context = match same_as {
-        Some(wanted) if wanted == chip => ", same chip".to_string(),
-        Some(wanted) => format!(", not {wanted}"),
+        Some(wanted) if wanted == chip => String::new(),
+        Some(_) => ", a different chip".to_string(),
         None => String::new(),
     };
     let same = same_as == Some(chip.as_str());
     let quant = if benchmark.quant == "unstated" { "quant not stated".to_string() } else { benchmark.quant.clone() };
     format!(
-        "<div class=\"bc{same_class}\"><div class=\"bh\"><span class=\"cl\">Claimed by the author</span><span class=\"wh{wh}\">Measured on {chip}{context}</span></div>\
+        "<div class=\"bc{same_class}\"><div class=\"bh\"><span class=\"wh{wh}\">Measured on {chip}{context}</span></div>\
          <h4>{model} <span>{quant}</span></h4><p class=\"sm\">tok/s</p>{metrics}\
          <p class=\"mc\">{machine}{note}<br><a href=\"{source}\">{shown}</a></p></div>",
         same_class = if same { " sameb" } else { "" },

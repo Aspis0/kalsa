@@ -1,84 +1,17 @@
-//! One page per engine: credit, published comparisons, review, and where to install it from.
+//! One page per engine: who made it, what it does better, its benchmarks, its review, and where to install it.
 
 use kalsa_engines::{chip_label, hardware_labels, Catalog, Engine, Kind};
 
-use crate::bench::bench_block;
 use crate::cards::{avatar, github_url, tags};
 use crate::facts::{stars_label, Facts};
 use crate::html::{escape, safe_href, slug};
-use crate::improvements::improvements_section;
+use crate::benchmarks::benchmarks_section;
+use crate::better::better_section;
 use crate::layout::{page, Meta};
-use crate::model::{author_name, is_org, login, pairs};
+use crate::model::{author_name, is_org, login};
 use crate::paths;
 use crate::review::{badge_box, review_section};
 use crate::widgets::{claim_line, url_bar};
-
-/// The rows of "How to install". Every engine points to its own project; nothing here is a Kalsa install.
-fn install_rows(engine: &Engine) -> Vec<(String, String)> {
-    let mut rows = Vec::new();
-    if let Some(note) = engine.note.as_deref().filter(|note| note.starts_with("Requires")) {
-        rows.push(("Needs another app first".to_string(), escape(note)));
-    }
-    let repo = github_url(&engine.repo);
-    rows.push((
-        "Follow the project's own instructions".to_string(),
-        format!(
-            "Instructions: <a class=\"lnk\" href=\"{readme}\">github.com/{name}</a>. Releases and packages: <a class=\"lnk\" href=\"{releases}\">github.com/{name}/releases</a>. Nothing here replaces them.",
-            readme = safe_href(&repo),
-            releases = safe_href(&format!("{repo}/releases")),
-            name = escape(&engine.repo),
-        ),
-    ));
-    rows.push(("Who it runs as".to_string(), "An engine runs as you, with access to your files. macOS does not sandbox it, so install only what you trust.".to_string()));
-    rows
-}
-
-fn accordions(engine: &Engine) -> String {
-    install_rows(engine).iter().map(|(title, text)| format!("<details class=\"acc\"><summary>{title}</summary><p>{text}</p></details>")).collect()
-}
-
-fn metrics_note(engine: &Engine) -> &'static str {
-    let decode = engine.benchmark.iter().any(|b| b.decode_tok_s.is_some());
-    let prefill = engine.benchmark.iter().any(|b| b.prefill_tok_s.is_some());
-    match (decode, prefill) {
-        (true, true) => "Decode and prefill are shown separately.",
-        (true, false) => "Decode only here; no prefill numbers were published for these runs.",
-        (false, true) => "Prefill only here; no decode numbers were published for these runs.",
-        (false, false) => "",
-    }
-}
-
-fn comparisons(engine: &Engine) -> String {
-    if engine.benchmark.is_empty() {
-        return match (engine.kind, engine.note.as_deref()) {
-            (Kind::Reference, _) => "<div class=\"refbox\">A reference engine is the baseline other engines are measured against, so it has no comparison of its own.</div>".to_string(),
-            (_, Some(note)) => format!("<div class=\"refbox\"><b>No like-for-like comparison.</b> The author's own words: {}</div>", escape(note)),
-            _ => "<div class=\"refbox\">No comparison has been published.</div>".to_string(),
-        };
-    }
-    let blocks: String = engine.benchmark.iter().map(|benchmark| bench_block(benchmark, engine, None)).collect();
-    format!(
-        "<p class=\"sm\">Claimed by the author, with the source linked on each. {} Kalsa has not re-run them.</p><div class=\"bgrid\">{blocks}</div>",
-        metrics_note(engine)
-    )
-}
-
-fn compare_links(catalog: &Catalog, engine: &Engine) -> String {
-    let links: String = pairs(catalog)
-        .iter()
-        .filter(|pair| pair.engine.id == engine.id)
-        .map(|pair| {
-            format!(
-                "<li><a class=\"lnk\" href=\"../../{}\">{} vs {} on {}</a></li>",
-                safe_href(&paths::compare(&pair.slug())),
-                escape(&engine.name),
-                escape(pair.baseline),
-                escape(&pair.chip)
-            )
-        })
-        .collect();
-    if links.is_empty() { String::new() } else { format!("<h3>Published pairs</h3><ul class=\"plain\">{links}</ul>") }
-}
 
 /// The upstream's own page when it is listed (the catalog requires that), else its plain name.
 fn upstream_link(catalog: &Catalog, upstream: &str) -> String {
@@ -92,17 +25,9 @@ fn about(catalog: &Catalog, engine: &Engine) -> String {
     let relation = engine
         .upstream
         .as_deref()
-        .map(|upstream| format!(", {} {}", if engine.kind == Kind::Fork { "a fork of" } else { "built on" }, upstream_link(catalog, upstream)))
+        .map(|upstream| format!(" It is {} {}.", if engine.kind == Kind::Fork { "a fork of" } else { "built on" }, upstream_link(catalog, upstream)))
         .unwrap_or_default();
-    let mut chips: Vec<String> = engine.benchmark.iter().map(chip_label).collect();
-    chips.sort();
-    chips.dedup();
-    let measured = if chips.is_empty() { String::new() } else { format!(" Every number below comes from the author's own README, measured on {}.", escape(&chips.join(", "))) };
-    format!(
-        "<div id=\"about\"><h3 class=\"first\">About</h3><p class=\"aboutp\">{summary}. Made by {author}{relation}. The summary is ours.{measured}</p>",
-        summary = escape(&engine.summary),
-        author = escape(author_name(engine)),
-    )
+    format!("<p class=\"aboutp\" id=\"about\">{}{relation}</p>", escape(&engine.summary))
 }
 
 fn hardware_links(engine: &Engine) -> String {
@@ -162,46 +87,67 @@ fn website_button(engine: &Engine) -> String {
 }
 
 fn header(engine: &Engine, facts: &Facts) -> String {
+    let repo = github_url(&engine.repo);
     format!(
         "<div class=\"crumb\"><a href=\"../index.html\">Engines</a> / <a href=\"../../{dev}\">{login}</a> / {name}</div>\
-         <div class=\"title\">{avatar}<div><h1><span>{login} /</span> {name}</h1><div class=\"tags\">{tags}</div></div></div>\
-         <div class=\"acts\"><a class=\"btn\" href=\"{github}\">GitHub</a>{website}\
-         <span class=\"soonbtn\">Like <span class=\"ph\">coming soon</span></span><span class=\"soonbtn\">Used by <span class=\"ph\">coming soon</span></span></div>\
-         <nav class=\"tabs\" aria-label=\"Sections\"><a href=\"#about\" aria-current=\"page\">Overview</a>{improvements_tab}<a href=\"#cmp\">Comparisons</a><a href=\"#review\">Review</a><a href=\"#install\">How to install</a><span>Discussion<i>coming soon</i></span></nav>",
+         <div class=\"title\">{avatar}<div><h1>{name}</h1><p class=\"byline\">by {author} · {licence} licence</p><div class=\"tags\">{tags}</div></div></div>\
+         <div class=\"acts\"><a class=\"btn\" href=\"{repo_href}\">Repository</a>{website}<a class=\"btn two\" href=\"{releases}\">Releases</a></div>",
         dev = safe_href(&paths::developer(login(engine))),
         login = escape(login(engine)),
         name = escape(&engine.name),
+        author = escape(author_name(engine)),
+        licence = escape(&engine.license),
         avatar = avatar(login(engine), "lg", is_org(engine)),
         tags = tags(engine, facts),
-        github = safe_href(&github_url(&engine.repo)),
+        repo_href = safe_href(&repo),
+        releases = safe_href(&format!("{repo}/releases")),
         website = website_button(engine),
-        improvements_tab = if improvements_section(engine).is_empty() { "" } else { "<a href=\"#improvements\">Improvements</a>" },
     )
+}
+
+fn install(engine: &Engine) -> String {
+    format!(
+        "<h3 id=\"install\">Install</h3><p>To install it, follow the project's own instructions on <a class=\"lnk\" href=\"{}\">GitHub</a>. \
+         The engine runs with your user's permissions. macOS doesn't sandbox it, so install only engines you trust.</p>",
+        safe_href(&github_url(&engine.repo))
+    )
+}
+
+/// Promises only what the page shows: benchmarks and improvements are named only when the engine has some.
+fn description(engine: &Engine) -> String {
+    let mut shows = vec!["its licence"];
+    if !engine.benchmark.is_empty() {
+        shows.push("its benchmarks");
+    }
+    if !engine.improvement.is_empty() {
+        shows.push("what it does better");
+    }
+    shows.push("how to install it");
+    let (last, rest) = shows.split_last().expect("the list is never empty");
+    format!("{} by {}: {}, and {last}.", engine.name, author_name(engine), rest.join(", "))
 }
 
 pub fn engine_page(catalog: &Catalog, engine: &Engine, facts: &Facts) -> String {
     let path = paths::engine(&engine.id);
     let note = engine.note.as_deref().map(|note| format!("<div class=\"note\"><b>Read this first.</b> {}</div>", escape(note))).unwrap_or_default();
     let main = format!(
-        "{about}{improvements}<h3 id=\"cmp\">Published comparisons</h3>{comparisons}\
-         {pairs}{review}<h3 id=\"install\">How to install</h3>{install}</div>",
+        "{about}{better}{benchmarks}{review}{install}",
         about = about(catalog, engine),
-        comparisons = comparisons(engine),
-        improvements = improvements_section(engine),
-        pairs = compare_links(catalog, engine),
+        better = better_section(engine),
+        benchmarks = benchmarks_section(catalog, engine),
         review = review_section(engine, facts),
-        install = accordions(engine),
+        install = install(engine),
     );
     let body = format!(
         "<div class=\"wrap\">{header}{note}<div class=\"cols\"><div>{main}</div>{side}</div>{claim}</div>",
         header = header(engine, facts),
         side = sidebar(catalog, engine, facts, &path),
-        claim = claim_line("../../", &engine.name),
+        claim = claim_line(&engine.name),
     );
     page(
         &Meta {
-            title: &format!("{} / {} | Kalsa", login(engine), engine.name),
-            description: &format!("{} by {}: licence and the benchmarks its author published, with the source of each.", engine.name, author_name(engine)),
+            title: &format!("{} by {} | Kalsa", engine.name, author_name(engine)),
+            description: &description(engine),
             path: &path,
             active: "engines",
             scripts: &["site.js"],

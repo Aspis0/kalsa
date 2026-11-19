@@ -4,8 +4,7 @@ const SECTIONS = [
   "/submit/",
   "/engines/",
   "/hardware/",
-  "/compare/",
-  "/how-we-choose/",
+  "/listed-and-community/",
   "/app/",
   "/dev/",
 ];

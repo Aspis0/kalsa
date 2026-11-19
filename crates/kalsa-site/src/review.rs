@@ -1,64 +1,118 @@
-//! The review badge as the engine page shows it: Listing and Badge are two separate things.
+//! The listing line, the security review line and the README badge box on an engine page.
 
-use kalsa_engines::{Engine, Kind};
+use kalsa_engines::{Engine, Review};
 
 use crate::facts::Facts;
-use crate::html::escape;
+use crate::html::{escape, safe_href};
 use crate::model::recheck_pending;
+use crate::paths;
 
-const LOWER_THE_RISK: &str = "A review lowers the risk, it cannot remove it.";
+/// Where the review pipeline's report for a reviewed commit lives in the public repository.
+const REPORTS: &str = "https://github.com/Aspis0/kalsa/blob/main/reviews";
 
-fn listing_panel(engine: &Engine) -> String {
-    if engine.kind == Kind::Reference {
-        return "<div class=\"lvl on\"><b>Listed</b><span class=\"st\">In the catalog</span><p>Passes the catalog rules: licence, stars and signs of life. A reference engine is the baseline others are measured against, so it has no comparison of its own.</p></div>".to_string();
-    }
-    let extra = if engine.recommendable { " A listed engine can be recommended.".to_string() } else { format!(" Kalsa does not recommend it: {}", engine.note.as_deref().map(escape).unwrap_or_default()) };
-    format!("<div class=\"lvl on\"><b>Listed</b><span class=\"st\">In the catalog</span><p>Passes the catalog rules: licence, stars, signs of life and a published same-machine benchmark.{extra}</p></div>")
+fn short(commit: &str) -> String {
+    commit.chars().take(7).collect()
 }
 
-fn badge_panel(engine: &Engine, facts: &Facts) -> String {
-    let Some(review) = &engine.reviewed else {
-        let how = match engine.kind {
-            Kind::Reference => "Reference projects such as llama.cpp and mlx-lm are the baseline others are compared against. They are not diff-reviewed. That is a note, not a badge.".to_string(),
-            Kind::Fork => "A review would check the fork's diff against its upstream.".to_string(),
-            Kind::Engine => "This is an engine, not a fork, so a review would cover the whole repository.".to_string(),
-        };
-        return format!("<div class=\"lvl\"><b>No badge</b><span class=\"st\">Not reviewed</span><p>Kalsa has not checked this code yet, so there is no badge. {how}</p></div>");
-    };
-    if recheck_pending(engine, facts) {
-        return format!(
-            "<div class=\"lvl on\"><b>Reviewed, re-check pending</b><span class=\"st\">Badge</span><p>A newer commit has landed since the review at <code>{}</code>. It is waiting to be looked at again.</p></div>",
-            escape(&review.commit)
-        );
+/// The report file is named with the full commit, so a record that only carries a short one has nothing to link.
+fn report_link(engine: &Engine, commit: &str) -> String {
+    if commit.len() != 40 {
+        return String::new();
     }
-    let what = if engine.kind == Kind::Fork { format!("the diff against {}", escape(&review.upstream)) } else { "the whole repository".to_string() };
-    format!(
-        "<div class=\"lvl on\"><b>Reviewed</b><span class=\"st\">Badge</span><p>Reviewed: no suspicious changes found in {what} at <code>{commit}</code>. Checked on {date}.</p></div>",
-        commit = escape(&review.commit),
-        date = escape(&review.date),
-    )
+    format!(" <a class=\"lnk\" href=\"{}\">Read the report</a>.", safe_href(&format!("{REPORTS}/{}-{commit}.json", engine.id)))
+}
+
+fn reviewed_line(engine: &Engine, review: &Review) -> String {
+    let checked = if review.approval.is_some() { ", after a person checked the flagged lines" } else { "" };
+    let report = report_link(engine, &review.commit);
+    let end = if report.is_empty() { "." } else { "" };
+    format!("Reviewed at commit {}{checked}{end}{report}", escape(&short(&review.commit)))
+}
+
+fn review_line(engine: &Engine, facts: &Facts) -> String {
+    if let Some(declined) = &engine.review_declined {
+        return format!("Review not granted for commit {}: {}.", escape(&short(&declined.commit)), escape(&declined.reason));
+    }
+    match &engine.reviewed {
+        None => "Not reviewed yet.".to_string(),
+        Some(review) if recheck_pending(engine, facts) => {
+            format!("New commits since the review at {}. A new review is on the way.", escape(&short(&review.commit)))
+        }
+        Some(review) => reviewed_line(engine, review),
+    }
+}
+
+/// A listed engine passed the seven checks. One the catalog does not recommend is still listed, and says why it is not recommended.
+fn listing_line(engine: &Engine) -> String {
+    let link = format!("<a class=\"lnk\" href=\"../../{}\">Listed</a>", paths::section("listed-and-community"));
+    if engine.recommendable {
+        return format!("{link}: Passed all seven checks.");
+    }
+    match engine.note.as_deref().map(|note| note.strip_prefix("Not recommendable:").unwrap_or(note).trim().trim_end_matches('.')) {
+        Some(reason) if !reason.is_empty() => format!("{link}, but we don't recommend it: {}.", escape(reason)),
+        _ => format!("{link}, but we don't recommend it."),
+    }
 }
 
 pub fn review_section(engine: &Engine, facts: &Facts) -> String {
     format!(
-        "<h3 id=\"review\">Kalsa review</h3><p class=\"sm\">Listing and badge are separate. The badge is \"Reviewed\" or nothing. {LOWER_THE_RISK} \
-         <a class=\"lnk\" href=\"../../how-we-choose/index.html#what-the-badge-means\">What the badge means</a></p><div class=\"lvls two\">{}{}</div>",
-        listing_panel(engine),
-        badge_panel(engine, facts)
+        "<h3 id=\"listing\">Listing</h3><p>{}</p><h3 id=\"review\">Security review</h3><p>{}</p>",
+        listing_line(engine),
+        review_line(engine, facts),
     )
 }
 
-/// The author's README badge. Only a reviewed entry has one, in either listing tier.
+/// The README badge. Only a reviewed entry has one.
 pub fn badge_box(engine: &Engine) -> String {
-    let Some(review) = &engine.reviewed else {
-        return format!("<div class=\"box badgebox\"><h5>Are you the author?</h5><p class=\"sm\">No badge yet. A badge appears once Kalsa has reviewed the code at a commit. {LOWER_THE_RISK}</p></div>");
-    };
-    let short: String = review.commit.chars().take(7).collect();
+    let (Some(review), None) = (&engine.reviewed, &engine.review_declined) else { return String::new() };
+    let short = short(&review.commit);
     let markdown = format!("[![Kalsa reviewed {short}](https://kalsa.io/badge/{id}.svg)](https://kalsa.io/engines/{id})", id = engine.id);
     format!(
-        "<div class=\"box badgebox\"><h5>Are you the author?</h5><p><span class=\"bdg\"><i>Kalsa</i><b>reviewed {short}</b></span></p><pre>{md}</pre>\
-         <button class=\"cp\" data-copy=\"{md}\">Copy badge</button><p class=\"sm\">The badge is \"Reviewed\" or nothing. {LOWER_THE_RISK}</p></div>",
+        "<div class=\"box badgebox\"><h5>README badge</h5><p><span class=\"bdg\"><i>Kalsa</i><b>reviewed {short}</b></span></p><pre>{md}</pre>\
+         <button class=\"cp\" data-copy=\"{md}\">Copy badge</button></div>",
         short = escape(&short),
         md = escape(&markdown),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const DECLINED: &str = r#"
+[[engine]]
+id = "fork-x"
+name = "fork x"
+repo = "owner/fork-x"
+author = "owner"
+license = "MIT"
+kind = "engine"
+hardware = ["apple-m1"]
+summary = "A fork"
+
+[[engine.improvement]]
+kind = "new-hardware"
+summary = "Longer context in the README"
+machine = "Apple M1 Max"
+source = "https://example.com/readme"
+
+[engine.review_declined]
+commit = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+date = "2026-11-18"
+reason = "the README asks users to run an install script from another repository"
+"#;
+
+    #[test]
+    fn declined_review_shows_only_the_short_notice() {
+        let catalog = kalsa_engines::parse(DECLINED).expect("valid catalog");
+        let engine = &catalog.engine[0];
+        let section = review_section(engine, &Facts::none());
+        assert!(section.contains(
+            "Review not granted for commit aaaaaaa: the README asks users to run an install script from another repository."
+        ));
+        assert!(!section.contains("Reviewed"));
+        assert!(!crate::cards::badge_pill(engine, &Facts::none()).contains("Reviewed"));
+        assert!(crate::badge::badge_svg(engine).is_none());
+        assert!(crate::engines::engines_json(&catalog).contains("\"badge\":\"none\""));
+    }
 }

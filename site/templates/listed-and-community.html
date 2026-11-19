@@ -1,0 +1,47 @@
+<div class="wrap"><section class="pagehead"><h1>Listed and community engines</h1>
+<p class="lede">Anyone can add an engine to Kalsa, whether it’s a new project, a fork or an experiment. Engines that do something better than what came before, with proof anyone can check, get the Listed mark.</p>
+<p class="lede">We read every source, but we can’t re-run every benchmark or tell real stars from bought ones. Kalsa relies on authors being honest and on users speaking up. If a number looks wrong, write to <a class="lnk" href="mailto:{{help}}">{{help}}</a> and we’ll take another look.</p></section>
+<section class="blk" id="community"><div class="sh sh-left"><h2>Community engines</h2></div>
+<p class="sub">Community listing opens soon. Authors will add their own engines. We won’t check them, so read their claims with care.</p></section>
+<section class="blk" id="listed"><div class="sh sh-left"><h2>Listed engines</h2></div>
+<p class="sub">We checked that they meet every rule below. Once community listing opens, a community engine that meets them too can become Listed through a public pull request.</p></section>
+<section class="blk" id="rules"><div class="sh sh-left"><h2>What every Listed engine needs</h2></div>
+<ol class="plain">
+<li>It does something better, with public proof.</li>
+<li>It has at least 5 stars on GitHub.</li>
+<li>It uses an open-source licence approved by the OSI.</li>
+<li>It’s alive: at least one commit in the last six months, and not archived.</li>
+<li>If it’s a fork, it says which project it comes from.</li>
+<li>You can install it from the project’s own releases or package registry.</li>
+<li>It doesn’t need sudo or changes to your system. If one feature does, we show it as a trade-off.</li>
+</ol></section>
+<section class="blk" id="better"><div class="sh sh-left"><h2>What counts as better</h2></div>
+<p class="sub">Better doesn’t only mean faster. An engine can run bigger models, use less memory, support new hardware or handle longer conversations. Whatever it improves, it needs a public source and the machine it was measured on.</p>
+<div class="scrollx"><table class="tbl"><thead><tr><th>Better at</th><th>The proof we need</th></tr></thead><tbody>
+<tr><td>Writing replies faster</td><td>tok/s before and after, on the same machine</td></tr>
+<tr><td>Reading prompts faster</td><td>tok/s before and after, on the same machine</td></tr>
+<tr><td>Starting up faster</td><td>seconds before and after</td></tr>
+<tr><td>Using less memory</td><td>peak memory before and after, same model</td></tr>
+<tr><td>Running bigger models</td><td>model size, the machine’s memory, and the speed it reached</td></tr>
+<tr><td>Handling longer conversations</td><td>context length before and after, same memory</td></tr>
+<tr><td>Serving many requests at once</td><td>total tok/s and how many requests ran in parallel</td></tr>
+<tr><td>Running across several machines</td><td>which machines, how they’re connected, and a speed if published</td></tr>
+<tr><td>Supporting new hardware</td><td>a measurement on it, and proof the original project can’t run there</td></tr>
+<tr><td>Supporting a new model</td><td>a measurement, and proof the original project can’t load it</td></tr>
+<tr><td>Giving better answers</td><td>perplexity or a public benchmark, same model</td></tr>
+<tr><td>Using less energy</td><td>tokens per joule, measured</td></tr>
+</tbody></table></div></section>
+<section class="blk" id="proof"><div class="sh sh-left"><h2>How we judge the proof</h2></div>
+<ul class="plain">
+<li>A gain under 5% is noise, so we don’t count it.</li>
+<li>Every gain must show what it costs. If the cost is hidden, the gain doesn’t count.</li>
+<li>An engine must compare itself with the project it comes from, with the same build with the feature turned off, or with a well-known engine. Beating its own older version doesn’t count.</li>
+<li>A different weight format counts only if the quality loss is measured too.</li>
+<li>Features without a number, like tool calling or a chat interface, don’t count on their own.</li>
+</ul></section>
+<section class="blk" id="numbers"><div class="sh sh-left"><h2>Where the numbers come from</h2></div>
+<p class="sub">Every number comes from the engine’s author, and we link the source. We don’t re-run the benchmarks ourselves. Numbers measured on a different chip appear in grey.</p></section>
+<section class="blk" id="reviewed"><div class="sh sh-left"><h2>What “Reviewed” means</h2></div>
+<p class="sub">We scanned the code a fork changed from its original project, at one specific commit, and a person checked anything the scan flagged. The full report is public. Every new commit needs a new review. A review lowers the risk, but it can’t remove it. Any engine runs with your user’s permissions, and macOS doesn’t sandbox it, so install only engines you trust.</p></section>
+<section class="blk" id="corrections"><div class="sh sh-left"><h2>Corrections</h2></div>
+<p class="sub">We write the short summary on each page. If something is wrong, or you want a page removed, write to <a class="lnk" href="mailto:{{help}}">{{help}}</a>.</p></section></div>

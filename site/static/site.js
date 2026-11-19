@@ -1,4 +1,4 @@
-/* Copy buttons, the home page picker, and the claim dialog. */
+/* Copy buttons and the home page chip picker. */
 document.addEventListener('click', function (event) {
   var copy = event.target.closest('[data-copy]');
   if (copy) {
@@ -14,8 +14,4 @@ document.addEventListener('click', function (event) {
     document.querySelectorAll('[data-panel]').forEach(function (p) { p.hidden = p.getAttribute('data-panel') !== pick.getAttribute('data-pk'); });
     return;
   }
-  var dialog = document.getElementById('claim');
-  if (event.target.closest('[data-claim]') && dialog && dialog.showModal) dialog.showModal();
-  else if (event.target.closest('[data-close]') && dialog) dialog.close();
-  else if (event.target === dialog) dialog.close();
 });

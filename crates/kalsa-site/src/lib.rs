@@ -2,8 +2,9 @@
 
 mod badge;
 mod bench;
+mod benchmarks;
+mod better;
 mod cards;
-mod compare;
 mod developer;
 mod engine;
 mod engines;
@@ -12,10 +13,10 @@ mod feeds;
 mod hardware;
 mod home;
 mod html;
-mod improvements;
 mod layout;
 mod model;
 mod paths;
+mod phrase;
 mod prose;
 mod review;
 mod widgets;
@@ -62,15 +63,14 @@ fn sections(catalog: &Catalog, facts: &Facts) -> Vec<(PathBuf, String)> {
         file(paths::section("engines"), engines::engines_page(catalog, facts)),
         file("engines/engines.json", engines::engines_json(catalog)),
         file(paths::section("hardware"), hardware::hardware_index(catalog)),
-        file(paths::section("compare"), compare::compare_index(catalog)),
-        file(paths::section("how-we-choose"), prose::how_we_choose()),
+        file(paths::section("listed-and-community"), prose::listed_and_community()),
         file(paths::section("submit"), prose::submit(catalog)),
         file(paths::section("app"), prose::app()),
         file(paths::section("signin"), prose::signin()),
+        file(paths::section("privacy"), prose::privacy()),
     ];
     files.extend(catalog.engine.iter().map(|engine| file(paths::engine(&engine.id), engine::engine_page(catalog, engine, facts))));
     files.extend(model::hardware_pages(catalog).iter().map(|hw| file(paths::hardware(&hw.slug), hardware::hardware_page(hw, catalog, facts))));
-    files.extend(model::pairs(catalog).iter().map(|pair| file(paths::compare(&pair.slug()), compare::compare_page(pair))));
     files.extend(developer::developer_pages(catalog, facts));
     files
 }

@@ -3,7 +3,7 @@
   var list = document.getElementById('list');
   var cards = [].slice.call(list.children);
   /* A new object every time: "Clear filters" must not share the hardware chips with the state it replaces. */
-  function fresh() { return { hw: {}, kind: 'all', lic: 'all', imp: 'all', q: '', sort: 'name', listing: 'listed', badge: 'any' }; }
+  function fresh() { return { hw: {}, kind: 'all', lic: 'all', imp: 'all', q: '', sort: 'name', badge: 'any' }; }
   var state = fresh();
   var rows = {};
   var params = new URLSearchParams(location.search);
@@ -11,7 +11,6 @@
 
   function matches(row) {
     var chosen = Object.keys(state.hw);
-    if (state.listing !== 'listed') return false;
     if (state.badge !== 'any' && row.badge !== state.badge) return false;
     if (chosen.length && !chosen.some(function (tag) { return row.hardware.indexOf(tag) > -1; })) return false;
     if (state.kind !== 'all' && row.kind !== state.kind) return false;
@@ -32,7 +31,7 @@
     document.getElementById('count').textContent = shown + ' engines shown';
     document.getElementById('empty').hidden = shown > 0;
     document.querySelectorAll('.pillb').forEach(function (b) { b.setAttribute('aria-pressed', !!state.hw[b.dataset.hw]); });
-    ['listing', 'badge', 'kind'].forEach(function (id) {
+    ['badge', 'kind'].forEach(function (id) {
       document.querySelectorAll('#' + id + ' button').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.v === state[id]); });
     });
   }
@@ -43,7 +42,7 @@
       if (state.hw[b.dataset.hw]) delete state.hw[b.dataset.hw]; else state.hw[b.dataset.hw] = 1;
       run();
     });
-    ['listing', 'badge', 'kind'].forEach(function (id) {
+    ['badge', 'kind'].forEach(function (id) {
       document.getElementById(id).addEventListener('click', function (e) {
         var b = e.target.closest('button'); if (!b || b.disabled) return; state[id] = b.dataset.v; run();
       });
