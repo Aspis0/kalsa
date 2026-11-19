@@ -119,21 +119,12 @@ def _summary_text(records: list[dict], totals: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
-def main() -> None:
-    import argparse
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--max-repos", type=int, default=DEFAULT_MAX_REPOS)
-    parser.add_argument("--dry-run", action="store_true")
-    args = parser.parse_args()
-    if args.dry_run:
-        paths = dry_run(args.max_repos)
-        for path in paths:
-            print(path)
-        return
-    rows = _batch(args.max_repos)
+def _run_weekly(max_repos: int) -> None:
+    rows = _batch(max_repos)
     if not rows:
-        print("no fork changed since its last review")
+        text = "no fork changed since its last review\n"
+        print(text, end="")
+        results.write("weekly", text, [], {"forks": 0})
         return
     budget = client.budget_from_env()
     records = []
@@ -151,6 +142,26 @@ def main() -> None:
     text = _summary_text(records, totals)
     print(text, end="")
     results.write("weekly", text, records, totals)
+
+
+def main() -> None:
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--max-repos", type=int, default=DEFAULT_MAX_REPOS)
+    parser.add_argument("--dry-run", action="store_true")
+    args = parser.parse_args()
+    if args.dry_run:
+        paths = dry_run(args.max_repos)
+        for path in paths:
+            print(path)
+        return
+    try:
+        _run_weekly(args.max_repos)
+    except Exception as error:
+        results.write_failure("weekly", error)
+        # Redacted and unchained: the original message may carry a secret.
+        raise RuntimeError(f"{type(error).__name__}: {results.redact(str(error))}") from None
 
 
 if __name__ == "__main__":

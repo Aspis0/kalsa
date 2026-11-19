@@ -87,6 +87,8 @@ jobs:
           REVIEW_B_KEY: ${{ secrets.REVIEWB }}
           REVIEW_SESSION: "weekly-${{ github.run_id }}"
           MAX_REPOS: ${{ inputs.max_repos || 5 }}
+          # Read-only public fork metadata; the runner has no gh login.
+          GITHUB_TOKEN: ${{ github.token }}
         run: python -m scripts.review.weekly --max-repos "$MAX_REPOS" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: steps.mode.outputs.value == 'weekly'

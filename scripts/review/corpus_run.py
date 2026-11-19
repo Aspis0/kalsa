@@ -136,13 +136,19 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--summary", action="store_true")
     parser.parse_args()
-    counts = evaluate()
-    if "error" in counts:
-        print(counts["error"])
-        return
-    text = summary_text(counts)
-    print(text, end="")
-    results.write("corpus", text, counts["records"], counts["totals"])
+    try:
+        counts = evaluate()
+        if "error" in counts:
+            print(counts["error"])
+            results.write_failure("corpus", RuntimeError(counts["error"]))
+            return
+        text = summary_text(counts)
+        print(text, end="")
+        results.write("corpus", text, counts["records"], counts["totals"])
+    except Exception as error:
+        results.write_failure("corpus", error)
+        # Redacted and unchained: the original message may carry a secret.
+        raise RuntimeError(f"{type(error).__name__}: {results.redact(str(error))}") from None
 
 
 if __name__ == "__main__":

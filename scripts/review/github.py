@@ -19,11 +19,17 @@ os.environ.setdefault("GIT_CONFIG_NOSYSTEM", "1")
 
 
 def token() -> str:
+    """GITHUB_TOKEN on the runner, else a local gh login; neither is ever echoed."""
     value = os.environ.get("GITHUB_TOKEN", "").strip()
     if value:
         return value
-    result = subprocess.run(["gh", "auth", "token"], check=True, capture_output=True, text=True)
-    return result.stdout.strip()
+    try:
+        result = subprocess.run(["gh", "auth", "token"], check=False, capture_output=True, text=True)
+    except OSError:
+        result = None
+    if result is not None and result.returncode == 0 and result.stdout.strip():
+        return result.stdout.strip()
+    raise RuntimeError("no GitHub token available: set GITHUB_TOKEN, or run gh auth login")
 
 
 def api_get(path: str, gh_token: str) -> dict:
