@@ -14,6 +14,12 @@ BUILD_FILES = {
     "makefile", "meson.build", "dockerfile", "install.sh", "install.ps1",
 }
 NOT_REACHING_USERS = {"ci", "bench", "benchmarks", "tests", "test", ".devops", "docs", "examples"}
+BINARY_MAGIC = (
+    b"\x7fELF", b"\xcf\xfa\xed\xfe", b"\xfe\xed\xfa\xcf", b"PK\x03\x04",
+)
+# Two bytes identify a file only at offset 0; anywhere else they are coincidence
+# (a real PNG's deflate payload contains both "MZ" and "\x1f\x8b").
+SHORT_MAGIC = (b"MZ", b"\x1f\x8b")
 
 
 @dataclass

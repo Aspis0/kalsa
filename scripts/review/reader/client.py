@@ -16,17 +16,30 @@ from . import prompt
 SCHEMA = {"verdict": {"type": "string", "enum": ["harmless", "suspicious", "unsure"]}}
 
 
+class ProviderError(Exception):
+    """A request-level provider refusal; the key is never included."""
+
+
 @dataclass(frozen=True)
 class Config:
     base_url: str
     model: str
     key: str = field(repr=False)
+    effort: str = "high"
+    session: str = "run"
+
+
+CHARS_PER_TOKEN = 4
+DEFAULT_TOKEN_BUDGET = 3_000_000
 
 
 @dataclass
 class TokenBudget:
     limit: int = 100_000
     used: int = 0
+
+    def tokens(self) -> int:
+        return self.used // CHARS_PER_TOKEN
 
     def spend(self, amount: int) -> bool:
         if self.used + amount > self.limit:
@@ -35,12 +48,22 @@ class TokenBudget:
         return True
 
 
+def budget_from_env() -> TokenBudget:
+    """REVIEW_TOKEN_BUDGET is a token limit; spend() counts characters."""
+    tokens = int(os.environ.get("REVIEW_TOKEN_BUDGET", DEFAULT_TOKEN_BUDGET))
+    return TokenBudget(limit=tokens * CHARS_PER_TOKEN)
+
+
 def from_env(prefix: str) -> Config | None:
     base = os.environ.get(prefix + "_BASE_URL", "")
     model = os.environ.get(prefix + "_MODEL", "")
     key = os.environ.get(prefix + "_KEY", "")
     if base and model and key:
-        return Config(base, model, key)
+        return Config(
+            base, model, key,
+            os.environ.get(prefix + "_EFFORT", "max"),
+            os.environ.get("REVIEW_SESSION", "run"),
+        )
     return None
 
 
@@ -89,18 +112,77 @@ def _validate(row: dict, block: dict) -> dict:
     return row
 
 
-def _http(config: Config, request: dict) -> dict:
-    body = json.dumps({**request, "model": config.model}).encode()
+def headers(config: Config, session: str | None = None) -> dict:
+    return {
+        "Content-Type": "application/json",
+        "User-Agent": "kalsa-review/1.0 (+https://kalsa.io)",
+        "x-opencode-session": session or config.session,
+        "Authorization": "Bearer " + config.key,
+    }
+
+
+def _http(config: Config, request: dict, effort: str) -> dict:
+    body = json.dumps({**request, "model": config.model, "reasoning_effort": effort}).encode()
     req = urllib.request.Request(
         config.base_url.rstrip("/") + "/chat/completions",
         data=body,
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + config.key,
-        },
+        headers=headers(config),
     )
-    with urllib.request.urlopen(req, timeout=60) as response:
-        return json.load(response)
+    try:
+        with urllib.request.urlopen(req, timeout=60) as response:
+            return json.load(response)
+    except urllib.error.HTTPError as error:
+        if error.code == 400 and "reasoning_effort" in error.read().decode(errors="ignore"):
+            raise ProviderError("reasoning_effort rejected") from error
+        raise
+
+
+def _unsure(block: dict, config: Config, reason: str, effort: str) -> dict:
+    return {
+        "id": block.get("id", ""), "verdict": "unsure", "reason": reason,
+        "quoted_line": "", "model": config.model, "effort": effort,
+    }
+
+
+def _index_rows(rows, group: list[dict]) -> dict:
+    """One row per block id; duplicate, missing or extra ids are refusals."""
+    if not isinstance(rows, list) or len(rows) != len(group):
+        raise ValueError("wrong result count")
+    by_id = {}
+    for row in rows:
+        if not isinstance(row, dict):
+            raise ValueError("malformed row")
+        identifier = row.get("id")
+        if identifier in by_id:
+            raise ValueError("duplicate id")
+        by_id[identifier] = row
+    if set(by_id) != {block.get("id", "") for block in group}:
+        raise ValueError("wrong ids")
+    return by_id
+
+
+def _read_group(config: Config, group: list[dict], request: dict, http) -> list[dict]:
+    """One request group: effort fallback, three attempts, one verdict per block id."""
+    efforts = [config.effort, "high"] if config.effort == "max" else [config.effort]
+    fallback = [_unsure(block, config, "reader error", config.effort) for block in group]
+    for effort in efforts:
+        for attempt in range(3):
+            try:
+                response = (http or _http)(config, request, effort)
+                by_id = _index_rows(json.loads(response["choices"][0]["message"]["content"]), group)
+                return [
+                    {**_validate(by_id[block.get("id", "")], block), "model": config.model, "effort": effort}
+                    for block in group
+                ]
+            except ProviderError:
+                break
+            except (KeyError, TypeError, ValueError, json.JSONDecodeError, urllib.error.URLError, OSError):
+                if attempt < 2:
+                    time.sleep(0.01 * 2 ** attempt)
+                    continue
+                # A later effort replaces these rows; it never appends to them.
+                fallback = [_unsure(block, config, "reader error", effort) for block in group]
+    return fallback
 
 
 def read(
@@ -114,34 +196,10 @@ def read(
     budget = budget or TokenBudget()
     results = []
     for group in chunks(blocks):
-        if not budget.spend(sum(len(row.get("text", "")) for row in group)):
-            return [{"id": row.get("id", ""), "verdict": "unsure", "reason": "budget exhausted", "quoted_line": ""} for row in blocks]
         delimiter = "KALSA-" + secrets.token_hex(12)
         request = build_request(prompt.READER_PROMPT_V1, group, hints, precedents, delimiter)
-        for attempt in range(3):
-            try:
-                response = (http or _http)(config, request)
-                content = response["choices"][0]["message"]["content"]
-                rows = json.loads(content)
-                if not isinstance(rows, list) or len(rows) != len(group):
-                    raise ValueError("wrong result count")
-                ids = {row.get("id") for row in rows if isinstance(row, dict)}
-                if ids != {row.get("id") for row in group}:
-                    raise ValueError("wrong ids")
-                for row, block in zip(rows, group):
-                    validated = _validate(row, block)
-                    validated["model"] = config.model
-                    results.append(validated)
-                break
-            except (KeyError, TypeError, ValueError, json.JSONDecodeError, urllib.error.URLError, OSError):
-                if attempt == 2:
-                    results.extend(
-                        {
-                            "id": row.get("id", ""), "verdict": "unsure", "reason": "reader error",
-                            "quoted_line": "", "model": config.model,
-                        }
-                        for row in group
-                    )
-                else:
-                    time.sleep(0.01 * 2 ** attempt)
+        # Spend the whole request: prompt, hints, precedents and blocks.
+        if not budget.spend(len(request["messages"][0]["content"])):
+            return [_unsure(row, config, "budget reached", config.effort) for row in blocks]
+        results.extend(_read_group(config, group, request, http))
     return results

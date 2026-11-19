@@ -125,11 +125,20 @@ def is_lfs_pointer(data: bytes) -> bool:
     return data.startswith(LFS_PREFIX)
 
 
-def cap_text(text: str) -> tuple[str, bool]:
-    encoded = text.encode("utf-8", errors="backslashreplace")
-    if len(encoded) <= MAX_BLOCK_BYTES:
-        return text, False
-    return encoded[:MAX_BLOCK_BYTES].decode("utf-8", errors="backslashreplace"), True
+def chunk_block(numbers: list[int], lines: list[str]) -> list[list[int]]:
+    """Consecutive chunks under both caps; every line lands in exactly one chunk."""
+    chunks, current, size = [], [], 0
+    for number in numbers:
+        text = lines[number - 1] if 0 < number <= len(lines) else ""
+        length = len(text.encode("utf-8", errors="backslashreplace")) + 1
+        if current and (len(current) >= MAX_BLOCK_LINES or size + length > MAX_BLOCK_BYTES):
+            chunks.append(current)
+            current, size = [], 0
+        current.append(number)
+        size += length
+    if current:
+        chunks.append(current)
+    return chunks
 
 
 def split_nl(text: str) -> list[str]:

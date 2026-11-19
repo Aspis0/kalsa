@@ -142,6 +142,8 @@ def too_large(stats: dict[str, int], max_files: int, max_lines: int) -> bool:
 
 def numstat(bare: Path, base: str, head: str, env: dict[str, str]) -> dict[str, int]:
     result = git(bare, ["diff", "--numstat", "-z", f"{base}...{head}", "--"], env)
+    if result.returncode:
+        raise RuntimeError("git numstat failed")
     files = lines = 0
     for row in result.stdout.split(b"\0"):
         fields = row.split(b"\t")
@@ -160,6 +162,8 @@ def patch_text(bare: Path, base: str, head: str, env: dict[str, str]) -> str:
         "diff", "--no-ext-diff", "--no-textconv", "--find-renames", "--patch", "--text",
         f"{base}...{head}", "--",
     ], env)
+    if result.returncode:
+        raise RuntimeError("git diff failed")
     return diff.decode(result.stdout)
 
 
@@ -211,8 +215,10 @@ def blob(bare: Path, head: str, path: str, env: dict[str, str]) -> bytes | None:
 
 
 def analyze(bare: Path, base: str, head: str, env: dict[str, str], max_files: int, max_lines: int) -> dict:
-    raw = git(bare, ["diff", "--raw", "-z", f"{base}...{head}", "--"], env).stdout
-    parsed = parse_raw(raw)
+    raw_result = git(bare, ["diff", "--raw", "-z", f"{base}...{head}", "--"], env)
+    if raw_result.returncode:
+        raise RuntimeError("git diff failed")
+    parsed = parse_raw(raw_result.stdout)
     stats = numstat(bare, base, head, env)
     patches, added, blocks, removed, oversize = parse_patches(patch_text(bare, base, head, env))
     blobs = {}

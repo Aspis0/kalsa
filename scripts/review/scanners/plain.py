@@ -7,7 +7,10 @@ import re
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
-from .common import BUILD_FILES, clean_path, finding, reaches_users, source_snippet
+from .common import (
+    BINARY_MAGIC, BUILD_FILES, SHORT_MAGIC, clean_path, finding, reaches_users, source_snippet,
+)
+from . import images
 from .. import diff
 
 CONSTRUCTED = re.compile(r'["\']\s*\+\s*|\bconcat\b', re.IGNORECASE)
@@ -53,17 +56,6 @@ SOURCE_EXT = {
     ".c", ".cc", ".cpp", ".cxx", ".h", ".hpp", ".py", ".js", ".ts", ".rs", ".go",
     ".java", ".sh", ".ps1", ".bat", ".cmake", ".toml", ".json", ".yml", ".yaml",
 }
-IMAGE_MAGIC = {
-    ".png": b"\x89PNG\r\n\x1a\n",
-    ".jpg": b"\xff\xd8\xff",
-    ".gif": b"GIF8",
-    ".webp": b"WEBP",
-    ".ico": b"\x00\x00\x01\x00",
-}
-BINARY_MAGIC = (
-    b"\x7fELF", b"\xcf\xfa\xed\xfe", b"\xfe\xed\xfa\xcf",
-    b"MZ", b"PK\x03\x04", b"\x1f\x8b",
-)
 TEXT_EXT = {".md", ".txt", ".rst"}
 
 
@@ -72,14 +64,17 @@ def assess_binary(relative: str, data: bytes) -> tuple[bool, bool]:
     suffix = Path(relative.lower()).suffix
     if diff.is_lfs_pointer(data):
         return True, False
-    window = data[:65_536] + data[-65_536:]
-    if any(magic in window for magic in BINARY_MAGIC):
+    # A fully walked container explains every byte, so a chance magic match
+    # inside verified IDAT or entropy data is compressed pixels, not a payload.
+    if suffix in images.SUFFIXES and images.parses_clean(suffix, data):
+        return False, True
+    if any(magic in data for magic in BINARY_MAGIC):
+        return True, False
+    if data.startswith(SHORT_MAGIC):
         return True, False
     if suffix in EXECUTABLE_EXT:
         return True, False
-    if suffix in IMAGE_MAGIC and IMAGE_MAGIC[suffix] in data[:16]:
-        return False, True
-    if suffix in IMAGE_MAGIC:
+    if suffix in images.SUFFIXES:
         return True, False
     text_file = suffix in SOURCE_EXT or suffix in TEXT_EXT or relative.lower().startswith("docs/") or data.startswith(b"#!")
     if text_file and b"\x00" in data:
@@ -237,7 +232,7 @@ def scan(
 ) -> tuple[list[dict], list[dict], list[dict]]:
     by_path = {str(path.relative_to(root)): path for path in files}
     findings, signals, removed_blocks = [], [], []
-    plain_assets = set()
+    binaries = set()
     for path in files:
         if not path.is_file():
             continue
@@ -247,11 +242,12 @@ def scan(
         data = path.read_bytes()
         needs_person, plain_asset = assess_binary(relative, data)
         if needs_person:
+            binaries.add(relative)
             row = finding("plain", relative, 0, "binary-or-nul-content", "binary or NUL content needs a person")
             row["needs_person"] = True
             findings.append(row)
         elif plain_asset:
-            plain_assets.add(relative)
+            binaries.add(relative)
             row = finding("plain", relative, 0, "asset-binary", "plain image asset")
             row["suppressed_because"] = "plain-image"
             signals.append(row)
@@ -268,22 +264,21 @@ def scan(
                 ))
         context_rows = [row for row in diff.hunks(patch) if row["side"] == "context"]
         for line, text in diff.removed_entries(patch):
-            clipped, truncated = diff.cap_text(text)
             context = [
                 {"line": row["line"], "text": row["text"][:200]}
                 for row in context_rows if abs(row["line"] - line) <= 2
             ]
             removed_blocks.append({
-                "id": hashlib.sha256((clean_path(path) + str(line) + clipped).encode()).hexdigest(),
+                "id": hashlib.sha256((clean_path(path) + str(line) + text).encode()).hexdigest(),
                 "path": clean_path(path), "start": line, "end": line,
-                "kind": "removed", "text": clipped, "context": context,
-                "ships": reaches_users(path, release), "truncated": truncated,
+                "kind": "removed", "text": text, "context": context,
+                "ships": reaches_users(path, release),
             })
             if SECURITY_REMOVED.search(text):
                 row = finding("plain", clean_path(path), line, "removed-security-line", text[:200])
                 row["suppressed_because"] = "removed-security-line"
                 signals.append(row)
-        if clean_path(path) in plain_assets:
+        if clean_path(path) in binaries:
             continue
         for entry in diff.patch_url_entries(path, patch):
             entry["file"] = clean_path(entry["file"])

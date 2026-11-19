@@ -24,7 +24,7 @@ def test_runner_passes_hard_and_malware_hits(tmp_path, monkeypatch):
     monkeypatch.setenv("REVIEW_B_MODEL", "b-model")
     monkeypatch.setenv("REVIEW_B_KEY", "k")
 
-    def harmless_http(_):
+    def harmless_http(_config, _request, _effort):
         rows = [{"id": "a", "verdict": "harmless", "reason": "ok", "quoted_line": "return 1"}]
         return {"choices": [{"message": {"content": json.dumps(rows)}}]}
 

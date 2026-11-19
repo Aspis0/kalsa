@@ -6,6 +6,7 @@ import pytest
 
 from review import apply as review_apply, diff, localdiff, review
 from review.scanners import common, osv as osv_scan, plain, semgrep as semgrep_gate
+from image_fixtures import png
 
 
 def test_nosemgrep_is_disabled(tmp_path, monkeypatch):
@@ -314,7 +315,7 @@ def test_case_collision_is_unreviewable():
 
 def test_binary_patch_urls_are_not_classified(tmp_path):
     path = tmp_path / "logo.png"
-    data = b"\x89PNG\r\n\x1a\n\x00https://evil.example/x\x00"
+    data = png(width=8, raw=b"\x00" + b"\x00https://evil.example/x\x00")
     path.write_bytes(data)
     patch = "@@ -0,0 +1 @@\n+https://evil.example/x\n"
     findings, _, _ = plain.scan([path], [("logo.png", patch)], tmp_path, "owner/fork", "upstream/repo")

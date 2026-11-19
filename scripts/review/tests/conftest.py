@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1].parent))
 from review import malware, reader  # noqa: E402
 
 
-def _harmless(_config, request):
+def _harmless(_config, request, _effort):
     body = request["messages"][0]["content"]
     start = body.index('"blocks": ') + len('"blocks": ')
     blocks = json.JSONDecoder().raw_decode(body[start:])[0]

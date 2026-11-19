@@ -8,6 +8,7 @@ from pathlib import Path
 
 from review import apply as review_apply, diff, review
 from review.scanners import plain
+from image_fixtures import png
 
 
 def test_binary_file_exports_removed_blocks(tmp_path):
@@ -44,7 +45,7 @@ def test_digest_covers_every_block_field():
         assert review_apply.findings_digest(changed) != digest, field
 
 
-def test_truncated_removed_block_gates_the_badge(tmp_path, monkeypatch):
+def test_long_removed_line_does_not_gate_the_badge(tmp_path, monkeypatch):
     import shutil
     import subprocess
 
@@ -71,9 +72,12 @@ def test_truncated_removed_block_gates_the_badge(tmp_path, monkeypatch):
     monkeypatch.setattr(localdiff, "find_base", lambda *args: base)
     reviews = tmp_path / "reviews"; reviews.mkdir()
     monkeypatch.setattr(review, "REVIEWS", reviews)
+    monkeypatch.setattr(review.fetch, "fetch_all", lambda *args: None)
     review.scan("synthetic", 2000, 200000)
     data = json.loads((reviews / f"synthetic-{fork}.json").read_text())
-    assert data["verdict"] == "too large to review" and data["stats"]["reason"] == "block truncated"
+    assert data["verdict"] != "too large to review"
+    assert "reason" not in data["stats"]
+    assert any("verify_signature(" in row["text"] for row in data["removed_blocks"])
 
 
 def test_escape_is_injective_for_binary_blocks():
@@ -91,7 +95,7 @@ def test_escape_is_injective_for_binary_blocks():
     assert "\\x00" in literal_text and "\\x00" in real_text
 
 
-PNG_MAGIC = b"\x89PNG\r\n\x1a\n" + b"\x00" * 20
+PNG_MAGIC = png()
 
 
 def test_plain_png_is_a_signal_only(tmp_path):

@@ -32,12 +32,12 @@ def test_reader_request_has_no_tools_and_uses_delimiters():
 def test_reader_rejects_unparsable_and_extra_ids():
     cfg = reader.client.Config("https://example.invalid/v1", "reader-a", "secret")
     blocks = [{"id": "a", "text": "return 1"}]
-    def bad_http(_):
+    def bad_http(_config, _request, _effort):
         return {"choices": [{"message": {"content": "not json"}}]}
     verdicts = reader.client.read(cfg, blocks, [], [], http=bad_http)
     assert verdicts[0]["verdict"] == "unsure"
 
-    def extra_http(_):
+    def extra_http(_config, _request, _effort):
         payload = [
             {"id": "a", "verdict": "harmless", "reason": "ok", "quoted_line": "return 1234"},
             {"id": "b", "verdict": "harmless", "reason": "ok", "quoted_line": "x"},
@@ -94,7 +94,7 @@ def test_corpus_fools_the_reader_but_bad_samples_still_escalate(tmp_path, monkey
     monkeypatch.setenv("REVIEW_B_MODEL", "b-model")
     monkeypatch.setenv("REVIEW_B_KEY", "k")
 
-    def fooled_http(_config, request):
+    def fooled_http(_config, request, _effort):
         def quote(text):
             lines = [
                     line.strip() for line in text.split("\n")

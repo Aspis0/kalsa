@@ -1,0 +1,111 @@
+name: Review
+
+on:
+  schedule:
+    - cron: "0 2 * * 0"
+  workflow_dispatch:
+    inputs:
+      max_repos:
+        description: "Maximum forks in the batch"
+        type: number
+        default: 5
+      mode:
+        description: "Run mode"
+        type: choice
+        options: [weekly, corpus]
+        default: weekly
+
+permissions:
+  contents: read
+
+concurrency:
+  group: review
+  cancel-in-progress: false
+
+env:
+  KALSA_SHADOW: "true"
+  REVIEW_TOKEN_BUDGET: "3000000"
+  # Source of the Linux checksum: https://github.com/google/osv-scanner/releases/download/v2.7.1/osv-scanner_linux_amd64
+  OSV_VERSION: "v2.7.1"
+  OSV_SHA256_LINUX: "fb7dab19a8bd9bbe5c3189f09d4b7ee1820c9553a23bac202648a56efd2f6ee8"
+  CLAMAV_VERSION: "1.5.4+dfsg-0ubuntu0.24.04.1"
+  YARA_VERSION: "4.5.0-1build2"
+
+jobs:
+  scan:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    environment: review
+    env:
+      MODE: ${{ inputs.mode || 'weekly' }}
+      REVIEW_A_BASE_URL: "https://opencode.ai/inference/go/v1"
+      REVIEW_A_MODEL: "deepseek-v4.1-flash"
+      REVIEW_A_EFFORT: "max"
+      REVIEW_B_BASE_URL: "https://opencode.ai/inference/go/v1"
+      REVIEW_B_MODEL: "mimo-v2.6-flash"
+      REVIEW_B_EFFORT: "max"
+    outputs:
+      mode: ${{ steps.mode.outputs.value }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - name: Pin tools
+        run: |
+          python -m pip install --require-hashes -r scripts/review/requirements.lock
+          curl -fsSL -o /usr/local/bin/osv-scanner "https://github.com/google/osv-scanner/releases/download/${OSV_VERSION}/osv-scanner_linux_amd64"
+          echo "${OSV_SHA256_LINUX}  /usr/local/bin/osv-scanner" | sha256sum -c -
+          chmod +x /usr/local/bin/osv-scanner
+          sudo apt-get update
+          sudo apt-get install -y "clamav=${CLAMAV_VERSION}" "clamav-freshclam=${CLAMAV_VERSION}" "yara=${YARA_VERSION}"
+          sudo systemctl stop clamav-freshclam
+          sudo freshclam
+      - name: Mask secrets
+        env:
+          REVIEW_A_KEY: ${{ secrets.REVIEWA }}
+          REVIEW_B_KEY: ${{ secrets.REVIEWB }}
+        run: |
+          echo "::add-mask::$REVIEW_A_KEY"
+          echo "::add-mask::$REVIEW_B_KEY"
+      - name: Decide mode
+        id: mode
+        run: echo "value=$MODE" >> "$GITHUB_OUTPUT"
+      - name: Corpus against readers
+        if: steps.mode.outputs.value == 'corpus'
+        env:
+          REVIEW_A_KEY: ${{ secrets.REVIEWA }}
+          REVIEW_B_KEY: ${{ secrets.REVIEWB }}
+          REVIEW_SESSION: "corpus-${{ github.run_id }}"
+        run: python -m scripts.review.corpus_run --summary >> "$GITHUB_STEP_SUMMARY"
+      - name: Weekly batch and reports
+        if: steps.mode.outputs.value == 'weekly'
+        env:
+          REVIEW_A_KEY: ${{ secrets.REVIEWA }}
+          REVIEW_B_KEY: ${{ secrets.REVIEWB }}
+          REVIEW_SESSION: "weekly-${{ github.run_id }}"
+          MAX_REPOS: ${{ inputs.max_repos || 5 }}
+        run: python -m scripts.review.weekly --max-repos "$MAX_REPOS" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: steps.mode.outputs.value == 'weekly'
+        with:
+          name: weekly-reports
+          path: reviews/*.json
+
+  pull-request:
+    if: github.ref == 'refs/heads/main' && needs.scan.outputs.mode == 'weekly'
+    needs: scan
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: weekly-reports
+          path: reviews
+      - name: Shadow digest and PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m scripts.review.pr_step

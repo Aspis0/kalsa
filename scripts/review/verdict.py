@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+BUDGET_VERDICT = "not reviewed this week (budget)"
+
 
 def hit_maps(blocks: list[dict], findings: list[dict], signals: list[dict]) -> tuple[dict, dict]:
     hints: dict[str, list[str]] = {}
@@ -43,3 +45,37 @@ def verdict_for(
     return "no findings"
 
 
+
+
+def assert_not_hollow(payload: dict) -> None:
+    inputs = payload.get("inputs", {})
+    if (
+        payload.get("verdict") not in {"dry-run", "too large to review", BUDGET_VERDICT}
+        and inputs.get("commit") != inputs.get("base_sha")
+        and not payload.get("blocks")
+        and not payload.get("stats", {}).get("files")
+    ):
+        raise ValueError("hollow report refused")
+
+
+def reader_pass(
+    blocks: list[dict], findings: list[dict], signals: list[dict],
+    malware_result: dict, report: dict, budget=None,
+) -> tuple[dict, str]:
+    """Per-chunk hints, both readers, annotation and the verdict for one scan."""
+    from .reader import report as reader_report
+    from .reader import runner as reader_runner
+
+    hints_by_block, hard_by_block = hit_maps(blocks, findings, signals)
+    malware_by_file: dict[str, list[str]] = {}
+    for row in malware_result.get("hits", []):
+        malware_by_file.setdefault(row.get("path", ""), []).append(row.get("tool", ""))
+    reader_a, reader_b, decisions = reader_runner.run(
+        blocks, hints_by_block, hard_by_block, malware_by_file, budget=budget,
+    )
+    if any(row.get("reason") == "budget reached" for row in reader_a + reader_b):
+        return report, BUDGET_VERDICT
+    # annotate and verdict_for both read report["blocks"]; without it no reader
+    # verdict is attached and the per-chunk coverage check silently passes.
+    report = reader_report.annotate({**report, "blocks": blocks}, reader_a, reader_b, decisions)
+    return report, verdict_for(findings, signals, decisions, report)

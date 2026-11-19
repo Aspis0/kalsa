@@ -6,6 +6,7 @@ import datetime as dt
 import difflib
 import hashlib
 import json
+import os
 import subprocess
 import tempfile
 from pathlib import Path
@@ -25,8 +26,12 @@ def current_head(repo: str, branch: str = "") -> str:
     return result.stdout.split()[0]
 
 
+def reports_dir() -> Path:
+    return Path(os.environ.get("REVIEW_REPORTS_DIR", str(REVIEWS)))
+
+
 def report_for(engine_id: str, commit: str) -> dict:
-    path = REVIEWS / f"{engine_id}-{commit}.json"
+    path = reports_dir() / f"{engine_id}-{commit}.json"
     if not path.is_file():
         raise ValueError(f"no full-sha report for {engine_id} at {commit}")
     report = json.loads(path.read_text())
@@ -149,24 +154,20 @@ def insert_declined(text: str, engine_id: str, commit: str, date: str, reason: s
     return "".join(lines[:end] + block + lines[end:])
 
 
-def apply_review(
-    engine_id: str,
-    catalog_path: Path = CATALOG,
-    human_approved: str = "",
-    human_declined: str = "",
-    reason: str = "",
-) -> str:
-    engine, skip_reason = resolve(load(catalog_path), engine_id)
-    if skip_reason:
-        raise ValueError(f"skip {engine_id}: {skip_reason}")
-    pinned = engine.get("review", {}).get("commit") or engine.get("commit")
+def collect_reports(engine_id: str) -> list[tuple[str, dict]]:
     reports = []
-    for path in REVIEWS.glob(f"{engine_id}-*.json"):
+    for path in reports_dir().glob(f"{engine_id}-*.json"):
         stem = path.stem[len(engine_id) + 1:]
         if len(stem) == 40:
             reports.append((stem, json.loads(path.read_text())))
     if not reports:
         raise ValueError(f"no full-sha report for {engine_id}")
+    return reports
+
+
+def checked_head_report(
+    engine_id: str, engine: dict, pinned: str, reports: list[tuple[str, dict]],
+) -> tuple[str, dict]:
     head = current_head(engine["repo"])
     report = report_for(engine_id, head)
     if pinned and pinned != head:
@@ -174,6 +175,12 @@ def apply_review(
     for stem, later in reports:
         if later.get("created_at", "") > report.get("created_at", "") and later.get("verdict") != "no findings":
             raise ValueError(f"{stem} is later than {head} and has findings")
+    return head, report
+
+
+def verify_report(
+    engine_id: str, engine: dict, report: dict, human_approved: str, human_declined: str,
+) -> None:
     if report.get("inputs", {}).get("fork") != engine["repo"]:
         raise ValueError(f"{engine_id}: report fork does not match the catalog")
     if report.get("inputs", {}).get("upstream") != engine["upstream"]:
@@ -190,35 +197,39 @@ def apply_review(
         raise ValueError(f"{engine_id}: report has no findings digest")
     if report["findings_digest"] != findings_digest(report):
         raise ValueError(f"{engine_id}: stored findings digest does not match the report")
+
+
+def human_resolution(
+    engine_id: str, report: dict, human_approved: str, human_declined: str, reason: str,
+) -> tuple[str, str]:
     verdict = report.get("verdict")
-    approval = ""
-    decline = ""
+    needs_human = {"human review needed", "findings: human review needed"}
     if human_declined:
-        if verdict not in {"human review needed", "findings: human review needed"}:
+        if verdict not in needs_human:
             raise ValueError(f"{engine_id}: verdict {verdict} does not need a decline")
         if findings_digest(report) != human_declined:
             raise ValueError(f"{engine_id}: findings digest does not match")
         if not reason:
             raise ValueError(f"{engine_id}: a decline needs a reason")
-        decline = reason
-    elif human_approved:
-        if verdict not in {"human review needed", "findings: human review needed"}:
+        return "", reason
+    if human_approved:
+        if verdict not in needs_human:
             raise ValueError(f"{engine_id}: verdict {verdict} does not need human approval")
         if findings_digest(report) != human_approved:
             raise ValueError(f"{engine_id}: findings digest does not match")
-        approval = "approved after human review"
-    elif verdict != "no findings":
+        return "approved after human review", ""
+    if verdict != "no findings":
         raise ValueError(f"{engine_id}: current review is {verdict}")
-    print(f"verified current head {head} for {engine['repo']}")
-    if approval:
-        print(f"verified findings digest {human_approved}")
-    print(f"verified no later report with findings for {engine_id}")
+    return "", ""
+
+
+def write_catalog(
+    catalog_path: Path, engine_id: str, head: str, report: dict, approval: str, decline: str,
+) -> str:
     before = catalog_path.read_text()
     if decline:
         before = remove_review(before, engine_id)
-        after = insert_declined(
-            before, engine_id, head, dt.date.today().isoformat(), decline,
-        )
+        after = insert_declined(before, engine_id, head, dt.date.today().isoformat(), decline)
     else:
         after = insert_review(
             before, engine_id, head, report["inputs"]["upstream"],
@@ -227,3 +238,27 @@ def apply_review(
     patch = "".join(difflib.unified_diff(before.splitlines(True), after.splitlines(True), str(catalog_path), str(catalog_path)))
     catalog_path.write_text(after)
     return patch
+
+
+def apply_review(
+    engine_id: str,
+    catalog_path: Path = CATALOG,
+    human_approved: str = "",
+    human_declined: str = "",
+    reason: str = "",
+) -> str:
+    if os.environ.get("KALSA_SHADOW") == "true":
+        raise ValueError("shadow mode is enabled; no catalog changes are allowed")
+    engine, skip_reason = resolve(load(catalog_path), engine_id)
+    if skip_reason:
+        raise ValueError(f"skip {engine_id}: {skip_reason}")
+    pinned = engine.get("review", {}).get("commit") or engine.get("commit")
+    reports = collect_reports(engine_id)
+    head, report = checked_head_report(engine_id, engine, pinned, reports)
+    verify_report(engine_id, engine, report, human_approved, human_declined)
+    approval, decline = human_resolution(engine_id, report, human_approved, human_declined, reason)
+    print(f"verified current head {head} for {engine['repo']}")
+    if approval:
+        print(f"verified findings digest {human_approved}")
+    print(f"verified no later report with findings for {engine_id}")
+    return write_catalog(catalog_path, engine_id, head, report, approval, decline)

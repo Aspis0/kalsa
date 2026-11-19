@@ -53,36 +53,38 @@ def test_every_block_and_removed_block_has_full_schema():
         "paths": ["src/a.py"], "statuses": {"src/a.py": "A"},
         "binary_info": {"src/a.py": {"old_size": 0, "new_size": 2, "old_sha": "", "new_sha": "s"}},
     }
-    schema = {"id", "path", "start", "end", "text", "kind", "context", "ships", "truncated"}
+    schema = {"id", "path", "start", "end", "text", "kind", "context", "ships", "part", "parts"}
     for row in review.export_blocks(info):
         assert schema <= set(row)
     patch = "@@ -1,2 +1,1 @@\n-context\n-verify_signature(blob);\n+x\n"
     _, _, removed = plain.scan([], [("src/a.py", patch)], Path("/tmp"), "owner/fork", "up/repo")
     for row in removed:
-        assert schema <= set(row)
+        assert (schema - {"part", "parts"}) <= set(row)
 
 
-def test_removed_long_line_truncates_and_ships():
+def test_removed_long_line_ships_and_is_not_clipped():
     text = "verify_signature(" + "x" * 40_010 + ");"
     patch = "@@ -1,2 +1,1 @@\n context\n-" + text + "\n+x\n"
     _, _, removed = plain.scan([], [("src/a.py", patch)], Path("/tmp"), "owner/fork", "up/repo")
     row = removed[0]
-    assert row["truncated"] is True and row["ships"] is True
-    assert len(row["text"]) == 40_000
+    assert row["ships"] is True
+    assert row["text"] == text
 
 
 def test_cap_values_are_pinned():
-    assert review.MAX_BLOCK_LINES == 400
-    assert review.MAX_BLOCK_BYTES == 40_000
-    text = "x" * 40_001
-    block = review.export_blocks({
-        "blocks": {"big.py": [[1]]}, "blobs": {"big.py": text.encode()},
+    assert diff.MAX_BLOCK_LINES == 400
+    assert diff.MAX_BLOCK_BYTES == 40_000
+    info = {
+        "blocks": {"big.py": [list(range(1, 402))]},
+        "blobs": {"big.py": ("\n".join(f"line_{i}" for i in range(401)) + "\n").encode()},
         "paths": ["big.py"], "statuses": {"big.py": "A"},
-    })[0]
-    assert block["truncated"] is True
+    }
+    rows = review.export_blocks(info)
+    assert [row["parts"] for row in rows] == [2, 2]
+    assert [len(range(row["start"], row["end"] + 1)) for row in rows] == [400, 1]
 
 
-def test_truncated_block_gates_the_badge(tmp_path, monkeypatch):
+def test_long_line_does_not_gate_the_badge(tmp_path, monkeypatch):
     import shutil
     import subprocess
 
@@ -109,10 +111,12 @@ def test_truncated_block_gates_the_badge(tmp_path, monkeypatch):
     monkeypatch.setattr(localdiff, "find_base", lambda *args: base)
     reviews = tmp_path / "reviews"; reviews.mkdir()
     monkeypatch.setattr(review, "REVIEWS", reviews)
+    monkeypatch.setattr(review.fetch, "fetch_all", lambda *args: None)
     review.scan("synthetic", 2000, 200000)
     data = json.loads((reviews / f"synthetic-{fork}.json").read_text())
-    assert data["verdict"] == "too large to review"
-    assert data["stats"]["reason"] == "block truncated"
+    assert data["verdict"] != "too large to review"
+    assert "reason" not in data["stats"]
+    assert any("x" * 40_001 in row["text"] for row in data["blocks"])
 
 
 def test_digest_covers_blocks_and_removed_blocks():

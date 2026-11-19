@@ -75,18 +75,18 @@ def test_binary_file_exports_one_binary_entry():
     assert "text" in rows[0]
 
 
-def test_long_block_is_truncated_and_gates(tmp_path):
+def test_long_block_is_chunked_not_gated(tmp_path):
     path = tmp_path / "big.py"
     text = "\n".join(f"line_{i}" for i in range(500)) + "\n"
     path.write_text(text)
-    payload = "".join(f"+{line}\n" for line in text.split("\n")[:500])
-    patch = "@@ -0,0 +1,500 @@\n" + payload
-    gate = review.block_is_truncated(review.export_blocks({
+    rows = review.export_blocks({
         "blocks": {"big.py": [list(range(1, 501))]},
         "blobs": {"big.py": text.encode()},
         "paths": ["big.py"], "statuses": {"big.py": "A"},
-    })[0])
-    assert gate
+    })
+    assert len(rows) == 2
+    covered = [number for row in rows for number in range(row["start"], row["end"] + 1)]
+    assert covered == list(range(1, 501))
 
 
 def test_removed_blocks_have_id_and_numbered_context():
