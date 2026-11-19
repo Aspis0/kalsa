@@ -123,7 +123,7 @@ fn the_listed_and_community_page_replaces_the_old_rules_page() {
     assert!(!files.iter().any(|(path, _)| path.starts_with("how-we-choose")) && !files.iter().any(|(path, _)| path.starts_with("how-listing-works")));
     let raw = body(&files, "listed-and-community/index.html");
     let page = visible(raw);
-    assert!(raw.contains("<title>Listed and community engines | Kalsa</title>") && raw.contains("aria-current=\"page\">Listed and community engines</a>"));
+    assert!(raw.contains("<title>Listed and community engines | Kalsa</title>") && raw.contains("aria-current=\"page\">Listing</a>") && !raw.contains(">Listed and community engines</a><a"));
     for heading in [
         "Community engines", "Listed engines", "What every Listed engine needs", "What counts as better", "How we judge the proof",
         "Where the numbers come from", "What “Reviewed” means", "Corrections",

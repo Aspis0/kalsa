@@ -110,18 +110,3 @@ fn the_assets_headers_file_hardens_every_static_page() {
     assert!(!body(&files, "static/base.css").contains("data:image"), "a data: URI would need img-src data:");
 }
 
-#[test]
-fn every_benchmark_bar_width_is_a_class_the_stylesheet_defines() {
-    let files = generated();
-    let css = body(&files, "static/base.css");
-    let mut bars = 0;
-    for (page, text) in html(&files) {
-        for rest in text.split("<i class=\"w").skip(1) {
-            let width: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
-            assert!(!width.is_empty(), "{page:?} has a bar with no width");
-            assert!(css.contains(&format!(".w{width}{{width:{width}%}}")), "{page:?} uses .w{width}, which base.css does not define");
-            bars += 1;
-        }
-    }
-    assert!(bars > 0, "the catalogue has benchmark bars");
-}

@@ -17,7 +17,7 @@ pub struct Meta<'a> {
 const NAV: [(&str, &str, &str); 6] = [
     ("engines", "Engines", "engines"),
     ("hardware", "Hardware", "hardware"),
-    ("rules", "Listed and community engines", "listed-and-community"),
+    ("rules", "Listing", "listed-and-community"),
     ("submit", "Submit", "submit"),
     ("app", "App", "app"),
     ("signin", "Sign in", "signin"),

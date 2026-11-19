@@ -18,7 +18,7 @@ mod suggested;
 
 pub use display::{chip_label, figure_label, gain_label, gain_metric, gain_of};
 pub use gains::{gains_of, Gains, MetricGain};
-pub use hardware::{chip_generation, family_label, hardware_labels, not_for_reason, FAMILIES};
+pub use hardware::{chip_generation, family_label, hardware_labels, FAMILIES};
 pub use improvement::{improvement_kinds, Improvement, ImprovementKind};
 pub use install::{Install, Tooling};
 pub use review::{Review, ReviewDeclined};

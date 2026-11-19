@@ -132,15 +132,6 @@ fn without_it_is_said_only_of_the_seven_genuine_ablations() {
     }
 }
 
-#[test]
-fn a_hardware_hero_names_a_baseline_only_when_it_can() {
-    let files = generated();
-    let page = body(&files, "hardware/apple-m4-pro/index.html");
-    assert!(page.contains("decoding +20%"), "dmlx hero shows its gain");
-    assert!(!page.contains("decoding +20%, against"), "an unnamed baseline adds no clause");
-    assert!(body(&files, "hardware/apple-m1-max/index.html").contains("decoding 2.2×, against MTPLX"));
-}
-
 const SLOWER: &str = r#"
 [[engine]]
 id = "slow"
@@ -174,7 +165,6 @@ fn a_feature_switched_off_is_the_only_baseline_a_card_words_as_without_it() {
     let marked = SLOWER.replace("baseline = \"feature off\"", "baseline = \"feature off\"\nfeature_off = true");
     let files = render(&kalsa_engines::parse(&marked).expect("the fixture is valid"), &Facts::none());
     assert!(body(&files, "index.html").contains("20% slower decoding than without it on M1 Max"));
-    assert!(body(&files, "hardware/apple-m1/index.html").contains("against the same build with the feature off") || !body(&files, "hardware/apple-m1/index.html").contains("against"));
 }
 
 #[test]

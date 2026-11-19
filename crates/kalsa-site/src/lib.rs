@@ -1,7 +1,6 @@
 //! Static pages generated from the shared engine catalog.
 
 mod badge;
-mod bench;
 mod benchmarks;
 mod better;
 mod cards;

@@ -2,7 +2,6 @@
 
 use kalsa_engines::{Benchmark, Catalog, Engine, Kind};
 
-use crate::bench::tok;
 use crate::html::{escape, HELP, MAIN};
 use crate::layout::{page, Meta};
 use crate::paths;
@@ -60,6 +59,11 @@ pub fn privacy() -> String {
         PRIVACY,
         &[],
     )
+}
+
+/// Whole numbers keep one decimal; everything else shows as published.
+fn tok(value: f64) -> String {
+    if value.fract() == 0.0 { format!("{value:.1}") } else { value.to_string() }
 }
 
 fn benchmark_toml(benchmark: &Benchmark) -> String {

@@ -68,16 +68,6 @@ fn the_engines_page_filters_by_improvement_with_only_kinds_that_exist() {
 }
 
 #[test]
-fn a_hardware_family_page_shows_larger_models_only_where_data_exists() {
-    let files = generated();
-    let m5 = body(&files, "hardware/apple-m5/index.html");
-    assert!(m5.contains("Larger models on this hardware") && m5.contains("177.77 GiB on 128 GB, 11.9 tok/s"));
-    assert!(m5.contains("DeepSeek Flash Q2") && m5.contains("GLM 5.3 Flash Q4_K") && m5.contains("The expert weights are read from the SSD"));
-    assert!(!body(&files, "hardware/apple-m1/index.html").contains("Larger models on this hardware"));
-    assert!(!body(&files, "hardware/nvidia/index.html").contains("Larger models on this hardware"), "the nvidia row is not a bigger-models claim");
-}
-
-#[test]
 fn a_speed_row_shows_its_caveat_and_omlx_names_its_requirements() {
     let files = generated();
     let omlx = body(&files, "engines/omlx/index.html");

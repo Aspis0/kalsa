@@ -21,14 +21,43 @@ fn every_engine_has_a_page_and_every_section_exists() {
     }
 }
 
+const CHIP_PAGES: [&str; 10] = ["apple-m1", "apple-m5", "nvidia", "amd", "intel", "cpu", "apple-m1-max", "apple-m2-pro", "apple-m3-ultra", "apple-m5-max"];
+
 #[test]
-fn hardware_pages_cover_families_and_every_chip_a_benchmark_names() {
+fn a_chip_page_is_one_list_with_no_group_headings() {
     let files = generated();
-    for slug in ["apple-m1", "apple-m5", "nvidia", "amd", "intel", "cpu", "apple-m1-max", "apple-m2-pro", "apple-m3-ultra", "apple-m5-max"] {
+    for slug in CHIP_PAGES {
         let page = body(&files, &format!("hardware/{slug}/index.html"));
-        assert!(page.contains("Engines are listed A to Z."), "{slug} says how its engines are ordered");
+        let main = page.split("<main id=\"main\">").nth(1).and_then(|rest| rest.split("</main>").next()).expect("a main section");
+        assert_eq!(main.matches("<h1>").count(), 1, "{slug}");
+        for heading in ["<h2", "<h3", "<details", "<table"] {
+            assert!(!main.contains(heading), "{slug} has a {heading} group");
+        }
+        for gone in ["Doesn't run on", "Runs here", "Measured on", "Reference engines", "Larger models", "It runs here", "Engines are listed A to Z"] {
+            assert!(!visible(main).contains(gone), "{slug} still says {gone:?}");
+        }
+        assert_eq!(main.matches("<div class=\"grid listgrid\">").count(), 1, "{slug} has exactly one list");
+        let names: Vec<String> = main.split("<a class=\"card\"").skip(1).map(|card| card.split("<b>").nth(1).and_then(|rest| rest.split("</b>").next()).unwrap_or_default().to_lowercase()).collect();
+        let mut sorted = names.clone();
+        sorted.sort();
+        assert_eq!(names, sorted, "{slug} lists its engines A to Z");
+        let count = main.split("<p class=\"lede\">").nth(1).and_then(|rest| rest.split(' ').next()).and_then(|number| number.parse::<usize>().ok());
+        assert_eq!(count, Some(names.len()), "{slug} counts the engines it lists");
     }
-    assert!(body(&files, "hardware/apple-m1-max/index.html").contains("Measured on this chip: M1 Max"));
+}
+
+#[test]
+fn a_chip_page_lists_the_same_cards_as_the_home_page_and_greys_other_chips() {
+    let files = generated();
+    let m1 = body(&files, "hardware/apple-m1/index.html");
+    assert!(m1.contains("17 engines run on Apple M1."));
+    let home = body(&files, "index.html");
+    let card = |page: &str, id: &str| page.split(&format!("data-id=\"{id}\"")).nth(1).and_then(|rest| rest.split("</a>").next()).unwrap_or_default().to_string();
+    assert_eq!(card(m1, "frink"), card(home, "frink"), "the same card as the home page");
+    let m1_max = body(&files, "hardware/apple-m1-max/index.html");
+    assert!(card(m1_max, "shunya-mtplx-m1").contains("<span class=\"cmpl\">2.2× faster decoding than MTPLX on M1 Max"), "a number measured on this chip is solid");
+    assert!(card(m1_max, "frink").contains("<span class=\"cmpl weak\">"), "a number from another chip is grey");
+    assert!(body(&files, "hardware/apple-m5/index.html").contains("engines run on Apple M5."));
 }
 
 #[test]

@@ -43,23 +43,6 @@ pub fn hardware_labels(tags: &[String]) -> Vec<String> {
     labels
 }
 
-/// Why a project does not run on a Mac's chip, from the hardware it declares.
-pub fn not_for_reason(tags: &[String]) -> String {
-    let mut generations: Vec<u8> = tags.iter().filter_map(|tag| chip_generation(tag)).collect();
-    generations.sort_unstable();
-    let (Some(first), Some(last)) = (generations.first(), generations.last()) else {
-        return format!("Built for {}, not Apple Silicon", hardware_labels(tags).join(", "));
-    };
-    if generations.len() == 1 {
-        format!("Built for Apple M{first} only")
-    } else if usize::from(last - first) == generations.len() - 1 {
-        format!("Needs Apple M{first} or newer")
-    } else {
-        let names: Vec<String> = generations.iter().map(|generation| format!("M{generation}")).collect();
-        format!("Built for Apple {} and {}", names[..names.len() - 1].join(", "), names[names.len() - 1])
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -76,10 +59,8 @@ mod tests {
     }
 
     #[test]
-    fn reasons_say_what_an_engine_is_built_for() {
-        assert_eq!(not_for_reason(&tags(&["nvidia"])), "Built for NVIDIA, not Apple Silicon");
-        assert_eq!(not_for_reason(&tags(&["apple-m5"])), "Built for Apple M5 only");
-        assert_eq!(not_for_reason(&tags(&["apple-m3", "apple-m4", "apple-m5"])), "Needs Apple M3 or newer");
+    fn a_tag_reads_as_its_family_name() {
         assert_eq!(family_label("apple-m2"), "Apple M2");
+        assert_eq!(family_label("nvidia"), "NVIDIA");
     }
 }
