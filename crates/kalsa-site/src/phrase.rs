@@ -1,6 +1,11 @@
 //! Plain-English phrases for gains, shared by cards, benchmark tables and hardware and developer pages.
 
-use kalsa_engines::{Benchmark, Gains, MetricGain};
+use kalsa_engines::{chip_generation, family_label, Benchmark, Gains, MetricGain};
+
+/// The platform a chip tag belongs to, as a page for it names it: "Apple", "NVIDIA", "AMD", "Intel" or "CPU".
+pub fn platform_label(tag: &str) -> String {
+    if chip_generation(tag).is_some() { "Apple".to_string() } else { family_label(tag) }
+}
 
 /// What a benchmark was measured against, as far as the catalog can say it. Anything else stays unnamed.
 pub enum Baseline<'a> {

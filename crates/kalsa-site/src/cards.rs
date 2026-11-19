@@ -111,7 +111,7 @@ fn warning(engine: &Engine) -> String {
 }
 
 /// What a card says about benchmarks. A non-recommendable engine shows its warning first and its numbers in grey.
-fn comparison_area(engine: &Engine, benchmark: Option<&Benchmark>, weak: bool) -> String {
+fn comparison_area(engine: &Engine, benchmark: Option<&Benchmark>, weak: bool, platform: Option<&str>) -> String {
     let line = benchmark.filter(|found| found.gains.headline().is_some()).map(benchmark_line);
     let grey = if weak || !engine.recommendable { " weak" } else { "" };
     let numbers = line.map(|text| format!("<span class=\"cmpl{grey}\">{text}</span>"));
@@ -121,12 +121,15 @@ fn comparison_area(engine: &Engine, benchmark: Option<&Benchmark>, weak: bool) -
     match numbers {
         Some(found) => found,
         None if engine.kind == Kind::Reference => "<span class=\"none\">The reference engine</span>".to_string(),
-        None => "<span class=\"none\">No benchmarks yet</span>".to_string(),
+        None => match platform {
+            Some(name) if !engine.benchmark.is_empty() => format!("<span class=\"none\">No benchmarks on {} yet</span>", escape(name)),
+            _ => "<span class=\"none\">No benchmarks yet</span>".to_string(),
+        },
     }
 }
 
 /// An engine card. `weak` marks a number measured on another chip than the page is about.
-pub fn card(root: &str, engine: &Engine, benchmark: Option<&Benchmark>, weak: bool, facts: &Facts) -> String {
+pub fn card(root: &str, engine: &Engine, benchmark: Option<&Benchmark>, weak: bool, facts: &Facts, platform: Option<&str>) -> String {
     format!(
         "<a class=\"card\" href=\"{href}\" data-id=\"{id}\"><div class=\"ch\">{avatar}<div class=\"nm\"><b>{name}</b><span>by {author}</span></div>\
          </div><p class=\"sum\">{summary}</p>{relation}\
@@ -140,6 +143,6 @@ pub fn card(root: &str, engine: &Engine, benchmark: Option<&Benchmark>, weak: bo
         relation = relation(engine),
         tags = tags(engine, facts),
         improvements = improvement_tags(engine),
-        area = comparison_area(engine, benchmark, weak),
+        area = comparison_area(engine, benchmark, weak, platform),
     )
 }

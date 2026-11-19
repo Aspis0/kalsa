@@ -50,7 +50,7 @@ fn filters(catalog: &Catalog) -> String {
 }
 
 pub fn engines_page(catalog: &Catalog, facts: &Facts) -> String {
-    let cards: String = alphabetical(catalog).iter().map(|engine| card("../", engine, headline(engine), false, facts)).collect();
+    let cards: String = alphabetical(catalog).iter().map(|engine| card("../", engine, headline(engine), false, facts, None)).collect();
     let body = format!(
         "<div class=\"wrap\"><section class=\"pagehead\"><h1>Engines</h1><p class=\"lede\">Browse all {count} engines, A to Z. Filter them by chip, licence or what they do better. \
          <a class=\"lnk\" href=\"../{rules}\">Listed and community engines</a> explains what the Listed mark needs.</p>{filters}</section>\

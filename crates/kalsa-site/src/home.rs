@@ -8,16 +8,18 @@ use crate::html::escape;
 use crate::layout::{page, Meta};
 use crate::model::{alphabetical, closest_benchmark, headline, runs_on};
 use crate::paths;
+use crate::phrase::platform_label;
 
 const SUBTITLE: &str = "Discover the engines and forks that run AI models on your own computer.";
 
 fn panel(root: &str, catalog: &Catalog, tag: &str, facts: &Facts) -> String {
     let engines: Vec<&Engine> = alphabetical(catalog).into_iter().filter(|engine| runs_on(engine, tag)).collect();
+    let platform = platform_label(tag);
     let cards: String = engines
         .iter()
         .map(|engine| match closest_benchmark(engine, tag) {
-            Some((distance, benchmark)) => card(root, engine, Some(benchmark), distance != 0, facts),
-            None => card(root, engine, None, false, facts),
+            Some((distance, benchmark)) => card(root, engine, Some(benchmark), distance != 0, facts, Some(&platform)),
+            None => card(root, engine, None, false, facts, Some(&platform)),
         })
         .collect();
     format!(
@@ -41,7 +43,7 @@ fn picker(root: &str, catalog: &Catalog, facts: &Facts) -> String {
 }
 
 fn recent(root: &str, catalog: &Catalog, facts: &Facts) -> String {
-    let cards: String = catalog.engine.iter().rev().take(4).map(|engine| card(root, engine, headline(engine), false, facts)).collect();
+    let cards: String = catalog.engine.iter().rev().take(4).map(|engine| card(root, engine, headline(engine), false, facts, None)).collect();
     format!(
         "<section class=\"blk\" id=\"recent\"><div class=\"sh\"><h2>Recently added</h2><p>The newest engines in the catalog.</p></div><div class=\"grid\">{cards}</div></section>"
     )

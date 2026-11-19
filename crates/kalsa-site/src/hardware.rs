@@ -8,6 +8,7 @@ use crate::html::{escape, safe_href, slug};
 use crate::layout::{page, Meta};
 use crate::model::{alphabetical, closest_benchmark, hardware_pages, runs_on, HardwarePage};
 use crate::paths;
+use crate::phrase::platform_label;
 
 /// The benchmark a card shows, and whether it comes from another chip than the page is about (it is then grey).
 /// A concrete chip page prefers a number measured on exactly that chip; every other number is from another chip.
@@ -35,11 +36,12 @@ fn family_links() -> String {
 pub fn hardware_page(hw: &HardwarePage, catalog: &Catalog, facts: &Facts) -> String {
     let path = paths::hardware(&hw.slug);
     let engines: Vec<&Engine> = alphabetical(catalog).into_iter().filter(|engine| runs_on(engine, &hw.tag)).collect();
+    let platform = platform_label(&hw.tag);
     let cards: String = engines
         .iter()
         .map(|engine| {
             let (benchmark, weak) = shown(hw, engine);
-            card("../../", engine, benchmark, weak, facts)
+            card("../../", engine, benchmark, weak, facts, Some(&platform))
         })
         .collect();
     let body = format!(

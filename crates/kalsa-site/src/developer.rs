@@ -54,7 +54,7 @@ fn stats(developer: &Developer) -> String {
 
 pub fn developer_page(developer: &Developer, facts: &Facts) -> String {
     let path = paths::developer(developer.login);
-    let cards: String = developer.engines.iter().map(|engine| card("../../", engine, crate::model::headline(engine), false, facts)).collect();
+    let cards: String = developer.engines.iter().map(|engine| card("../../", engine, crate::model::headline(engine), false, facts, None)).collect();
     let rows = comparison_rows(&developer.engines);
     let table = if rows.is_empty() {
         "<p class=\"sm\">These engines have no benchmarks yet.</p>".to_string()
