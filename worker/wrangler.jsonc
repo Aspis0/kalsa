@@ -6,8 +6,8 @@
   "compatibility_flags": ["nodejs_compat"],
   // The one origin every redirect_uri, Origin check and early host check is built from.
   // It is configuration, never the request Host header.
-  "vars": { "SITE_ORIGIN": "https://kalsa.io" },
-  "routes": [{ "pattern": "kalsa.io", "custom_domain": true }],
+  "vars": { "SITE_ORIGIN": "https://preview.kalsa.io" },
+  "routes": [{ "pattern": "preview.kalsa.io", "custom_domain": true }],
   "workers_dev": false,
   "assets": {
     "directory": "../site/dist",
