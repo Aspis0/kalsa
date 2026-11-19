@@ -30,7 +30,7 @@ def _harmless(_config, request, _effort):
 
 
 @pytest.fixture(autouse=True)
-def fake_external_services(monkeypatch):
+def fake_external_services(monkeypatch, tmp_path):
     monkeypatch.setattr(
         malware,
         "scan_tree",
@@ -40,4 +40,6 @@ def fake_external_services(monkeypatch):
         monkeypatch.setenv(prefix + "_BASE_URL", "https://invalid.local/v1")
         monkeypatch.setenv(prefix + "_MODEL", model)
         monkeypatch.setenv(prefix + "_KEY", "k")
+    # Keep run results out of the real repo tree.
+    monkeypatch.setenv("REVIEW_RESULTS_DIR", str(tmp_path / "review-results"))
     monkeypatch.setattr(reader.client, "_http", _harmless)

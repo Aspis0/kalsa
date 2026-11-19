@@ -57,13 +57,20 @@ def test_budget_from_env_reads_token_limit(monkeypatch):
     assert client.budget_from_env().limit == 3_000_000 * client.CHARS_PER_TOKEN
 
 
-def test_weekly_shares_one_budget_and_prints_real_usage(monkeypatch, capsys):
+def test_weekly_shares_one_budget_and_prints_real_usage(monkeypatch, capsys, tmp_path):
     monkeypatch.setenv("REVIEW_TOKEN_BUDGET", "1000")
+    reviews = tmp_path / "reviews"
+    reviews.mkdir()
+    monkeypatch.setattr(weekly.review, "REVIEWS", reviews)
     seen = []
 
     def fake_scan(engine_id, max_files, max_lines, base_override="", head_override="", budget=None):
         seen.append(budget)
         budget.spend(400)
+        # _batch below uses head == engine_id * 40 for these two single-letter ids.
+        (reviews / f"{engine_id}-{engine_id * 40}.json").write_text(
+            json.dumps({"verdict": "no findings", "blocks": []})
+        )
 
     monkeypatch.setattr(weekly.review, "scan", fake_scan)
     monkeypatch.setattr(weekly, "_batch", lambda n: [{"id": "a", "head": "a" * 40}, {"id": "b", "head": "b" * 40}])

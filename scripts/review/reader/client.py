@@ -31,6 +31,8 @@ class Config:
 
 CHARS_PER_TOKEN = 4
 DEFAULT_TOKEN_BUDGET = 3_000_000
+# Effort "max" can think for minutes; 60 s cut real reads short.
+REQUEST_TIMEOUT = 300
 
 
 @dataclass
@@ -129,7 +131,7 @@ def _http(config: Config, request: dict, effort: str) -> dict:
         headers=headers(config),
     )
     try:
-        with urllib.request.urlopen(req, timeout=60) as response:
+        with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as response:
             return json.load(response)
     except urllib.error.HTTPError as error:
         if error.code == 400 and "reasoning_effort" in error.read().decode(errors="ignore"):
@@ -142,6 +144,31 @@ def _unsure(block: dict, config: Config, reason: str, effort: str) -> dict:
         "id": block.get("id", ""), "verdict": "unsure", "reason": reason,
         "quoted_line": "", "model": config.model, "effort": effort,
     }
+
+
+def _failure_reason(error: BaseException) -> str:
+    """A transport timeout is not a model judgement; keep the two apart."""
+    if isinstance(error, TimeoutError):
+        return "reader timeout"
+    if isinstance(error, urllib.error.URLError) and isinstance(error.reason, TimeoutError):
+        return "reader timeout"
+    return "reader error"
+
+
+def tally(rows: list[dict]) -> dict:
+    """Count transport failures separately from a model's own 'unsure'."""
+    counts = {"timeouts": 0, "errors": 0, "budget": 0, "unsure": 0}
+    for row in rows:
+        reason = row.get("reason", "")
+        if reason == "reader timeout":
+            counts["timeouts"] += 1
+        elif reason == "reader error":
+            counts["errors"] += 1
+        elif reason == "budget reached":
+            counts["budget"] += 1
+        elif row.get("verdict") == "unsure":
+            counts["unsure"] += 1
+    return counts
 
 
 def _index_rows(rows, group: list[dict]) -> dict:
@@ -176,12 +203,13 @@ def _read_group(config: Config, group: list[dict], request: dict, http) -> list[
                 ]
             except ProviderError:
                 break
-            except (KeyError, TypeError, ValueError, json.JSONDecodeError, urllib.error.URLError, OSError):
+            except (KeyError, TypeError, ValueError, json.JSONDecodeError, urllib.error.URLError, OSError) as error:
                 if attempt < 2:
                     time.sleep(0.01 * 2 ** attempt)
                     continue
                 # A later effort replaces these rows; it never appends to them.
-                fallback = [_unsure(block, config, "reader error", effort) for block in group]
+                reason = _failure_reason(error)
+                fallback = [_unsure(block, config, reason, effort) for block in group]
     return fallback
 
 

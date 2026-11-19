@@ -128,7 +128,15 @@ def test_weekly_main_uses_real_scan(monkeypatch, tmp_path):
     from review import weekly
 
     called = []
-    monkeypatch.setattr(weekly.review, "scan", lambda engine_id, *a, **k: called.append(engine_id))
+    reviews = tmp_path / "reviews"
+    reviews.mkdir()
+    monkeypatch.setattr(weekly.review, "REVIEWS", reviews)
+
+    def fake_scan(engine_id, *a, **k):
+        called.append(engine_id)
+        (reviews / f"{engine_id}-{'a' * 40}.json").write_text(json.dumps({"verdict": "no findings", "blocks": []}))
+
+    monkeypatch.setattr(weekly.review, "scan", fake_scan)
     monkeypatch.setattr(weekly, "dry_run", lambda *a, **k: pytest.fail("dry_run must not be used by weekly"))
     monkeypatch.setattr(weekly, "_batch", lambda max_repos: [{"id": "aaa", "head": "a" * 40}])
     monkeypatch.setattr(sys, "argv", ["weekly"])

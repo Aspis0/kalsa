@@ -5,9 +5,10 @@ from __future__ import annotations
 import datetime as dt
 import json
 import tempfile
+import time
 from pathlib import Path
 
-from . import batch, catalog, github, review
+from . import batch, catalog, github, progress, results, review
 from .reader import client
 
 SHADOW = True
@@ -68,6 +69,48 @@ def dry_run(max_repos: int = DEFAULT_MAX_REPOS) -> list[Path]:
     return paths
 
 
+def _fork_record(row: dict, report: dict) -> dict:
+    blocks = report.get("blocks", [])
+    rows_a = [block.get("readers", {}).get("a", {}) for block in blocks]
+    rows_b = [block.get("readers", {}).get("b", {}) for block in blocks]
+    counts = client.tally(rows_a + rows_b)
+    return {
+        "id": row["id"], "head": row["head"],
+        "verdict": report.get("verdict", "unknown"),
+        "files": report.get("stats", {}).get("files", 0),
+        "blocks": len(blocks),
+        "reader_a": [item.get("verdict", "") for item in rows_a],
+        "reader_b": [item.get("verdict", "") for item in rows_b],
+        "timeouts": counts["timeouts"], "errors": counts["errors"], "unsure": counts["unsure"],
+    }
+
+
+def _totals(records: list[dict], budget: client.TokenBudget) -> dict:
+    return {
+        "forks": len(records),
+        "timeouts": sum(row["timeouts"] for row in records),
+        "errors": sum(row["errors"] for row in records),
+        "unsure": sum(row["unsure"] for row in records),
+        "tokens": budget.tokens(),
+        "token_limit": budget.limit // client.CHARS_PER_TOKEN,
+    }
+
+
+def _summary_text(records: list[dict], totals: dict) -> str:
+    lines = ["# Weekly review results", ""]
+    for row in records:
+        lines.append(
+            f"- {row['id']}: {row['verdict']} (files {row['files']}, blocks {row['blocks']}) "
+            f"timeouts={row['timeouts']} errors={row['errors']}"
+        )
+    lines += [
+        "",
+        f"tokens used: {totals['tokens']} / {totals['token_limit']}",
+        f"reader timeouts: {totals['timeouts']}, errors: {totals['errors']}, model unsure: {totals['unsure']}",
+    ]
+    return "\n".join(lines) + "\n"
+
+
 def main() -> None:
     import argparse
 
@@ -85,12 +128,21 @@ def main() -> None:
         print("no fork changed since its last review")
         return
     budget = client.budget_from_env()
+    records = []
     for row in rows:
+        started = time.monotonic()
         review.scan(
             row["id"], review.MAX_FILES, review.MAX_LINES,
             row.get("base_sha", ""), row["head"], budget=budget,
         )
-    print(f"tokens used: {budget.tokens()} / {budget.limit // client.CHARS_PER_TOKEN}")
+        report = json.loads(review.report_path(row["id"], row["head"]).read_text())
+        record = _fork_record(row, report)
+        records.append(record)
+        progress.emit(row["id"], record["reader_a"], record["reader_b"], time.monotonic() - started, budget.tokens())
+    totals = _totals(records, budget)
+    text = _summary_text(records, totals)
+    print(text, end="")
+    results.write("weekly", text, records, totals)
 
 
 if __name__ == "__main__":

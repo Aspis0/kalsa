@@ -22,9 +22,13 @@ def test_no_fake_reader_env_switch_in_production():
         assert "REVIEW_FAKE" not in Path(module.__file__).read_text(), module.__name__
 
 
-def test_weekly_ignores_review_fake(monkeypatch):
+def test_weekly_ignores_review_fake(monkeypatch, tmp_path):
     monkeypatch.setenv("REVIEW_FAKE", "1")
     before = client._http
+    reviews = tmp_path / "reviews"
+    reviews.mkdir()
+    (reviews / f"a-{'a' * 40}.json").write_text(json.dumps({"verdict": "no findings", "blocks": []}))
+    monkeypatch.setattr(weekly.review, "REVIEWS", reviews)
     monkeypatch.setattr(weekly, "_batch", lambda n: [{"id": "a", "head": "a" * 40}])
     monkeypatch.setattr(weekly.review, "scan", lambda *a, **k: None)
     monkeypatch.setattr(sys, "argv", ["weekly"])

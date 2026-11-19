@@ -25,6 +25,7 @@ concurrency:
 env:
   KALSA_SHADOW: "true"
   REVIEW_TOKEN_BUDGET: "3000000"
+  REVIEW_RESULTS_DIR: "review-results"
   # Source of the Linux checksum: https://github.com/google/osv-scanner/releases/download/v2.7.1/osv-scanner_linux_amd64
   OSV_VERSION: "v2.7.1"
   OSV_SHA256_LINUX: "fb7dab19a8bd9bbe5c3189f09d4b7ee1820c9553a23bac202648a56efd2f6ee8"
@@ -35,6 +36,7 @@ jobs:
   scan:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
+    timeout-minutes: 180
     environment: review
     env:
       MODE: ${{ inputs.mode || 'weekly' }}
@@ -91,6 +93,11 @@ jobs:
         with:
           name: weekly-reports
           path: reviews/*.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: review-results
+          path: review-results/
 
   pull-request:
     if: github.ref == 'refs/heads/main' && needs.scan.outputs.mode == 'weekly'
