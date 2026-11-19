@@ -3,6 +3,7 @@
 use kalsa_engines::{chip_label, gain_of, Catalog, Engine};
 
 use crate::cards::{avatar, card, github_url};
+use crate::counts::phrase;
 use crate::facts::Facts;
 use crate::html::{escape, safe_href};
 use crate::layout::{page, Meta};
@@ -16,7 +17,8 @@ fn comparison_rows(engines: &[&Engine]) -> String {
     for engine in engines {
         for benchmark in engine.benchmark.iter().filter(|b| gain_of(b).is_some()) {
             rows += &format!(
-                "<tr><td>{engine}</td><td>{model}</td><td>{quant}</td><td>{chip}</td><td>{gains}</td><td>{baseline}</td></tr>",
+                "<tr data-engine=\"{id}\"><td>{engine}</td><td>{model}</td><td>{quant}</td><td>{chip}</td><td>{gains}</td><td>{baseline}</td></tr>",
+                id = escape(&engine.id),
                 engine = escape(&engine.name),
                 model = escape(&benchmark.model),
                 quant = escape(&benchmark.quant),
@@ -41,12 +43,20 @@ fn gain_range(engines: &[&Engine]) -> String {
     }
 }
 
+/// The engine count is recomputed by the Worker when one of them is removed. The other two figures come
+/// from the catalog's own gain rules, so the whole block goes instead of showing a stale number.
 fn stats(developer: &Developer) -> String {
     let comparisons: usize = developer.engines.iter().flat_map(|e| &e.benchmark).filter(|b| gain_of(b).is_some()).count();
     let stat = |value: String, label: &str| format!("<div class=\"stat\"><b>{}</b><span>{label}</span></div>", escape(&value));
+    let scope = format!("dev:{}", developer.login);
+    let listed = format!(
+        "<div class=\"stat\">{}{}</div>",
+        phrase(&scope, developer.engines.len(), "{n}", "{n}"),
+        phrase(&scope, developer.engines.len(), "Engine listed", "Engines listed"),
+    );
     format!(
-        "<div class=\"stats\">{}{}{}</div>",
-        stat(developer.engines.len().to_string(), if developer.engines.len() == 1 { "Engine listed" } else { "Engines listed" }),
+        "<div class=\"stats\" data-dev-stats=\"{}\">{listed}{}{}</div>",
+        escape(developer.login),
         stat(comparisons.to_string(), if comparisons == 1 { "Benchmark" } else { "Benchmarks" }),
         stat(gain_range(&developer.engines), "Range of gains"),
     )
@@ -62,7 +72,7 @@ pub fn developer_page(developer: &Developer, facts: &Facts) -> String {
         format!("<div class=\"scrollx\"><table class=\"tbl\"><thead><tr><th>Engine</th><th>Model</th><th>Quant</th><th>Chip</th><th>Gains</th><th>Against</th></tr></thead><tbody>{rows}</tbody></table></div>")
     };
     let body = format!(
-        "<div class=\"wrap\"><div class=\"crumb\">Developers / {login}</div><div class=\"devhead\">{avatar}<div><h1>{login}</h1>\
+        "<div class=\"wrap\" data-dev=\"{login}\"><div class=\"crumb\">Developers / {login}</div><div class=\"devhead\">{avatar}<div><h1>{login}</h1>\
          <p class=\"sm\">{name} on Kalsa. The avatar and username come from the public GitHub profile.</p>\
          <div class=\"acts\"><a class=\"btn two\" href=\"{github}\">github.com/{login}</a></div></div></div>{stats}\
          <section class=\"blk\"><div class=\"sh left\"><h2>Engines</h2></div><div class=\"grid\">{cards}</div></section>\
@@ -73,7 +83,7 @@ pub fn developer_page(developer: &Developer, facts: &Facts) -> String {
         name = escape(developer.name),
         github = safe_href(&github_url(developer.login)),
         stats = stats(developer),
-        claim = claim_line(developer.login),
+        claim = claim_line(&path, "developer", developer.login),
     );
     page(
         &Meta {

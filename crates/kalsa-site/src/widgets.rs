@@ -1,14 +1,16 @@
-//! The line at the bottom of an engine or developer page.
+//! The line at the bottom of an engine or developer page: corrections, and the owner's own way out.
 
-use crate::html::{encode_component, safe_href, HELP};
+use crate::html::{safe_href, HELP};
+use crate::paths;
 
-/// One quiet line at the bottom of a page: how to report a mistake or ask for the page to go.
-/// A removal can be asked for by email or through a prefilled GitHub issue.
-pub fn claim_line(who: &str) -> String {
-    let issue = format!("https://github.com/Aspis0/kalsa/issues/new?title={}", encode_component(&format!("Removal request: {who}")));
+/// One quiet line. A mistake goes to the mailbox; a removal the owner does alone, from the page itself.
+pub fn claim_line(page: &str, kind: &str, id: &str) -> String {
+    let root = paths::root_for(page);
+    let remove = format!("{root}remove/index.html?kind={kind}&id={id}");
     format!(
-        "<p class=\"quiet\">Something wrong or out of date? Write to <a class=\"qlink\" href=\"{mail}\">{HELP}</a>, or <a class=\"qlink\" href=\"{issue}\">ask us to remove this page</a>.</p>",
+        "<p class=\"quiet\">Something wrong or out of date? Write to <a class=\"qlink\" href=\"{mail}\">{HELP}</a> · \
+         <a class=\"qlink\" href=\"{remove}\">Remove this page</a></p>",
         mail = safe_href(&format!("mailto:{HELP}")),
-        issue = safe_href(&issue),
+        remove = safe_href(&remove),
     )
 }

@@ -4,6 +4,7 @@ mod badge;
 mod benchmarks;
 mod better;
 mod cards;
+mod counts;
 mod developer;
 mod engine;
 mod engines;
@@ -26,6 +27,7 @@ use std::path::{Path, PathBuf};
 pub use facts::Facts;
 pub use html::{escape, safe_href};
 pub use kalsa_engines::Catalog;
+pub use paths::ORIGIN;
 pub use writer::write_site;
 
 pub const BASE_CSS: &str = include_str!("../../../site/static/base.css");
@@ -33,6 +35,7 @@ pub const PALETTE_CSS: &str = include_str!("../../../site/static/palette.css");
 const SITE_JS: &str = include_str!("../../../site/static/site.js");
 const FILTERS_JS: &str = include_str!("../../../site/static/filters.js");
 const ACCOUNT_JS: &str = include_str!("../../../site/static/account.js");
+const REMOVE_JS: &str = include_str!("../../../site/static/remove.js");
 const CHEVRON_SVG: &str = include_str!("../../../site/static/chevron.svg");
 const HEADERS: &str = include_str!("../../../site/_headers");
 
@@ -52,6 +55,7 @@ fn statics() -> Vec<(PathBuf, String)> {
         file("static/site.js", SITE_JS),
         file("static/filters.js", FILTERS_JS),
         file("static/account.js", ACCOUNT_JS),
+        file("static/remove.js", REMOVE_JS),
         file("static/chevron.svg", CHEVRON_SVG),
     ]
 }
@@ -61,11 +65,13 @@ fn sections(catalog: &Catalog, facts: &Facts) -> Vec<(PathBuf, String)> {
         file(paths::HOME, home::home(catalog, facts)),
         file(paths::section("engines"), engines::engines_page(catalog, facts)),
         file("engines/engines.json", engines::engines_json(catalog)),
+        file("pages.json", feeds::pages(catalog)),
         file(paths::section("hardware"), hardware::hardware_index(catalog)),
         file(paths::section("listed-and-community"), prose::listed_and_community()),
-        file(paths::section("submit"), prose::submit(catalog)),
+        file(paths::section("submit"), prose::submit()),
         file(paths::section("app"), prose::app()),
         file(paths::section("signin"), prose::signin()),
+        file(paths::section("remove"), prose::remove()),
         file(paths::section("privacy"), prose::privacy()),
     ];
     files.extend(catalog.engine.iter().map(|engine| file(paths::engine(&engine.id), engine::engine_page(catalog, engine, facts))));
@@ -83,6 +89,8 @@ pub fn render(catalog: &Catalog, facts: &Facts) -> Vec<(PathBuf, String)> {
     files.extend(statics());
     // At the root of the assets directory, where Workers static assets reads it.
     files.push(file("_headers", HEADERS));
+    files.push(file("robots.txt", feeds::robots()));
+    files.push(file("llms.txt", feeds::llms()));
     files
 }
 

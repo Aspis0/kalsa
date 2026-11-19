@@ -14,9 +14,16 @@ use crate::review::{badge_box, review_section};
 use crate::widgets::claim_line;
 
 /// The upstream's own page when it is listed (the catalog requires that), else its plain name.
-fn upstream_link(catalog: &Catalog, upstream: &str) -> String {
+/// `neutral` is what the Worker says in its place if that engine is later removed.
+fn upstream_link(catalog: &Catalog, upstream: &str, neutral: &str) -> String {
     match catalog.engine.iter().find(|other| other.repo.eq_ignore_ascii_case(upstream)) {
-        Some(found) => format!("<a class=\"lnk\" href=\"../../{}\">{}</a>", safe_href(&paths::engine(&found.id)), escape(upstream)),
+        Some(found) => format!(
+            "<a class=\"lnk\" href=\"../../{}\" data-ref-repo=\"{}\" data-ref-text=\"{}\">{}</a>",
+            safe_href(&paths::engine(&found.id)),
+            escape(&found.repo),
+            escape(neutral),
+            escape(upstream)
+        ),
         None => escape(upstream),
     }
 }
@@ -25,7 +32,7 @@ fn about(catalog: &Catalog, engine: &Engine) -> String {
     let relation = engine
         .upstream
         .as_deref()
-        .map(|upstream| format!(" It is {} {}.", if engine.kind == Kind::Fork { "a fork of" } else { "built on" }, upstream_link(catalog, upstream)))
+        .map(|upstream| format!(" It is {} {}.", if engine.kind == Kind::Fork { "a fork of" } else { "built on" }, upstream_link(catalog, upstream, "another project")))
         .unwrap_or_default();
     format!("<p class=\"aboutp\" id=\"about\">{}{relation}</p>", escape(&engine.summary))
 }
@@ -50,7 +57,7 @@ fn hardware_links(engine: &Engine) -> String {
 fn details(catalog: &Catalog, engine: &Engine, facts: &Facts) -> String {
     let mut rows = format!("<dt>Licence</dt><dd>{}</dd><dt>Kind</dt><dd>{}</dd>", escape(&engine.license), engine.kind.label());
     if let Some(upstream) = &engine.upstream {
-        rows += &format!("<dt>Upstream</dt><dd>{}</dd>", upstream_link(catalog, upstream));
+        rows += &format!("<dt>Upstream</dt><dd>{}</dd>", upstream_link(catalog, upstream, "not listed"));
     }
     rows += &format!("<dt>Runs on</dt><dd>{}</dd>", escape(&hardware_labels(&engine.hardware).join(", ")));
     if let Some(fact) = facts.get(&engine.repo) {
@@ -66,7 +73,7 @@ fn details(catalog: &Catalog, engine: &Engine, facts: &Facts) -> String {
 
 fn sidebar(catalog: &Catalog, engine: &Engine, facts: &Facts) -> String {
     format!(
-        "<aside class=\"side\"><div class=\"box\"><h5>Developer</h5><div class=\"dev\">{avatar}<div><b>{author}</b><span>github.com/{login}</span></div></div>\
+        "<aside class=\"side\"><div class=\"box\" data-dev=\"{login}\"><h5>Developer</h5><div class=\"dev\">{avatar}<div><b>{author}</b><span>github.com/{login}</span></div></div>\
          <p class=\"sm\">Avatar and username come from the public GitHub profile. <a class=\"lnk\" href=\"../../{dev}\">Developer page</a></p></div>{details}\
          <div class=\"box\"><h5>Hardware pages</h5><div class=\"chips\">{hardware}</div></div>{badge}</aside>",
         avatar = avatar(login(engine), "md", is_org(engine)),
@@ -88,7 +95,7 @@ fn website_button(engine: &Engine) -> String {
 fn header(engine: &Engine, facts: &Facts) -> String {
     let repo = github_url(&engine.repo);
     format!(
-        "<div class=\"crumb\"><a href=\"../index.html\">Engines</a> / <a href=\"../../{dev}\">{login}</a> / {name}</div>\
+        "<div class=\"crumb\"><a href=\"../index.html\">Engines</a><span data-dev=\"{login}\"> / <a href=\"../../{dev}\">{login}</a></span> / {name}</div>\
          <div class=\"title\">{avatar}<div><h1>{name}</h1><p class=\"byline\">by {author} · {licence} licence</p><div class=\"tags\">{tags}</div></div></div>\
          <div class=\"acts\"><a class=\"btn\" href=\"{repo_href}\">Repository</a>{website}<a class=\"btn two\" href=\"{releases}\">Releases</a></div>",
         dev = safe_href(&paths::developer(login(engine))),
@@ -126,9 +133,16 @@ fn description(engine: &Engine) -> String {
     format!("{} by {}: {}, and {last}.", engine.name, author_name(engine), rest.join(", "))
 }
 
+/// A flagged engine leads with the catalog's reason as a warning; any other note is advice to read first.
+fn note_box(engine: &Engine) -> String {
+    if !engine.recommendable {
+        return format!("<div class=\"note\"><b>Warning:</b> {}.</div>", escape(&crate::model::warning_reason(engine)));
+    }
+    engine.note.as_deref().map(|note| format!("<div class=\"note\"><b>Read this first.</b> {}</div>", escape(note))).unwrap_or_default()
+}
+
 pub fn engine_page(catalog: &Catalog, engine: &Engine, facts: &Facts) -> String {
     let path = paths::engine(&engine.id);
-    let note = engine.note.as_deref().map(|note| format!("<div class=\"note\"><b>Read this first.</b> {}</div>", escape(note))).unwrap_or_default();
     let main = format!(
         "{about}{better}{benchmarks}{review}{install}",
         about = about(catalog, engine),
@@ -138,10 +152,12 @@ pub fn engine_page(catalog: &Catalog, engine: &Engine, facts: &Facts) -> String 
         install = install(engine),
     );
     let body = format!(
-        "<div class=\"wrap\">{header}{note}<div class=\"cols\"><div>{main}</div>{side}</div>{claim}</div>",
+        "<div class=\"wrap\" data-engine=\"{id}\">{header}{note}<div class=\"cols\"><div>{main}</div>{side}</div>{claim}</div>",
+        id = escape(&engine.id),
         header = header(engine, facts),
+        note = note_box(engine),
         side = sidebar(catalog, engine, facts),
-        claim = claim_line(&engine.name),
+        claim = claim_line(&path, "engine", &engine.id),
     );
     page(
         &Meta {

@@ -2,11 +2,11 @@ import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import { sha256Hex } from "../src/crypto";
 import { nowSeconds } from "../src/session";
-import { get, jar, post, rows, setCookies, signIn, useWorker } from "./helpers";
+import { ORIGIN, get, jar, post, rows, setCookies, signIn, useWorker } from "./helpers";
 
 useWorker();
 
-const JSON_POST = { Origin: "https://kalsa.io", "Content-Type": "application/json" };
+const JSON_POST = { Origin: ORIGIN, "Content-Type": "application/json" };
 
 /** A session written straight into D1, so its expiry can be placed in the past. */
 async function seedSession(expiresAt: number): Promise<string> {

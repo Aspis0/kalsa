@@ -1,4 +1,5 @@
 import { constantTimeEqual, signingKeyUsable } from "../crypto";
+import { addressKey, withinLimit } from "../limits";
 import { credentials } from "../providers";
 import type { Identity, Provider } from "../providers/types";
 import { failure, redirect } from "../respond";
@@ -8,10 +9,15 @@ import { clearStateCookie, readState } from "../state";
 import { checkedIdentity, upsertUser } from "../users";
 
 const INVALID = "This sign-in attempt is not valid, or it timed out. Start again.";
+const CALLBACKS_PER_ADDRESS = 60;
 
 export async function callback(request: Request, env: Env, provider: Provider): Promise<Response> {
   if (!signingKeyUsable(env.SESSION_HMAC_KEY)) return failure(503, "Sign-in is not configured.");
   const url = new URL(request.url);
+  const address = await addressKey(request, env.SESSION_HMAC_KEY);
+  if (!(await withinLimit(env.DB, `callback:ip:${address}`, CALLBACKS_PER_ADDRESS, nowSeconds()))) {
+    return failure(429, "Too many sign-in attempts from this address. Try again later.");
+  }
   const read = await readState(request, env.SESSION_HMAC_KEY, nowSeconds());
   if (read.kind === "absent") return failure(400, INVALID);
   if (read.kind === "unusable") return failure(400, INVALID, [clearStateCookie()]);

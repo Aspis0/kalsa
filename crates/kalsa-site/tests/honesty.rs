@@ -17,23 +17,23 @@ fn every_engine_page_warns_that_the_engine_runs_with_your_permissions() {
 }
 
 #[test]
-fn only_a_recommended_engine_says_it_passed_all_seven_checks() {
+fn only_an_unflagged_engine_says_it_passed_all_seven_checks() {
     let files = generated();
-    let (mut recommended, mut declined) = (0, 0);
+    let (mut passed, mut flagged) = (0, 0);
     for engine in &catalog().engine {
         let page = body(&files, &format!("engines/{}/index.html", engine.id));
         let listing = page.split("id=\"listing\"").nth(1).and_then(|rest| rest.split("<h3").next()).unwrap_or_default();
         if engine.recommendable {
-            recommended += 1;
+            passed += 1;
             assert!(listing.contains("Listed</a>: Passed all seven checks."), "{}", engine.id);
         } else {
-            declined += 1;
-            assert!(listing.contains("Listed</a>, but we don't recommend it"), "{} says what applies to it", engine.id);
+            flagged += 1;
+            assert!(listing.contains("Listed</a>. Warning: "), "{} says what applies to it", engine.id);
             assert!(!listing.contains("Passed all seven checks"), "{}", engine.id);
         }
     }
-    assert!(recommended > 30 && declined >= 1, "the check covers both kinds of entry");
-    assert!(body(&files, "engines/neutronstar/index.html").contains("but we don't recommend it: ~0.4 tok/s generation"));
+    assert!(passed > 30 && flagged >= 1, "the check covers both kinds of entry");
+    assert!(body(&files, "engines/neutronstar/index.html").contains("Warning: ~0.4 tok/s generation"));
 }
 
 #[test]
@@ -47,13 +47,8 @@ fn no_page_keeps_the_old_vocabulary_for_benchmarks() {
 }
 
 #[test]
-fn the_community_tier_is_described_as_coming_and_has_no_filter() {
+fn the_community_tier_is_described_as_coming() {
     let files = generated();
-    let engines = body(&files, "engines/index.html");
-    assert!(!engines.contains("id=\"listing\"") && !engines.contains(">Community</button>"));
-    assert!(!body(&files, "engines/engines.json").contains("\"listing\""));
-    let js = std::fs::read_to_string(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../site/static/filters.js")).unwrap();
-    assert!(!js.contains("listing"), "the script has no state for a filter that does not exist");
     for path in ["submit/index.html", "listed-and-community/index.html"] {
         assert!(visible(body(&files, path)).contains("opens soon"), "{path} says community listing opens soon");
     }
@@ -186,5 +181,5 @@ fn a_description_promises_only_what_the_page_shows() {
         assert_eq!(description.contains("what it does better"), !engine.improvement.is_empty(), "{}: {description}", engine.id);
     }
     let engines = body(&files, "engines/index.html");
-    assert!(engines.contains("filtered by chip, licence or what it does better") && !engines.contains("content=\"Every engine and fork in the Kalsa catalog, with its licence and the benchmarks"));
+    assert!(engines.contains("Pick a chip, or choose Listed or Community.") && !engines.contains("content=\"Every engine and fork in the Kalsa catalog, with its licence and the benchmarks"));
 }

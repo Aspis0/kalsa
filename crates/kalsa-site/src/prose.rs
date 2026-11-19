@@ -1,6 +1,6 @@
 //! The pages that are mostly words: the rules, submit, app, sign-in and privacy. Their copy lives in `site/templates`.
 
-use kalsa_engines::{Benchmark, Catalog, Engine, Kind};
+use kalsa_engines::{Benchmark, Engine, Kind};
 
 use crate::html::{escape, HELP, MAIN};
 use crate::layout::{page, Meta};
@@ -10,9 +10,10 @@ const RULES: &str = include_str!("../../../site/templates/listed-and-community.h
 const SUBMIT: &str = include_str!("../../../site/templates/submit.html");
 const APP: &str = include_str!("../../../site/templates/app.html");
 const SIGNIN: &str = include_str!("../../../site/templates/signin.html");
+const REMOVE: &str = include_str!("../../../site/templates/remove.html");
 const PRIVACY: &str = include_str!("../../../site/templates/privacy.html");
 
-fn prose(dir: &str, active: &str, title: &str, description: &str, template: &str, extra: &[(&str, String)]) -> String {
+fn prose(dir: &str, active: &str, title: &str, description: &str, template: &str, extra: &[(&str, String)], scripts: &[&str]) -> String {
     let path = paths::section(dir);
     let mut body = template
         .replace("{{root}}", &paths::root_for(&path))
@@ -21,7 +22,7 @@ fn prose(dir: &str, active: &str, title: &str, description: &str, template: &str
     for (key, value) in extra {
         body = body.replace(key, value);
     }
-    page(&Meta { title, description, path: &path, active, scripts: &[] }, &body)
+    page(&Meta { title, description, path: &path, active, scripts }, &body)
 }
 
 pub fn listed_and_community() -> String {
@@ -32,11 +33,12 @@ pub fn listed_and_community() -> String {
         "What the Listed mark needs, what counts as better, how we judge the proof, and what a review means.",
         RULES,
         &[],
+        &[],
     )
 }
 
 pub fn app() -> String {
-    prose("app", "app", "App | Kalsa", "A small desktop app that lets you try an engine from the Kalsa database with one click. It is not available yet.", APP, &[])
+    prose("app", "app", "App | Kalsa", "A small desktop app that lets you try an engine from the Kalsa database with one click. It is not available yet.", APP, &[], &[])
 }
 
 pub fn signin() -> String {
@@ -46,6 +48,7 @@ pub fn signin() -> String {
         "Sign in | Kalsa",
         "Sign in to Kalsa with Hugging Face, GitHub or GitLab: what is kept, and what is not.",
         SIGNIN,
+        &[],
         &[],
     )
 }
@@ -58,6 +61,20 @@ pub fn privacy() -> String {
         "What Kalsa keeps when you sign in, why, for how long, and how to have it removed.",
         PRIVACY,
         &[],
+        &[],
+    )
+}
+
+/// The confirmation page every "Remove this page" link points at. Its script reads the kind and id from the query.
+pub fn remove() -> String {
+    prose(
+        "remove",
+        "",
+        "Remove this page | Kalsa",
+        "The owner of an engine or developer page can remove it at once, by signing in with GitHub.",
+        REMOVE,
+        &[],
+        &["remove.js"],
     )
 }
 
@@ -109,9 +126,36 @@ fn entry_toml(engine: &Engine) -> String {
     text
 }
 
-pub fn submit(catalog: &Catalog) -> String {
-    let example = catalog.engine.iter().find(|engine| engine.id == "frink").or_else(|| catalog.engine.iter().find(|e| !e.benchmark.is_empty()));
-    let entry = example.map(entry_toml).unwrap_or_default();
+/// The submit page's example is invented, not a catalog entry: a removal must never take the example
+/// with it, and the page must never republish a real engine's data.
+const EXAMPLE: &str = r#"
+[[engine]]
+id = "example-engine"
+name = "Example engine"
+repo = "your-name/example-engine"
+author = "your-name"
+license = "MIT"
+kind = "engine"
+hardware = ["apple-m1"]
+summary = "Runs a model on your own computer."
+
+[[engine.benchmark]]
+source = "https://github.com/your-name/example-engine"
+machine = "Apple M1 Max"
+chip_tag = "apple-m1"
+model = "Example 7B"
+quant = "Q4_K_M"
+decode_tok_s = 40.0
+prefill_tok_s = 300.0
+baseline = "the same build with the feature off"
+feature_off = true
+baseline_decode_tok_s = 30.0
+baseline_prefill_tok_s = 280.0
+"#;
+
+pub fn submit() -> String {
+    let example = kalsa_engines::parse(EXAMPLE).expect("the example entry is a valid catalog entry");
+    let entry = entry_toml(&example.engine[0]);
     prose(
         "submit",
         "submit",
@@ -119,5 +163,6 @@ pub fn submit(catalog: &Catalog) -> String {
         "Two ways to add an engine to the Kalsa database: in the catalog by pull request, or as a community listing by signing in with GitHub or GitLab.",
         SUBMIT,
         &[("{{entry}}", escape(&entry))],
+        &[],
     )
 }

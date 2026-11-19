@@ -3,6 +3,7 @@
 use kalsa_engines::{chip_label, family_label, Benchmark, Catalog, Engine, FAMILIES};
 
 use crate::cards::card;
+use crate::counts::phrase;
 use crate::facts::Facts;
 use crate::html::{escape, safe_href, slug};
 use crate::layout::{page, Meta};
@@ -44,14 +45,13 @@ pub fn hardware_page(hw: &HardwarePage, catalog: &Catalog, facts: &Facts) -> Str
             card("../../", engine, benchmark, weak, facts, Some(&platform))
         })
         .collect();
+    let title = escape(&hw.title);
     let body = format!(
         "<div class=\"wrap\"><section class=\"pagehead\"><div class=\"crumb\">Hardware / {title}</div><h1>Engines for {title}</h1>\
-         <p class=\"lede\">{count} {verb} on {title}.</p>\
+         <p class=\"lede\">{count}</p>\
          <div class=\"chips\"><span class=\"sm\">Other hardware:</span>{links}</div></section>\
          <div class=\"grid listgrid\">{cards}</div></div>",
-        title = escape(&hw.title),
-        count = engines.len(),
-        verb = if engines.len() == 1 { "engine runs" } else { "engines run" },
+        count = phrase(&format!("hw:{}", hw.tag), engines.len(), &format!("{{n}} engine runs on {title}."), &format!("{{n}} engines run on {title}.")),
         links = family_links(),
     );
     page_with(&path, &format!("Engines for {} | Kalsa", hw.title), &format!("The engines that run on {}, with the benchmarks their authors published.", hw.title), &body)

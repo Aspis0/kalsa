@@ -2,7 +2,7 @@ import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import { gitlab } from "../src/providers/gitlab";
 import { start } from "../src/routes/start";
-import { PROVIDERS, type ProviderName, callbackUrl, get, mockIdentity, mockToken, mockTokenFailure, rows, startSignIn, useWorker } from "./helpers";
+import { ORIGIN, PROVIDERS, type ProviderName, callbackUrl, get, mockIdentity, mockToken, mockTokenFailure, rows, startSignIn, useWorker } from "./helpers";
 
 useWorker();
 
@@ -90,7 +90,7 @@ describe("GitHub answers 200 with an error body", () => {
 describe("a provider that is not configured", () => {
   it("answers 503 instead of redirecting with an empty client id", async () => {
     const unconfigured: Env = { ...env, GITLAB_CLIENT_ID: "", GITLAB_CLIENT_SECRET: "" };
-    const response = await start(new Request("https://kalsa.io/auth/gitlab/start"), unconfigured, gitlab);
+    const response = await start(new Request(`${ORIGIN}/auth/gitlab/start`), unconfigured, gitlab);
     expect(response.status).toBe(503);
     expect(response.headers.get("Location")).toBeNull();
     expect(await response.text()).toContain("GitLab");

@@ -4,7 +4,8 @@ import { http, HttpResponse } from "msw";
 import { afterAll, afterEach, beforeAll, beforeEach, expect } from "vitest";
 import { decodeBase64Url, verify } from "../src/crypto";
 
-export const ORIGIN = "https://kalsa.io";
+/** The origin under test is the one vitest.config.ts read from wrangler.jsonc, never a second hardcoded one. */
+export const ORIGIN = env.SITE_ORIGIN;
 
 /** Outbound fetch is intercepted here; an unmocked request errors instead of reaching the network. */
 export const network = setupNetwork();
@@ -63,6 +64,8 @@ export function useWorker(options: { requireAllMocks?: boolean } = {}): void {
       env.DB.prepare("DELETE FROM sessions"),
       env.DB.prepare("DELETE FROM users"),
       env.DB.prepare("DELETE FROM signin_states"),
+      env.DB.prepare("DELETE FROM removals"),
+      env.DB.prepare("DELETE FROM abuse_limits"),
     ]);
     reached.clear();
   });
@@ -91,6 +94,16 @@ export function get(path: string, cookie?: string): Promise<Response> {
 
 export function post(path: string, headers: Record<string, string>): Promise<Response> {
   return SELF.fetch(`${ORIGIN}${path}`, { method: "POST", redirect: "manual", headers });
+}
+
+/** The JSON POST a state-changing route expects: same origin, JSON body, and the session cookie when there is one. */
+export function postJson(path: string, body: unknown, cookie?: string): Promise<Response> {
+  return SELF.fetch(`${ORIGIN}${path}`, {
+    method: "POST",
+    redirect: "manual",
+    headers: { Origin: ORIGIN, "Content-Type": "application/json", ...(cookie ? { Cookie: cookie } : {}) },
+    body: typeof body === "string" ? body : JSON.stringify(body),
+  });
 }
 
 export function setCookies(response: Response): string[] {
@@ -212,7 +225,7 @@ export async function signIn(name: ProviderName, next?: string) {
   return { token, bodies, authorization, started, response };
 }
 
-export async function rows(table: "users" | "sessions" | "signin_states"): Promise<unknown[]> {
+export async function rows(table: "users" | "sessions" | "signin_states" | "removals" | "abuse_limits"): Promise<unknown[]> {
   const result = await env.DB.prepare(`SELECT * FROM ${table}`).all();
   return result.results;
 }

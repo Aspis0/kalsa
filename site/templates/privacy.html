@@ -1,5 +1,5 @@
 <div class="wrap"><section class="pagehead"><h1>Privacy notice</h1>
-<p class="lede">What Kalsa keeps when you sign in, why, for how long, and how to have it removed. Browsing the site needs no account and stores nothing about you.</p><p class="sm">Dated 2026-11-18.</p></section>
+<p class="lede">What Kalsa keeps when you sign in, why, for how long, and how to have it removed. Browsing the site needs no account and stores nothing about you.</p><p class="sm">Dated 2026-11-19.</p></section>
 <section class="blk"><div class="sh left"><h2>Who runs this</h2></div>
 <p class="sub">Kalsa is run by Marco Gualtieri, a private individual, not a company, on a non-profit basis. He is the data controller. Contact: <a class="lnk" href="mailto:{{main}}">{{main}}</a></p></section>
 <section class="blk"><div class="sh left"><h2>What we store when you sign in</h2></div>
@@ -7,6 +7,8 @@
 <li><b>Your account.</b> The provider you chose (Hugging Face, GitHub or GitLab), your account id there, your username, your avatar URL and the time you first signed in. The username and avatar are refreshed each time you sign in.</li>
 <li><b>Your session.</b> A record that holds only a hash of your session cookie, which user it belongs to, and when it expires: 30 days after you sign in.</li>
 <li><b>Your sign-in attempt.</b> A short-lived record, kept for 10 minutes, that lets one sign-in attempt be used once.</li>
+<li><b>A page you removed.</b> If you remove an engine or developer page, we keep the page id, your GitHub account id and the time you removed it. Nothing else about you. Undo deletes the record. The record is not linked to your account row, so it survives account deletion: it is the only evidence of who asked for the page to go.</li>
+<li><b>Abuse counts.</b> A count of sign-in and removal attempts per account and per network address, so one visitor cannot flood the service. The address is stored only as a keyed hash, which cannot be turned back into an address. Each count lives for an hour; expired counts are deleted the next time anyone signs in or asks for a removal.</li>
 </ul>
 <p class="sub">That is all. We ask each provider only to read your public profile. We do not store your email address, a password or the provider’s access token: the token is used once to read your username and then discarded. There are no tracking cookies.</p></section>
 <section class="blk"><div class="sh left"><h2>Cookies</h2></div>
@@ -18,7 +20,7 @@
 <li>Pages show avatars of listed developers, loaded directly from github.com, so GitHub sees your IP address when your browser fetches them.</li>
 </ul></section>
 <section class="blk"><div class="sh left"><h2>Who else handles your data</h2></div>
-<p class="sub"><b>Cloudflare</b> hosts the site, the Worker that runs sign-in and the database, and like any host it handles your IP address to deliver pages. We do not store it. The <b>provider you sign in with</b> receives your sign-in request and applies its own privacy notice. We share your data with no one else.</p></section>
+<p class="sub"><b>Cloudflare</b> hosts the site, the Worker that runs sign-in and the database, and, as any host does, it handles your IP address to deliver pages. We never write the address itself: the abuse counter keeps only a keyed hash of it. The <b>provider you sign in with</b> receives your sign-in request and applies its own privacy notice. When you remove a page, we ask <b>GitHub</b> who owns the repository, and GitHub sees the request. We share your data with no one else.</p></section>
 <section class="blk"><div class="sh left"><h2>Why we may do this</h2></div>
 <p class="sub">To perform the service you asked for when you chose to sign in, and in our legitimate interest in running it. You can stop at any time: sign out, and ask for deletion.</p></section>
 <section class="blk"><div class="sh left"><h2>Your rights</h2></div>
@@ -31,4 +33,4 @@
 <p class="sub">Account data is kept until you ask for deletion. A session expires after 30 days and a sign-in attempt after 10 minutes. Expired records stop working at once and are deleted the next time anyone signs in.</p></section>
 <section class="blk"><div class="sh left"><h2>Changes</h2></div>
 <p class="sub">Changes to this notice are listed here, newest first.</p>
-<ul class="plain"><li><b>2026-11-18:</b> first version.</li></ul></section></div>
+<ul class="plain"><li><b>2026-11-19:</b> added the record of a page removal and the abuse counts, and the Remove this page link on every engine and developer page. The abuse counter keeps a keyed hash of the address, never the address, and each count lives an hour.</li><li><b>2026-11-18:</b> first version.</li></ul></section></div>

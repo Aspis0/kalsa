@@ -19,6 +19,14 @@ pub fn is_org(engine: &Engine) -> bool {
     engine.author.ends_with("(org)")
 }
 
+/// Why the catalog flags an engine, in the catalog's own words. The stored prefix names a recommendation
+/// the site no longer makes, so it is dropped; the reason itself stays.
+pub fn warning_reason(engine: &Engine) -> String {
+    let note = engine.note.as_deref().unwrap_or_default();
+    let reason = note.strip_prefix("Not recommendable:").unwrap_or(note).trim().trim_end_matches('.');
+    if reason.is_empty() { "the catalog flags this engine".to_string() } else { reason.to_string() }
+}
+
 pub fn runs_on(engine: &Engine, tag: &str) -> bool {
     engine.hardware.iter().any(|candidate| candidate == tag)
 }

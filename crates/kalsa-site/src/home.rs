@@ -3,6 +3,7 @@
 use kalsa_engines::{family_label, Catalog, Engine, FAMILIES};
 
 use crate::cards::card;
+use crate::counts::phrase;
 use crate::facts::Facts;
 use crate::html::escape;
 use crate::layout::{page, Meta};
@@ -22,11 +23,11 @@ fn panel(root: &str, catalog: &Catalog, tag: &str, facts: &Facts) -> String {
             None => card(root, engine, None, false, facts, Some(&platform)),
         })
         .collect();
+    let label = escape(&family_label(tag));
     format!(
-        "<div data-panel=\"{tag}\"{hidden}><p class=\"sm panelnote\">{count} engines run on {label}. Numbers in grey were measured on a different chip.</p><div class=\"grid\">{cards}</div></div>",
+        "<div data-panel=\"{tag}\"{hidden}><p class=\"sm panelnote\">{count} Numbers in grey were measured on a different chip.</p><div class=\"grid\">{cards}</div></div>",
         hidden = if tag == FAMILIES[0] { "" } else { " hidden" },
-        count = engines.len(),
-        label = escape(&family_label(tag)),
+        count = phrase(&format!("hw:{tag}"), engines.len(), &format!("{{n}} engine runs on {label}."), &format!("{{n}} engines run on {label}.")),
     )
 }
 

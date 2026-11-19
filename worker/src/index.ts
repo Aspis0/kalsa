@@ -2,8 +2,11 @@ import { providerById } from "./providers";
 import { json } from "./respond";
 import { callback } from "./routes/callback";
 import { me } from "./routes/me";
+import { page } from "./routes/page";
+import { remove, undo } from "./routes/remove";
 import { signout } from "./routes/signout";
 import { start } from "./routes/start";
+import { serve } from "./serve";
 
 const AUTH_ROUTE = /^\/auth\/([a-z]+)\/(start|callback)$/;
 const READ_METHODS = new Set(["GET", "HEAD"]);
@@ -17,7 +20,7 @@ export default {
       if (url.origin !== env.SITE_ORIGIN) return json({ error: "unknown_origin" }, 400);
       return route(request, env, url);
     }
-    return env.ASSETS.fetch(request);
+    return serve(request, env);
   },
 } satisfies ExportedHandler<Env>;
 
@@ -27,8 +30,17 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
   if (url.pathname === "/api/me") {
     return READ_METHODS.has(method) ? me(request, env) : notAllowed("GET, HEAD");
   }
+  if (url.pathname === "/api/page") {
+    return READ_METHODS.has(method) ? page(request, env) : notAllowed("GET, HEAD");
+  }
   if (url.pathname === "/auth/signout") {
     return method === "POST" ? signout(request, env) : notAllowed("POST");
+  }
+  if (url.pathname === "/api/remove") {
+    return method === "POST" ? remove(request, env) : notAllowed("POST");
+  }
+  if (url.pathname === "/api/undo") {
+    return method === "POST" ? undo(request, env) : notAllowed("POST");
   }
   const match = AUTH_ROUTE.exec(url.pathname);
   if (match) {

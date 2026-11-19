@@ -12,9 +12,21 @@
   "assets": {
     "directory": "../site/dist",
     "binding": "ASSETS",
-    // Only these paths reach the Worker. Every other request is served straight
-    // from the generated site, so the static pages keep their own caching.
-    "run_worker_first": ["/api/*", "/auth/*"]
+    // The dynamic routes, and every answer that could name a removed engine or developer: the HTML
+    // lists, engines.json, the allow-list, the badges and the sitemap. Everything else (scripts,
+    // styles, the prose pages) is served straight from the generated site and keeps its own caching.
+    "run_worker_first": [
+      "/api/*",
+      "/auth/*",
+      "/",
+      "/index.html",
+      "/engines/*",
+      "/dev/*",
+      "/hardware/*",
+      "/badge/*",
+      "/sitemap.xml",
+      "/pages.json"
+    ]
   },
   "d1_databases": [
     {

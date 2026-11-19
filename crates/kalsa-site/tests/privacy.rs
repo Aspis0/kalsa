@@ -14,8 +14,8 @@ fn worker_file(path: &str) -> String {
 fn the_privacy_page_exists_and_is_in_the_sitemap() {
     let files = generated();
     let page = body(&files, "privacy/index.html");
-    assert!(page.contains("<title>Privacy notice | Kalsa</title>") && page.contains("Dated 2026-11-18."));
-    assert!(body(&files, "sitemap.xml").contains("<loc>https://kalsa.io/privacy</loc>"));
+    assert!(page.contains("<title>Privacy notice | Kalsa</title>") && page.contains("Dated 2026-11-19."));
+    assert!(body(&files, "sitemap.xml").contains(&format!("<loc>{}/privacy</loc>", kalsa_site::ORIGIN)));
 }
 
 #[test]
@@ -82,10 +82,36 @@ fn the_notice_states_each_claim_in_its_own_words() {
         "a short code to your provider profile",
         "Account data is kept until you ask for deletion.",
         "deleted the next time anyone signs in",
+        "If you remove an engine or developer page, we keep the page id, your GitHub account id and the time you removed it.",
+        "Undo deletes the record.",
+        "2026-11-19:",
         "2026-11-18: first version.",
     ] {
         assert!(text.contains(claim), "{claim}");
     }
+}
+
+#[test]
+fn the_notice_states_the_abuse_window_the_code_actually_keeps() {
+    let limits = worker_file("src/limits.ts");
+    let window: u64 = limits
+        .split("LIMIT_WINDOW_SECONDS = ")
+        .nth(1)
+        .and_then(|rest| rest.split(';').next())
+        .unwrap_or_default()
+        .trim()
+        .parse()
+        .unwrap_or(0);
+    assert_eq!(window, 3600, "the notice says an hour, so the constant must be one");
+    assert!(limits.contains("now - LIMIT_WINDOW_SECONDS"), "a count is swept at the end of its window, not twice it");
+    assert!(limits.contains("sign(\"abuse-counter-v1\", secret)"), "the counter key is derived from the session key with a domain label");
+    assert!(limits.contains("sign(request.headers.get(\"CF-Connecting-IP\") ?? \"local\", await counterKey(secret))"), "the key is a keyed hash, never the address");
+    let text = visible(body(&generated(), "privacy/index.html"));
+    assert!(text.contains("Each count lives for an hour"), "the notice states the window");
+    assert!(text.contains("expired counts are deleted the next time anyone signs in or asks for a removal"), "the notice states when a sweep happens");
+    assert!(text.contains("keyed hash"), "the notice says the address is hashed");
+    assert!(!text.contains("We do not store it."), "the notice must not deny keeping a hash of the address");
+    assert!(text.contains("it survives account deletion"), "the removal record has no cascade, and the notice says so");
 }
 
 #[test]
@@ -95,9 +121,12 @@ fn the_notice_matches_what_the_worker_does() {
     assert!(state.contains("STATE_COOKIE = \"__Host-kalsa_oauth\"") && state.contains("STATE_TTL_SECONDS = 600"));
     let config = worker_file("wrangler.jsonc");
     assert!(config.contains("\"invocation_logs\": false") && config.contains("\"head_sampling_rate\": 0.01"));
-    let schema = worker_file("migrations/0001_accounts.sql") + &worker_file("migrations/0002_single_use_state.sql");
+    let schema = worker_file("migrations/0001_accounts.sql") + &worker_file("migrations/0002_single_use_state.sql") + &worker_file("migrations/0003_removals.sql");
     for column in ["provider TEXT", "provider_user_id TEXT", "username TEXT", "avatar_url TEXT", "created_at INTEGER", "hash TEXT PRIMARY KEY", "expires_at INTEGER"] {
         assert!(schema.contains(column), "{column}");
+    }
+    for column in ["kind TEXT", "target TEXT", "github_user_id TEXT"] {
+        assert!(schema.contains(column), "the removal record lacks {column}");
     }
     for stored in ["email", "password", "access_token", "token"] {
         assert!(!schema.to_ascii_lowercase().replace("provider access tokens are never written here", "").contains(stored), "the schema has a {stored} column");

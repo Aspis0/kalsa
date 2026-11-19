@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { sha256Hex } from "../src/crypto";
-import { type ProviderName, get, jar, post, rows, setCookies, signIn, useWorker } from "./helpers";
+import { ORIGIN, type ProviderName, get, jar, post, rows, setCookies, signIn, useWorker } from "./helpers";
 
 useWorker();
 
@@ -11,7 +11,7 @@ describe.each(NAMES)("the %s access token", (name) => {
     const { token, started, response, authorization } = await signIn(name);
     const me = await get("/api/me", jar(response));
     const out = await post("/auth/signout", {
-      Origin: "https://kalsa.io",
+      Origin: ORIGIN,
       "Content-Type": "application/json",
       Cookie: jar(response),
     });

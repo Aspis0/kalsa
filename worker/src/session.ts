@@ -10,6 +10,12 @@ export interface Account {
   provider: string;
 }
 
+/** What a state-changing route needs besides the public account: the provider's own id for the account. */
+export interface SessionUser extends Account {
+  userId: number;
+  providerUserId: string;
+}
+
 export function nowSeconds(): number {
   return Math.floor(Date.now() / 1000);
 }
@@ -24,19 +30,25 @@ export async function openSession(db: D1Database, userId: number, now: number): 
   return cookie(SESSION_COOKIE, token, SESSION_TTL_SECONDS);
 }
 
-export async function readSession(db: D1Database, request: Request, now: number): Promise<Account | null> {
+export async function readSessionUser(db: D1Database, request: Request, now: number): Promise<SessionUser | null> {
   const token = readCookie(request, SESSION_COOKIE);
   if (!token) return null;
   const row = await db
     .prepare(
-      `SELECT users.username, users.avatar_url, users.provider
+      `SELECT users.id, users.provider_user_id, users.username, users.avatar_url, users.provider
        FROM sessions JOIN users ON users.id = sessions.user_id
        WHERE sessions.hash = ? AND sessions.expires_at > ?`,
     )
     .bind(await sha256Hex(token), now)
-    .first<{ username: string; avatar_url: string | null; provider: string }>();
+    .first<{ id: number; provider_user_id: string; username: string; avatar_url: string | null; provider: string }>();
   if (!row) return null;
-  return { username: row.username, avatar: row.avatar_url, provider: row.provider };
+  return { userId: row.id, providerUserId: row.provider_user_id, username: row.username, avatar: row.avatar_url, provider: row.provider };
+}
+
+/** The public account, which is all /api/me ever returns. */
+export async function readSession(db: D1Database, request: Request, now: number): Promise<Account | null> {
+  const user = await readSessionUser(db, request, now);
+  return user ? { username: user.username, avatar: user.avatar, provider: user.provider } : null;
 }
 
 export async function closeSession(db: D1Database, request: Request): Promise<string> {

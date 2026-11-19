@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { base64Url, sign } from "../src/crypto";
 import { nowSeconds } from "../src/session";
 import { STATE_COOKIE, type SignInState, stateCookie } from "../src/state";
-import { callbackUrl, get, jar, mockIdentity, mockToken, rows, signIn, startSignIn, useWorker } from "./helpers";
+import { ORIGIN, callbackUrl, get, jar, mockIdentity, mockToken, rows, signIn, startSignIn, useWorker } from "./helpers";
 
 useWorker();
 
@@ -133,7 +133,7 @@ describe("redirect back", () => {
     const { started, response } = await signIn("github", attack);
     expect(started.next).toBe("/");
     expect(response.status).toBe(302);
-    expect(response.headers.get("Location")).toBe("https://kalsa.io/");
+    expect(response.headers.get("Location")).toBe(`${ORIGIN}/`);
   });
 
   const allowed = [
@@ -152,14 +152,14 @@ describe("redirect back", () => {
   it.each(allowed)("keeps the allowlisted path %s", async (path) => {
     const { started, response } = await signIn("github", path);
     expect(started.next).toBe(path);
-    expect(response.headers.get("Location")).toBe(`https://kalsa.io${path}`);
+    expect(response.headers.get("Location")).toBe(`${ORIGIN}${path}`);
   });
 
   it("never puts an off-origin authority in the Location header", async () => {
     const { response } = await signIn("github", "//evil.example");
     const location = new URL(response.headers.get("Location") ?? "");
-    expect(location.origin).toBe("https://kalsa.io");
-    expect(location.host).toBe("kalsa.io");
+    expect(location.origin).toBe(ORIGIN);
+    expect(location.host).toBe(new URL(ORIGIN).host);
   });
 });
 

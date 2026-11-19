@@ -15,7 +15,8 @@ fn every_engine_has_a_page_and_every_section_exists() {
     }
     for path in [
         "index.html", "engines/index.html", "engines/engines.json", "hardware/index.html",
-        "listed-and-community/index.html", "submit/index.html", "app/index.html", "privacy/index.html", "sitemap.xml", "static/filters.js", "static/site.js",
+        "listed-and-community/index.html", "submit/index.html", "app/index.html", "privacy/index.html", "remove/index.html",
+        "pages.json", "robots.txt", "llms.txt", "sitemap.xml", "static/filters.js", "static/site.js", "static/remove.js",
     ] {
         body(&files, path);
     }
@@ -41,7 +42,7 @@ fn a_chip_page_is_one_list_with_no_group_headings() {
         let mut sorted = names.clone();
         sorted.sort();
         assert_eq!(names, sorted, "{slug} lists its engines A to Z");
-        let count = main.split("<p class=\"lede\">").nth(1).and_then(|rest| rest.split(' ').next()).and_then(|number| number.parse::<usize>().ok());
+        let count = main.split("<p class=\"lede\">").nth(1).and_then(|rest| rest.split("</p>").next()).map(visible).and_then(|text| text.split(' ').next().unwrap_or_default().parse::<usize>().ok());
         assert_eq!(count, Some(names.len()), "{slug} counts the engines it lists");
     }
 }
@@ -121,7 +122,7 @@ fn hrefs_resolve_without_their_fragment_or_query() {
 fn the_sitemap_names_every_page_at_its_shared_address() {
     let files = generated();
     let sitemap = body(&files, "sitemap.xml");
-    assert!(sitemap.contains("<loc>https://kalsa.io/engines/frink</loc>") && sitemap.contains("<loc>https://kalsa.io/</loc>"));
+    assert!(sitemap.contains(&format!("<loc>{}/engines/frink</loc>", kalsa_site::ORIGIN)) && sitemap.contains(&format!("<loc>{}/</loc>", kalsa_site::ORIGIN)));
     assert_eq!(sitemap.matches("<url>").count(), html(&files).count());
 }
 
@@ -135,7 +136,7 @@ fn the_engines_json_lists_every_engine() {
 }
 
 #[test]
-fn every_engine_appears_on_the_hardware_page_for_its_hardware_even_if_not_recommended() {
+fn every_engine_appears_on_the_hardware_page_for_its_hardware_even_if_flagged() {
     let files = generated();
     for engine in &catalog().engine {
         for tag in &engine.hardware {
@@ -144,7 +145,7 @@ fn every_engine_appears_on_the_hardware_page_for_its_hardware_even_if_not_recomm
         }
     }
     let nvidia = body(&files, "hardware/nvidia/index.html");
-    assert!(nvidia.contains("neutronstar") && nvidia.contains("Not recommended"));
+    assert!(nvidia.contains("neutronstar") && nvidia.contains("Warning:"));
 }
 
 #[test]

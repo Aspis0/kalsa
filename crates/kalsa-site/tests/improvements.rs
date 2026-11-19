@@ -56,15 +56,15 @@ fn a_card_shows_at_most_three_improvement_tags_in_plain_words() {
 }
 
 #[test]
-fn the_engines_page_filters_by_improvement_with_only_kinds_that_exist() {
+fn the_engines_page_has_no_improvement_filter_but_cards_keep_their_tags() {
     let files = generated();
     let page = body(&files, "engines/index.html");
-    assert!(page.contains("id=\"imp\"") && page.contains("<option value=\"bigger-models\">Bigger models</option>"));
-    assert!(!page.contains("<option value=\"energy\">"), "no engine declares an energy improvement yet");
+    assert!(!page.contains("id=\"imp\"") && !page.contains("Any improvement"), "the improvement filter is gone");
+    assert!(page.contains("<span class=\"tg imp\">Bigger models</span>"), "what an engine improves is still on its card");
     let json = body(&files, "engines/engines.json");
-    assert!(json.contains("\"improvements\":[\"bigger-models\",\"multi-machine\",\"new-hardware\"]"));
+    assert!(!json.contains("\"improvements\""), "the script no longer filters by improvement");
     let js = std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../site/static/filters.js")).unwrap();
-    assert!(js.contains("row.improvements.indexOf(state.imp)") && js.contains("document.getElementById('imp').value = 'all'"));
+    assert!(!js.contains("imp"), "the script has no state for a filter that does not exist");
 }
 
 #[test]

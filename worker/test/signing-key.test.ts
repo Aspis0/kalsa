@@ -1,7 +1,7 @@
 import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import worker from "../src/index";
-import { useWorker } from "./helpers";
+import { ORIGIN, useWorker } from "./helpers";
 
 useWorker();
 
@@ -11,7 +11,7 @@ const PLACEHOLDER = "replace-with-base64-of-32-random-bytes";
 
 /** Bindings cannot be varied per test through SELF on this pool, so the real handler is invoked directly. */
 function startWith(bound: Env): Promise<Response> {
-  return worker.fetch(new Request("https://kalsa.io/auth/github/start"), bound);
+  return worker.fetch(new Request(`${ORIGIN}/auth/github/start`), bound);
 }
 
 async function expectNotConfigured(response: Response): Promise<void> {
@@ -51,12 +51,12 @@ describe("SESSION_HMAC_KEY is validated before any crypto", () => {
   it("accepts a key of 32 bytes or more", async () => {
     const response = await startWith({ ...env, SESSION_HMAC_KEY: VALID_KEY });
     expect(response.status).toBe(302);
-    expect(new URL(response.headers.get("Location") ?? "").searchParams.get("redirect_uri")).toBe("https://kalsa.io/auth/github/callback");
+    expect(new URL(response.headers.get("Location") ?? "").searchParams.get("redirect_uri")).toBe(`${ORIGIN}/auth/github/callback`);
   });
 
   it("refuses a callback with an unusable key instead of throwing", async () => {
     const response = await worker.fetch(
-      new Request("https://kalsa.io/auth/github/callback?code=x&state=y"),
+      new Request(`${ORIGIN}/auth/github/callback?code=x&state=y`),
       { ...env, SESSION_HMAC_KEY: "" },
     );
     await expectNotConfigured(response);

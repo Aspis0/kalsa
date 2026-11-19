@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { get, jar, post, rows, signIn, useWorker } from "./helpers";
+import { ORIGIN, get, jar, post, rows, signIn, useWorker } from "./helpers";
 
 useWorker();
 
-const OWN = { Origin: "https://kalsa.io", "Content-Type": "application/json" };
+const OWN = { Origin: ORIGIN, "Content-Type": "application/json" };
+const HOST = new URL(ORIGIN).host;
 
 describe("POST /auth/signout origin and content type", () => {
   it("refuses a POST with no Origin header", async () => {
@@ -22,7 +23,7 @@ describe("POST /auth/signout origin and content type", () => {
   });
 
   it("refuses a POST from a look-alike origin", async () => {
-    for (const origin of ["https://kalsa.io.evil.example", "http://kalsa.io", "https://sub.kalsa.io"]) {
+    for (const origin of [`${ORIGIN}.evil.example`, `http://${HOST}`, `https://sub.${HOST}`]) {
       expect((await post("/auth/signout", { ...OWN, Origin: origin })).status).toBe(403);
     }
   });
@@ -37,7 +38,7 @@ describe("POST /auth/signout origin and content type", () => {
   });
 
   it("refuses a POST with no Content-Type", async () => {
-    const response = await post("/auth/signout", { Origin: "https://kalsa.io" });
+    const response = await post("/auth/signout", { Origin: ORIGIN });
     expect(response.status).toBe(415);
   });
 

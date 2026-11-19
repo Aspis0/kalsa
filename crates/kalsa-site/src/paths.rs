@@ -1,5 +1,9 @@
 //! Where each page lives. Every page is `<dir>/index.html`, so links work from a file or a server.
 
+/// The one origin the site is served on. Every canonical URL, sitemap entry, badge link and llms.txt
+/// link is built from it, and the Worker's SITE_ORIGIN must match it.
+pub const ORIGIN: &str = "https://preview.kalsa.io";
+
 pub const HOME: &str = "index.html";
 
 pub fn engine(id: &str) -> String {
@@ -23,8 +27,8 @@ pub fn root_for(path: &str) -> String {
     "../".repeat(path.matches('/').count())
 }
 
-/// "engines/frink/index.html" is shared as https://kalsa.io/engines/frink.
+/// "engines/frink/index.html" is shared as https://preview.kalsa.io/engines/frink.
 pub fn canonical(path: &str) -> String {
     let pretty = path.strip_suffix("index.html").unwrap_or(path).trim_end_matches('/');
-    format!("https://kalsa.io/{pretty}")
+    format!("{ORIGIN}/{pretty}")
 }

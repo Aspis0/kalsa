@@ -11,7 +11,9 @@ describe("test bindings are the ones the tests set", () => {
     // .dev.vars ships the placeholder key; if it won, every sign-in would answer 503.
     expect(env.SESSION_HMAC_KEY).toBe("a2Fsc2EtdGVzdC1zaWduaW5nLWtleS0zMi1ieXRlcyEh");
     expect(env.SESSION_HMAC_KEY).not.toBe("replace-with-base64-of-32-random-bytes");
-    expect(env.SITE_ORIGIN).toBe("https://kalsa.io");
+    // Pinned to the deploy config: vitest.config.ts reads SITE_ORIGIN from wrangler.jsonc, so a change
+    // there that this test does not know about fails here instead of passing silently.
+    expect(env.SITE_ORIGIN).toBe("https://preview.kalsa.io");
     expect(env.GITHUB_CLIENT_ID).toBe("github-client-id");
     expect(env.HF_CLIENT_ID).toBe("hf-client-id");
     expect(env.GITLAB_CLIENT_ID).toBe("gitlab-client-id");

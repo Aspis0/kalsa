@@ -42,16 +42,13 @@ fn review_line(engine: &Engine, facts: &Facts) -> String {
     }
 }
 
-/// A listed engine passed the seven checks. One the catalog does not recommend is still listed, and says why it is not recommended.
+/// A listed engine passed the seven checks. A flagged one is still listed, and says why in the catalog's own words.
 fn listing_line(engine: &Engine) -> String {
     let link = format!("<a class=\"lnk\" href=\"../../{}\">Listed</a>", paths::section("listed-and-community"));
     if engine.recommendable {
         return format!("{link}: Passed all seven checks.");
     }
-    match engine.note.as_deref().map(|note| note.strip_prefix("Not recommendable:").unwrap_or(note).trim().trim_end_matches('.')) {
-        Some(reason) if !reason.is_empty() => format!("{link}, but we don't recommend it: {}.", escape(reason)),
-        _ => format!("{link}, but we don't recommend it."),
-    }
+    format!("{link}. Warning: {}.", escape(&crate::model::warning_reason(engine)))
 }
 
 pub fn review_section(engine: &Engine, facts: &Facts) -> String {
@@ -66,7 +63,7 @@ pub fn review_section(engine: &Engine, facts: &Facts) -> String {
 pub fn badge_box(engine: &Engine) -> String {
     let (Some(review), None) = (&engine.reviewed, &engine.review_declined) else { return String::new() };
     let short = short(&review.commit);
-    let markdown = format!("[![Kalsa reviewed {short}](https://kalsa.io/badge/{id}.svg)](https://kalsa.io/engines/{id})", id = engine.id);
+    let markdown = format!("[![Kalsa reviewed {short}]({origin}/badge/{id}.svg)]({origin}/engines/{id})", origin = paths::ORIGIN, id = engine.id);
     format!(
         "<div class=\"box badgebox\"><h5>README badge</h5><p><span class=\"bdg\"><i>Kalsa</i><b>reviewed {short}</b></span></p><pre>{md}</pre>\
          <button class=\"cp\" data-copy=\"{md}\">Copy badge</button></div>",
@@ -113,6 +110,6 @@ reason = "the README asks users to run an install script from another repository
         assert!(!section.contains("Reviewed"));
         assert!(!crate::cards::badge_pill(engine, &Facts::none()).contains("Reviewed"));
         assert!(crate::badge::badge_svg(engine).is_none());
-        assert!(crate::engines::engines_json(&catalog).contains("\"badge\":\"none\""));
+        assert!(!crate::engines::engines_json(&catalog).contains("\"badge\""), "the review filter is gone, so its field is too");
     }
 }

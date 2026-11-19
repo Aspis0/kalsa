@@ -94,23 +94,26 @@ fn benchmark_line(benchmark: &Benchmark) -> String {
     }
 }
 
+/// The upstream is named as a fact about this engine. When that engine is removed the Worker keeps the
+/// fact and drops the name, using the wording carried here.
 fn relation(engine: &Engine) -> String {
     match &engine.upstream {
         Some(upstream) => format!(
-            "<span class=\"rel\">{} {}</span>",
-            if engine.kind == Kind::Fork { "Fork of" } else { "Built on" },
-            escape(upstream)
+            "<span class=\"rel\" data-ref-repo=\"{repo}\" data-ref-text=\"{verb} another project\">{verb} {upstream}</span>",
+            verb = if engine.kind == Kind::Fork { "Fork of" } else { "Built on" },
+            repo = escape(upstream),
+            upstream = escape(upstream)
         ),
         None => String::new(),
     }
 }
 
+/// The catalog's own reason, said as a warning. The site recommends nothing.
 fn warning(engine: &Engine) -> String {
-    let note = engine.note.as_deref().unwrap_or("The catalog does not recommend it");
-    note.replacen("Not recommendable:", "Not recommended:", 1)
+    format!("Warning: {}.", crate::model::warning_reason(engine))
 }
 
-/// What a card says about benchmarks. A non-recommendable engine shows its warning first and its numbers in grey.
+/// What a card says about benchmarks. A flagged engine shows its warning first and its numbers in grey.
 fn comparison_area(engine: &Engine, benchmark: Option<&Benchmark>, weak: bool, platform: Option<&str>) -> String {
     let line = benchmark.filter(|found| found.gains.headline().is_some()).map(benchmark_line);
     let grey = if weak || !engine.recommendable { " weak" } else { "" };
@@ -131,7 +134,7 @@ fn comparison_area(engine: &Engine, benchmark: Option<&Benchmark>, weak: bool, p
 /// An engine card. `weak` marks a number measured on another chip than the page is about.
 pub fn card(root: &str, engine: &Engine, benchmark: Option<&Benchmark>, weak: bool, facts: &Facts, platform: Option<&str>) -> String {
     format!(
-        "<a class=\"card\" href=\"{href}\" data-id=\"{id}\"><div class=\"ch\">{avatar}<div class=\"nm\"><b>{name}</b><span>by {author}</span></div>\
+        "<a class=\"card\" href=\"{href}\" data-id=\"{id}\" data-engine=\"{id}\"><div class=\"ch\">{avatar}<div class=\"nm\"><b>{name}</b><span>by {author}</span></div>\
          </div><p class=\"sum\">{summary}</p>{relation}\
          <div class=\"tags\">{tags}</div>{improvements}<div class=\"cmpw\">{area}</div></a>",
         href = safe_href(&format!("{root}{}", paths::engine(&engine.id))),

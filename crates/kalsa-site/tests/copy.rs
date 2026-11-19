@@ -113,8 +113,8 @@ fn a_website_shows_on_the_engine_page_with_its_label_and_nowhere_else_is_invente
 fn a_fork_links_its_upstream_to_the_upstream_page() {
     let files = generated();
     let fork = body(&files, "engines/neutronstar/index.html");
-    assert!(fork.contains("It is a fork of <a class=\"lnk\" href=\"../../engines/ds4/index.html\">antirez/ds4</a>."));
-    assert!(body(&files, "engines/qvac-fabric/index.html").contains("href=\"../../engines/llama-cpp/index.html\">ggml-org/llama.cpp</a>"));
+    assert!(fork.contains("It is a fork of <a class=\"lnk\" href=\"../../engines/ds4/index.html\" data-ref-repo=\"antirez/ds4\" data-ref-text=\"another project\">antirez/ds4</a>."));
+    assert!(body(&files, "engines/qvac-fabric/index.html").contains("href=\"../../engines/llama-cpp/index.html\" data-ref-repo=\"ggml-org/llama.cpp\""));
 }
 
 #[test]
@@ -155,7 +155,11 @@ fn the_listed_and_community_page_replaces_the_old_rules_page() {
 fn the_home_page_and_the_engine_list_are_not_ranked_by_gain() {
     let files = generated();
     let engines = body(&files, "engines/index.html");
-    assert!(engines.contains("Name, A to Z") && !engines.contains("high to low"));
+    assert!(!engines.contains("id=\"sort\"") && !engines.contains("high to low"), "no sort control");
+    let names: Vec<String> = engines.split("<a class=\"card\"").skip(1).map(|card| card.split("<b>").nth(1).and_then(|rest| rest.split("</b>").next()).unwrap_or_default().to_lowercase()).collect();
+    let mut sorted = names.clone();
+    sorted.sort();
+    assert_eq!(names, sorted, "the list is A to Z, and nothing reorders it");
     for page in [body(&files, "index.html"), engines] {
         for phrase in ["Biggest", "high to low", "Top gains", "Leaderboard"] {
             assert!(!page.contains(phrase), "{phrase}");

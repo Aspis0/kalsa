@@ -7,6 +7,7 @@ const SECTIONS = [
   "/listed-and-community/",
   "/app/",
   "/dev/",
+  "/remove/",
 ];
 
 /**

@@ -41,16 +41,6 @@ pub fn safe_href(value: &str) -> String {
     if allowed { escape(value) } else { "#".to_string() }
 }
 
-/// Percent-encodes a text for a URL query value, such as the title of a prefilled GitHub issue.
-pub fn encode_component(text: &str) -> String {
-    text.bytes()
-        .map(|byte| match byte {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => (byte as char).to_string(),
-            _ => format!("%{byte:02X}"),
-        })
-        .collect()
-}
-
 /// "M1 Max on Llama.cpp (build 3)" to "m1-max-on-llama-cpp-build-3", for URLs.
 pub fn slug(text: &str) -> String {
     let mut out = String::new();
@@ -91,12 +81,6 @@ mod tests {
         ] {
             assert_eq!(safe_href(bad), "#", "{bad}");
         }
-    }
-
-    #[test]
-    fn query_values_are_percent_encoded() {
-        assert_eq!(encode_component("Removal request: a/b c"), "Removal%20request%3A%20a%2Fb%20c");
-        assert_eq!(encode_component("llama.cpp-1_x~"), "llama.cpp-1_x~");
     }
 
     #[test]

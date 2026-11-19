@@ -2,6 +2,7 @@ import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import { base64Url, sha256Hex } from "../src/crypto";
 import {
+  ORIGIN,
   PROVIDERS,
   type ProviderName,
   callbackUrl,
@@ -34,7 +35,7 @@ describe.each(NAMES)("sign-in with %s", (name) => {
     const location = new URL(started.response.headers.get("Location") ?? "");
     const clientId = { github: env.GITHUB_CLIENT_ID, huggingface: env.HF_CLIENT_ID, gitlab: env.GITLAB_CLIENT_ID }[name];
     expect(location.searchParams.get("client_id")).toBe(clientId);
-    expect(location.searchParams.get("redirect_uri")).toBe(`https://kalsa.io/auth/${name}/callback`);
+    expect(location.searchParams.get("redirect_uri")).toBe(`${ORIGIN}/auth/${name}/callback`);
     expect(location.searchParams.get("state")).toBe(started.state);
     expect(location.searchParams.get("code_challenge_method")).toBe("S256");
     expect(location.searchParams.get("code_challenge")).toBe(await s256(started.verifier));
@@ -69,7 +70,7 @@ describe.each(NAMES)("sign-in with %s", (name) => {
     const form = new URLSearchParams(bodies[0] ?? "");
     expect(form.get("code_verifier")).toBe(started.verifier);
     expect(form.get("code")).toBe("provider-code");
-    expect(form.get("redirect_uri")).toBe(`https://kalsa.io/auth/${name}/callback`);
+    expect(form.get("redirect_uri")).toBe(`${ORIGIN}/auth/${name}/callback`);
     expect(authorization).toEqual([`Bearer ${token}`]);
   });
 
@@ -116,7 +117,7 @@ describe.each(NAMES)("sign-in with %s", (name) => {
 
   it("returns to the allowlisted page the flow started from", async () => {
     const { response } = await signIn(name, "/submit/");
-    expect(response.headers.get("Location")).toBe("https://kalsa.io/submit/");
+    expect(response.headers.get("Location")).toBe(`${ORIGIN}/submit/`);
   });
 
   it("keeps one account across two sign-ins and refreshes the username", async () => {

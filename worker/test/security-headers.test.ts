@@ -2,7 +2,7 @@ import { env, SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import { nowSeconds } from "../src/session";
 import { stateCookie } from "../src/state";
-import { callbackUrl, get, jar, post, signIn, startSignIn, useWorker } from "./helpers";
+import { ORIGIN, callbackUrl, get, jar, post, signIn, startSignIn, useWorker } from "./helpers";
 
 useWorker();
 
@@ -10,6 +10,14 @@ function expectHardened(response: Response): void {
   expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
   expect(response.headers.get("Referrer-Policy")).toBe("no-referrer");
   expect(response.headers.get("Cache-Control")).toBe("no-store");
+  expect(response.headers.get("X-Robots-Tag")).toBe("noindex, nofollow");
+  expect(response.headers.get("Strict-Transport-Security")).toBe("max-age=31536000; includeSubDomains");
+  expect(response.headers.get("Cross-Origin-Opener-Policy")).toBe("same-origin");
+  expect(response.headers.get("Cross-Origin-Resource-Policy")).toBe("same-origin");
+  const permissions = response.headers.get("Permissions-Policy") ?? "";
+  for (const feature of ["camera=()", "microphone=()", "geolocation=()"]) {
+    expect(permissions, feature).toContain(feature);
+  }
 }
 
 describe("every Worker answer carries the security headers", () => {
@@ -33,12 +41,12 @@ describe("every Worker answer carries the security headers", () => {
   });
 
   it("hardens sign-out", async () => {
-    expectHardened(await post("/auth/signout", { Origin: "https://kalsa.io", "Content-Type": "application/json" }));
+    expectHardened(await post("/auth/signout", { Origin: ORIGIN, "Content-Type": "application/json" }));
   });
 
   it("hardens the JSON 404 and 405", async () => {
     expectHardened(await get("/api/unknown"));
-    expectHardened(await post("/api/me", { Origin: "https://kalsa.io", "Content-Type": "application/json" }));
+    expectHardened(await post("/api/me", { Origin: ORIGIN, "Content-Type": "application/json" }));
   });
 
   it("hardens the foreign-origin refusal", async () => {
