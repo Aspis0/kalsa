@@ -62,7 +62,7 @@ fn the_home_page_uses_the_approved_headline_buttons_and_section_names() {
     assert!(shown.contains("The home of local inference and the people behind it"));
     assert!(shown.contains("Discover the engines and forks that run AI models on your own computer."));
     assert!(shown.contains(&format!("Browse all {} engines", catalog().engine.len())) && shown.contains("Listed and community engines"));
-    for section in ["Find engines for your chip", "Recently added", "The people building them"] {
+    for section in ["Find engines for your chip", "Recently added"] {
         assert!(shown.contains(section), "{section}");
     }
     assert!(shown.contains("Numbers in grey were measured on a different chip."));
@@ -161,4 +161,18 @@ fn the_home_page_and_the_engine_list_are_not_ranked_by_gain() {
             assert!(!page.contains(phrase), "{phrase}");
         }
     }
+}
+
+#[test]
+fn the_home_page_has_no_grid_of_developer_portraits() {
+    let files = generated();
+    let home = body(&files, "index.html");
+    let shown = visible(home);
+    for gone in ["The people building them", "developers and organisations so far"] {
+        assert!(!shown.contains(gone), "{gone}");
+    }
+    assert!(!home.contains("class=\"wall\"") && !home.contains("id=\"people\""), "no avatar grid");
+    assert!(!home.contains("href=\"dev/"), "the home page links no developer page");
+    assert!(body(&files, "dev/antonellof/index.html").contains("antonellof"), "developer pages stay");
+    assert!(body(&files, "engines/frink/index.html").contains("by antonellof"), "engine pages keep their author line");
 }

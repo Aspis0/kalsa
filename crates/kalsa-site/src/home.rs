@@ -1,30 +1,15 @@
-//! The home page: the engines by chip, the newest entries, and the people behind them.
+//! The home page: the engines by chip and the newest entries.
 
 use kalsa_engines::{family_label, Catalog, Engine, FAMILIES};
 
-use crate::cards::{avatar, card};
+use crate::cards::card;
 use crate::facts::Facts;
-use crate::html::{escape, safe_href};
+use crate::html::escape;
 use crate::layout::{page, Meta};
-use crate::model::{alphabetical, closest_benchmark, developers, headline, runs_on};
+use crate::model::{alphabetical, closest_benchmark, headline, runs_on};
 use crate::paths;
 
 const SUBTITLE: &str = "Discover the engines and forks that run AI models on your own computer.";
-
-fn wall(root: &str, catalog: &Catalog) -> String {
-    let people: String = developers(catalog)
-        .iter()
-        .map(|developer| {
-            format!(
-                "<a href=\"{href}\">{avatar}<em>{login}</em></a>",
-                href = safe_href(&format!("{root}{}", paths::developer(developer.login))),
-                avatar = avatar(developer.login, "md", developer.org),
-                login = escape(developer.login),
-            )
-        })
-        .collect();
-    format!("<div class=\"wall\">{people}</div>")
-}
 
 fn panel(root: &str, catalog: &Catalog, tag: &str, facts: &Facts) -> String {
     let engines: Vec<&Engine> = alphabetical(catalog).into_iter().filter(|engine| runs_on(engine, tag)).collect();
@@ -68,13 +53,10 @@ pub fn home(catalog: &Catalog, facts: &Facts) -> String {
         "<div class=\"wrap\"><section class=\"top\"><h1>The home of local inference and the people behind it</h1>\
          <p class=\"lede\">{SUBTITLE}</p>\
          <div class=\"cta\"><a class=\"btn\" href=\"{engines}\">Browse all {count} engines</a><a class=\"btn two\" href=\"{rules}\">Listed and community engines</a></div></section>\
-         {picker}{recent}\
-         <section class=\"blk\" id=\"people\"><div class=\"sh\"><h2>The people building them</h2><p>{people} developers and organisations so far.</p></div>{wall}</section></div>",
+         {picker}{recent}</div>",
         engines = paths::section("engines"),
         rules = paths::section("listed-and-community"),
         count = catalog.engine.len(),
-        wall = wall(root, catalog),
-        people = developers(catalog).len(),
         picker = picker(root, catalog, facts),
         recent = recent(root, catalog, facts),
     );
