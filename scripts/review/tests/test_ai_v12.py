@@ -9,6 +9,7 @@ import pytest
 from review import decide, injection, malware, review
 from review.malware import scan as malware_module
 from review.reader import client, config, pipeline, prompt, report, runner
+import reader_responses
 
 
 def test_runner_requires_hard_and_malware_hits():
@@ -26,7 +27,7 @@ def test_runner_passes_hard_and_malware_hits(tmp_path, monkeypatch):
 
     def harmless_http(_config, _request, _effort):
         rows = [{"id": "a", "verdict": "harmless", "reason": "ok", "quoted_line": "return 1"}]
-        return {"choices": [{"message": {"content": json.dumps(rows)}}]}
+        return reader_responses.results(rows)
 
     monkeypatch.setattr(client, "_http", harmless_http)
     block = {"id": "a", "path": "a.py", "text": "return 1"}

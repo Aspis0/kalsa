@@ -3,6 +3,7 @@
 import json
 
 from review.reader import client, runner
+import reader_responses
 
 BLOCKS = [
     {"id": "a", "path": "a.py", "text": "return 1234"},
@@ -18,7 +19,7 @@ def row(identifier, verdict="harmless", quoted=None):
 
 
 def payload(rows):
-    return {"choices": [{"message": {"content": json.dumps(rows)}}]}
+    return reader_responses.results(rows)
 
 
 def config(effort="max"):

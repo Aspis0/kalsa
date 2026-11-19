@@ -10,6 +10,7 @@ from review.reader import client
 from review.scanners import plain
 from review.verdict import BUDGET_VERDICT
 from image_fixtures import jpeg, png
+import reader_responses
 from test_v16 import git
 
 WORKFLOW = Path(__file__).resolve().parents[3] / ".github/workflows/review.yml"
@@ -89,7 +90,7 @@ def harmless_http(_config, request, _effort):
         {"id": b["id"], "verdict": "harmless", "reason": "ok", "quoted_line": b["text"].split("\n")[0]}
         for b in blocks
     ]
-    return {"choices": [{"message": {"content": json.dumps(rows)}}]}
+    return reader_responses.results(rows)
 
 
 def test_budget_counts_the_whole_request():

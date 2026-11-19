@@ -4,6 +4,8 @@ from pathlib import Path
 
 import pytest
 
+import reader_responses
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1].parent))
 
 from review import malware, reader  # noqa: E402
@@ -26,7 +28,7 @@ def _harmless(_config, request, _effort):
             "id": block["id"], "verdict": "harmless", "reason": "ok",
             "quoted_line": line,
         })
-    return {"choices": [{"message": {"content": json.dumps(rows)}}]}
+    return reader_responses.results(rows)
 
 
 @pytest.fixture(autouse=True)

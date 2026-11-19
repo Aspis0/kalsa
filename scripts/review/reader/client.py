@@ -20,6 +20,10 @@ class ProviderError(Exception):
     """A request-level provider refusal; the key is never included."""
 
 
+class ShapeError(ValueError):
+    """A response whose shape is not the contracted one; never carries response text."""
+
+
 @dataclass(frozen=True)
 class Config:
     base_url: str
@@ -147,23 +151,31 @@ def _unsure(block: dict, config: Config, reason: str, effort: str) -> dict:
 
 
 def _failure_reason(error: BaseException) -> str:
-    """A transport timeout is not a model judgement; keep the two apart."""
+    """Name the cause class; never the response text, keys or headers."""
     if isinstance(error, TimeoutError):
         return "reader timeout"
     if isinstance(error, urllib.error.URLError) and isinstance(error.reason, TimeoutError):
         return "reader timeout"
+    if isinstance(error, urllib.error.HTTPError):
+        return f"reader error: http {error.code // 100}xx"
+    if isinstance(error, (ShapeError, KeyError, TypeError)):
+        return "reader error: shape"
+    if isinstance(error, json.JSONDecodeError):
+        return "reader error: json"
     return "reader error"
 
 
 def tally(rows: list[dict]) -> dict:
     """Count transport failures separately from a model's own 'unsure'."""
-    counts = {"timeouts": 0, "errors": 0, "budget": 0, "unsure": 0}
+    counts = {"timeouts": 0, "errors": 0, "budget": 0, "unsure": 0, "error_classes": {}}
     for row in rows:
         reason = row.get("reason", "")
         if reason == "reader timeout":
             counts["timeouts"] += 1
-        elif reason == "reader error":
+        elif reason.startswith("reader error"):
             counts["errors"] += 1
+            classes = counts["error_classes"]
+            classes[reason] = classes.get(reason, 0) + 1
         elif reason == "budget reached":
             counts["budget"] += 1
         elif row.get("verdict") == "unsure":
@@ -171,20 +183,31 @@ def tally(rows: list[dict]) -> dict:
     return counts
 
 
+def _results_rows(content: str) -> list:
+    """response_format json_object means the API returns an object, never an array."""
+    payload = json.loads(content)
+    if not isinstance(payload, dict) or set(payload) != {"results"}:
+        raise ShapeError("unexpected top-level keys")
+    rows = payload["results"]
+    if not isinstance(rows, list):
+        raise ShapeError("results is not an array")
+    return rows
+
+
 def _index_rows(rows, group: list[dict]) -> dict:
     """One row per block id; duplicate, missing or extra ids are refusals."""
     if not isinstance(rows, list) or len(rows) != len(group):
-        raise ValueError("wrong result count")
+        raise ShapeError("wrong result count")
     by_id = {}
     for row in rows:
         if not isinstance(row, dict):
-            raise ValueError("malformed row")
+            raise ShapeError("malformed row")
         identifier = row.get("id")
         if identifier in by_id:
-            raise ValueError("duplicate id")
+            raise ShapeError("duplicate id")
         by_id[identifier] = row
     if set(by_id) != {block.get("id", "") for block in group}:
-        raise ValueError("wrong ids")
+        raise ShapeError("wrong ids")
     return by_id
 
 
@@ -196,7 +219,7 @@ def _read_group(config: Config, group: list[dict], request: dict, http) -> list[
         for attempt in range(3):
             try:
                 response = (http or _http)(config, request, effort)
-                by_id = _index_rows(json.loads(response["choices"][0]["message"]["content"]), group)
+                by_id = _index_rows(_results_rows(response["choices"][0]["message"]["content"]), group)
                 return [
                     {**_validate(by_id[block.get("id", "")], block), "model": config.model, "effort": effort}
                     for block in group
@@ -225,7 +248,7 @@ def read(
     results = []
     for group in chunks(blocks):
         delimiter = "KALSA-" + secrets.token_hex(12)
-        request = build_request(prompt.READER_PROMPT_V1, group, hints, precedents, delimiter)
+        request = build_request(prompt.READER_PROMPT_V2, group, hints, precedents, delimiter)
         # Spend the whole request: prompt, hints, precedents and blocks.
         if not budget.spend(len(request["messages"][0]["content"])):
             return [_unsure(row, config, "budget reached", config.effort) for row in blocks]

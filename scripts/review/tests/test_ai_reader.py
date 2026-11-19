@@ -6,13 +6,14 @@ from pathlib import Path
 import pytest
 
 from review import decide, injection, malware, reader
+import reader_responses
 from importlib import import_module
 malware_module = import_module("review.malware.scan")
 
 
 def test_reader_prompt_marks_data_as_untrusted():
-    assert "untrusted" in reader.prompt.READER_PROMPT_V1
-    assert "instructions" in reader.prompt.READER_PROMPT_V1
+    assert "untrusted" in reader.prompt.READER_PROMPT_V2
+    assert "instructions" in reader.prompt.READER_PROMPT_V2
 
 
 def test_reader_config_hides_the_key():
@@ -23,7 +24,7 @@ def test_reader_config_hides_the_key():
 
 def test_reader_request_has_no_tools_and_uses_delimiters():
     blocks = [{"id": "a", "text": "return 1"}]
-    request = reader.client.build_request(reader.prompt.READER_PROMPT_V1, blocks, [], [], "DELIM")
+    request = reader.client.build_request(reader.prompt.READER_PROMPT_V2, blocks, [], [], "DELIM")
     assert "tools" not in request
     assert "DELIM" in request["messages"][0]["content"]
     assert "untrusted" in request["messages"][0]["content"]
@@ -33,7 +34,7 @@ def test_reader_rejects_unparsable_and_extra_ids():
     cfg = reader.client.Config("https://example.invalid/v1", "reader-a", "secret")
     blocks = [{"id": "a", "text": "return 1"}]
     def bad_http(_config, _request, _effort):
-        return {"choices": [{"message": {"content": "not json"}}]}
+        return reader_responses.message("not json")
     verdicts = reader.client.read(cfg, blocks, [], [], http=bad_http)
     assert verdicts[0]["verdict"] == "unsure"
 
@@ -42,7 +43,7 @@ def test_reader_rejects_unparsable_and_extra_ids():
             {"id": "a", "verdict": "harmless", "reason": "ok", "quoted_line": "return 1234"},
             {"id": "b", "verdict": "harmless", "reason": "ok", "quoted_line": "x"},
         ]
-        return {"choices": [{"message": {"content": json.dumps(payload)}}]}
+        return reader_responses.results(payload)
     verdicts = reader.client.read(cfg, blocks, [], [], http=extra_http)
     assert verdicts[0]["verdict"] == "unsure"
 
@@ -112,7 +113,7 @@ def test_corpus_fools_the_reader_but_bad_samples_still_escalate(tmp_path, monkey
             }
             for block in blocks
         ]
-        return {"choices": [{"message": {"content": _json.dumps(rows)}}]}
+        return reader_responses.results(rows)
 
     monkeypatch.setattr(reader.client, "_http", fooled_http)
     root = Path(__file__).parent / "corpus"
@@ -143,7 +144,7 @@ def test_report_records_reader_fields():
             [], [], [],
         ),
     )
-    assert report["prompt_version"] == reader.prompt.READER_PROMPT_V1
+    assert report["prompt_version"] == reader.prompt.READER_PROMPT_V2
     assert report["blocks"][0]["readers"]
     assert report["decisions"]["a"] == "auto-clean"
 

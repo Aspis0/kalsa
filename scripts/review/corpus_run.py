@@ -55,15 +55,21 @@ def _fixture_result(name: str, data: dict, configs: list, precedents: list, budg
         "reader_a": [row.get("verdict", "") for row in verdicts[0]],
         "reader_b": [row.get("verdict", "") for row in verdicts[1]],
         "timeouts": counts["timeouts"], "errors": counts["errors"], "unsure": counts["unsure"],
+        "error_classes": counts["error_classes"],
     }
 
 
 def _totals(records: list[dict], tokens: int) -> dict:
+    classes: dict[str, int] = {}
+    for row in records:
+        for reason, count in row["error_classes"].items():
+            classes[reason] = classes.get(reason, 0) + count
     return {
         "fixtures": len(records),
         "timeouts": sum(row["timeouts"] for row in records),
         "errors": sum(row["errors"] for row in records),
         "unsure": sum(row["unsure"] for row in records),
+        "error_classes": classes,
         "tokens": tokens,
     }
 
@@ -98,11 +104,13 @@ def evaluate() -> dict:
 
 def summary_text(counts: dict) -> str:
     totals = counts["totals"]
+    classes = ", ".join(f"{name}={count}" for name, count in sorted(totals["error_classes"].items())) or "none"
     return "\n".join([
         f"gate: bad {counts['gate_bad_pass']}/{bad_count()}, good {counts['gate_good_pass']}/{good_count()}",
         f"readers: bad {counts['reader_bad_pass']}/{bad_count()}, good {counts['reader_good_pass']}/{good_count()}",
         "mismatches: " + ", ".join(counts["mismatches"]),
         f"reader timeouts: {totals['timeouts']}, errors: {totals['errors']}, model unsure: {totals['unsure']}",
+        f"error classes: {classes}",
         f"tokens used: {totals['tokens']}",
     ]) + "\n"
 

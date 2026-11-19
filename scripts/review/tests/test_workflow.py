@@ -10,6 +10,7 @@ import pytest
 
 from review import apply as review_apply
 from review import batch, client, weekly
+import reader_responses
 
 
 def test_batch_picker_is_deterministic_and_incremental():
@@ -55,7 +56,7 @@ def test_effort_fallback_is_recorded(tmp_path, monkeypatch):
         if effort == "max":
             raise client.ProviderError("unsupported reasoning_effort")
         rows = [{"id": "a", "verdict": "harmless", "reason": "ok", "quoted_line": "return 1234"}]
-        return {"choices": [{"message": {"content": json.dumps(rows)}}]}
+        return reader_responses.results(rows)
 
     result = client.read(cfg, [{"id": "a", "text": "return 1234"}], [], [], http=http)
     assert calls == ["max", "high"]

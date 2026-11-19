@@ -82,15 +82,21 @@ def _fork_record(row: dict, report: dict) -> dict:
         "reader_a": [item.get("verdict", "") for item in rows_a],
         "reader_b": [item.get("verdict", "") for item in rows_b],
         "timeouts": counts["timeouts"], "errors": counts["errors"], "unsure": counts["unsure"],
+        "error_classes": counts["error_classes"],
     }
 
 
 def _totals(records: list[dict], budget: client.TokenBudget) -> dict:
+    classes: dict[str, int] = {}
+    for row in records:
+        for reason, count in row["error_classes"].items():
+            classes[reason] = classes.get(reason, 0) + count
     return {
         "forks": len(records),
         "timeouts": sum(row["timeouts"] for row in records),
         "errors": sum(row["errors"] for row in records),
         "unsure": sum(row["unsure"] for row in records),
+        "error_classes": classes,
         "tokens": budget.tokens(),
         "token_limit": budget.limit // client.CHARS_PER_TOKEN,
     }
@@ -103,10 +109,12 @@ def _summary_text(records: list[dict], totals: dict) -> str:
             f"- {row['id']}: {row['verdict']} (files {row['files']}, blocks {row['blocks']}) "
             f"timeouts={row['timeouts']} errors={row['errors']}"
         )
+    classes = ", ".join(f"{name}={count}" for name, count in sorted(totals["error_classes"].items())) or "none"
     lines += [
         "",
         f"tokens used: {totals['tokens']} / {totals['token_limit']}",
         f"reader timeouts: {totals['timeouts']}, errors: {totals['errors']}, model unsure: {totals['unsure']}",
+        f"error classes: {classes}",
     ]
     return "\n".join(lines) + "\n"
 
