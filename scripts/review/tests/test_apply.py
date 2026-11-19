@@ -8,16 +8,18 @@ CATALOG = """[[engine]]
 id = "one"
 kind = "fork"
 upstream = "up/repo"
+repo = "up/one"
 
 [[engine]]
 id = "two"
 kind = "fork"
 upstream = "up/other"
+repo = "up/two"
 """
 
 REPORT = {
     "verdict": "no findings",
-    "inputs": {"commit": "a" * 40, "upstream": "up/repo"},
+    "inputs": {"commit": "a" * 40, "upstream": "up/repo", "fork": "up/one"},
 }
 
 
@@ -34,10 +36,13 @@ def test_apply_refuses_a_finding(monkeypatch, tmp_path):
     catalog.write_text(CATALOG)
     reviews = tmp_path / "reviews"
     reviews.mkdir()
-    (reviews / ("one-" + "a" * 40 + ".json")).write_text(json.dumps({**REPORT, "verdict": "findings: human review needed"}))
+    bad = {**REPORT, "verdict": "findings: human review needed"}
+    bad["findings_digest"] = review_apply.findings_digest(bad)
+    (reviews / ("one-" + "a" * 40 + ".json")).write_text(json.dumps(bad))
     monkeypatch.setattr(review_apply, "REVIEWS", reviews)
     monkeypatch.setattr(review_apply, "CATALOG", catalog)
-    with pytest.raises(ValueError, match="latest review"):
+    monkeypatch.setattr(review_apply, "current_head", lambda repo, branch="": "a" * 40)
+    with pytest.raises(ValueError, match="current review"):
         review_apply.apply_review("one", catalog)
 
 
@@ -46,8 +51,11 @@ def test_apply_writes_only_with_a_clean_report(monkeypatch, tmp_path):
     catalog.write_text(CATALOG)
     reviews = tmp_path / "reviews"
     reviews.mkdir()
-    (reviews / ("one-" + "a" * 40 + ".json")).write_text(json.dumps(REPORT))
+    good = dict(REPORT)
+    good["findings_digest"] = review_apply.findings_digest(good)
+    (reviews / ("one-" + "a" * 40 + ".json")).write_text(json.dumps(good))
     monkeypatch.setattr(review_apply, "REVIEWS", reviews)
+    monkeypatch.setattr(review_apply, "current_head", lambda repo, branch="": "a" * 40)
     patch = review_apply.apply_review("one", catalog)
     assert "[engine.review]" in patch
     assert "[engine.review]" in catalog.read_text()

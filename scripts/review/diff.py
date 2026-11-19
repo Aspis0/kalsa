@@ -14,10 +14,6 @@ BUILD_NAMES = {
 BUILD_SUFFIXES = (".sh", ".ps1", ".bat", ".cmd", ".gradle", ".yml", ".yaml")
 
 
-def too_large(stats: dict, max_files: int, max_lines: int) -> bool:
-    return stats["files"] > max_files or stats["lines"] > max_lines
-
-
 def extract_urls(text: str) -> list[str]:
     found = []
     for match in URL.findall(text or ""):
@@ -29,11 +25,6 @@ def extract_urls(text: str) -> list[str]:
 
 def is_binary_sample(sample: bytes) -> bool:
     return bool(sample and BINARY_HINT.search(sample))
-
-
-def is_build_file(path: str) -> bool:
-    name = Path(path).name.lower()
-    return name in BUILD_NAMES or name.endswith(BUILD_SUFFIXES)
 
 
 def domain(url: str) -> str:
@@ -87,7 +78,7 @@ def patch_url_entries(path: str, patch: str) -> list[dict]:
     entries = []
     line_number = 0
     fenced = False
-    for row in (patch or "").splitlines():
+    for row in split_nl(patch):
         if row.startswith("@@"):
             marker = row.split("+", 1)[1].split(" ", 1)[0] if "+" in row else "0"
             line_number = int(marker.split(",")[0]) - 1
@@ -115,22 +106,87 @@ def patch_url_entries(path: str, patch: str) -> list[dict]:
 def documentation_line(path: str, text: str) -> bool:
     return path.lower().startswith(("docs/", "readme")) or path.lower().endswith(".md")
 
+MAX_BLOCK_LINES = 400
+MAX_BLOCK_BYTES = 40_000
+LFS_PREFIX = b"version https://git-lfs.github.com/spec/"
+
+
+def decode(data: bytes) -> str:
+    # Literal backslashes are doubled before decoding; generated escapes keep
+    # one backslash, so source text and real non-printable bytes stay distinct.
+    text = data.replace(b"\\", b"\\\\").decode("utf-8", errors="backslashreplace")
+    return "".join(
+        char if char in "\n\r\t" or char.isprintable() else f"\\x{ord(char):02x}"
+        for char in text
+    )
+
+
+def is_lfs_pointer(data: bytes) -> bool:
+    return data.startswith(LFS_PREFIX)
+
+
+def cap_text(text: str) -> tuple[str, bool]:
+    encoded = text.encode("utf-8", errors="backslashreplace")
+    if len(encoded) <= MAX_BLOCK_BYTES:
+        return text, False
+    return encoded[:MAX_BLOCK_BYTES].decode("utf-8", errors="backslashreplace"), True
+
+
+def split_nl(text: str) -> list[str]:
+    return text.split("\n") if text else []
+
+
+def display_line(line: str) -> str:
+    return line[:-1] if line.endswith("\r") else line
+
+
+def hunks(patch: str) -> list[dict]:
+    rows = []
+    old = new = 0
+    in_hunk = False
+    for row in split_nl(patch):
+        if row.startswith("@@"):
+            old = int(row.split("-", 1)[1].split(",", 1)[0].split(" ", 1)[0]) - 1
+            new = int(row.split("+", 1)[1].split(",", 1)[0].split(" ", 1)[0]) - 1
+            in_hunk = True
+            continue
+        if not in_hunk or row.startswith("\\"):
+            continue
+        if row.startswith("+"):
+            new += 1
+            rows.append({"side": "new", "line": new, "text": row[1:]})
+        elif row.startswith("-"):
+            old += 1
+            rows.append({"side": "old", "line": old, "text": row[1:]})
+        else:
+            old += 1
+            new += 1
+            rows.append({"side": "context", "line": old, "text": row[1:] if row.startswith(" ") else row})
+    return rows
+
 
 def added_lines(patch: str) -> set[int]:
-    """New-file line numbers introduced by one file's unified diff."""
-    result = set()
-    line = 0
-    for row in (patch or "").splitlines():
-        if row.startswith("@@"):
-            marker = row.split("+", 1)[1].split(" ", 1)[0] if "+" in row else "0"
-            line = int(marker.split(",")[0]) - 1
-        elif row.startswith("+++ "):
-            continue
-        elif row.startswith("+"):
-            line += 1
-            result.add(line)
-        elif row.startswith("-"):
-            continue
+    return {row["line"] for row in hunks(patch) if row["side"] == "new"}
+
+
+def added_texts(patch: str) -> list[str]:
+    return [row["text"] for row in hunks(patch) if row["side"] == "new"]
+
+
+def removed_entries(patch: str) -> list[tuple[int, str]]:
+    return [(row["line"], row["text"]) for row in hunks(patch) if row["side"] == "old"]
+
+
+def removed_lines(patch: str) -> set[int]:
+    return {row["line"] for row in hunks(patch) if row["side"] == "old"}
+
+
+def added_blocks(patch: str) -> list[list[int]]:
+    numbers = sorted(added_lines(patch))
+    blocks = []
+    for number in numbers:
+        if blocks and number == blocks[-1][-1] + 1:
+            blocks[-1].append(number)
         else:
-            line += 1
-    return result
+            blocks.append([number])
+    return blocks

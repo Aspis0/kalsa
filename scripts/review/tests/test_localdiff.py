@@ -6,13 +6,13 @@ from review import localdiff, review
 def test_binary_without_patch_is_not_unreviewable():
     comparison = {"files": [{"filename": "docs/a.png", "status": "added"}]}
     blobs = {"docs/a.png": b"\x89PNG\r\n\x1a\n\x00more"}
-    gate = review.incomplete_diff(comparison, 300, (), (), lambda path: blobs.get(path))
+    gate = review.incomplete_diff(comparison, 300, (), lambda path: blobs.get(path))
     assert gate == {}
 
 
 def test_text_without_patch_is_unreviewable():
     comparison = {"files": [{"filename": "src/a.py", "status": "modified"}]}
-    gate = review.incomplete_diff(comparison, 300, (), (), lambda path: b"print(1)\n")
+    gate = review.incomplete_diff(comparison, 300, (), lambda path: b"print(1)\n")
     assert gate["reason"] == "files-without-patch"
 
 
@@ -44,7 +44,7 @@ def test_parse_raw_records_the_new_path_on_a_rename():
 
 
 def test_oversize_file_is_not_reviewable():
-    patches, added, blocks, oversize = localdiff.parse_patches(
+    patches, added, blocks, removed, oversize = localdiff.parse_patches(
         "diff --git a/src/big.py b/src/big.py\n@@ -0,0 +1,50001 @@\n" + "+x\n" * 50_001
     )
     assert "src/big.py" in oversize
@@ -52,4 +52,4 @@ def test_oversize_file_is_not_reviewable():
 
 def test_pure_rename_without_patch_is_not_unreviewable():
     comparison = {"files": [{"filename": "src/new.py", "status": "R100"}]}
-    assert review.incomplete_diff(comparison, 300, (), (), lambda path: b"print(1)\n") == {}
+    assert review.incomplete_diff(comparison, 300, (), lambda path: b"print(1)\n") == {}

@@ -111,7 +111,7 @@ rules:
     languages: [javascript, typescript]
     message: JavaScript launches a process or opens network primitives
     severity: WARNING
-    pattern-regex: '(?s)(require\(\s*["'']child_process|from\s+["'']child_process|execSync\s*\(|spawn\s*\(|require\(\s*["''](http|https|net)|from\s+["''](http|https|net))'
+    pattern-regex: '(?s)(require\(\s*["''](?:node:)?child_process|from\s+["''](?:node:)?child_process|execSync\s*\(|spawn\s*\(|require\(\s*["''](http|https|net)|from\s+["''](http|https|net))' 
 
   - id: kalsa.rust-process
     languages: [rust]
@@ -134,3 +134,85 @@ rules:
     paths:
       include: ["**/setup.py", "**/pyproject.toml"]
     pattern-regex: '(console_scripts|project\.scripts|\[project\.scripts\]|entry_points)'
+
+  - id: kalsa.python-decode-exec
+    languages: [python]
+    message: Python executes decoded data
+    severity: WARNING
+    pattern-regex: '(?s)(exec|eval)\s*\([^)]{0,400}(base64|b64decode|marshal\.loads|pickle\.loads|codecs\.decode)'
+
+  - id: kalsa.python-dynamic-lib
+    languages: [python]
+    message: Python loads a native library
+    severity: WARNING
+    pattern-regex: '(ctypes\.CDLL|cffi\.dlopen|ctypes\.cffi\.dlopen)\s*\('
+
+  - id: kalsa.cpp-dynamic-loader
+    languages: [c, cpp]
+    message: C or C++ resolves dynamic symbols
+    severity: WARNING
+    pattern-regex: '\b(dlmopen|dlsym|dlopen)\s*\('
+
+  - id: kalsa.shell-command-substitution
+    languages: [bash]
+    message: Shell evaluates downloaded command substitution
+    severity: WARNING
+    paths:
+      include: ["**/*.sh", "**/Makefile", "**/*.mk", "**/CMakeLists.txt", "**/*.cmake"]
+    pattern-regex: '(eval|bash\s+-c|sh\s+-c)[^\n]*\$\(\s*(curl|wget)'
+
+  - id: kalsa.javascript-network
+    languages: [javascript, typescript]
+    message: Shipped JavaScript opens a network request
+    severity: WARNING
+    pattern-regex: '\bfetch\s*\('
+
+  - id: kalsa.macro-alias
+    languages: [c, cpp]
+    message: Macro aliases an execution primitive
+    severity: WARNING
+    pattern-regex: '#\s*define\s+\w+\s+(execv|execve|execvp|execvpe|execl|execle|execlp|posix_spawn|system|popen)\b'
+
+  - id: kalsa.cmake-link-dependency
+    languages: [generic]
+    message: CMake links a new external dependency
+    severity: INFO
+    paths:
+      include: ["**/CMakeLists.txt", "**/*.cmake"]
+    pattern-regex: 'target_link_libraries\s*\('
+
+  - id: kalsa.python-dynamic-eval
+    languages: [python]
+    message: Python evaluates dynamic data
+    severity: WARNING
+    pattern-regex: '\b(exec|eval)\s*\('
+
+  - id: kalsa.python-dynamic-import
+    languages: [python]
+    message: Python imports and calls a module dynamically
+    severity: WARNING
+    pattern-regex: '__import__\s*\(\s*["'']os["'']\s*\)\s*\.|getattr\s*\(\s*(builtins|ctypes)\s*,'
+
+  - id: kalsa.dynamic-library-alias
+    languages: [python]
+    message: Python loads a native library through an alias
+    severity: WARNING
+    pattern-regex: '\.\s*(CDLL|dlopen)\s*\(|\bcdll\b'
+
+  - id: kalsa.macro-alias-broad
+    languages: [c, cpp]
+    message: Macro aliases an execution or loader primitive
+    severity: WARNING
+    pattern-regex: '#\s*define\s+\w+\s*\(?\s*(execv|execve|execvp|execvpe|execl|execle|execlp|posix_spawn|system|popen|dlopen|dlmopen)\b'
+
+  - id: kalsa.shell-command-substitution-broad
+    languages: [bash]
+    message: Shell evaluates a downloaded command substitution
+    severity: WARNING
+    pattern-regex: '(eval|sh|bash|zsh)\s+-?[a-z]*c?\s*["'']?\$\(\s*(/usr/bin/)?(curl|wget)'
+
+  - id: kalsa.javascript-network-broad
+    languages: [javascript, typescript]
+    message: Shipped JavaScript opens a network request
+    severity: WARNING
+    pattern-regex: '\b(fetch|axios|XMLHttpRequest|WebSocket|sendBeacon|request)\s*\('

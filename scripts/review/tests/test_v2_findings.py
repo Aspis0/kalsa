@@ -13,7 +13,8 @@ def gate(tmp_path, monkeypatch, rows, added):
     (tmp_path / "tests/test-backend-ops.cpp").write_text("test->eval(b, b_cpu, n_batch, n_ubatch);\n")
     files = list(tmp_path.glob("*/*"))
     monkeypatch.setattr(semgrep_gate, "run_tool", lambda *a, **k: common.ToolResult(0, json.dumps({"results": rows}), ""))
-    return semgrep_gate.scan(files, tmp_path, added)
+    findings, signals = semgrep_gate.scan(files, tmp_path, added)
+    return findings, signals
 
 
 def row(path, rule="kalsa.eval-python", line=1):
@@ -54,18 +55,18 @@ def test_ci_wget_is_suppressed(tmp_path, monkeypatch):
 def test_new_shared_object_outside_tests_is_a_binary_finding(tmp_path):
     path = tmp_path / "libevil.so"
     path.write_bytes(b"\x7fELF\x02\x01\x01\x00")
-    findings, _ = plain_scan.scan([path], [], tmp_path, set(), "owner/fork", "upstream/repo")
-    assert findings[0]["rule"] == "binary-file"
+    findings, _, _ = plain_scan.scan([path], [], tmp_path, "owner/fork", "upstream/repo")
+    assert findings[0]["rule"] == "binary-or-nul-content"
 
 
 def test_unresolved_and_constructed_urls():
     unresolved = plain_scan.classify_url(
         {"url": "http://$host:$port/v1", "file": "src/main.py", "line": 1, "comment": False},
-        set(), "owner/fork", "upstream/repo",
+        "owner/fork", "upstream/repo",
     )
-    assert unresolved["signal"] and unresolved["row"]["suppressed_because"] == "not-fetch-line"
+    assert not unresolved["signal"] and unresolved["row"]["rule"] == "unresolved-host"
     constructed = plain_scan.classify_url(
         {"url": 'https://" + host', "file": "src/main.py", "line": 1, "comment": False},
-        set(), "owner/fork", "upstream/repo",
+        "owner/fork", "upstream/repo",
     )
     assert not constructed["signal"] and constructed["row"]["rule"] == "constructed-url"

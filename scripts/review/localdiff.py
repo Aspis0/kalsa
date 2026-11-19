@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import codecs
+import hashlib
 import os
 import re
 import subprocess
@@ -16,6 +18,7 @@ GIT_ARGS = [
     "-c", "protocol.https.allow=always",
     "-c", "core.symlinks=false",
     "-c", "core.hooksPath=/dev/null",
+    "-c", "core.quotePath=false",
 ]
 
 
@@ -50,8 +53,16 @@ def init(bare: Path) -> None:
     subprocess.run(["git", "init", "--bare", str(bare)], check=True, capture_output=True)
 
 
-def fetch_commit(bare: Path, url: str, sha: str, env: dict[str, str], depth: int) -> bool:
-    if not (valid_sha(sha) and valid_repo(url, url.removeprefix("https://github.com/").removesuffix(".git"))):
+def fetch_commit(
+    bare: Path, url: str, sha: str, env: dict[str, str], depth: int,
+    expected_repo: str = "",
+) -> bool:
+    if expected_repo:
+        valid = valid_sha(sha) and valid_repo(url, expected_repo)
+    else:
+        match = REPO.match(url)
+        valid = bool(valid_sha(sha) and match)
+    if not valid:
         return False
     args = ["fetch", f"--depth={depth}", "--no-tags", "--no-write-fetch-head", url, sha]
     result = git(bare, ["-c", "remote.origin.promisor=true", *args], env)
@@ -65,17 +76,33 @@ def merge_base(bare: Path, base: str, head: str, env: dict[str, str]) -> str | N
     return result.stdout.decode().strip() if result.returncode == 0 else None
 
 
-def find_base(bare: Path, base: str, head: str, base_url: str, head_url: str, env: dict[str, str]) -> str | None:
+def find_base(
+    bare: Path, base: str, head: str, base_url: str, head_url: str,
+    env: dict[str, str], base_repo: str = "", head_repo: str = "",
+) -> str | None:
     for depth in (64, 512, 4096):
-        if fetch_commit(bare, base_url, base, env, depth) and fetch_commit(bare, head_url, head, env, depth):
+        if fetch_commit(bare, base_url, base, env, depth, base_repo) and fetch_commit(bare, head_url, head, env, depth, head_repo):
             found = merge_base(bare, base, head, env)
             if found:
                 return found
     return None
 
 
+def decode_git_path(value: str) -> str:
+    value = value.strip().rstrip('"')
+    if value.startswith('"'):
+        value = value[1:]
+    if "\\" in value:
+        try:
+            decoded = codecs.decode(value, "unicode_escape")
+            return decoded.encode("latin-1").decode("utf-8")
+        except UnicodeDecodeError:
+            return value
+    return value
+
+
 def parse_raw(raw: bytes) -> dict[str, list[str]]:
-    symlinks, submodules, paths, statuses, renames = [], [], [], {}, {}
+    symlinks, submodules, paths, statuses, renames, gitlinks = [], [], [], {}, {}, {}
     tokens = [token for token in raw.split(b"\0") if token]
     index = 0
     while index < len(tokens):
@@ -84,14 +111,14 @@ def parse_raw(raw: bytes) -> dict[str, list[str]]:
         if not token.startswith(b":"):
             continue
         fields = token[1:].split()
-        status = fields[4].decode(errors="replace") if len(fields) > 4 else ""
+        status = diff.decode(fields[4]) if len(fields) > 4 else ""
         if index >= len(tokens):
             break
-        old = tokens[index].decode(errors="replace")
+        old = decode_git_path(diff.decode(tokens[index]))
         index += 1
         new = old
         if status.startswith(("R", "C")) and index < len(tokens):
-            new = tokens[index].decode(errors="replace")
+            new = decode_git_path(diff.decode(tokens[index]))
             renames[new] = old
             index += 1
         paths.append(new)
@@ -101,9 +128,11 @@ def parse_raw(raw: bytes) -> dict[str, list[str]]:
             symlinks.append(new)
         if mode == "160000" or new.endswith(".gitmodules"):
             submodules.append(new)
+        if mode == "160000" and len(fields) > 3:
+            gitlinks[new] = (fields[2].decode(), fields[3].decode())
     return {
         "symlinks": symlinks, "submodules": submodules, "paths": paths,
-        "statuses": statuses, "renames": renames,
+        "statuses": statuses, "renames": renames, "submodule_shas": gitlinks,
     }
 
 
@@ -131,49 +160,43 @@ def patch_text(bare: Path, base: str, head: str, env: dict[str, str]) -> str:
         "diff", "--no-ext-diff", "--no-textconv", "--find-renames", "--patch", "--text",
         f"{base}...{head}", "--",
     ], env)
-    return result.stdout.decode(errors="replace")
+    return diff.decode(result.stdout)
 
 
-def added_blocks(patch: str) -> list[list[int]]:
-    numbers = sorted(diff.added_lines(patch))
-    blocks = []
-    for number in numbers:
-        if blocks and number == blocks[-1][-1] + 1:
-            blocks[-1].append(number)
-        else:
-            blocks.append([number])
-    return blocks
-
-
-def parse_patches(text: str, max_lines: int = 50_000) -> tuple[dict[str, str], dict[str, set[int]], dict[str, list[list[int]]], list[str]]:
-    patches, added, blocks, oversize = {}, {}, {}, []
+def parse_patches(text: str, max_lines: int = 50_000) -> tuple[dict[str, str], dict[str, set[int]], dict[str, list[list[int]]], dict[str, set[int]], list[str]]:
+    patches, added, blocks, removed, oversize = {}, {}, {}, {}, []
     current = None
-    for line in text.splitlines():
+    for line in diff.split_nl(text):
         if line.startswith("diff --git "):
-            match = re.search(r" b/(.+)$", line)
-            current = match.group(1) if match else None
+            rest = line[len("diff --git "):]
+            marker = rest.find(" b/")
+            if marker < 0:
+                marker = rest.find('"b/')
+            current = decode_git_path(rest[marker + 3:]) if marker >= 0 else None
             if current:
                 patches[current] = ""
                 added[current] = set()
+                removed[current] = set()
         elif current and not line.startswith(("index ", "similarity ", "rename ", "new file ", "deleted file ")):
             patches[current] += line + "\n"
     for path, patch in patches.items():
         added[path] = diff.added_lines(patch)
-        blocks[path] = added_blocks(patch)
+        removed[path] = diff.removed_lines(patch)
+        blocks[path] = diff.added_blocks(patch)
         if len(added[path]) > max_lines:
             oversize.append(path)
-    return patches, added, blocks, oversize
+    return patches, added, blocks, removed, oversize
 
 
 def file_text(bare: Path, sha: str, path: str, env: dict[str, str]) -> str:
     data = blob(bare, sha, path, env)
-    return data.decode(errors="ignore") if data is not None else ""
+    return diff.decode(data) if data is not None else ""
 
 
 def domains(bare: Path, sha: str, env: dict[str, str]) -> set[str]:
     result = git(bare, ["grep", "-h", "-I", "-E", "https?://", sha, "--"], env)
     found = set()
-    for url in diff.extract_urls(result.stdout.decode(errors="ignore")):
+    for url in diff.extract_urls(diff.decode(result.stdout)):
         host = diff.domain(url)
         if host:
             found.add(host)
@@ -191,19 +214,30 @@ def analyze(bare: Path, base: str, head: str, env: dict[str, str], max_files: in
     raw = git(bare, ["diff", "--raw", "-z", f"{base}...{head}", "--"], env).stdout
     parsed = parse_raw(raw)
     stats = numstat(bare, base, head, env)
-    patches, added, blocks, oversize = parse_patches(patch_text(bare, base, head, env))
+    patches, added, blocks, removed, oversize = parse_patches(patch_text(bare, base, head, env))
     blobs = {}
+    binary_info = {}
     for path in parsed["paths"]:
         data = blob(bare, head, path, env)
         if data is not None:
             blobs[path] = data
+        if diff.binary_path(path) or diff.is_binary_sample((data or b"")[:8192]):
+            old_data = blob(bare, base, path, env) or b""
+            binary_info[path] = {
+                "old_size": len(old_data),
+                "new_size": len(data or b""),
+                "old_sha": hashlib.sha256(old_data).hexdigest() if old_data else "",
+                "new_sha": hashlib.sha256(data or b"").hexdigest(),
+            }
     return {
         **parsed,
         "stats": stats,
         "patches": patches,
         "added": added,
         "blocks": blocks,
+        "removed": removed,
         "blobs": blobs,
+        "binary_info": binary_info,
         "oversize": oversize,
         "too_large": too_large(stats, max_files, max_lines) or bool(oversize),
     }
@@ -251,7 +285,7 @@ class HistoryChecker:
 
     def _contains(self, sha: str, path: str, wanted: tuple[str, ...]) -> dict | None:
         text = file_text(self.bare, sha, path, self.env)
-        lines = tuple(line.strip() for line in text.splitlines())
+        lines = tuple(diff.display_line(line).strip() for line in diff.split_nl(text))
         for index in range(len(lines) - len(wanted) + 1):
             if lines[index:index + len(wanted)] == wanted:
                 return {
@@ -266,4 +300,4 @@ class HistoryChecker:
         result = git(self.bare, [
             "log", "--format=%H", "-F", f"-S{needle}", f"{self.base}..{self.tip}", "--", path,
         ], self.env)
-        return result.stdout.decode(errors="replace").split()
+        return diff.decode(result.stdout).split()

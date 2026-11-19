@@ -99,6 +99,7 @@ def test_scan_then_apply_round_trip(tmp_path, monkeypatch):
     catalog_path = tmp_path / "engines.toml"
     catalog_path.write_text('[[engine]]\nid = "synthetic"\nkind = "fork"\nupstream = "owner/up"\nrepo = "owner/fork"\n')
     monkeypatch.setattr(review_apply, "REVIEWS", reviews)
+    monkeypatch.setattr(review_apply, "current_head", lambda repo, branch="": fork)
     patch = review_apply.apply_review("synthetic", catalog_path)
     assert "[engine.review]" in patch
     assert fork in catalog_path.read_text()
