@@ -1,0 +1,1 @@
+{"text": "code = compile(source, \"<s>\", \"exec\")\n", "hard": true}

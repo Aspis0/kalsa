@@ -1,0 +1,4 @@
+[[precedents]]
+pattern = "README install command from another repository"
+decision = "needs person"
+reason = "recorded human decision"

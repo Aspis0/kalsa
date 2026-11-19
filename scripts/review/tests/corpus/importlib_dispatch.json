@@ -1,0 +1,1 @@
+{"text": "importlib.import_module(\"os\").popen(\"id\")\n", "hard": true}

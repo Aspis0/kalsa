@@ -1,0 +1,1 @@
+{"text": "exec(zlib.decompress(base64.b64decode(\"H4sIAAAA\")))\n", "hard": true}

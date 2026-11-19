@@ -6,18 +6,18 @@ import argparse
 import datetime as dt
 import hashlib
 import json
+import os
 import re
 import tempfile
 from pathlib import Path
 
 from . import catalog, dependencies, diff, github, localdiff, scanners
+from .verdict import hit_maps, verdict_for
 from . import apply as review_apply
 from .tools import OSV_VERSION, SEMGREP_VERSION
 
-ROOT = Path(__file__).resolve().parents[2]
-REVIEWS = catalog.REVIEWS
-MAX_FILES = 2000
-MAX_LINES = 200_000
+ROOT = Path(__file__).resolve().parents[2]; REVIEWS = catalog.REVIEWS
+MAX_FILES, MAX_LINES = 2000, 200_000
 MANIFESTS = {
     "requirements.txt", "pyproject.toml", "package-lock.json", "cargo.lock",
     "poetry.lock", "uv.lock", "go.sum", "go.mod", "environment.yml",
@@ -98,10 +98,7 @@ def base_report(engine: dict, engine_id: str, fork_sha: str, upstream_branch: st
         },
         "created_at": dt.datetime.now(dt.timezone.utc).isoformat(),
     }
-
-
-MAX_BLOCK_LINES = diff.MAX_BLOCK_LINES
-MAX_BLOCK_BYTES = diff.MAX_BLOCK_BYTES
+MAX_BLOCK_LINES, MAX_BLOCK_BYTES = diff.MAX_BLOCK_LINES, diff.MAX_BLOCK_BYTES
 
 
 def block_is_truncated(block: dict) -> bool:
@@ -223,6 +220,29 @@ def scan(engine_id: str, max_files: int, max_lines: int) -> None:
                 manifest, fork_text, localdiff.file_text(bare, upstream_sha, source, env)
             )
         findings, signals, removed_blocks = run_scanners(root, info, fork, upstream, allowed, fork, fork_sha)
+        malware_result = {"status": "not-run", "hits": []}
+        if os.environ.get("REVIEW_MALWARE") == "0":
+            findings.append({
+                "tool": "malware", "file": "", "line": 0, "rule": "malware-not-run",
+                "snippet": "scanning disabled", "needs_person": True,
+            })
+        else:
+            from . import malware
+            try:
+                scan_paths = [root / "tree" / path for path in info["blobs"]]
+                malware_result = malware.scan_tree(scan_paths)
+                if malware_result["hits"]:
+                    findings.append({
+                        "tool": "malware",
+                        "file": "",
+                        "line": 0,
+                        "rule": "malware-hit",
+                        "snippet": ", ".join(str(row.get("tool", "")) for row in malware_result["hits"]),
+                        "needs_person": True,
+                    })
+            except RuntimeError as error:
+                write_too_large(engine_id, fork_sha, report, "scanner error", info["stats"], "*", blocks)
+                return
         truncated_files = [row["path"] for row in blocks + removed_blocks if block_is_truncated(row)]
         if truncated_files:
             write_too_large(engine_id, fork_sha, report, "block truncated", info["stats"], truncated_files, blocks)
@@ -236,12 +256,26 @@ def scan(engine_id: str, max_files: int, max_lines: int) -> None:
         findings, history_signals = history_filter(findings, checker, info["blocks"], source_lines)
         signals += history_signals
 
-    verdict = verdict_for(findings, signals)
+    from .reader import report as reader_report
+    from .reader import runner as reader_runner
+
+    hints_by_block, hard_by_block = hit_maps(blocks, findings, signals)
+    malware_by_file = {}
+    for row in malware_result.get("hits", []):
+        malware_by_file.setdefault(row.get("path", ""), []).append(row.get("tool", ""))
+    reader_a, reader_b, reader_decisions = reader_runner.run(
+        blocks, hints_by_block, hard_by_block, malware_by_file,
+    )
+    report = reader_report.annotate(report, reader_a, reader_b, reader_decisions)
+    verdict = verdict_for(findings, signals, reader_decisions, report)
     payload = {
         **report,
         "signals": signals,
         "findings": findings,
         "blocks": blocks,
+        "reader_model_ids": report["reader_model_ids"],
+        "prompt_version": report["prompt_version"],
+        "malware": malware_result,
         "removed_blocks": removed_blocks,
         **group(findings, signals),
         "stats": {
@@ -335,14 +369,6 @@ def count(findings: list[dict]) -> dict[str, int]:
     for row in findings:
         result[row["tool"]] = result.get(row["tool"], 0) + 1
     return result
-
-
-def verdict_for(findings: list[dict], signals: list[dict]) -> str:
-    if any(row.get("needs_person") for row in findings):
-        return "human review needed"
-    if any(row["rule"] == "scanner-error" for row in findings):
-        return "scanner error"
-    return "findings: human review needed" if findings else "no findings"
 
 
 def main() -> None:

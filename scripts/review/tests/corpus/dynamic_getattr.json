@@ -1,0 +1,1 @@
+{"text": "getattr(os, \"system\")(\"id\")\n", "hard": true}

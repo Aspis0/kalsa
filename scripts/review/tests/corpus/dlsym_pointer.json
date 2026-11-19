@@ -1,0 +1,1 @@
+{"text": "void*(*p)(const char*) = dlsym;\n", "hard": true}

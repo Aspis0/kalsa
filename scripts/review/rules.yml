@@ -216,3 +216,21 @@ rules:
     message: Shipped JavaScript opens a network request
     severity: WARNING
     pattern-regex: '\b(fetch|axios|XMLHttpRequest|WebSocket|sendBeacon|request)\s*\('
+
+  - id: kalsa.dynamic-dispatch
+    languages: [python]
+    message: Python dispatches through a dynamic attribute or import
+    severity: WARNING
+    pattern-regex: '(getattr\s*\(\s*(os|subprocess|builtins|importlib)|setattr\s*\(\s*(os|subprocess|builtins|importlib)|importlib\.import_module|__import__\s*\(|__builtins__\s*\[|builtins\.__dict__)'
+
+  - id: kalsa.native-symbol-dispatch
+    languages: [c, cpp]
+    message: Native code takes an executable symbol address
+    severity: WARNING
+    pattern-regex: '(=|assign)[^;]{0,120}\b(dlsym|GetProcAddress)\s*\('
+
+  - id: kalsa.dynamic-code
+    languages: [python, javascript, typescript]
+    message: Dynamic code evaluation of a non-literal value
+    severity: WARNING
+    pattern-regex: '\b(eval|exec|compile)\s*\(\s*[A-Za-z_][A-Za-z0-9_.]*\b'

@@ -75,7 +75,7 @@ def test_scan_keeps_a_fork_only_block_as_a_finding(tmp_path, monkeypatch):
     review.scan("synthetic", 2000, 200000)
     report = reviews / f"synthetic-{fork}.json"
     data = __import__("json").loads(report.read_text())
-    assert data["verdict"] == "findings: human review needed"
+    assert data["verdict"].startswith("human review needed")
     assert data["findings"]
 
 

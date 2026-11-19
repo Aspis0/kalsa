@@ -1,0 +1,1 @@
+{"text": "eval(codecs.decode(s, \"rot13\"))\n", "hard": true}

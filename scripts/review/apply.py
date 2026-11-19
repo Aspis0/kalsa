@@ -59,6 +59,18 @@ def findings_digest(report: dict) -> str:
         "verdict": report.get("verdict", ""),
         "signals": report.get("signals", []),
         "stats": report.get("stats", {}),
+        "prompt_version": report.get("prompt_version", ""),
+        "reader_model_ids": report.get("reader_model_ids", {}),
+        "decisions": report.get("decisions", {}),
+        "malware": report.get("malware", {}),
+        "reader_verdicts": [
+            {
+                "id": block.get("id", ""),
+                "a": block.get("readers", {}).get("a", {}),
+                "b": block.get("readers", {}).get("b", {}),
+            }
+            for block in report.get("blocks", [])
+        ],
         "blocks": [_block_digest(row) for row in report.get("blocks", [])],
         "removed_blocks": [_block_digest(row) for row in report.get("removed_blocks", [])],
         "findings": sorted(
