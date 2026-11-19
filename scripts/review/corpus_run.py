@@ -5,12 +5,19 @@ from __future__ import annotations
 import json
 import re
 import time
+from html import escape
 from pathlib import Path
 
 from . import injection, progress, results
 from .reader import client, config, pipeline
 
 CORPUS = Path(__file__).parent / "tests" / "corpus"
+TEXT_MAX = 200
+
+
+def _texts(rows: list[dict], key: str) -> list[str]:
+    """Model-supplied text for our own corpus fixtures only; escaped and capped."""
+    return [escape(str(row.get(key, "")), quote=False)[:TEXT_MAX] for row in rows]
 
 
 def fixtures() -> list[tuple[str, dict]]:
@@ -36,13 +43,16 @@ def _fixture_result(name: str, data: dict, configs: list, precedents: list, budg
     combined = injection.scan(joined)
     hard = {block["id"]: ["hard-rule"] for block in blocks} if data.get("hard") else {}
     malware_hits = {block["path"]: ["tool"] for block in blocks} if data.get("malware") else {}
-    decisions, reader_only = {}, {}
+    decisions, reader_only, refusals = {}, {}, {}
     for index, block in enumerate(blocks):
         hits = sorted(set(injection.scan(block["text"]) + combined))
-        decisions[block["id"]] = pipeline.review_block(
+        verdict, rule = pipeline.judge_block(
             block, verdicts[0][index], verdicts[1][index], hard.get(block["id"], []),
             hits, malware_hits.get(block["path"], []), precedents,
         )
+        decisions[block["id"]] = verdict
+        if rule:
+            refusals[block["id"]] = rule
         reader_only[block["id"]] = pipeline.review_block(
             block, verdicts[0][index], verdicts[1][index], [], [], [], precedents,
         )
@@ -52,8 +62,13 @@ def _fixture_result(name: str, data: dict, configs: list, precedents: list, budg
         "expected": bool(data.get("good")),
         "gate": all(value == "auto-clean" for value in decisions.values()),
         "reader": all(value == "auto-clean" for value in reader_only.values()),
+        "refusals": refusals,
         "reader_a": [row.get("verdict", "") for row in verdicts[0]],
         "reader_b": [row.get("verdict", "") for row in verdicts[1]],
+        "reasons_a": _texts(verdicts[0], "reason"),
+        "reasons_b": _texts(verdicts[1], "reason"),
+        "quoted_a": _texts(verdicts[0], "quoted_line"),
+        "quoted_b": _texts(verdicts[1], "quoted_line"),
         "timeouts": counts["timeouts"], "errors": counts["errors"], "unsure": counts["unsure"],
         "error_classes": counts["error_classes"],
     }

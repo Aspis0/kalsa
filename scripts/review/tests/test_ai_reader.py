@@ -12,8 +12,8 @@ malware_module = import_module("review.malware.scan")
 
 
 def test_reader_prompt_marks_data_as_untrusted():
-    assert "untrusted" in reader.prompt.READER_PROMPT_V2
-    assert "instructions" in reader.prompt.READER_PROMPT_V2
+    assert "untrusted" in reader.prompt.READER_PROMPT_V3
+    assert "instructions" in reader.prompt.READER_PROMPT_V3
 
 
 def test_reader_config_hides_the_key():
@@ -24,7 +24,7 @@ def test_reader_config_hides_the_key():
 
 def test_reader_request_has_no_tools_and_uses_delimiters():
     blocks = [{"id": "a", "text": "return 1"}]
-    request = reader.client.build_request(reader.prompt.READER_PROMPT_V2, blocks, [], [], "DELIM")
+    request = reader.client.build_request(reader.prompt.READER_PROMPT_V3, blocks, [], [], "DELIM")
     assert "tools" not in request
     assert "DELIM" in request["messages"][0]["content"]
     assert "untrusted" in request["messages"][0]["content"]
@@ -144,7 +144,7 @@ def test_report_records_reader_fields():
             [], [], [],
         ),
     )
-    assert report["prompt_version"] == reader.prompt.READER_PROMPT_V2
+    assert report["prompt_version"] == reader.prompt.READER_PROMPT_V3
     assert report["blocks"][0]["readers"]
     assert report["decisions"]["a"] == "auto-clean"
 

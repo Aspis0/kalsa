@@ -107,14 +107,15 @@ def chunks(blocks: list[dict], max_chars: int = 12_000) -> list[list[dict]]:
 
 
 def _validate(row: dict, block: dict) -> dict:
+    """A malformed row is an infrastructure refusal, never a model judgement."""
     if (
         not isinstance(row, dict)
         or set(row) != {"id", "verdict", "reason", "quoted_line"}
         or row.get("verdict") not in {"harmless", "suspicious", "unsure"}
     ):
-        return {"id": block.get("id", ""), "verdict": "unsure", "reason": "invalid shape", "quoted_line": ""}
+        return _refused(block, "reader error: shape")
     if row["id"] != block.get("id") or str(row["quoted_line"]).strip() not in block.get("text", ""):
-        return {"id": block.get("id", ""), "verdict": "unsure", "reason": "bad id or quote", "quoted_line": ""}
+        return _refused(block, "reader error: shape")
     return row
 
 
@@ -143,11 +144,12 @@ def _http(config: Config, request: dict, effort: str) -> dict:
         raise
 
 
+def _refused(block: dict, reason: str) -> dict:
+    return {"id": block.get("id", ""), "verdict": "unsure", "reason": reason, "quoted_line": ""}
+
+
 def _unsure(block: dict, config: Config, reason: str, effort: str) -> dict:
-    return {
-        "id": block.get("id", ""), "verdict": "unsure", "reason": reason,
-        "quoted_line": "", "model": config.model, "effort": effort,
-    }
+    return {**_refused(block, reason), "model": config.model, "effort": effort}
 
 
 def _failure_reason(error: BaseException) -> str:
@@ -248,7 +250,7 @@ def read(
     results = []
     for group in chunks(blocks):
         delimiter = "KALSA-" + secrets.token_hex(12)
-        request = build_request(prompt.READER_PROMPT_V2, group, hints, precedents, delimiter)
+        request = build_request(prompt.READER_PROMPT_V3, group, hints, precedents, delimiter)
         # Spend the whole request: prompt, hints, precedents and blocks.
         if not budget.spend(len(request["messages"][0]["content"])):
             return [_unsure(row, config, "budget reached", config.effort) for row in blocks]
