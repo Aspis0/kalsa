@@ -9,7 +9,7 @@ use crate::layout::{page, Meta};
 use crate::model::{developers, Developer};
 use crate::paths;
 use crate::phrase::metric_summary;
-use crate::widgets::{claim_line, url_bar};
+use crate::widgets::claim_line;
 
 fn comparison_rows(engines: &[&Engine]) -> String {
     let mut rows = String::new();
@@ -64,7 +64,7 @@ pub fn developer_page(developer: &Developer, facts: &Facts) -> String {
     let body = format!(
         "<div class=\"wrap\"><div class=\"crumb\">Developers / {login}</div><div class=\"devhead\">{avatar}<div><h1>{login}</h1>\
          <p class=\"sm\">{name} on Kalsa. The avatar and username come from the public GitHub profile.</p>\
-         <div class=\"acts\"><a class=\"btn two\" href=\"{github}\">github.com/{login}</a></div></div></div><div class=\"gap\">{url}</div>{stats}\
+         <div class=\"acts\"><a class=\"btn two\" href=\"{github}\">github.com/{login}</a></div></div></div>{stats}\
          <section class=\"blk\"><div class=\"sh left\"><h2>Engines</h2></div><div class=\"grid\">{cards}</div></section>\
          <section class=\"blk\"><div class=\"sh left\"><h2>Benchmarks</h2><p>Each engine's author measured these. The engine page links the source.</p></div>{table}</section>\
          {claim}</div>",
@@ -72,7 +72,6 @@ pub fn developer_page(developer: &Developer, facts: &Facts) -> String {
         avatar = avatar(developer.login, "lg", developer.org),
         name = escape(developer.name),
         github = safe_href(&github_url(developer.login)),
-        url = url_bar(&path),
         stats = stats(developer),
         claim = claim_line(developer.login),
     );

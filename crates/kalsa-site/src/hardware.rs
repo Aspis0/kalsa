@@ -8,7 +8,6 @@ use crate::html::{escape, safe_href, slug};
 use crate::layout::{page, Meta};
 use crate::model::{alphabetical, closest_benchmark, hardware_pages, runs_on, HardwarePage};
 use crate::paths;
-use crate::widgets::url_bar;
 
 /// The benchmark a card shows, and whether it comes from another chip than the page is about (it is then grey).
 /// A concrete chip page prefers a number measured on exactly that chip; every other number is from another chip.
@@ -46,13 +45,12 @@ pub fn hardware_page(hw: &HardwarePage, catalog: &Catalog, facts: &Facts) -> Str
     let body = format!(
         "<div class=\"wrap\"><section class=\"pagehead\"><div class=\"crumb\">Hardware / {title}</div><h1>Engines for {title}</h1>\
          <p class=\"lede\">{count} {verb} on {title}.</p>\
-         <div class=\"chips\"><span class=\"sm\">Other hardware:</span>{links}</div><div class=\"gap\">{url}</div></section>\
+         <div class=\"chips\"><span class=\"sm\">Other hardware:</span>{links}</div></section>\
          <div class=\"grid listgrid\">{cards}</div></div>",
         title = escape(&hw.title),
         count = engines.len(),
         verb = if engines.len() == 1 { "engine runs" } else { "engines run" },
         links = family_links(),
-        url = url_bar(&path),
     );
     page_with(&path, &format!("Engines for {} | Kalsa", hw.title), &format!("The engines that run on {}, with the benchmarks their authors published.", hw.title), &body)
 }

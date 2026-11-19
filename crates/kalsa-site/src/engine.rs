@@ -11,7 +11,7 @@ use crate::layout::{page, Meta};
 use crate::model::{author_name, is_org, login};
 use crate::paths;
 use crate::review::{badge_box, review_section};
-use crate::widgets::{claim_line, url_bar};
+use crate::widgets::claim_line;
 
 /// The upstream's own page when it is listed (the catalog requires that), else its plain name.
 fn upstream_link(catalog: &Catalog, upstream: &str) -> String {
@@ -64,17 +64,16 @@ fn details(catalog: &Catalog, engine: &Engine, facts: &Facts) -> String {
     format!("<div class=\"box\"><h5>Details</h5><dl class=\"kv\">{rows}</dl></div>")
 }
 
-fn sidebar(catalog: &Catalog, engine: &Engine, facts: &Facts, path: &str) -> String {
+fn sidebar(catalog: &Catalog, engine: &Engine, facts: &Facts) -> String {
     format!(
         "<aside class=\"side\"><div class=\"box\"><h5>Developer</h5><div class=\"dev\">{avatar}<div><b>{author}</b><span>github.com/{login}</span></div></div>\
          <p class=\"sm\">Avatar and username come from the public GitHub profile. <a class=\"lnk\" href=\"../../{dev}\">Developer page</a></p></div>{details}\
-         <div class=\"box\"><h5>Share</h5>{url}</div><div class=\"box\"><h5>Hardware pages</h5><div class=\"chips\">{hardware}</div></div>{badge}</aside>",
+         <div class=\"box\"><h5>Hardware pages</h5><div class=\"chips\">{hardware}</div></div>{badge}</aside>",
         avatar = avatar(login(engine), "md", is_org(engine)),
         author = escape(author_name(engine)),
         login = escape(login(engine)),
         dev = safe_href(&paths::developer(login(engine))),
         details = details(catalog, engine, facts),
-        url = url_bar(path),
         hardware = hardware_links(engine),
         badge = badge_box(engine),
     )
@@ -141,7 +140,7 @@ pub fn engine_page(catalog: &Catalog, engine: &Engine, facts: &Facts) -> String 
     let body = format!(
         "<div class=\"wrap\">{header}{note}<div class=\"cols\"><div>{main}</div>{side}</div>{claim}</div>",
         header = header(engine, facts),
-        side = sidebar(catalog, engine, facts, &path),
+        side = sidebar(catalog, engine, facts),
         claim = claim_line(&engine.name),
     );
     page(

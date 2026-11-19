@@ -84,8 +84,6 @@ code{font:12.5px ui-monospace,Menlo,monospace;background:var(--soft);padding:1px
 .btn[aria-disabled=true]{pointer-events:none;color:var(--ink3);background:var(--soft);box-shadow:none}
 .signin{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
 .ft .fine.strong{color:var(--ink);font-weight:600;font-size:14px;margin-top:24px}
-.urlbar{display:flex;align-items:center;gap:10px;height:44px;padding:0 6px 0 16px;border-radius:999px;background:var(--card);border:1px solid var(--line);max-width:560px}
-.urlbar .u{flex:1;min-width:0;font:13.5px/20px ui-monospace,Menlo,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.urlbar .cp{margin:0}
 .pagehead{padding:22px 0 0}.pagehead h1{text-align:left;max-width:22ch;margin:14px 0 0}.pagehead .lede{margin:12px 0 0;max-width:60ch;text-align:left}
 .pagehead .tags{margin-top:14px}
 /* filters */
@@ -127,7 +125,7 @@ ul.plain,ol.plain{padding-left:20px;display:grid;gap:5px;color:var(--ink2);margi
 .bpill.reviewed{background:var(--acc);color:var(--acc-ink)}.bpill.reference{background:var(--reference-b);color:var(--reference-t)}
 .card.community{background:transparent;border:1.5px dashed var(--line2)}
 /* Classes the generated markup uses instead of inline styles. */
-.panelnote{margin:12px 0 14px}.listgrid{margin-top:22px}.gap{margin-top:16px}.aboutp{margin-top:6px;color:var(--ink2);max-width:62ch}
+.panelnote{margin:12px 0 14px}.listgrid{margin-top:22px}.aboutp{margin-top:6px;color:var(--ink2);max-width:62ch}
 .sh.left{align-items:flex-start;text-align:left}
 .bpill.pending{background:var(--soft);color:var(--ink2);box-shadow:inset 0 0 0 1px var(--line2)}
 /* Both metrics: a gain under 5% is drawn muted and labelled "within noise". */

@@ -176,3 +176,15 @@ fn the_home_page_has_no_grid_of_developer_portraits() {
     assert!(body(&files, "dev/antonellof/index.html").contains("antonellof"), "developer pages stay");
     assert!(body(&files, "engines/frink/index.html").contains("by antonellof"), "engine pages keep their author line");
 }
+
+#[test]
+fn no_page_has_a_copy_link_control() {
+    let files = generated();
+    for (page, text) in html(&files) {
+        assert!(!text.contains("Copy link") && !text.contains("urlbar"), "{page:?} has a copy-link box");
+        for value in text.split("data-copy=\"").skip(1).map(|rest| rest.split('"').next().unwrap_or_default()) {
+            assert!(value.starts_with("[![Kalsa reviewed"), "{page:?} copies something other than the README badge: {value}");
+        }
+    }
+    assert!(!body(&files, "static/site.js").contains("urlbar"));
+}
