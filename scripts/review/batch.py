@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from .verdict import BUDGET_VERDICT
+from .verdict import SKIP_REASONS
 
 
 def latest_report(reports: dict, engine_id: str) -> tuple[str, dict] | None:
-    # A budget skip is not a review: ignore it so the fork is retried next week.
+    # A budget or time skip is not a review: ignore it so the fork is retried.
     matches = [
         (commit, report) for (identifier, commit), report in reports.items()
-        if identifier == engine_id and report.get("verdict") != BUDGET_VERDICT
+        if identifier == engine_id and report.get("verdict") not in SKIP_REASONS
     ]
     return max(matches, key=lambda item: str(item[1].get("created_at", ""))) if matches else None
 

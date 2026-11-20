@@ -128,7 +128,9 @@ def test_weekly_writes_markdown_and_json(tmp_path, monkeypatch, capsys):
     weekly.main()
     captured = capsys.readouterr()
     assert SECRET_A not in captured.err and SECRET_B not in captured.err
-    assert len([line for line in captured.err.splitlines() if line.strip()]) == 1
+    lines = [line for line in captured.err.splitlines() if line.strip()]
+    assert lines[0] == "started aaa"
+    assert len(lines) == 2, "one started line plus one progress line per fork"
     assert "A=" in captured.err and "tokens=" in captured.err
     data = json.loads((out / "weekly-results.json").read_text())
     assert data["records"][0]["id"] == "aaa"

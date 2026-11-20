@@ -16,18 +16,18 @@ def row(quoted, verdict="harmless", reason="ordinary code"):
 
 
 def test_prompt_v3_asks_for_one_whole_line():
-    assert '"results"' in prompt.READER_PROMPT_V3
-    assert "whole line" in prompt.READER_PROMPT_V3
-    assert "best supports" in prompt.READER_PROMPT_V3
-    assert "8" in prompt.READER_PROMPT_V3
+    assert '"results"' in prompt.READER_PROMPT_V4
+    assert "whole line" in prompt.READER_PROMPT_V4
+    assert "best supports" in prompt.READER_PROMPT_V4
+    assert "8" in prompt.READER_PROMPT_V4
     assert not hasattr(prompt, "READER_PROMPT_V2"), "the bumped prompt must not leave dead code"
 
 
 def test_request_and_report_use_v3():
-    request = client.build_request(prompt.READER_PROMPT_V3, [BLOCK], [], [], "DELIM")
+    request = client.build_request(prompt.READER_PROMPT_V4, [BLOCK], [], [], "DELIM")
     assert "whole line" in request["messages"][0]["content"]
     annotated = report.annotate({"blocks": []}, [], [], {})
-    assert annotated["prompt_version"] == prompt.READER_PROMPT_V3
+    assert annotated["prompt_version"] == prompt.READER_PROMPT_V4
 
 
 def test_judge_names_each_refusing_rule():

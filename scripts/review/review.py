@@ -12,7 +12,7 @@ from pathlib import Path
 
 from . import catalog, dependencies, diff, fetch, github, localdiff, scanners
 from .findings import count, group, path_findings
-from .verdict import BUDGET_VERDICT, assert_not_hollow, reader_pass, verdict_for
+from .verdict import SKIP_REASONS, TIME_VERDICT, assert_not_hollow, reader_pass, verdict_for
 from . import apply as review_apply
 from .tools import OSV_VERSION, SEMGREP_VERSION
 ROOT = Path(__file__).resolve().parents[2]; REVIEWS = catalog.REVIEWS
@@ -268,8 +268,15 @@ def final_payload(
     }
 
 
+def prepare_repo(root: Path) -> tuple[Path, dict]:
+    bare = root / "repo.git"
+    env = localdiff.git_env(root / "home")
+    localdiff.init(bare)
+    return bare, env
+
+
 def scan(engine_id: str, max_files: int, max_lines: int, base_override: str = "",
-         head_override: str = "", budget=None) -> None:
+         head_override: str = "", budget=None, deadline=None) -> None:
     engine, reason = catalog.resolve(catalog.load(), engine_id)
     if reason:
         print(f"skip {engine_id}: {reason}")
@@ -278,9 +285,7 @@ def scan(engine_id: str, max_files: int, max_lines: int, base_override: str = ""
     report, fork_sha, upstream_sha = scan_inputs(engine, engine_id, head_override)
     with tempfile.TemporaryDirectory(prefix="kalsa-review-") as tmp:
         root = Path(tmp)
-        bare = root / "repo.git"
-        env = localdiff.git_env(root / "home")
-        localdiff.init(bare)
+        bare, env = prepare_repo(root)
         base = fetch.resolve_base(bare, upstream_sha, fork_sha, base_override, upstream, fork, env)
         if base is None:
             write_gated(engine_id, fork_sha, report, "merge-base unavailable", {}, "*", [])
@@ -297,6 +302,9 @@ def scan(engine_id: str, max_files: int, max_lines: int, base_override: str = ""
             write_gated(engine_id, fork_sha, report, gate[0], gate[1], gate[2], blocks)
             return
         allowed = manifest_allowances(bare, info, fork_sha, upstream_sha, env)
+        if deadline is not None and deadline.expired():
+            write_gated(engine_id, fork_sha, report, SKIP_REASONS[TIME_VERDICT], info["stats"], "*", blocks, TIME_VERDICT)
+            return
         findings, signals, removed_blocks = run_scanners(root, info, fork, upstream, allowed, fork, fork_sha)
         blocks = reader_blocks(blocks, findings, signals)
         try:
@@ -307,13 +315,12 @@ def scan(engine_id: str, max_files: int, max_lines: int, base_override: str = ""
         findings += malware_findings
         checker = localdiff.HistoryChecker(bare, base, upstream_sha, env)
         findings, signals = history_pass(info, findings, signals, checker)
-    report, verdict = reader_pass(blocks, findings, signals, malware_result, report, budget)
-    if verdict == BUDGET_VERDICT:
-        write_gated(engine_id, fork_sha, report, "budget exhausted", info["stats"], "*", blocks, BUDGET_VERDICT)
+    report, verdict = reader_pass(blocks, findings, signals, malware_result, report, budget, deadline)
+    if verdict in SKIP_REASONS:
+        write_gated(engine_id, fork_sha, report, SKIP_REASONS[verdict], info["stats"], "*", blocks, verdict)
         return
-    payload = final_payload(
-        report, verdict, info, blocks, findings, signals, removed_blocks, malware_result, checker,
-    )
+    payload = final_payload(report, verdict, info, blocks, findings, signals,
+                            removed_blocks, malware_result, checker)
     path = write_report(engine_id, fork_sha, payload)
     print(f"{engine_id}: {verdict} ({len(findings)} findings, {len(signals)} signals) -> {path}")
     print(f"{engine_id}: findings digest {json.loads(path.read_text())['findings_digest']}")

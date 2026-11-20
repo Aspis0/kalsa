@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 BUDGET_VERDICT = "not reviewed this week (budget)"
+TIME_VERDICT = "not reviewed this week (time)"
+SKIP_REASONS = {BUDGET_VERDICT: "budget exhausted", TIME_VERDICT: "time exhausted"}
 
 
 def hit_maps(blocks: list[dict], findings: list[dict], signals: list[dict]) -> tuple[dict, dict]:
@@ -50,7 +52,7 @@ def verdict_for(
 def assert_not_hollow(payload: dict) -> None:
     inputs = payload.get("inputs", {})
     if (
-        payload.get("verdict") not in {"dry-run", "too large to review", BUDGET_VERDICT}
+        payload.get("verdict") not in {"dry-run", "too large to review", *SKIP_REASONS}
         and inputs.get("commit") != inputs.get("base_sha")
         and not payload.get("blocks")
         and not payload.get("stats", {}).get("files")
@@ -60,7 +62,7 @@ def assert_not_hollow(payload: dict) -> None:
 
 def reader_pass(
     blocks: list[dict], findings: list[dict], signals: list[dict],
-    malware_result: dict, report: dict, budget=None,
+    malware_result: dict, report: dict, budget=None, deadline=None,
 ) -> tuple[dict, str]:
     """Per-chunk hints, both readers, annotation and the verdict for one scan."""
     from .reader import report as reader_report
@@ -71,10 +73,11 @@ def reader_pass(
     for row in malware_result.get("hits", []):
         malware_by_file.setdefault(row.get("path", ""), []).append(row.get("tool", ""))
     reader_a, reader_b, decisions = reader_runner.run(
-        blocks, hints_by_block, hard_by_block, malware_by_file, budget=budget,
+        blocks, hints_by_block, hard_by_block, malware_by_file, budget=budget, deadline=deadline,
     )
-    if any(row.get("reason") == "budget reached" for row in reader_a + reader_b):
-        return report, BUDGET_VERDICT
+    for reason, verdict in (("budget reached", BUDGET_VERDICT), ("time budget reached", TIME_VERDICT)):
+        if any(row.get("reason") == reason for row in reader_a + reader_b):
+            return report, verdict
     # annotate and verdict_for both read report["blocks"]; without it no reader
     # verdict is attached and the per-chunk coverage check silently passes.
     report = reader_report.annotate({**report, "blocks": blocks}, reader_a, reader_b, decisions)

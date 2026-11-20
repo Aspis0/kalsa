@@ -40,10 +40,10 @@ def fork_with_files(tmp_path, files):
     return first, second, remote
 
 
-def scan_files(tmp_path, monkeypatch, files, budget=None):
+def scan_files(tmp_path, monkeypatch, files, budget=None, deadline=None):
     first, second, remote = fork_with_files(tmp_path, files)
     reviews = scan_fixture(tmp_path, monkeypatch, first, second, remote)
-    review.scan("synthetic", 2000, 200000, first, second, budget=budget)
+    review.scan("synthetic", 2000, 200000, first, second, budget=budget, deadline=deadline)
     return json.loads((reviews / f"synthetic-{second}.json").read_text())
 
 
@@ -64,7 +64,7 @@ def test_weekly_shares_one_budget_and_prints_real_usage(monkeypatch, capsys, tmp
     monkeypatch.setattr(weekly.review, "REVIEWS", reviews)
     seen = []
 
-    def fake_scan(engine_id, max_files, max_lines, base_override="", head_override="", budget=None):
+    def fake_scan(engine_id, max_files, max_lines, base_override="", head_override="", budget=None, deadline=None):
         seen.append(budget)
         budget.spend(400)
         # _batch below uses head == engine_id * 40 for these two single-letter ids.

@@ -52,3 +52,9 @@ def fork_head(repo: str, gh_token: str) -> tuple[str, str]:
 
 def compare_url(upstream: str, base: str, fork: str, sha: str) -> str:
     return f"https://github.com/{upstream}/compare/{base}...{fork.split('/')[0]}:{sha}"
+
+
+def diff_size(repo: str, base: str, head: str, gh_token: str) -> int:
+    """Cheap line-count proxy for batch ordering; the compare API caps its file list."""
+    comparison = api_get(f"/repos/{repo}/compare/{base}...{head}", gh_token)
+    return sum(int(row.get("changes", 0)) for row in comparison.get("files", []))

@@ -73,7 +73,7 @@ def test_runner_rejects_misaligned_verdict_ids(monkeypatch):
         good + [row("c", quoted="return 9999")],
     ]
     for bad in misaligned:
-        monkeypatch.setattr(runner.client, "read", lambda cfg, blocks, hints, precedents, budget=None: bad)
+        monkeypatch.setattr(runner.client, "read", lambda cfg, blocks, hints, precedents, budget=None, deadline=None: bad)
         _, _, decisions = runner.run(BLOCKS, {}, {}, {})
         assert set(decisions) == {"a", "b"}
         assert set(decisions.values()) == {"needs person"}, bad
@@ -81,6 +81,6 @@ def test_runner_rejects_misaligned_verdict_ids(monkeypatch):
 
 def test_runner_matches_verdicts_by_id_when_order_differs(monkeypatch):
     reversed_rows = [row("b", quoted="return 5678"), row("a", quoted="return 1234")]
-    monkeypatch.setattr(runner.client, "read", lambda cfg, blocks, hints, precedents, budget=None: reversed_rows)
+    monkeypatch.setattr(runner.client, "read", lambda cfg, blocks, hints, precedents, budget=None, deadline=None: reversed_rows)
     _, _, decisions = runner.run(BLOCKS, {}, {}, {})
     assert decisions == {"a": "auto-clean", "b": "auto-clean"}

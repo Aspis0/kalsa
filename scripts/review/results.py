@@ -43,11 +43,18 @@ def write_failure(mode: str, error: BaseException) -> None:
         print(frame, file=sys.stderr)
 
 
+def _atomic(path: Path, text: str) -> None:
+    """A cancelled run must never leave a half-written artifact behind."""
+    staging = path.with_name(path.name + ".tmp")
+    staging.write_text(text)
+    os.replace(staging, path)
+
+
 def write(mode: str, summary: str, records: list[dict], totals: dict) -> tuple[Path, Path]:
     out = results_dir()
     out.mkdir(parents=True, exist_ok=True)
     markdown = out / f"{mode}-summary.md"
     payload = out / f"{mode}-results.json"
-    markdown.write_text(summary)
-    payload.write_text(json.dumps({"mode": mode, "totals": totals, "records": records}, indent=2) + "\n")
+    _atomic(markdown, summary)
+    _atomic(payload, json.dumps({"mode": mode, "totals": totals, "records": records}, indent=2) + "\n")
     return markdown, payload

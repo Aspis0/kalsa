@@ -5,9 +5,11 @@ from __future__ import annotations
 import json
 import os
 import secrets
+import threading
 import time
 import urllib.error
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 
 from . import prompt
@@ -37,21 +39,26 @@ CHARS_PER_TOKEN = 4
 DEFAULT_TOKEN_BUDGET = 3_000_000
 # Effort "max" can think for minutes; 60 s cut real reads short.
 REQUEST_TIMEOUT = 300
+# Request groups in flight per reader; both readers run at the same time.
+GROUP_CONCURRENCY = 4
 
 
 @dataclass
 class TokenBudget:
     limit: int = 100_000
     used: int = 0
+    lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
 
     def tokens(self) -> int:
         return self.used // CHARS_PER_TOKEN
 
     def spend(self, amount: int) -> bool:
-        if self.used + amount > self.limit:
-            return False
-        self.used += amount
-        return True
+        # Both readers share one budget from separate threads.
+        with self.lock:
+            if self.used + amount > self.limit:
+                return False
+            self.used += amount
+            return True
 
 
 def budget_from_env() -> TokenBudget:
@@ -245,14 +252,22 @@ def read(
     precedents: list[dict],
     http=None,
     budget: TokenBudget | None = None,
+    deadline=None,
 ) -> list[dict]:
     budget = budget or TokenBudget()
-    results = []
+    pending = []
     for group in chunks(blocks):
+        if deadline is not None and deadline.expired():
+            return [_unsure(row, config, "time budget reached", config.effort) for row in blocks]
         delimiter = "KALSA-" + secrets.token_hex(12)
-        request = build_request(prompt.READER_PROMPT_V3, group, hints, precedents, delimiter)
+        request = build_request(prompt.READER_PROMPT_V4, group, hints, precedents, delimiter)
         # Spend the whole request: prompt, hints, precedents and blocks.
         if not budget.spend(len(request["messages"][0]["content"])):
             return [_unsure(row, config, "budget reached", config.effort) for row in blocks]
-        results.extend(_read_group(config, group, request, http))
-    return results
+        pending.append((group, request))
+    with ThreadPoolExecutor(max_workers=GROUP_CONCURRENCY) as pool:
+        futures = [pool.submit(_read_group, config, group, request, http) for group, request in pending]
+        rows = [row for future in futures for row in future.result()]
+    # Groups finish out of order; the contract is one verdict per id, in block order.
+    by_id = {row.get("id", ""): row for row in rows}
+    return [by_id[block.get("id", "")] for block in blocks]

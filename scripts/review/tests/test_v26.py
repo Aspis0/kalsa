@@ -26,8 +26,8 @@ def results_payload(rows):
 
 
 def test_prompt_asks_for_a_results_object():
-    assert '"results"' in prompt.READER_PROMPT_V3
-    request = client.build_request(prompt.READER_PROMPT_V3, BLOCKS, [], [], "DELIM")
+    assert '"results"' in prompt.READER_PROMPT_V4
+    request = client.build_request(prompt.READER_PROMPT_V4, BLOCKS, [], [], "DELIM")
     assert request["response_format"] == {"type": "json_object"}
     assert '"results"' in request["messages"][0]["content"]
 

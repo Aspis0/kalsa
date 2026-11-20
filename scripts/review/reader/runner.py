@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from concurrent.futures import ThreadPoolExecutor
 
 from .. import decide, injection
 from . import client, config
@@ -22,12 +23,20 @@ def run(
     malware_hits: dict[str, list[str]],
     precedents: list[dict] | None = None,
     budget: client.TokenBudget | None = None,
+    deadline=None,
 ) -> tuple[list[dict], list[dict], dict]:
     precedents = precedents or config.load_precedents()
     configs = [client.from_env(prefix) for prefix in PREFIXES]
     if not all(configs):
         return [], [], {}
-    verdicts = [client.read(cfg, blocks, hints.get("all", []), precedents, budget=budget) for cfg in configs]
+    # The two readers are independent; only the shared budget needs a lock.
+    with ThreadPoolExecutor(max_workers=len(configs)) as pool:
+        futures = [
+            pool.submit(client.read, cfg, blocks, hints.get("all", []), precedents,
+                        budget=budget, deadline=deadline)
+            for cfg in configs
+        ]
+        verdicts = [future.result() for future in futures]
     if not _one_to_one(blocks, verdicts):
         return verdicts[0], verdicts[1], {block.get("id", ""): "needs person" for block in blocks}
     by_a = {row.get("id", ""): row for row in verdicts[0]}
