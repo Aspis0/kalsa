@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import os
+import sys
+import traceback
 from pathlib import Path
 
 
@@ -23,11 +25,22 @@ def redact(text: str) -> str:
     return text
 
 
+def frames(error: BaseException) -> list[str]:
+    """Location only: file:line in function. No locals, no source line, no message."""
+    return [
+        f"{frame.filename}:{frame.lineno} in {frame.name}"
+        for frame in traceback.extract_tb(error.__traceback__)
+    ]
+
+
 def write_failure(mode: str, error: BaseException) -> None:
-    """A run that died early still leaves an artifact saying why, with no secrets."""
+    """A run that died early still leaves an artifact saying why and where, no secrets."""
     detail = redact(str(error))
-    record = {"error": type(error).__name__, "detail": detail}
+    location = [redact(frame) for frame in frames(error)]
+    record = {"error": type(error).__name__, "detail": detail, "frames": location}
     write(mode, f"# {mode} run failed\n\n{record['error']}: {detail}\n", [record], {"failed": 1})
+    for frame in location:
+        print(frame, file=sys.stderr)
 
 
 def write(mode: str, summary: str, records: list[dict], totals: dict) -> tuple[Path, Path]:

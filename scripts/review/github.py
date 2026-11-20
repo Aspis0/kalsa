@@ -2,19 +2,14 @@
 
 from __future__ import annotations
 
-import io
 import json
 import os
-import shutil
 import subprocess
-import tarfile
 import urllib.parse
 import urllib.request
-from pathlib import Path
 
 API = "https://api.github.com"
 # No git subprocess runs: the tarball has no .git, hooks, submodules or LFS filters.
-import os
 os.environ.setdefault("GIT_CONFIG_NOSYSTEM", "1")
 
 

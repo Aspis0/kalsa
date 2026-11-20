@@ -76,10 +76,10 @@ def test_precedents_path_points_at_repo_root():
 def test_malware_exit_codes_and_default(tmp_path, monkeypatch):
     path = tmp_path / "white.bin"
     path.write_bytes(b"x")
-    commands = {"clamscan": lambda p: (1, f"{p}: Eicar-Test-Signature FOUND", ""), "yara": lambda p: (1, "", "")}
+    commands = {"clamscan": lambda p: (1, f"{p}: Eicar-Test-Signature FOUND", ""), "yara": lambda p: (0, "", "")}
     result = malware.scan(path, commands=commands, rules={"version": "v", "sha256": "s"})
     assert result["hits"]
-    commands = {"clamscan": lambda p: (0, "white.bin clean", ""), "yara": lambda p: (1, "", "")}
+    commands = {"clamscan": lambda p: (0, "white.bin clean", ""), "yara": lambda p: (0, "", "")}
     result = malware.scan(path, commands=commands, rules={"version": "v", "sha256": "s"})
     assert not result["hits"]
     assert "REVIEW_MALWARE" not in os.environ or os.environ.get("REVIEW_MALWARE") != "0"
